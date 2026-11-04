@@ -1,0 +1,87 @@
+@import url("https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&display=swap");
+@import "tailwindcss";
+
+/* Palette and type follow Ghassan's portfolio site. */
+@theme {
+  --font-sans: "Funnel Display", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #030412;
+  --color-midnight: #06091f;
+  --color-navy: #161a31;
+  --color-indigo: #1f1e39;
+  --color-storm: #282b4b;
+  --color-aqua: #33c2cc;
+  --color-mint: #57db96;
+  --color-royal: #5c33cc;
+  --color-lavender: #7a57db;
+  --color-fuchsia: #ca2f8c;
+  --color-orange: #cc6033;
+  --color-sand: #d6995c;
+  --color-coral: #ea4884;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-primary text-white antialiased;
+  font-family: var(--font-sans);
+}
+
+@utility c-space {
+  @apply px-5 sm:px-10;
+}
+
+@utility card {
+  @apply rounded-2xl bg-gradient-to-b from-storm to-indigo p-5 ring-1 ring-white/5;
+}
+
+@utility card-special {
+  @apply rounded-2xl bg-gradient-to-b from-royal to-lavender p-5;
+}
+
+@utility card-link {
+  @apply card block transition duration-200 hover:-translate-y-1 hover:ring-white/15;
+}
+
+@utility text-heading {
+  @apply text-3xl font-bold md:text-4xl;
+}
+
+@utility subtext {
+  @apply text-sm text-pretty text-neutral-400 md:text-base;
+}
+
+@utility eyebrow {
+  @apply text-xs font-medium tracking-wider text-neutral-400 uppercase;
+}
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-gradient-to-r from-royal to-lavender text-white hover:brightness-110;
+}
+
+@utility btn-ghost {
+  @apply btn bg-white/5 text-neutral-200 ring-1 ring-white/10 hover:bg-white/10;
+}
+
+@utility field-label {
+  @apply text-sm font-medium text-neutral-300;
+}
+
+@utility field-input {
+  @apply mt-2 min-h-10 w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 text-sm text-white placeholder-neutral-500 transition duration-200 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none;
+}
+
+select option,
+select optgroup {
+  background: var(--color-navy);
+  color: white;
+}
+
+@utility chip {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1;
+}
