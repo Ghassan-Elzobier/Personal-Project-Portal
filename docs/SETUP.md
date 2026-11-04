@@ -87,6 +87,24 @@ calendar through Asana's own sync, so your phone shows the whole day.
 6. Run `supabase db push` again for the Google migration, deploy, open
    **Schedule** and click **Connect Google Calendar**.
 
+### Google sign-in
+
+The same OAuth client also signs you and your mentors in with Google.
+
+1. In the OAuth client from step 4, add one more authorised redirect URI:
+   `https://<project-ref>.supabase.co/auth/v1/callback` (Supabase shows it
+   under Authentication, then Sign In / Providers, then Google).
+2. In Supabase, open that Google provider, turn it on, and paste the same
+   client id and secret. With the CLI, `supabase config push` does it from
+   `supabase/config.toml` when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+   are set in your shell.
+3. Set `GOOGLE_SIGN_IN=on` in Vercel and redeploy.
+
+Sign-ups stay off, so a Google account only gets in if its email was invited
+first. Invite mentors by the Gmail address they will sign in with. Email links
+still work for anyone without Google. Sign-in asks Google only for name and
+email; calendar access is the separate Connect button, for you alone.
+
 To see Asana work in Google Calendar too: in Asana, open My Tasks, then the
 dropdown by the title, then Sync to calendar, and add the link in Google
 Calendar under Other calendars, then From URL. Google refreshes it every few

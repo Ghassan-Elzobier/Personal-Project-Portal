@@ -14,7 +14,7 @@ and weekly routine faster and gives my mentors a clean read-only view.
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
 | People (`/people`) | Me | Add mentors and choose which projects each one sees. |
 
-Mentors sign in with a magic link, so they don't need Asana seats.
+Everyone signs in with Google or an email link (invited accounts only), so mentors don't need Asana seats.
 
 ## How it fits together
 
