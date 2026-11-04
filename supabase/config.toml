@@ -36,7 +36,9 @@ enable_refresh_token_rotation = true
 enable_signup = false
 
 [auth.email]
-enable_signup = false
+# This switch is the whole email provider, not just sign-ups: false also turns
+# off email links. Sign-ups stay blocked by [auth] enable_signup above.
+enable_signup = true
 enable_confirmations = false
 otp_length = 6
 otp_expiry = 3600

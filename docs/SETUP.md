@@ -1,10 +1,15 @@
 # Setting up the portal
 
-You need three accounts: your personal Asana, a Supabase project, and Vercel.
+You need a Supabase project and a Vercel account. Tasks live in Supabase by
+default, so Asana is optional: section 1 applies only with `TASK_BACKEND=asana`.
 Nothing secret goes in the repo. Every value below goes in `.env.local` for
 local work and in Vercel's environment variables for the live site.
 
-## 1. Asana (personal workspace only)
+## 1. Asana (optional, personal workspace only)
+
+Skip this section to keep tasks in Supabase. To use Asana, set
+`TASK_BACKEND=asana` and follow these steps. The Tasks page is then hidden, and
+existing tasks are not copied across.
 
 1. Sign in to your **personal** Asana account, not the work one.
 2. Create a personal access token: profile picture, then My settings, then
