@@ -1,10 +1,30 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { safeNext } from "@/lib/safe-next";
 import { siteOrigin } from "@/lib/site";
 import { createClient, supabaseConfigured } from "@/lib/supabase/server";
 
 export type LoginState = { sent?: string; error?: string };
+
+/** Starts Google sign-in through Supabase Auth. Only basic profile scopes. */
+export async function signInWithGoogle(formData: FormData): Promise<void> {
+  if (!supabaseConfigured()) redirect("/login");
+  const next = safeNext(formData.get("next"));
+  const callback = new URL("/auth/callback", await siteOrigin());
+  if (next !== "/") callback.searchParams.set("next", next);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: callback.toString(), queryParams: { prompt: "select_account" } },
+  });
+  if (error || !data.url) {
+    console.error("signInWithOAuth failed", error?.message);
+    redirect("/login?error=google");
+  }
+  redirect(data.url);
+}
 
 export async function sendMagicLink(_prev: LoginState, formData: FormData): Promise<LoginState> {
   if (!supabaseConfigured()) return { error: "Supabase is not configured yet. See docs/SETUP.md." };

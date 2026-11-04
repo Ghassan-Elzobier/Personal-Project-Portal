@@ -40,3 +40,12 @@ enable_signup = false
 enable_confirmations = false
 otp_length = 6
 otp_expiry = 3600
+
+# Google sign-in. Uses the same Google Cloud OAuth client as the calendar
+# connection; see docs/SETUP.md. Sign-ups stay off, so only invited accounts
+# can sign in, and Supabase links the Google identity to the invited email.
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
