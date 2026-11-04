@@ -41,6 +41,11 @@ export type AsanaTask = {
   completed: boolean;
   completed_at: string | null;
   due_on: string | null;
+  due_at: string | null;
+  start_on: string | null;
+  start_at: string | null;
+  /** "default_task", "milestone" or "approval". */
+  resource_subtype: string;
   modified_at: string;
   permalink_url: string;
   custom_fields: AsanaField[];
@@ -62,6 +67,10 @@ const TASK_FIELDS = [
   "completed",
   "completed_at",
   "due_on",
+  "due_at",
+  "start_on",
+  "start_at",
+  "resource_subtype",
   "modified_at",
   "permalink_url",
   "memberships.project.gid",
@@ -191,7 +200,14 @@ export async function getTask(gid: string): Promise<AsanaTask> {
 
 export async function updateTask(
   gid: string,
-  changes: { custom_fields?: Record<string, string | number | null>; completed?: boolean },
+  changes: {
+    custom_fields?: Record<string, string | number | null>;
+    completed?: boolean;
+    start_at?: string | null;
+    due_at?: string | null;
+    start_on?: string | null;
+    due_on?: string | null;
+  },
 ): Promise<void> {
   await request(`/tasks/${gid}`, { method: "PUT", body: changes });
 }

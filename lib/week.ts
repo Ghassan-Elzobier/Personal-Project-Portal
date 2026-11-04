@@ -32,12 +32,42 @@ function offsetMs(instant: Date, timeZone: string): number {
 
 /** The instant midnight starts on this date in the time zone. */
 export function midnightIn(date: string, timeZone: string): Date {
+  return zonedInstant(date, 0, timeZone);
+}
+
+/** The instant a wall-clock time (minutes after midnight) happens on a date in the zone. */
+export function zonedInstant(date: string, minutes: number, timeZone: string): Date {
   const [y, m, d] = date.split("-").map(Number);
-  const guess = Date.UTC(y, m - 1, d);
+  const guess = Date.UTC(y, m - 1, d, 0, minutes);
   let result = guess - offsetMs(new Date(guess), timeZone);
-  // A second pass settles dates where the offset changes near midnight.
+  // A second pass settles times where the offset changes in between.
   result = guess - offsetMs(new Date(result), timeZone);
   return new Date(result);
+}
+
+/** The zone's calendar date and minutes after midnight at this instant. */
+export function zonedParts(instant: Date, timeZone: string): { date: string; minutes: number } {
+  const local = new Date(instant.getTime() + offsetMs(instant, timeZone));
+  return {
+    date: local.toISOString().slice(0, 10),
+    minutes: local.getUTCHours() * 60 + local.getUTCMinutes(),
+  };
+}
+
+/** "09:30" from minutes after midnight. */
+export function clock(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Minutes after midnight from "09:30", or null. */
+export function parseClock(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  return h < 24 && m < 60 ? h * 60 + m : null;
 }
 
 export function addDays(date: string, days: number): string {

@@ -6,7 +6,9 @@ and weekly routine faster and gives my mentors a clean read-only view.
 
 | Page | Who | What it does |
 | --- | --- | --- |
-| Today (`/`) | Me | Needs attention, plus what is overdue, due today or in progress, each with a one-click "Log session". |
+| Today (`/`) | Me | Needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
+| Schedule (`/schedule`) | Me | Week planner. Drag Asana tasks into time slots (writes start and due times to Asana). Add lunch, gym and other life blocks, which go to Google Calendar only. |
+| Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
 | Log a session (`/log`) | Me | Adds hours to the task's Hours field, sets Stage and Evidence, and posts a session comment. Stage Done completes the task. |
 | Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it to Asana. |
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
@@ -24,6 +26,9 @@ Mentors sign in with a magic link, so they don't need Asana seats.
   `server-only`). The token is an environment variable and never reaches the
   browser. Every project is checked against the personal workspace gid before
   it is read or written.
+- **Google Calendar API** for life blocks, connected once with OAuth. The
+  refresh token is AES-256-GCM encrypted with `GOOGLE_TOKEN_KEY` before it is
+  stored.
 - Tools are listed once in `lib/tools.ts`; projects in `lib/projects.ts`.
 
 Setup: [docs/SETUP.md](docs/SETUP.md).

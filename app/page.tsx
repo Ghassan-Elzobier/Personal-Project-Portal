@@ -4,8 +4,10 @@ import { listStatusUpdates, listTasks } from "@/lib/asana";
 import { configProblems, projectGid } from "@/lib/env";
 import { attempt, bucketForToday, latestStatus, openTasks, thisWeek, today, toView, type TaskView } from "@/lib/portal-data";
 import { PROJECTS, projectDef, type ProjectKey } from "@/lib/projects";
+import { loadScheduleWeek, type Block } from "@/lib/schedule";
 import { toolsFor } from "@/lib/tools";
-import { shortDate, weekdayIndex } from "@/lib/week";
+import { timeZone } from "@/lib/env";
+import { clock, shortDate, weekdayIndex, zonedParts } from "@/lib/week";
 import { DueDate, Empty, ErrorNote, Hours, PageHeader, SectionTitle, StagePill, StatusPill } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,10 @@ async function OwnerHome() {
       return { key: p.key, open, posted, doneThisWeek };
     }),
   );
+
+  const schedule = await attempt(() => loadScheduleWeek(week));
+  const agenda = schedule.ok ? schedule.value.blocks.filter((b) => b.date === date) : [];
+  const nowMinutes = zonedParts(new Date(), timeZone()).minutes;
 
   const open = perProject.flatMap((p) => (p.open.ok ? p.open.value : []));
   const buckets = bucketForToday(open, date);
@@ -77,6 +83,10 @@ async function OwnerHome() {
     }
   }
 
+  if (schedule.ok && !agenda.some((b) => b.source === "asana") && weekdayIndex(date) < 5 && configured.length) {
+    attention.push({ text: "No study time planned today. Drag a task into a slot.", href: "/schedule", tone: "aqua" });
+  }
+
   const focus = [...buckets.overdue, ...buckets.dueToday, ...buckets.inProgress];
   const projectsPosted = perProject.filter((p) => p.posted.ok && p.posted.value).length;
   const statusLine: Record<string, string> = {
@@ -84,6 +94,8 @@ async function OwnerHome() {
     week: `${projectsPosted} of ${configured.length} posted for the week of ${shortDate(week.start)}.`,
     progress: `${configured.length} ${configured.length === 1 ? "project" : "projects"} shared with mentors.`,
     people: "Invite mentors and choose what each one sees.",
+    schedule: `${agenda.length} ${agenda.length === 1 ? "block" : "blocks"} today${schedule.ok && schedule.value.unscheduled.length ? `, ${schedule.value.unscheduled.length} tasks to plan` : ""}.`,
+    timeline: "Phases and milestones across all projects.",
   };
   const heading = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -114,6 +126,17 @@ async function OwnerHome() {
       </section>
 
       <section>
+        <SectionTitle action={<Link href="/schedule" className="text-sm text-neutral-400 hover:text-white">Open schedule</Link>}>
+          Today&apos;s plan
+        </SectionTitle>
+        {agenda.length ? (
+          <Agenda blocks={agenda} nowMinutes={nowMinutes} />
+        ) : (
+          <Empty>Nothing on the schedule today. Plan your sessions on the Schedule page.</Empty>
+        )}
+      </section>
+
+      <section>
         <SectionTitle
           action={
             <Link href="/log" className="btn-primary">
@@ -138,7 +161,7 @@ async function OwnerHome() {
 
       <section>
         <SectionTitle>Tools</SectionTitle>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {toolsFor("owner")
             .filter((t) => t.key !== "today")
             .map((tool) => (
@@ -153,6 +176,41 @@ async function OwnerHome() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function Agenda({ blocks, nowMinutes }: { blocks: Block[]; nowMinutes: number }) {
+  return (
+    <ol className="card divide-y divide-white/5 p-0">
+      {blocks.map((b) => {
+        const past = b.end <= nowMinutes;
+        const current = b.start <= nowMinutes && nowMinutes < b.end;
+        const gid = b.id.split(":")[0];
+        return (
+          <li key={b.id} className={`flex items-center gap-4 px-5 py-3 ${current ? "bg-lavender/10" : ""}`}>
+            <span className={`w-24 shrink-0 text-sm tabular-nums ${past ? "text-neutral-500" : "text-neutral-300"}`}>
+              {clock(b.start)}–{clock(b.end)}
+            </span>
+            <span
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${b.source === "asana" ? "bg-lavender" : b.kind ? "bg-mint" : "bg-neutral-500"}`}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1">
+              <span className={`block truncate text-sm ${past ? "text-neutral-400" : ""} ${b.completed ? "line-through" : ""}`}>
+                {b.title}
+              </span>
+              {b.project && <span className="text-xs text-neutral-500">{b.project}</span>}
+            </span>
+            {current && <span className="chip bg-lavender/20 text-lavender ring-lavender/40">Now</span>}
+            {b.source === "asana" && !b.completed && (past || current) && (
+              <Link href={`/log?task=${gid}`} className="btn-ghost px-3 py-1 text-xs">
+                Log session
+              </Link>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

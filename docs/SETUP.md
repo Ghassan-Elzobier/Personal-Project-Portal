@@ -61,7 +61,41 @@ invite can get a link.
 
 Database tests (pgTAP) run with `supabase test db`.
 
-## 3. Vercel
+## 3. Google Calendar (life blocks)
+
+Lunch, cooking, cleaning, gym and rest live in Google Calendar, never in
+Asana, so mentors never see them. Your timed Asana work reaches the same
+calendar through Asana's own sync, so your phone shows the whole day.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a
+   project (for example "personal-portal") with your personal Google account.
+2. APIs and Services, then Library: enable the **Google Calendar API**.
+3. OAuth consent screen: User type External, add your Gmail as a test user,
+   and add the scope `.../auth/calendar.events`. Leaving the app in "Testing"
+   is fine for one user, but Google then expires the connection after 7 days;
+   click **Publish app** to keep it. Google then shows an "unverified app"
+   warning when you connect, which you can click through; verification is only
+   needed for apps used by other people.
+4. Credentials, then Create credentials, then OAuth client ID, type Web
+   application. Authorised redirect URIs:
+   `https://<your-domain>/api/google/callback` and
+   `http://localhost:3000/api/google/callback`.
+5. Put the client id and secret in `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`, and a fresh key in `GOOGLE_TOKEN_KEY`
+   (`openssl rand -base64 32`). Optionally set `GOOGLE_CALENDAR_ID` to a
+   dedicated "Life" calendar's id (Calendar settings, Integrate calendar).
+6. Run `supabase db push` again for the Google migration, deploy, open
+   **Schedule** and click **Connect Google Calendar**.
+
+To see Asana work in Google Calendar too: in Asana, open My Tasks, then the
+dropdown by the title, then Sync to calendar, and add the link in Google
+Calendar under Other calendars, then From URL. Google refreshes it every few
+hours. The portal's schedule always shows the live Asana times.
+
+How scheduling works: dragging a task onto the week sets its start and due
+time in Asana. Remove time puts it back to a plain due date on that day.
+
+## 4. Vercel
 
 1. Import the GitHub repo in Vercel. The defaults for Next.js are right.
 2. Add every variable from `.env.example` under Settings, then Environment

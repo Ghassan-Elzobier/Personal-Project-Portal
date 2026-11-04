@@ -37,6 +37,10 @@ export type TaskView = {
   completed: boolean;
   completedAt: string | null;
   dueOn: string | null;
+  dueAt: string | null;
+  startOn: string | null;
+  startAt: string | null;
+  milestone: boolean;
   url: string;
   stage: string | null;
   phase: string | null;
@@ -58,7 +62,11 @@ export function toView(task: AsanaTask, project: ProjectKey): TaskView {
     section: membership?.section?.name ?? null,
     completed: task.completed,
     completedAt: task.completed_at,
-    dueOn: task.due_on,
+    dueOn: task.due_on ?? (task.due_at ? dateIn(new Date(task.due_at), timeZone()) : null),
+    dueAt: task.due_at ?? null,
+    startOn: task.start_on ?? (task.start_at ? dateIn(new Date(task.start_at), timeZone()) : null),
+    startAt: task.start_at ?? null,
+    milestone: task.resource_subtype === "milestone",
     url: task.permalink_url,
     stage: stage?.enum_value?.name ?? null,
     phase: field(task, "Phase")?.display_value ?? null,

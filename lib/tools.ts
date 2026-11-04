@@ -4,7 +4,7 @@
 export type Role = "owner" | "mentor";
 
 export type Tool = {
-  key: "today" | "log" | "week" | "progress" | "people";
+  key: "today" | "schedule" | "log" | "week" | "timeline" | "progress" | "people";
   title: string;
   href: string;
   description: string;
@@ -20,6 +20,13 @@ export const TOOLS: readonly Tool[] = [
     roles: ["owner"],
   },
   {
+    key: "schedule",
+    title: "Schedule",
+    href: "/schedule",
+    description: "Plan the week: Asana tasks into time slots, plus lunch, gym and the rest.",
+    roles: ["owner"],
+  },
+  {
     key: "log",
     title: "Log a session",
     href: "/log",
@@ -32,6 +39,13 @@ export const TOOLS: readonly Tool[] = [
     href: "/week",
     description: "Drafts each project's status update from the week's sessions.",
     roles: ["owner"],
+  },
+  {
+    key: "timeline",
+    title: "Timeline",
+    href: "/timeline",
+    description: "Dated tasks and milestones across every project, from Asana.",
+    roles: ["owner", "mentor"],
   },
   {
     key: "progress",
