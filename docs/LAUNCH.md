@@ -36,10 +36,10 @@ Claude connector working. The details for each step are in
       `npx supabase projects create personal-project-portal`. Ask for the
       region (closest to London) and the plan (Free).
 - [ ] `npx supabase link --project-ref <ref>`, then `npx supabase db push`.
-      It should apply three migrations: portal access, Google Calendar and
-      Claude connector.
+      It should apply four migrations: portal access, Google Calendar,
+      Claude connector and native tasks.
 - [ ] `npx supabase config push` applies sign-ups off and the auth settings.
-- [ ] If Docker is running, `npx supabase test db`. 39 pgTAP checks should pass.
+- [ ] If Docker is running, `npx supabase test db`. 65 pgTAP checks should pass.
 - [ ] Copy the project URL and anon key into `.env.local`
       (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 - [ ] Ghassan invites his own email under Authentication, then Users, then
@@ -50,6 +50,10 @@ Claude connector working. The details for each step are in
       owner row.
 
 ## 2. Asana (SETUP.md section 1)
+
+Skip this step unless Ghassan wants `TASK_BACKEND=asana`. By default tasks live
+in Supabase, on the portal's Tasks page, and no Asana values are needed. Later
+steps that mention Asana then apply to the Tasks page instead.
 
 - [ ] Ghassan creates a personal access token in his **personal** Asana and
       pastes it into `.env.local` himself as `ASANA_TOKEN`. Don't echo it back.

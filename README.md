@@ -1,21 +1,23 @@
 # Personal Project Portal
 
-A small portal over my personal Asana for studying PMPP and Axler and for my
-rendering projects. Asana stays the source of truth; the portal makes the daily
-and weekly routine faster and gives my mentors a clean read-only view.
+A small portal for studying PMPP and Axler and for my rendering projects. It
+makes the daily and weekly routine faster and gives my mentors a clean read-only
+view. Tasks live in Supabase by default, and the same pages can run on Asana with
+`TASK_BACKEND=asana`.
 
 | Page | Who | What it does |
 | --- | --- | --- |
 | Today (`/`) | Me | Needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
-| Schedule (`/schedule`) | Me | Week planner. Drag Asana tasks into time slots (writes start and due times to Asana). Add lunch, gym and other life blocks, which go to Google Calendar only. |
+| Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
+| Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times). Add lunch, gym and other life blocks, which go to Google Calendar only. |
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
 | Log a session (`/log`) | Me | Adds hours to the task's Hours field, sets Stage and Evidence, and posts a session comment. Stage Done completes the task. |
-| Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it to Asana. |
+| Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it. |
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
 | People (`/people`) | Me | Add mentors and choose which projects each one sees. |
 | Claude (`/claude`) | Me | Connect the Claude app, then plan, schedule and log by asking Claude. |
 
-Everyone signs in with Google or an email link (invited accounts only), so mentors don't need Asana seats.
+Everyone signs in with Google or an email link (invited accounts only), so mentors don't need accounts anywhere else.
 
 ## How it fits together
 
@@ -23,7 +25,11 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
 - **Supabase Auth** for sign-in. The database holds access only, in a private
   `portal` schema reached through four RPCs
   (`supabase/migrations/20261104190000_portal_access.sql`).
-- **Asana REST API** from the server only (`lib/asana.ts` imports
+- **Tasks** sit behind `src/lib/tasks/tracker.ts`, which picks a backend. The
+  default, `src/lib/tasks/native.ts`, stores them in the private `portal` schema
+  (`supabase/migrations/20261104220000_native_tasks.sql`) in the same shape as
+  Asana's, so a later move means copying rows. Pages never import a backend.
+- **Asana REST API**, with `TASK_BACKEND=asana`, from the server only (`src/lib/tasks/asana.ts` imports
   `server-only`). The token is an environment variable and never reaches the
   browser. Every project is checked against the personal workspace gid before
   it is read or written.
@@ -32,9 +38,30 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
   stored.
 - **Claude connector**: an MCP server at `/api/mcp` with OAuth 2.1 and PKCE,
   so the Claude app can use the portal on my subscription. Its tools call the
-  same code as the buttons (`lib/operations.ts`), and only token hashes are
+  same code as the buttons (`src/lib/portal/operations.ts`), and only token hashes are
   stored (`supabase/migrations/20261104210000_claude_connector.sql`).
-- Tools are listed once in `lib/tools.ts`; projects in `lib/projects.ts`.
+- Tools are listed once in `src/lib/config/tools.ts`; projects in `src/lib/config/projects.ts`.
+
+## Layout
+
+```text
+src/
+  app/          Pages, server actions and API routes. Folders match the URLs.
+  components/   UI shared between pages.
+  lib/
+    auth/       Who is signed in and what they may do.
+    calendar/   Google Calendar and life blocks.
+    config/     Environment, projects and the list of tools.
+    connector/  The Claude connector (MCP and OAuth).
+    dates/      Weeks and time zones.
+    portal/     What pages show, and every change the portal makes.
+    supabase/   Supabase clients.
+    tasks/      The task model, both backends and the switch between them.
+supabase/       Migrations, database tests and auth config.
+docs/           Setup and launch guides.
+```
+
+Tests sit next to the code they cover, as `*.test.ts`.
 
 Setup: [docs/SETUP.md](docs/SETUP.md).
 
