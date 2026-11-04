@@ -4,7 +4,7 @@
 export type Role = "owner" | "mentor";
 
 export type Tool = {
-  key: "today" | "schedule" | "log" | "week" | "timeline" | "progress" | "people";
+  key: "today" | "schedule" | "log" | "week" | "timeline" | "progress" | "people" | "claude";
   title: string;
   href: string;
   description: string;
@@ -59,6 +59,13 @@ export const TOOLS: readonly Tool[] = [
     title: "People",
     href: "/people",
     description: "Who can sign in, and which projects each mentor sees.",
+    roles: ["owner"],
+  },
+  {
+    key: "claude",
+    title: "Claude",
+    href: "/claude",
+    description: "Plan, schedule and log by asking Claude, from the Claude app.",
     roles: ["owner"],
   },
 ];

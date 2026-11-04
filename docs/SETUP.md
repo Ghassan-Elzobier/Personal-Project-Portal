@@ -122,6 +122,29 @@ time in Asana. Remove time puts it back to a plain due date on that day.
 3. Deploy, sign in, and check the **Needs attention** list on Today. It names
    any variable that is missing.
 
+## 5. Claude connector (after Vercel)
+
+This lets you plan, schedule and log by asking Claude in the Claude app, on
+your Claude subscription. Claude's servers call the portal, so it needs the
+deployed URL; it can't reach `localhost`.
+
+1. Make sure the Claude connector migration is applied
+   (`supabase db push` applies every file in `supabase/migrations`), and that
+   `NEXT_PUBLIC_SITE_URL` is set in Vercel.
+2. Sign in to the portal and open **Claude** in the nav. Copy the connector URL
+   (`https://<your-site>/api/mcp`).
+3. In Claude (claude.ai), go to Settings, then Connectors, then **Add custom
+   connector**. Name it Portal, paste the URL, and press Connect. Leave the
+   advanced OAuth fields empty.
+4. The portal asks you to allow it. Press **Allow**.
+5. In the GPU programming Claude project, add the line shown on the Claude page
+   to the project instructions.
+
+Only the owner can approve a connection, and only Claude's own callback
+(`claude.ai` / `claude.com`) is accepted as a redirect. Claude asks before
+every change it makes. **Disconnect everything** on the Claude page revokes all
+tokens at once.
+
 ## Local development
 
 ```sh
@@ -131,3 +154,7 @@ npm run dev
 ```
 
 Checks: `npm run lint`, `npm run typecheck`, `npm test`.
+
+To try the connector locally, point an MCP client such as the MCP Inspector at
+`http://localhost:3000/api/mcp`. Under `next dev`, localhost redirect URIs are
+accepted for OAuth; production accepts only Claude's.

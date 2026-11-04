@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { timeZone } from "./env";
 import { isLifeKind, LIFE_KINDS, recurrence, wallClock, type LifeKind, type Repeat } from "./life-blocks";
+import { connectorCaller } from "./connector/context";
 import { createClient } from "./supabase/server";
 import { decryptToken } from "./token-crypto";
 
@@ -93,6 +94,9 @@ export type GoogleConnection = { email: string | null; connectedAt: string };
 
 /** The stored connection, without the token. Null when not connected. */
 export const googleConnection = cache(async (): Promise<(GoogleConnection & { sealed: string }) | null> => {
+  // A Claude connector call has no cookies; its token lookup brought the connection.
+  const caller = connectorCaller();
+  if (caller) return caller.google;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("google_connection");
   if (error) return null;

@@ -13,6 +13,7 @@ and weekly routine faster and gives my mentors a clean read-only view.
 | Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it to Asana. |
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
 | People (`/people`) | Me | Add mentors and choose which projects each one sees. |
+| Claude (`/claude`) | Me | Connect the Claude app, then plan, schedule and log by asking Claude. |
 
 Everyone signs in with Google or an email link (invited accounts only), so mentors don't need Asana seats.
 
@@ -29,6 +30,10 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
 - **Google Calendar API** for life blocks, connected once with OAuth. The
   refresh token is AES-256-GCM encrypted with `GOOGLE_TOKEN_KEY` before it is
   stored.
+- **Claude connector**: an MCP server at `/api/mcp` with OAuth 2.1 and PKCE,
+  so the Claude app can use the portal on my subscription. Its tools call the
+  same code as the buttons (`lib/operations.ts`), and only token hashes are
+  stored (`supabase/migrations/20261104210000_claude_connector.sql`).
 - Tools are listed once in `lib/tools.ts`; projects in `lib/projects.ts`.
 
 Setup: [docs/SETUP.md](docs/SETUP.md).
