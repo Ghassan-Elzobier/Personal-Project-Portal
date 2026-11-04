@@ -37,3 +37,14 @@ test("addDays crosses month ends", () => {
   assert.equal(addDays("2026-11-30", 1), "2026-12-01");
   assert.equal(addDays("2026-11-01", -1), "2026-10-31");
 });
+
+test("zonedInstant and zonedParts round-trip wall-clock times", async () => {
+  const { zonedInstant, zonedParts, clock, parseClock } = await import("./week.ts");
+  const instant = zonedInstant("2026-07-06", 9 * 60 + 30, "Europe/London");
+  assert.equal(instant.toISOString(), "2026-07-06T08:30:00.000Z");
+  assert.deepEqual(zonedParts(instant, "Europe/London"), { date: "2026-07-06", minutes: 570 });
+  assert.deepEqual(zonedParts(new Date("2026-11-04T23:30:00Z"), "Asia/Tokyo"), { date: "2026-11-05", minutes: 510 });
+  assert.equal(clock(570), "09:30");
+  assert.equal(parseClock("9:30"), 570);
+  assert.equal(parseClock("24:00"), null);
+});
