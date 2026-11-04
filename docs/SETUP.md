@@ -1,0 +1,81 @@
+# Setting up the portal
+
+You need three accounts: your personal Asana, a Supabase project, and Vercel.
+Nothing secret goes in the repo. Every value below goes in `.env.local` for
+local work and in Vercel's environment variables for the live site.
+
+## 1. Asana (personal workspace only)
+
+1. Sign in to your **personal** Asana account, not the work one.
+2. Create a personal access token: profile picture, then My settings, then
+   Apps, then Manage developer apps, then Create new token. Put it in
+   `ASANA_TOKEN`. Treat it like a password; anyone with it can act as you in Asana.
+3. Find the workspace gid: open
+   `https://app.asana.com/api/1.0/workspaces` while signed in and copy the
+   `gid` of your personal workspace into `ASANA_WORKSPACE_GID`.
+4. For each project, open it in Asana. The long number in the URL is its gid.
+   Set `ASANA_PROJECT_PMPP`, `ASANA_PROJECT_AXLER`,
+   `ASANA_PROJECT_RENDERING` and `ASANA_PROJECT_WEEKLY_LOG`.
+5. Make sure each project has the custom fields **Stage** (single-select:
+   Not started, In progress, Blocked, Needs review, Done), **Hours** (number)
+   and **Evidence** (text). Phase and Type are shown when present.
+
+The portal checks every project's workspace against `ASANA_WORKSPACE_GID` and
+refuses to read or write any project outside it, so a wrong gid cannot pull in
+work data.
+
+## 2. Supabase
+
+With the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started):
+
+```sh
+supabase login
+supabase projects create personal-project-portal   # or create it in the dashboard
+supabase link --project-ref <ref>
+supabase db push            # applies supabase/migrations
+supabase config push        # applies auth settings from supabase/config.toml
+```
+
+Then in the dashboard:
+
+1. Project Settings, then API: copy the URL and the anon key into
+   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. Authentication, then URL Configuration: set Site URL to your Vercel URL,
+   and add `https://<your-domain>/auth/callback` and
+   `http://localhost:3000/auth/callback` to Redirect URLs.
+3. Authentication, then Users, then Invite user: invite yourself. Accept the
+   email.
+4. SQL editor: make yourself the owner (the only manual SQL step):
+
+   ```sql
+   insert into portal.members (account_id, role, display_name)
+   select id, 'owner', 'Ghassan' from auth.users where email = '<your email>';
+   ```
+
+5. Mentors: invite each one from Authentication, then Users, then add them on
+   the portal's **People** page with the projects they should see. Their names
+   and emails live only in the database.
+
+Sign-ups are off. The sign-in form never creates accounts, so only people you
+invite can get a link.
+
+Database tests (pgTAP) run with `supabase test db`.
+
+## 3. Vercel
+
+1. Import the GitHub repo in Vercel. The defaults for Next.js are right.
+2. Add every variable from `.env.example` under Settings, then Environment
+   Variables. Set `NEXT_PUBLIC_SITE_URL` to the production URL so magic links
+   point at it.
+3. Deploy, sign in, and check the **Needs attention** list on Today. It names
+   any variable that is missing.
+
+## Local development
+
+```sh
+cp .env.example .env.local   # fill it in
+npm install
+npm run dev
+```
+
+Checks: `npm run lint`, `npm run typecheck`, `npm test`.
