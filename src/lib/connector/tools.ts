@@ -7,6 +7,8 @@ import { isProjectKey, PROJECTS, projectDef, type ProjectKey } from "../config/p
 import { loadScheduleWeek, resolveWeek, type Block } from "../portal/schedule";
 import { STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { clock, parseClock, weekdayIndex } from "../dates/week";
+import { METRICS } from "../study/benchmarks";
+import { studyOverview } from "../study/load";
 
 // The portal's tools as Claude sees them through the connector. Reads run
 // freely; every write goes through src/lib/portal/operations.ts, the same code the
@@ -33,6 +35,9 @@ const TASK = { type: "string", pattern: "^\\d+$", description: "Task gid, from g
 const EVENT = { type: "string", description: "Google Calendar event id of a life block, from get_week." };
 const PROJECT = { type: "string", enum: PROJECTS.map((p) => p.key), description: PROJECTS.map((p) => `${p.key} = ${p.title}`).join("; ") };
 
+/** Task links are relative inside the portal. Claude needs the whole address. */
+const fullUrl = (url: string) => (url.startsWith("/") ? `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? ""}${url}` : url);
+
 const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
 const err = (message: string): ToolResult => ({ text: message, isError: true });
 const fromOp = (r: { error?: string }, done: unknown): ToolResult => (r.error ? err(r.error) : ok(done));
@@ -57,7 +62,7 @@ function task(t: TaskView) {
     scheduled: t.startAt && t.dueAt ? { start: t.startAt, end: t.dueAt } : null,
     hours_logged: t.hours,
     milestone: t.milestone || undefined,
-    url: t.url,
+    url: fullUrl(t.url),
   };
 }
 
@@ -198,7 +203,77 @@ export const TOOLS: Tool[] = [
         notes: str(args, "description"),
         milestone: args.milestone === true,
       });
-      return fromOp(r, { created: r.task });
+      return fromOp(r, { created: r.task && { ...r.task, url: fullUrl(r.task.url) } });
+    },
+  },
+  {
+    name: "get_study",
+    title: "Study progress",
+    description:
+      "Progress through each study plan: Linear Algebra Done Right (Axler), Programming Massively Parallel Processors (PMPP) and the Vulkan renderer. Gives what comes next, exercises solved, what is stuck, things due for review, and renderer benchmarks. Read this before helping the owner study.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    async run() {
+      return ok(await studyOverview());
+    },
+  },
+  {
+    name: "mark_exercise",
+    title: "Mark an exercise",
+    description: "Record how an exercise went. Marking one stuck or hint brings it back for review later. Use a null status to clear it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_gid: TASK,
+        number: { type: "integer", minimum: 1, description: "The exercise's number in that section or chapter." },
+        status: { enum: ["solved", "hint", "stuck", "skip", null], description: "solved = on your own; hint = needed help; stuck = could not finish; skip = chose not to do it." },
+      },
+      required: ["task_gid", "number", "status"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    async run(args) {
+      const status = args.status === null ? null : str(args, "status");
+      return fromOp(await ops.setExercise(str(args, "task_gid"), Number(args.number), status as never), { saved: true });
+    },
+  },
+  {
+    name: "rate_review",
+    title: "Rate a review",
+    description: "Record how recalling something went after the owner tried it from memory. got spaces it further out, shaky repeats the gap, missed starts it again tomorrow. review_gid comes from get_study.",
+    inputSchema: {
+      type: "object",
+      properties: { review_gid: { type: "string", pattern: "^\\d+$" }, rating: { enum: ["got", "shaky", "missed"] } },
+      required: ["review_gid", "rating"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    async run(args) {
+      return fromOp(await ops.rateReview(str(args, "review_gid"), str(args, "rating")), { saved: true });
+    },
+  },
+  {
+    name: "add_benchmark",
+    title: "Record a renderer result",
+    description: "Record a measured result for the renderer, tied to a commit and GPU. Only results with the same metric, scene and GPU are compared.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        metric: { type: "string", description: `What was measured. Known ones: ${METRICS.map((m) => m.name).join(", ")}.` },
+        value: { type: "number" },
+        unit: { type: "string" },
+        scene: { type: "string" },
+        gpu: { type: "string" },
+        commit: { type: "string", description: "Commit hash, 7 to 40 characters." },
+        notes: { type: "string" },
+      },
+      required: ["metric", "value"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    async run(args) {
+      const r = await ops.addBenchmark({ project: "rendering", metric: str(args, "metric"), value: Number(args.value), unit: str(args, "unit"), scene: str(args, "scene"), gpu: str(args, "gpu"), commit: str(args, "commit"), notes: str(args, "notes") });
+      return fromOp(r, { saved: true });
     },
   },
   {
@@ -318,7 +393,7 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     async run(args) {
       const r = await ops.logSession(str(args, "task_gid"), { hours: args.hours, stage: args.stage, evidence: args.evidence, notes: args.notes });
-      return r.error ? err(r.error) : ok({ logged: r.ok });
+      return r.error ? err(r.error) : ok({ logged: r.ok && { ...r.ok, url: fullUrl(r.ok.url) } });
     },
   },
   {
@@ -382,5 +457,6 @@ export const INSTRUCTIONS = [
   "Call get_today first for the date, time zone and current state. Read get_week before planning, and avoid clashes with existing blocks.",
   "Study work is tasks (create_task) with time slots (schedule_task). Lunch, cooking, cleaning, gym and rest are life blocks in Google Calendar only (add_life_block).",
   "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
+  "For studying, call get_study first. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",
 ].join(" ");

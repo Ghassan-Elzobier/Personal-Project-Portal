@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { asanaToken, asanaWorkspaceGid, projectGid } from "../config/env";
 import { PROJECTS, type ProjectKey } from "../config/projects";
-import { AsanaError, type AsanaStatusUpdate, type AsanaStory, type AsanaTask, type VerifiedProject } from "./model";
+import { AsanaError, type AsanaStatusUpdate, type AsanaStory, type AsanaTask, type SessionComment, type VerifiedProject } from "./model";
 
 // A small Asana REST client. The token never leaves the server: this module
 // imports "server-only", so a client component importing it fails the build.
@@ -194,4 +194,27 @@ export async function createStatusUpdate(
 ): Promise<void> {
   const project = await verifiedProject(key);
   await request("/status_updates", { method: "POST", body: { parent: project.gid, ...update } });
+}
+
+// ---------------------------------------------------------------------------
+// Comments across tasks
+// ---------------------------------------------------------------------------
+
+/** Asana has no bulk read, so this asks each task changed since then. */
+export async function listSessionComments(since: Date, key?: ProjectKey): Promise<SessionComment[]> {
+  const keys = key ? [key] : PROJECTS.filter((p) => projectGid(p.key)).map((p) => p.key);
+  const perProject = await Promise.all(
+    keys.map(async (k) => {
+      const tasks = await listTasks(k, { modifiedSince: since });
+      const perTask = await Promise.all(
+        tasks.map(async (t) =>
+          (await listComments(t.gid))
+            .filter((c) => new Date(c.created_at) >= since)
+            .map((c) => ({ taskGid: t.gid, project: k, text: c.text, createdAt: c.created_at })),
+        ),
+      );
+      return perTask.flat();
+    }),
+  );
+  return perProject.flat();
 }

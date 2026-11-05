@@ -127,6 +127,19 @@ time in Asana. Remove time puts it back to a plain due date on that day.
 3. Deploy, sign in, and check the **Needs attention** list on Today. It names
    any variable that is missing.
 
+The repo's `vercel.json` runs the server in London (`lhr1`), next to the
+Supabase project. Keep them in the same region: pages make several database calls,
+and each one crosses that distance. If your Supabase project is elsewhere, change it.
+
+## Study plans
+
+Open **Study** and load each plan. It adds the book's structure as sections and
+tasks, with steps, exercises and things to recall. Loading again only adds what is
+missing and never changes existing work. To change a plan, edit `src/lib/study`.
+
+Do not add a `loading.tsx` or a `<Suspense>` boundary to a page that saves things
+without testing it repeatedly: see the note in `src/components/link-pending.tsx`.
+
 ## 5. Claude connector (after Vercel)
 
 This lets you plan, schedule and log by asking Claude in the Claude app, on

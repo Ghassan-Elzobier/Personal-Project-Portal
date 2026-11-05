@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LinkPending } from "./link-pending";
 import { formatHours } from "@/lib/tasks/session-log";
 import { shortDate } from "@/lib/dates/week";
 
@@ -86,5 +87,19 @@ export function TextLink({ href, children }: { href: string; children: ReactNode
     <Link href={href} className="text-sm text-neutral-400 transition-colors hover:text-white">
       {children}
     </Link>
+  );
+}
+
+/** A task's link: same tab inside the portal, new tab when it points to Asana. */
+export function TaskLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
+  return href.startsWith("/") ? (
+    <Link href={href} scroll={false} className={className}>
+      {children}
+      <LinkPending />
+    </Link>
+  ) : (
+    <a href={href} target="_blank" rel="noreferrer" className={className}>
+      {children}
+    </a>
   );
 }

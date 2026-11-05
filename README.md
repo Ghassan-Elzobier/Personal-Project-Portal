@@ -8,6 +8,7 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | Page | Who | What it does |
 | --- | --- | --- |
 | Today (`/`) | Me | Needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
+| Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
 | Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
 | Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times). Add lunch, gym and other life blocks, which go to Google Calendar only. |
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
@@ -42,6 +43,14 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
   stored (`supabase/migrations/20261104210000_claude_connector.sql`).
 - Tools are listed once in `src/lib/config/tools.ts`; projects in `src/lib/config/projects.ts`.
 
+## How studying works
+
+Each book and the renderer is a plan in `src/lib/study`, loaded from the Study page. Loading again only adds what is missing, so your edits and progress are safe.
+
+- **Books track practice, not pages.** Rereading feels productive but does little: self-testing and spaced practice have the strongest evidence (Dunlosky et al., 2013). So each unit has steps built around recalling and doing, every exercise is tracked individually, and key results come back on a widening schedule. The exact gaps are a sensible default, not a proven formula.
+- **The renderer tracks results, not just tasks.** Each milestone has a definition of done and benchmarks tied to a commit. Only results with the same metric, scene and GPU are compared.
+- **They connect.** A milestone lists the chapters it builds on, and a chapter shows what it feeds into.
+
 ## Layout
 
 ```text
@@ -55,6 +64,7 @@ src/
     connector/  The Claude connector (MCP and OAuth).
     dates/      Weeks and time zones.
     portal/     What pages show, and every change the portal makes.
+    study/      The study plans for each book and the renderer, reviews and results.
     supabase/   Supabase clients.
     tasks/      The task model, both backends and the switch between them.
 supabase/       Migrations, database tests and auth config.

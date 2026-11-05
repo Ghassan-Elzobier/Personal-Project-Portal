@@ -2,13 +2,14 @@ import "server-only";
 import {
   AsanaError,
   field,
-  listComments,
+  listSessionComments,
   listStatusUpdates,
   listTasks,
   type AsanaStatusUpdate,
   type AsanaTask,
 } from "../tasks/tracker";
-import { projectGid, timeZone, weeklyHoursTarget } from "../config/env";
+import { projectGid, timeZone, usesAsana, weeklyHoursTarget } from "../config/env";
+import { studySnapshot } from "../tasks/native";
 import { projectDef, type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
@@ -34,6 +35,10 @@ export type TaskView = {
   name: string;
   project: ProjectKey;
   section: string | null;
+  sectionGid: string | null;
+  notes: string;
+  ref: string | null;
+  exerciseCount: number | null;
   completed: boolean;
   completedAt: string | null;
   dueOn: string | null;
@@ -60,6 +65,10 @@ export function toView(task: AsanaTask, project: ProjectKey): TaskView {
     name: task.name,
     project,
     section: membership?.section?.name ?? null,
+    sectionGid: membership?.section?.gid ?? null,
+    notes: task.notes ?? "",
+    ref: task.ref ?? null,
+    exerciseCount: task.exerciseCount ?? null,
     completed: task.completed,
     completedAt: task.completed_at,
     dueOn: task.due_on ?? (task.due_at ? dateIn(new Date(task.due_at), timeZone()) : null),
@@ -140,10 +149,11 @@ export async function weekSummary(
   week: Week = thisWeek(),
   options: { studyHours?: number } = {},
 ): Promise<WeekSummary> {
-  const [touched, open, updates] = await Promise.all([
+  const [touched, open, updates, comments] = await Promise.all([
     listTasks(key, { modifiedSince: week.startsAt }),
     openTasks(key),
     listStatusUpdates(key, week.startsAt),
+    listSessionComments(week.startsAt, key),
   ]);
 
   const inWeek = (iso: string) => {
@@ -152,15 +162,10 @@ export async function weekSummary(
   };
 
   const hoursByTask = new Map<string, number>();
-  await Promise.all(
-    touched.map(async (task) => {
-      const comments = await listComments(task.gid);
-      const hours = comments
-        .filter((c) => inWeek(c.created_at))
-        .reduce((sum, c) => sum + (sessionHours(c.text) ?? 0), 0);
-      if (hours > 0) hoursByTask.set(task.gid, Math.round(hours * 100) / 100);
-    }),
-  );
+  for (const c of comments.filter((c) => inWeek(c.createdAt))) {
+    const logged = sessionHours(c.text) ?? 0;
+    if (logged > 0) hoursByTask.set(c.taskGid, Math.round(((hoursByTask.get(c.taskGid) ?? 0) + logged) * 100) / 100);
+  }
   const hours = Math.round([...hoursByTask.values()].reduce((a, b) => a + b, 0) * 100) / 100;
 
   const done = touched
@@ -181,6 +186,7 @@ export async function weekSummary(
 
   const target = weeklyHoursTarget();
   const draft = statusDraft({
+    practice: usesAsana() ? null : await weekPractice(key, week, inWeek),
     status: suggestedStatus,
     done: done.map((t) => ({ name: t.name, hours: hoursByTask.get(t.gid) ?? 0, evidence: t.evidence })),
     next: next.map((t) => t.name),
@@ -202,6 +208,19 @@ export async function weekSummary(
     draft,
     suggestedStatus,
   };
+}
+
+/** Exercises solved and things recalled this week, for the status update. */
+async function weekPractice(key: ProjectKey, week: Week, inWeek: (iso: string) => boolean): Promise<string | null> {
+  const [study, tasks] = await Promise.all([studySnapshot(), listTasks(key)]);
+  const gids = new Set(tasks.map((t) => t.gid));
+  const solved = study.exercises.filter((e) => gids.has(e.task_gid) && e.status === "solved" && inWeek(e.updated_at)).length;
+  const reviewed = study.reviews.filter((r) => gids.has(r.task_gid) && r.last_reviewed_at && inWeek(r.last_reviewed_at)).length;
+  if (!solved && !reviewed) return null;
+  const parts = [];
+  if (solved) parts.push(`${solved} ${solved === 1 ? "exercise" : "exercises"} solved`);
+  if (reviewed) parts.push(`${reviewed} recalled from memory`);
+  return `${parts.join(", ")}.`;
 }
 
 export async function latestStatus(key: ProjectKey): Promise<AsanaStatusUpdate | null> {

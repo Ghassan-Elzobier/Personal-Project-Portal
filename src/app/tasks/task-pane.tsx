@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
+import { StartSessionButton } from "@/components/session-timer";
 import { Hours } from "@/components/ui";
 import { STAGES } from "@/lib/tasks/session-log";
 import { commentOnTask, editTask, removeTask, setTaskCompleted, setTaskStage, type ActionResult } from "./actions";
@@ -20,7 +21,7 @@ type PaneTask = {
   sectionGid: string | null;
 };
 
-/** The whole task, in a panel over the right of the page, as Asana opens one. */
+/** The whole task, in a panel over the right of the page. Every change saves itself. */
 export function TaskPane({
   task,
   sections,
@@ -28,6 +29,7 @@ export function TaskPane({
   closeHref,
   loadError,
   timeZone,
+  children,
 }: {
   task: PaneTask;
   sections: { gid: string; name: string }[];
@@ -36,22 +38,27 @@ export function TaskPane({
   loadError: string | null;
   /** The portal's zone, so the server and the browser print the same time. */
   timeZone: string;
+  /** More about the task, such as its steps and exercises. */
+  children?: ReactNode;
 }) {
   const stamp = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone });
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [name, setName] = useState(task.name);
   const [notes, setNotes] = useState(task.notes);
-  const [dueOn, setDueOn] = useState(task.dueOn ?? "");
-  const [section, setSection] = useState(task.sectionGid ?? "");
   const [evidence, setEvidence] = useState(task.evidence ?? "");
   const [comment, setComment] = useState("");
   const [completed, showCompleted] = useOptimistic(task.completed);
   const [stage, showStage] = useOptimistic(task.stage);
+  const [dueOn, showDueOn] = useOptimistic(task.dueOn ?? "");
+  const [section, showSection] = useOptimistic(task.sectionGid ?? "");
+  const panel = useRef<HTMLElement>(null);
+  const close = () => router.push(closeHref, { scroll: false });
 
   useEffect(() => {
+    panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") router.push(closeHref, { scroll: false });
     };
@@ -61,56 +68,84 @@ export function TaskPane({
 
   const run = (action: () => Promise<ActionResult>, then?: () => void) =>
     start(async () => {
-      setSaved(false);
+      setStatus("saving");
       const result = await action();
       setError(result.error ?? null);
+      setStatus(result.error ? "idle" : "saved");
       if (!result.error) then?.();
     });
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    run(() => editTask(task.gid, { name, notes, dueOn, section, evidence }), () => setSaved(true));
-  };
+  const saveField = (changes: Parameters<typeof editTask>[1]) => run(() => editTask(task.gid, changes));
+
   const addComment = (e: React.FormEvent) => {
     e.preventDefault();
     run(() => commentOnTask(task.gid, comment), () => setComment(""));
   };
   const remove = () => {
     if (window.confirm(`Delete "${task.name}" and its comments? This cannot be undone.`)) {
-      run(() => removeTask(task.gid), () => router.push(closeHref, { scroll: false }));
+      run(() => removeTask(task.gid), close);
     }
   };
 
   return (
-    <aside aria-label={`Task: ${task.name}`} className="fixed inset-y-0 right-0 z-30 w-full max-w-xl space-y-6 overflow-y-auto bg-navy p-6 shadow-2xl ring-1 ring-white/10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={completed}
-            disabled={pending}
-            onChange={(e) => {
-              const done = e.target.checked;
-              run(() => {
-                showCompleted(done);
-                return setTaskCompleted(task.gid, done);
-              });
-            }}
-            className="h-4 w-4 cursor-pointer accent-mint"
-          />
-          {completed ? "Completed" : "Mark complete"}
-        </label>
-        <Link href={closeHref} scroll={false} className="btn-ghost px-4 py-1.5">Close</Link>
-      </div>
-
-      {loadError && <p className="text-sm text-coral" role="alert">{loadError}</p>}
-      {error && <p className="text-sm text-coral" role="alert">{error}</p>}
-
-      <form onSubmit={save} className="space-y-4">
-        <div>
-          <label className="field-label" htmlFor="task-name">{task.milestone ? "Milestone" : "Task"}</label>
-          <input id="task-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={500} className="field-input" />
+    <>
+      <div className="fixed inset-0 z-30 bg-primary/50 lg:bg-transparent" onClick={close} aria-hidden />
+      <aside
+        ref={panel}
+        tabIndex={-1}
+        aria-label={`Task: ${task.name}`}
+        className="fixed inset-y-0 right-0 z-40 w-full max-w-xl space-y-5 overflow-y-auto bg-navy p-6 pb-24 shadow-2xl ring-1 ring-white/10 focus:outline-none md:pb-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={completed}
+              disabled={pending}
+              onChange={(e) => {
+                const done = e.target.checked;
+                run(() => {
+                  showCompleted(done);
+                  return setTaskCompleted(task.gid, done);
+                });
+              }}
+              className="h-5 w-5 cursor-pointer accent-mint"
+            />
+            {completed ? "Completed" : "Mark complete"}
+          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-neutral-400" role="status">
+              {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
+            </span>
+            <Link href={closeHref} scroll={false} className="btn-ghost px-4 py-1.5">Close</Link>
+          </div>
         </div>
+
+        {loadError && <p className="text-sm text-coral" role="alert">{loadError}</p>}
+        {error && <p className="text-sm text-coral" role="alert">{error}</p>}
+
+        <div>
+          <label className="sr-only" htmlFor="task-name">{task.milestone ? "Milestone" : "Task"} name</label>
+          <textarea
+            id="task-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => name.trim() !== task.name && saveField({ name })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
+            rows={Math.min(3, Math.ceil(name.length / 42) || 1)}
+            maxLength={500}
+            className="w-full resize-none rounded-md border border-transparent bg-transparent px-2 py-1 text-xl font-semibold hover:border-white/10 focus:border-white/20"
+          />
+          {task.milestone && <p className="px-2 text-xs text-lavender">◆ Milestone</p>}
+        </div>
+
+        {children}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="task-stage">Stage</label>
@@ -132,58 +167,98 @@ export function TaskPane({
           </div>
           <div>
             <label className="field-label" htmlFor="task-due">Due</label>
-            <input id="task-due" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} className="field-input" />
+            <input
+              id="task-due"
+              type="date"
+              value={dueOn}
+              onChange={(e) => {
+                const next = e.target.value;
+                run(() => {
+                  showDueOn(next);
+                  return editTask(task.gid, { dueOn: next });
+                });
+              }}
+              className="field-input"
+            />
           </div>
           <div>
             <label className="field-label" htmlFor="task-section">Section</label>
-            <select id="task-section" value={section} onChange={(e) => setSection(e.target.value)} className="field-input">
+            <select
+              id="task-section"
+              value={section}
+              onChange={(e) => {
+                const next = e.target.value;
+                run(() => {
+                  showSection(next);
+                  return editTask(task.gid, { section: next });
+                });
+              }}
+              className="field-input"
+            >
               <option value="">No section</option>
               {sections.map((s) => <option key={s.gid} value={s.gid}>{s.name}</option>)}
             </select>
           </div>
           <div>
             <p className="field-label">Hours logged</p>
-            <p className="mt-2 flex min-h-10 items-center justify-between gap-3 text-sm">
-              <Hours value={task.hours} />
-              <Link href={`/log?task=${task.gid}`} className="text-aqua underline-offset-4 hover:underline">Log a session</Link>
-            </p>
+            <div className="mt-2 flex min-h-10 flex-wrap items-center gap-2 text-sm">
+              <span className="mr-auto"><Hours value={task.hours} /></span>
+              {!completed && <StartSessionButton gid={task.gid} name={task.name} className="btn-ghost px-3 py-1 text-xs" />}
+              <Link href={`/log?task=${task.gid}`} className="btn-ghost px-3 py-1 text-xs">Log</Link>
+            </div>
           </div>
         </div>
+
         <div>
           <label className="field-label" htmlFor="task-evidence">Evidence link</label>
-          <input id="task-evidence" type="url" value={evidence} onChange={(e) => setEvidence(e.target.value)} maxLength={2000} placeholder="https://" className="field-input" />
+          <input
+            id="task-evidence"
+            type="url"
+            value={evidence}
+            onChange={(e) => setEvidence(e.target.value)}
+            onBlur={() => evidence.trim() !== (task.evidence ?? "") && saveField({ evidence })}
+            maxLength={2000}
+            placeholder="https://"
+            className="field-input"
+          />
         </div>
+
         <div>
           <label className="field-label" htmlFor="task-notes">Description</label>
-          <textarea id="task-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} maxLength={20000} className="field-input" />
+          <textarea
+            id="task-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => notes !== task.notes && saveField({ notes })}
+            rows={4}
+            maxLength={20000}
+            placeholder="What done looks like, page numbers, links."
+            className="field-input"
+          />
         </div>
-        <div className="flex items-center gap-3">
-          <button disabled={pending} className="btn-primary">{pending ? "Saving…" : "Save changes"}</button>
-          {saved && <span className="text-sm text-mint" role="status">Saved</span>}
+
+        <section aria-label="Comments" className="space-y-3 border-t border-white/10 pt-5">
+          <h3 className="font-semibold">Comments</h3>
+          {comments.length === 0 && <p className="text-sm text-neutral-400">No comments yet. Logged sessions appear here.</p>}
+          <ul className="space-y-3">
+            {comments.map((c) => (
+              <li key={c.gid} className="rounded-xl bg-white/5 p-3">
+                <p className="text-xs text-neutral-400">{stamp.format(new Date(c.createdAt))}</p>
+                <p className="mt-1 text-sm whitespace-pre-wrap">{c.text}</p>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={addComment} className="space-y-2">
+            <label className="sr-only" htmlFor="task-comment">Add a comment</label>
+            <textarea id="task-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} maxLength={10000} placeholder="Add a comment" className="field-input" />
+            <button disabled={pending || !comment.trim()} className="btn-ghost px-4 py-1.5">Comment</button>
+          </form>
+        </section>
+
+        <div className="border-t border-white/10 pt-5">
+          <button onClick={remove} disabled={pending} className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50">Delete task</button>
         </div>
-      </form>
-
-      <section aria-label="Comments" className="space-y-3 border-t border-white/10 pt-5">
-        <h3 className="font-semibold">Comments</h3>
-        {comments.length === 0 && <p className="text-sm text-neutral-400">No comments yet. Logged sessions appear here.</p>}
-        <ul className="space-y-3">
-          {comments.map((c) => (
-            <li key={c.gid} className="rounded-xl bg-white/5 p-3">
-              <p className="text-xs text-neutral-500">{stamp.format(new Date(c.createdAt))}</p>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{c.text}</p>
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={addComment} className="space-y-2">
-          <label className="sr-only" htmlFor="task-comment">Add a comment</label>
-          <textarea id="task-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} maxLength={10000} placeholder="Add a comment" className="field-input" />
-          <button disabled={pending || !comment.trim()} className="btn-ghost px-4 py-1.5">Comment</button>
-        </form>
-      </section>
-
-      <div className="border-t border-white/10 pt-5">
-        <button onClick={remove} disabled={pending} className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50">Delete task</button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

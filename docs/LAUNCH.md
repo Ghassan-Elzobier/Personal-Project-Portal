@@ -36,10 +36,10 @@ Claude connector working. The details for each step are in
       `npx supabase projects create personal-project-portal`. Ask for the
       region (closest to London) and the plan (Free).
 - [ ] `npx supabase link --project-ref <ref>`, then `npx supabase db push`.
-      It should apply four migrations: portal access, Google Calendar,
-      Claude connector and native tasks.
+      It should apply six migrations: portal access, Google Calendar,
+      Claude connector, native tasks, bulk reads and study.
 - [ ] `npx supabase config push` applies sign-ups off and the auth settings.
-- [ ] If Docker is running, `npx supabase test db`. 65 pgTAP checks should pass.
+- [ ] If Docker is running, `npx supabase test db`. 106 pgTAP checks should pass.
 - [ ] Copy the project URL and anon key into `.env.local`
       (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 - [ ] Ghassan invites his own email under Authentication, then Users, then
@@ -93,6 +93,7 @@ These steps are in the browser, so guide Ghassan through them.
 - [ ] `npm run dev`, then open http://localhost:3000. Sign in, with Google and
       with an email link.
 - [ ] Today loads and **Needs attention** names no missing setting.
+- [ ] Open **Study** and load each plan.
 - [ ] Schedule, then **Connect Google Calendar**. Drag one task onto the week,
       and check its start and due time in Asana. Then add and delete a lunch
       block.

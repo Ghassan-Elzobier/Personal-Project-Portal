@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { completionChange, enumOption, field, groupBySection, nativeChanges, nativeToAsanaTask, projectStats, stageChange, type NativeTaskRow } from "./model.ts";
+import { completionChange, enumOption, field, filterNativeRows, groupBySection, nativeChanges, nativeToAsanaTask, projectStats, stageChange, type NativeTaskRow } from "./model.ts";
 
 const row: NativeTaskRow = {
   gid: "7",
@@ -28,7 +28,7 @@ test("a native row reads like an Asana task through field and enumOption", () =>
   assert.equal(field(task, "evidence")?.text_value, "https://example.com/notes");
   assert.equal(field(task, "Stage")?.enum_value?.name, "In progress");
   assert.equal(enumOption(field(task, "Stage"), "done")?.gid, "Done");
-  assert.deepEqual(task.memberships, [{ project: { gid: "axler" }, section: { name: "To do" } }]);
+  assert.deepEqual(task.memberships, [{ project: { gid: "axler" }, section: { gid: "3", name: "To do" } }]);
 });
 
 test("a native row with no section has no section membership", () => {
@@ -93,4 +93,15 @@ test("groupBySection keeps empty sections and puts loose tasks last", () => {
 
 test("groupBySection adds no empty No section group", () => {
   assert.deepEqual(groupBySection([{ gid: "1", name: "To do" }], []).map((g) => g.name), ["To do"]);
+});
+
+test("filterNativeRows keeps open tasks and those finished or changed since a moment", () => {
+  const open = { ...row, gid: "1", modified_at: "2026-11-01T00:00:00Z" };
+  const doneOld = { ...row, gid: "2", completed: true, completed_at: "2026-10-01T00:00:00Z", modified_at: "2026-10-01T00:00:00Z" };
+  const doneNew = { ...row, gid: "3", completed: true, completed_at: "2026-11-03T00:00:00Z", modified_at: "2026-11-03T00:00:00Z" };
+  const rows = [open, doneOld, doneNew];
+  const gids = (r: NativeTaskRow[]) => r.map((x) => x.gid);
+  assert.deepEqual(gids(filterNativeRows(rows, {})), ["1", "2", "3"]);
+  assert.deepEqual(gids(filterNativeRows(rows, { completedSince: new Date("2026-11-02T00:00:00Z") })), ["1", "3"]);
+  assert.deepEqual(gids(filterNativeRows(rows, { modifiedSince: new Date("2026-11-02T00:00:00Z") })), ["3"]);
 });
