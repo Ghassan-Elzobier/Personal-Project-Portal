@@ -39,7 +39,7 @@ export default async function PeoplePage() {
             <li key={m.account_id} className="card flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="font-semibold">
-                  {m.display_name} <span className="text-xs font-normal text-neutral-500">{m.role}</span>
+                  {m.display_name} <span className="text-xs font-normal text-neutral-400">{m.role}</span>
                 </p>
                 <p className="text-sm text-neutral-400">{m.email}</p>
                 {m.role === "mentor" && (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
+import { TaskLink } from "@/components/ui";
 import { logSession, type LogState } from "./actions";
 
 export type TaskOption = {
@@ -18,11 +19,11 @@ export type TaskOption = {
 
 const QUICK_HOURS = ["0.5", "1", "1.5", "2", "3"];
 
-export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: string | null }) {
+export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[]; preselect: string | null; startHours: string | null }) {
   const [state, action, pending] = useActionState<LogState, FormData>(logSession, {});
   const initial = tasks.find((t) => t.gid === preselect) ?? tasks[0] ?? null;
   const [taskGid, setTaskGid] = useState(initial?.gid ?? "");
-  const [hours, setHours] = useState("1");
+  const [hours, setHours] = useState(startHours ?? "1");
   const task = tasks.find((t) => t.gid === taskGid) ?? null;
   const [stage, setStage] = useState(defaultStage(initial));
   const [formKey, setFormKey] = useState(0);
@@ -50,9 +51,9 @@ export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: 
           <Link href="/" className="btn bg-white/15 hover:bg-white/25">
             Back to today
           </Link>
-          <a href={state.ok.url} target="_blank" rel="noreferrer" className="btn bg-white/15 hover:bg-white/25">
+          <TaskLink href={state.ok.url} className="btn bg-white/15 hover:bg-white/25">
             Open task
-          </a>
+          </TaskLink>
         </div>
       </div>
     );
@@ -68,6 +69,9 @@ export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: 
       action={(fd) => {
         setFormKey(0);
         return action(fd);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.requestSubmit();
       }}
       className="card space-y-6 p-6"
     >
@@ -95,7 +99,7 @@ export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: 
           ))}
         </select>
         {task && (
-          <span className="mt-2 block text-xs text-neutral-500">
+          <span className="mt-2 block text-xs text-neutral-400">
             {task.hours} h so far{task.stage ? ` · ${task.stage}` : ""}
             {task.evidence ? " · has evidence" : ""}
           </span>
@@ -103,7 +107,10 @@ export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: 
       </label>
 
       <fieldset>
-        <legend className="field-label">Hours this session</legend>
+        <legend className="field-label">
+          Hours this session
+          {startHours && hours === startHours && <span className="ml-2 font-normal text-mint">from your timer</span>}
+        </legend>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {QUICK_HOURS.map((h) => (
             <button
@@ -167,7 +174,7 @@ export function LogForm({ tasks, preselect }: { tasks: TaskOption[]; preselect: 
           className="field-input"
           defaultValue=""
         />
-        <span className="mt-2 block text-xs text-neutral-500">
+        <span className="mt-2 block text-xs text-neutral-400">
           A commit, notes or exercise solutions. Replaces the task&apos;s current Evidence link.
         </span>
       </label>

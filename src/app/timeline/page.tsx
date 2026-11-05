@@ -4,7 +4,8 @@ import { projectGid } from "@/lib/config/env";
 import { allTasks, attempt, today, type TaskView } from "@/lib/portal/data";
 import { PROJECTS } from "@/lib/config/projects";
 import { addDays, shortDate, weekdayIndex } from "@/lib/dates/week";
-import { Empty, ErrorNote, PageHeader } from "@/components/ui";
+import Link from "next/link";
+import { Empty, ErrorNote, PageHeader, TaskLink } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Timeline" };
 export const dynamic = "force-dynamic";
@@ -48,13 +49,19 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
 
       {projects.length === 0 && <Empty>No projects to show yet.</Empty>}
 
+      <div className="flex items-center gap-2">
+        <Link href={`/timeline?from=${addDays(start, -28)}`} className="btn-ghost px-4 py-1.5" aria-label="Four weeks earlier">←</Link>
+        <Link href="/timeline" className="btn-ghost px-4 py-1.5">Now</Link>
+        <Link href={`/timeline?from=${addDays(start, 28)}`} className="btn-ghost px-4 py-1.5" aria-label="Four weeks later">→</Link>
+      </div>
+
       <div className="card overflow-x-auto p-0">
         <div className="min-w-[56rem]">
           <div className="relative ml-56 h-8 border-b border-white/5">
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
               <span
                 key={w}
-                className="absolute top-2 border-l border-white/10 pl-1 text-[11px] text-neutral-500"
+                className="absolute top-2 border-l border-white/10 pl-1 text-[11px] text-neutral-400"
                 style={{ left: `${pct(w)}%` }}
               >
                 {shortDate(w)}
@@ -65,7 +72,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
           {results.map(({ p, tasks }) => (
             <section key={p.key} className="border-b border-white/5 last:border-0">
               <h2 className="sticky left-0 px-5 pt-4 pb-2 text-sm font-semibold">
-                {p.title} <span className="font-normal text-neutral-500">· {p.area}</span>
+                {p.title} <span className="font-normal text-neutral-400">· {p.area}</span>
               </h2>
               {!tasks.ok ? (
                 <div className="px-5 pb-4">
@@ -116,7 +123,7 @@ function Rows({
 
   if (inRange.length === 0) {
     return (
-      <p className="px-5 pb-4 text-sm text-neutral-500">
+      <p className="px-5 pb-4 text-sm text-neutral-400">
         Nothing dated in this window.{undated ? ` ${undated} tasks have no dates yet.` : ""}
       </p>
     );
@@ -130,16 +137,16 @@ function Rows({
         const right = Math.min(100, pct(addDays(t.dueOn!, 1)));
         const stage = t.completed ? "Done" : (t.stage ?? "Not started");
         const label = isOwner ? (
-          <a href={t.url} target="_blank" rel="noreferrer" className="hover:underline">
+          <TaskLink href={t.url} className="hover:underline">
             {t.name}
-          </a>
+          </TaskLink>
         ) : (
           t.name
         );
         return (
           <li key={t.gid} className="group flex h-8 items-center">
             <span
-              className={`w-56 shrink-0 truncate px-5 text-xs ${t.completed ? "text-neutral-500 line-through" : "text-neutral-300"}`}
+              className={`w-56 shrink-0 truncate px-5 text-xs ${t.completed ? "text-neutral-400 line-through" : "text-neutral-300"}`}
               title={t.name}
             >
               {label}

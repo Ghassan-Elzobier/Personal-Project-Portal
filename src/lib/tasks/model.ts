@@ -40,7 +40,12 @@ export type AsanaTask = {
   modified_at: string;
   permalink_url: string;
   custom_fields: AsanaField[];
-  memberships?: { project: { gid: string }; section?: { name: string } | null }[];
+  memberships?: { project: { gid: string }; section?: { gid?: string; name: string } | null }[];
+  /** The description. Only the native backend reads it. */
+  notes?: string;
+  /** The study plan unit this task came from, if any. Native backend only. */
+  ref?: string | null;
+  exerciseCount?: number | null;
 };
 
 export type AsanaStory = { gid: string; created_at: string; text: string; resource_subtype: string };
@@ -52,6 +57,22 @@ export type AsanaStatusUpdate = {
   status_type: string;
   created_at: string;
 };
+
+export type SubtaskRow = { gid: string; task_gid: string; name: string; done: boolean };
+export type ExerciseRow = { task_gid: string; number: number; status: "solved" | "hint" | "stuck" | "skip"; updated_at: string };
+export type ReviewRow = {
+  gid: string;
+  task_gid: string;
+  kind: string;
+  prompt: string;
+  step: number;
+  due_on: string | null;
+  last_rating: string | null;
+  last_reviewed_at: string | null;
+};
+
+/** A comment found while totalling hours, with the task it belongs to. */
+export type SessionComment = { taskGid: string; project: ProjectKey; text: string; createdAt: string };
 
 export type VerifiedProject = { key: ProjectKey; gid: string; name: string; url: string };
 
@@ -92,6 +113,8 @@ export type NativeTaskRow = {
   hours: number | string;
   evidence: string | null;
   modified_at: string;
+  ref?: string | null;
+  exercise_count?: number | null;
 };
 
 const NATIVE_STAGES = ["Not started", "In progress", "Blocked", "Needs review", "Done"];
@@ -111,7 +134,10 @@ export function nativeToAsanaTask(row: NativeTaskRow, url: string): AsanaTask {
     resource_subtype: row.resource_subtype,
     modified_at: row.modified_at,
     permalink_url: url,
-    memberships: [{ project: { gid: row.project }, section: row.section_name ? { name: row.section_name } : null }],
+    memberships: [{ project: { gid: row.project }, section: row.section_name ? { gid: row.section_gid ?? undefined, name: row.section_name } : null }],
+    notes: row.notes,
+    ref: row.ref ?? null,
+    exerciseCount: row.exercise_count ?? null,
     custom_fields: [
       {
         gid: "stage",
@@ -134,6 +160,16 @@ export function nativeChanges(changes: {
 }): Record<string, unknown> {
   const { custom_fields: fields, ...rest } = changes;
   return { ...rest, ...fields };
+}
+
+/** Asana's task list filters: open plus finished since, and changed since. */
+export function filterNativeRows(rows: NativeTaskRow[], options: { completedSince?: Date; modifiedSince?: Date }): NativeTaskRow[] {
+  const { completedSince, modifiedSince } = options;
+  return rows.filter(
+    (r) =>
+      (!completedSince || !r.completed || (r.completed_at !== null && new Date(r.completed_at) >= completedSince)) &&
+      (!modifiedSince || new Date(r.modified_at) >= modifiedSince),
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ export function GrantForm() {
             <label key={p.key} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
               <input type="checkbox" name="projects" value={p.key} className="accent-lavender" />
               <span>
-                {p.title} <span className="text-neutral-500">· {p.area}</span>
+                {p.title} <span className="text-neutral-400">· {p.area}</span>
               </span>
             </label>
           ))}

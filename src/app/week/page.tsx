@@ -35,7 +35,8 @@ export default async function WeekPage() {
       </PageHeader>
 
       <p className="text-sm text-neutral-400">
-        Study hours logged this week: <span className="text-white">{totalHours} h</span>
+        <span className="text-white">{summaries.filter(({ s }) => s.ok && s.value.posted).length} of {summaries.length}</span> posted.
+        Study hours logged this week: <span className="text-white">{totalHours} h</span>.
       </p>
 
       {configured.length === 0 && <Empty>No projects are configured yet.</Empty>}

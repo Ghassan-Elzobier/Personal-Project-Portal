@@ -6,6 +6,7 @@ import { layoutLanes, snap } from "@/lib/portal/lanes";
 import { LIFE_KINDS, REPEATS, type LifeKind, type Repeat } from "@/lib/calendar/life-blocks";
 import type { Block, Unscheduled } from "@/lib/portal/schedule";
 import { clock, parseClock, shortDate } from "@/lib/dates/week";
+import { TaskLink } from "@/components/ui";
 import { addLifeBlock, moveBlock, removeLifeBlock, scheduleTask, unscheduleTask, type ActionResult } from "./actions";
 
 const DAY_START = 6 * 60;
@@ -23,6 +24,21 @@ type DragData =
   | { type: "block"; source: Block["source"]; id: string; duration: number; grab: number };
 
 const rawId = (block: Block) => block.id.split(":")[0];
+
+/** A day's planned study, such as "3.5 h". Life blocks do not count. */
+function plannedHours(blocks: Block[]): string {
+  const minutes = blocks.filter((b) => b.source === "asana").reduce((sum, b) => sum + (b.end - b.start), 0);
+  return minutes ? `${Math.round((minutes / 60) * 100) / 100} h` : "";
+}
+
+/** Tasks to plan, soonest first: what is due this week, then later, then undated. */
+function planGroups(tasks: Unscheduled[], weekEnd: string): { title: string; tasks: Unscheduled[] }[] {
+  return [
+    { title: "Due by this week", tasks: tasks.filter((t) => t.dueOn && t.dueOn <= weekEnd) },
+    { title: "Later", tasks: tasks.filter((t) => t.dueOn && t.dueOn > weekEnd) },
+    { title: "No date", tasks: tasks.filter((t) => !t.dueOn) },
+  ].filter((g) => g.tasks.length);
+}
 
 export function WeekPlanner({
   days,
@@ -117,6 +133,9 @@ export function WeekPlanner({
                 <span className={`mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-semibold ${d === today ? "bg-lavender" : ""}`}>
                   {Number(d.slice(8))}
                 </span>
+                <span className="mt-1 block h-4 text-[11px] text-neutral-400 tabular-nums" title="Planned study time">
+                  {plannedHours(byDay.get(d) ?? [])}
+                </span>
               </div>
             ))}
           </div>
@@ -126,7 +145,7 @@ export function WeekPlanner({
                 {hours.map((h) => (
                   <span
                     key={h}
-                    className="absolute right-2 -translate-y-1/2 text-[11px] text-neutral-500 tabular-nums"
+                    className="absolute right-2 -translate-y-1/2 text-[11px] text-neutral-400 tabular-nums"
                     style={{ top: (h - DAY_START) * PX_PER_MIN }}
                   >
                     {h === DAY_START ? "" : clock(h)}
@@ -188,13 +207,18 @@ export function WeekPlanner({
         <aside className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold">To plan</h2>
-            <p className="text-xs text-neutral-500">Open tasks with no time yet. Drag one onto the week, or tap Plan.</p>
+            <p className="text-xs text-neutral-400">Drag a task onto a time, or tap Plan.</p>
           </div>
           {unscheduled.length === 0 && (
             <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-400">Every open task has a time.</p>
           )}
-          <ul className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
-            {unscheduled.map((t) => (
+          <ul className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+            {planGroups(unscheduled, days[6]).map((g) => (
+              <li key={g.title}>
+                <details open={g.title !== "No date"}>
+                <summary className="mb-1 cursor-pointer text-xs font-semibold text-neutral-300">{g.title} <span className="font-normal text-neutral-400">{g.tasks.length}</span></summary>
+                <ul className="space-y-2">
+            {g.tasks.map((t) => (
               <li
                 key={t.gid}
                 draggable
@@ -204,12 +228,12 @@ export function WeekPlanner({
                 }}
                 className="group cursor-grab rounded-xl bg-white/5 p-3 text-sm ring-1 ring-white/5 transition hover:ring-lavender/40 active:cursor-grabbing"
               >
-                <p className="text-[11px] tracking-wider text-neutral-500 uppercase">{t.project}</p>
+                <p className="text-[11px] tracking-wider text-neutral-400 uppercase">{t.project}</p>
                 <p className="font-medium">{t.title}</p>
                 <div className="mt-1 flex items-center justify-between text-xs text-neutral-400">
                   <span>{t.dueOn ? `Due ${shortDate(t.dueOn)}` : "No date"}</span>
                   <button
-                    className="cursor-pointer text-lavender hover:text-white"
+                    className="cursor-pointer text-aqua hover:text-white"
                     onClick={() =>
                       setDialog({
                         mode: "new",
@@ -223,6 +247,10 @@ export function WeekPlanner({
                     Plan
                   </button>
                 </div>
+              </li>
+            ))}
+                          </ul>
+                </details>
               </li>
             ))}
           </ul>
@@ -403,7 +431,7 @@ function Modal({ children, onClose }: { children: ReactNode; onClose: () => void
     >
       <div className="card w-full max-w-md p-6">
         <div className="mb-2 flex justify-end">
-          <button className="cursor-pointer text-sm text-neutral-500 hover:text-white" onClick={onClose} aria-label="Close">
+          <button className="cursor-pointer text-sm text-neutral-400 hover:text-white" onClick={onClose} aria-label="Close">
             Close
           </button>
         </div>
@@ -583,7 +611,7 @@ function NewBlockForm({
             </select>
           </label>
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-          <p className="text-xs text-neutral-500">Sets the task&apos;s start and due time.</p>
+          <p className="text-xs text-neutral-400">Sets the task&apos;s start and due time.</p>
           <button className="btn-primary w-full" disabled={pending || !gid}>
             Plan it
           </button>
@@ -635,7 +663,7 @@ function EditBlockForm({
           }}
         >
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-          {block.seriesId && <p className="text-xs text-neutral-500">Changes this occurrence only.</p>}
+          {block.seriesId && <p className="text-xs text-neutral-400">Changes this occurrence only.</p>}
           <button className="btn-primary w-full" disabled={pending}>
             Save
           </button>
@@ -669,9 +697,9 @@ function EditBlockForm({
             )}
           </>
         )}
-        <a href={block.url} target="_blank" rel="noreferrer" className="btn-ghost">
+        <TaskLink href={block.url} className="btn-ghost">
           {isWork ? "Open task" : "Open in Google"}
-        </a>
+        </TaskLink>
       </div>
     </div>
   );

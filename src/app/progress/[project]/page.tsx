@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { canRead, requireAccess } from "@/lib/auth/access";
-import { verifiedProject } from "@/lib/tasks/tracker";
-import { projectGid } from "@/lib/config/env";
+import { listSessionComments, verifiedProject } from "@/lib/tasks/tracker";
+import { addDays, midnightIn, shortDate, weekOf } from "@/lib/dates/week";
+import { hoursByWeek, type WeekHours } from "@/lib/portal/stats";
+import { projectGid, timeZone, usesAsana } from "@/lib/config/env";
+import { loadStudy } from "@/lib/study/load";
+import { planFor } from "@/lib/study/plans";
+import { BenchmarkTable } from "../../study/benchmarks";
 import { allTasks, attempt, latestStatus, today, type TaskView } from "@/lib/portal/data";
 import { isProjectKey, projectDef } from "@/lib/config/projects";
 import { formatHours } from "@/lib/tasks/session-log";
-import { DueDate, Empty, ErrorNote, EvidenceLink, Hours, PageHeader, SectionTitle, StagePill, StatusPill } from "@/components/ui";
+import { DueDate, Empty, ErrorNote, EvidenceLink, Hours, PageHeader, SectionTitle, StagePill, StatusPill, TaskLink } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const CHART_WEEKS = 8;
 
 type Params = { params: Promise<{ project: string }> };
 
@@ -24,13 +31,20 @@ export default async function ProjectProgress({ params }: Params) {
   if (!isProjectKey(project) || !canRead(access, project) || !projectGid(project)) notFound();
 
   const def = projectDef(project);
-  const [tasks, status, asana] = await Promise.all([
+  const tz = timeZone();
+  const now = new Date();
+  const chartSince = midnightIn(addDays(weekOf(now, tz).start, -7 * (CHART_WEEKS - 1)), tz);
+  const [tasks, status, asana, sessions] = await Promise.all([
     attempt(() => allTasks(project)),
     attempt(() => latestStatus(project)),
     attempt(() => verifiedProject(project)),
+    attempt(() => listSessionComments(chartSince, project)),
   ]);
   const date = today();
   const isOwner = access.role === "owner";
+  const overview = usesAsana() || !planFor(project) ? null : await attempt(() => loadStudy());
+  const progress = overview?.ok ? (overview.value.plans.find((p) => p.plan.project === project) ?? null) : null;
+  const benchmarks = overview?.ok ? overview.value.study.benchmarks.filter((b) => b.project === project) : [];
 
   if (!tasks.ok) {
     return (
@@ -58,9 +72,9 @@ export default async function ProjectProgress({ params }: Params) {
         {isOwner && asana.ok && (
           <>
             {" "}
-            <a href={asana.value.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+            <TaskLink href={asana.value.url} className="text-aqua hover:underline">
               Open tasks
-            </a>
+            </TaskLink>
           </>
         )}
       </PageHeader>
@@ -75,6 +89,20 @@ export default async function ProjectProgress({ params }: Params) {
         />
       </dl>
 
+      {progress?.loaded && (
+        <section className="space-y-3">
+          <SectionTitle>{progress.plan.title}</SectionTitle>
+          <p className="text-sm text-neutral-300">
+            {progress.core.done} of {progress.core.total} {progress.plan.unitLabel} finished
+            {progress.exercises.total > 0 && `, and ${progress.exercises.solved} of ${progress.exercises.total} exercises solved`}.
+            {" "}Optional {progress.plan.unitLabel} are not counted.
+          </p>
+          {benchmarks.length > 0 && <BenchmarkTable rows={benchmarks} />}
+        </section>
+      )}
+
+      {sessions.ok && <WeeklyHours weeks={hoursByWeek(sessions.value, CHART_WEEKS, now, tz)} />}
+
       <section>
         <SectionTitle>Latest status update</SectionTitle>
         {!status.ok ? (
@@ -84,7 +112,7 @@ export default async function ProjectProgress({ params }: Params) {
             <div className="flex flex-wrap items-center gap-3">
               <StatusPill status={status.value.status_type} />
               <span className="font-semibold">{status.value.title}</span>
-              <span className="text-xs text-neutral-500">
+              <span className="text-xs text-neutral-400">
                 {new Date(status.value.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </span>
             </div>
@@ -129,9 +157,9 @@ export default async function ProjectProgress({ params }: Params) {
                 <li key={t.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm">
                   <span className={t.completed ? "text-neutral-400 line-through decoration-neutral-600" : ""}>
                     {isOwner ? (
-                      <a href={t.url} target="_blank" rel="noreferrer" className="hover:underline">
+                      <TaskLink href={t.url} className="hover:underline">
                         {t.name}
-                      </a>
+                      </TaskLink>
                     ) : (
                       t.name
                     )}
@@ -152,12 +180,53 @@ export default async function ProjectProgress({ params }: Params) {
   );
 }
 
+/** Hours per week, one series, so the title names it and no legend is needed. */
+function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
+  const peak = Math.max(...weeks.map((w) => w.hours));
+  if (peak === 0) return null;
+  const latest = weeks.length - 1;
+  const peakIndex = weeks.findIndex((w) => w.hours === peak);
+  return (
+    <section>
+      <SectionTitle>Hours per week</SectionTitle>
+      <div className="card">
+        <div className="flex h-40 items-end gap-1" role="img" aria-label={`Hours per week for the last ${weeks.length} weeks, latest ${formatHours(weeks[latest].hours)}, peak ${formatHours(peak)}.`}>
+          {weeks.map((w, i) => (
+            <div key={w.start} className="group relative flex h-full flex-1 flex-col items-center justify-end" title={`Week of ${shortDate(w.start)}: ${formatHours(w.hours)} h`}>
+              {(i === latest || i === peakIndex) && w.hours > 0 && <span className="mb-1 text-xs text-neutral-200 tabular-nums">{formatHours(w.hours)}</span>}
+              <div
+                className={`w-full max-w-6 rounded-t ${i === latest ? "bg-aqua" : "bg-aqua/50"} group-hover:bg-aqua`}
+                style={{ height: `${(w.hours / peak) * 80}%`, minHeight: w.hours > 0 ? 4 : 0 }}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1 border-t border-white/10 pt-2">
+          {weeks.map((w, i) => (
+            <span key={w.start} className="flex-1 text-center text-[11px] text-neutral-400">
+              {i % 2 === (weeks.length - 1) % 2 ? shortDate(w.start) : ""}
+            </span>
+          ))}
+        </div>
+        <table className="sr-only">
+          <caption>Hours per week</caption>
+          <tbody>
+            {weeks.map((w) => (
+              <tr key={w.start}><th scope="row">Week of {shortDate(w.start)}</th><td>{formatHours(w.hours)} h</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function Stat({ label, value, detail, bar }: { label: string; value: string; detail: string; bar?: number }) {
   return (
     <div className="card space-y-1">
       <dt className="text-sm text-neutral-400">{label}</dt>
       <dd className="text-3xl font-bold tabular-nums">{value}</dd>
-      <dd className="text-xs text-neutral-500">{detail}</dd>
+      <dd className="text-xs text-neutral-400">{detail}</dd>
       {bar !== undefined && (
         <dd className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
           <div className="h-full rounded-full bg-gradient-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />

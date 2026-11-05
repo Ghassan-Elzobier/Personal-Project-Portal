@@ -54,6 +54,7 @@ async function tokenRequest(body: Record<string, string>): Promise<{
   access_token: string;
   refresh_token?: string;
   id_token?: string;
+  expires_in?: number;
 }> {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
@@ -104,12 +105,20 @@ export const googleConnection = cache(async (): Promise<(GoogleConnection & { se
   return row ? { sealed: row.refresh_token, email: row.google_email, connectedAt: row.connected_at } : null;
 });
 
-/** A fresh access token for the stored connection. Cached per request. */
+// Access tokens last about an hour, so keep one rather than asking Google on
+// every request. Keyed by the sealed token, so a reconnect starts afresh.
+let heldToken: { sealed: string; token: string; expiresAt: number } | null = null;
+
+/** A live access token for the stored connection. */
 const accessToken = cache(async (): Promise<string> => {
   const connection = await googleConnection();
   if (!connection) throw new GoogleError("Google Calendar is not connected.", 412);
+  if (heldToken && heldToken.sealed === connection.sealed && heldToken.expiresAt > Date.now()) return heldToken.token;
   const refreshToken = decryptToken(connection.sealed, process.env.GOOGLE_TOKEN_KEY);
-  return (await tokenRequest({ grant_type: "refresh_token", refresh_token: refreshToken })).access_token;
+  const fresh = await tokenRequest({ grant_type: "refresh_token", refresh_token: refreshToken });
+  const lifetime = (fresh.expires_in ?? 3600) - 120;
+  heldToken = { sealed: connection.sealed, token: fresh.access_token, expiresAt: Date.now() + lifetime * 1000 };
+  return fresh.access_token;
 });
 
 async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {

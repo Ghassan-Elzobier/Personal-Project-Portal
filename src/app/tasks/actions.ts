@@ -11,9 +11,19 @@ export async function createTask(input: { project: string; name: string; section
   return error ? { error } : {};
 }
 
-export async function editTask(gid: string, input: { name: string; notes: string; dueOn: string; section: string; evidence: string }): Promise<ActionResult> {
+export async function createTasks(input: { project: string; names: string[]; section?: string | null }): Promise<ActionResult> {
+  await requireOwner();
+  return ops.createTasks(input);
+}
+
+export async function editTask(gid: string, input: { name?: string; notes?: string; dueOn?: string; section?: string; evidence?: string }): Promise<ActionResult> {
   await requireOwner();
   return ops.editTask(gid, input);
+}
+
+export async function rescheduleTask(gid: string, date: string): Promise<ActionResult> {
+  await requireOwner();
+  return ops.rescheduleTask(gid, date);
 }
 
 export async function setTaskStage(gid: string, stage: string): Promise<ActionResult> {

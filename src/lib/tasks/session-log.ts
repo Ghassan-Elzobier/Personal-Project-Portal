@@ -95,7 +95,7 @@ export type DraftInput = {
 };
 
 /** The Sunday status update, in the shape from the design doc. */
-export function statusDraft(input: DraftInput): string {
+export function statusDraft(input: DraftInput & { practice?: string | null }): string {
   const done = input.done.length
     ? input.done
         .map((t) => {
@@ -115,6 +115,7 @@ export function statusDraft(input: DraftInput): string {
   return [
     `Status: ${STATUS_TYPES[input.status]}`,
     `Done this week: ${done}`,
+    ...(input.practice ? [`Practice this week: ${input.practice}`] : []),
     `Next week: ${next}`,
     `Blocked / questions for you: ${blocked}`,
     `Hours this week: ${hours}`,

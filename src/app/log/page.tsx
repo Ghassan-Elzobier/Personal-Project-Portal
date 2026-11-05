@@ -11,9 +11,11 @@ import { LogForm, type TaskOption } from "./log-form";
 export const metadata: Metadata = { title: "Log a session" };
 export const dynamic = "force-dynamic";
 
-export default async function LogPage({ searchParams }: { searchParams: Promise<{ task?: string }> }) {
+export default async function LogPage({ searchParams }: { searchParams: Promise<{ task?: string; hours?: string }> }) {
   await requireOwner();
-  const { task: preselect } = await searchParams;
+  const { task: preselect, hours } = await searchParams;
+  // Sent by the session timer. Anything else starts from the usual default.
+  const startHours = hours && Number(hours) >= 0.25 && Number(hours) <= 16 ? String(Number(hours)) : null;
 
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   const results = await Promise.all(configured.map(async (p) => ({ p, tasks: await attempt(() => openTasks(p.key)) })));
@@ -57,7 +59,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
           ))}
         </div>
       )}
-      <LogForm tasks={options} preselect={preselect ?? null} />
+      <LogForm tasks={options} preselect={preselect ?? null} startHours={startHours} />
     </div>
   );
 }

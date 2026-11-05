@@ -19,3 +19,4 @@ export const addComment: typeof asana.addComment = (gid, text) => backend().addC
 export const listComments: typeof asana.listComments = (gid) => backend().listComments(gid);
 export const listStatusUpdates: typeof asana.listStatusUpdates = (key, since) => backend().listStatusUpdates(key, since);
 export const createStatusUpdate: typeof asana.createStatusUpdate = (key, update) => backend().createStatusUpdate(key, update);
+export const listSessionComments: typeof asana.listSessionComments = (since, key) => backend().listSessionComments(since, key);

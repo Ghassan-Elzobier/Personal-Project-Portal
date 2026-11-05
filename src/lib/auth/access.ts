@@ -18,10 +18,9 @@ export type Access = {
  */
 export const getAccess = cache(async (): Promise<Access | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: session } = await supabase.auth.getClaims();
+  const claims = session?.claims;
+  if (!claims?.sub) return null;
 
   const { data, error } = await supabase.rpc("my_portal_access");
   if (error) {
@@ -32,8 +31,8 @@ export const getAccess = cache(async (): Promise<Access | null> => {
   if (!row || (row.role !== "owner" && row.role !== "mentor")) return null;
 
   return {
-    userId: user.id,
-    email: user.email ?? "",
+    userId: claims.sub,
+    email: typeof claims.email === "string" ? claims.email : "",
     role: row.role,
     displayName: row.display_name,
     projects: (row.projects ?? []).filter(isProjectKey),

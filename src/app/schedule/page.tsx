@@ -39,8 +39,8 @@ export default async function SchedulePage({
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={`${shortDate(week.start)} to ${shortDate(week.end)}`} title="Schedule">
-        Drag a task from the list onto a time to plan it. Click an empty slot to add lunch, gym or anything
-        else, which goes to Google Calendar only.
+        Drag a task onto a time to plan it. Click an empty slot to add lunch, gym or anything else, which goes to
+        Google Calendar only.
       </PageHeader>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -77,7 +77,7 @@ export default async function SchedulePage({
 
 function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadScheduleWeek>>["google"] }) {
   if (google === "not-configured") {
-    return <span className="text-sm text-neutral-500">Google Calendar not set up</span>;
+    return <span className="text-sm text-neutral-400">Google Calendar not set up</span>;
   }
   if (google === "not-connected") {
     return (
@@ -102,7 +102,7 @@ function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadSchedu
         <span className="h-2 w-2 rounded-full bg-mint" aria-hidden />
         Google Calendar{google.email ? `: ${google.email}` : ""}
       </span>
-      <button className="cursor-pointer text-neutral-500 hover:text-white">Disconnect</button>
+      <button className="cursor-pointer text-neutral-400 hover:text-white">Disconnect</button>
     </form>
   );
 }
