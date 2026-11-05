@@ -8,7 +8,7 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | Page | Who | What it does |
 | --- | --- | --- |
 | Today (`/`) | Me | Needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
-| Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
+| Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer as one roadmap: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
 | Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
 | Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times). Add lunch, gym and other life blocks, which go to Google Calendar only. |
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
@@ -49,7 +49,10 @@ Each book and the renderer is a plan in `src/lib/study`, loaded from the Study p
 
 - **Books track practice, not pages.** Rereading feels productive but does little: self-testing and spaced practice have the strongest evidence (Dunlosky et al., 2013). So each unit has steps built around recalling and doing, every exercise is tracked individually, and key results come back on a widening schedule. The exact gaps are a sensible default, not a proven formula.
 - **The renderer tracks results, not just tasks.** Each milestone has a definition of done and benchmarks tied to a commit. Only results with the same metric, scene and GPU are compared.
-- **They connect.** A milestone lists the chapters it builds on, and a chapter shows what it feeds into.
+- **They connect.** A milestone lists the chapters it builds on, and a chapter shows what it feeds into. `links.ts` says where the plans meet and why, and shows on both units.
+- **One path through all three.** `roadmap.ts` puts every unit in one of eight phases, each with a reason and a condition for moving on, and paces all three plans together by hours a week. Tests check that every unit has a place and that nothing comes before what it needs. The hours are rough guesses, so correct them once you have real ones.
+- **PMPP comes from the book.** Chapters, exercise counts and pages were read from the PDF, in the PDF's own page numbers. Notes are in our own words and the book's text stays out of this repo. The book never mentions ray tracing or Vulkan, so the links to the renderer are our own reading.
+- **Kernels run in three places.** CUDA needs NVIDIA and neither GPU here is one, so kernels are written on LeetGPU or a Colab GPU, then ported to Vulkan compute for real timings on the RX 5700 XT and Iris Xe. The roadmap has a CUDA to Vulkan table.
 
 ## Layout
 

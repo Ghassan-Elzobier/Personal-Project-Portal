@@ -10,7 +10,13 @@ export const METRICS: { name: string; unit: string; higherIsBetter: boolean }[] 
   { name: "Image error (RMSE)", unit: "", higherIsBetter: false },
   { name: "PSNR", unit: "dB", higherIsBetter: true },
   { name: "Training time", unit: "min", higherIsBetter: false },
+  { name: "Memory bandwidth", unit: "GB/s", higherIsBetter: true },
+  { name: "Compute throughput", unit: "TFLOPS", higherIsBetter: true },
+  { name: "SIMD efficiency", unit: "%", higherIsBetter: true },
 ];
+
+/** The GPUs results usually come from, offered when recording one. */
+export const GPUS = ["RX 5700 XT", "Iris Xe"];
 
 export type BenchmarkRow = {
   gid: string;

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOwner } from "@/lib/auth/access";
-import { timeZone, usesAsana } from "@/lib/config/env";
+import { timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { projectDef } from "@/lib/config/projects";
 import { attempt } from "@/lib/portal/data";
 import { recentCommits } from "@/lib/study/github";
@@ -17,6 +17,7 @@ import { BenchmarkForm, BenchmarkHistory } from "./benchmark-form";
 import { BenchmarkTable } from "./benchmarks";
 import { LoadPlanButton, PaceForm } from "./plan-controls";
 import { ReviewQueue } from "./review-queue";
+import { RoadmapTab, RoadmapView } from "./roadmap-view";
 import { StudyPanel } from "./study-panel";
 
 export const metadata: Metadata = { title: "Study" };
@@ -30,18 +31,20 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
 
   const params = await searchParams;
   const overview = await loadStudy();
-  const current = overview.plans.find((p) => p.plan.project === params.project) ?? overview.plans[0];
-  const href = (next: Search) => `/study?${new URLSearchParams({ project: current.plan.project, ...next })}`;
+  // With no plan chosen, the page opens on the roadmap across all three.
+  const current = overview.plans.find((p) => p.plan.project === params.project) ?? null;
+  const href = (next: Search) => `/study?${new URLSearchParams({ ...(current ? { project: current.plan.project } : {}), ...next })}`;
 
   const selected = params.task ? overview.plans.flatMap((p) => p.rows).find((r) => r.task.gid === params.task) : undefined;
   const comments = selected ? await attempt(() => listComments(selected.task.gid)) : null;
-  const commits = current.plan.mode === "lab" && current.loaded ? await recentCommits() : [];
+  const commits = current?.plan.mode === "lab" && current.loaded ? await recentCommits() : [];
 
   return (
     <div className="space-y-6">
       <PageHeader title="Study" />
 
-      <nav aria-label="Plans" className="grid gap-3 sm:grid-cols-3">
+      <nav aria-label="Plans" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <RoadmapTab roadmap={overview.roadmap} active={!current} />
         {overview.plans.map((p) => (
           <PlanTab key={p.plan.project} progress={p} active={p === current} />
         ))}
@@ -49,12 +52,18 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
 
       <ReviewQueue due={overview.due} today={overview.today} />
 
-      {current.loaded ? <PlanView progress={current} overview={overview} href={href} commits={commits} /> : <LoadCard progress={current} />}
+      {!current ? (
+        <RoadmapView roadmap={overview.roadmap} today={overview.today} defaultHours={weeklyHoursTarget() ?? 12} />
+      ) : current.loaded ? (
+        <PlanView progress={current} overview={overview} href={href} commits={commits} />
+      ) : (
+        <LoadCard progress={current} />
+      )}
 
       {selected && (
         <TaskPane
           key={selected.task.gid}
-          closeHref={`/study?${new URLSearchParams({ project: selected.task.project })}`}
+          closeHref={current ? `/study?${new URLSearchParams({ project: selected.task.project })}` : "/study"}
           timeZone={timeZone()}
           task={{
             gid: selected.task.gid,
@@ -254,6 +263,7 @@ function NextUp({ row, href, today, plan }: { row: UnitRow; href: (next: Search)
         {plan.sourceUrl && unit.page && (
           <a href={plan.sourceUrl(unit.page)} target="_blank" rel="noreferrer" className="btn-ghost px-4 py-1.5">Open at page {unit.page}</a>
         )}
+        {!plan.sourceUrl && unit.page && <span className="text-neutral-300 tabular-nums">PDF page {unit.page}</span>}
         <DueDate dueOn={task.dueOn} today={today} />
       </div>
     </section>
@@ -295,6 +305,7 @@ function UnitRowView({ row, href, today, plan }: { row: UnitRow; href: (next: Se
         {plan.sourceUrl && unit.page && (
           <a href={plan.sourceUrl(unit.page)} target="_blank" rel="noreferrer" className="text-aqua hover:underline" aria-label={`Open ${task.name} at page ${unit.page}`}>p. {unit.page}</a>
         )}
+        {!plan.sourceUrl && unit.page && <span title="Page in your PDF">p. {unit.page}</span>}
         {task.hours > 0 && <span>{formatHours(task.hours)} h</span>}
       </span>
     </li>

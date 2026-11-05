@@ -8,8 +8,9 @@ import { createLifeBlock, deleteLifeBlock, GoogleError, moveLifeBlock } from "..
 import { isLifeKind, parseBlock, REPEATS, type Repeat } from "../calendar/life-blocks";
 import { thisWeek, today } from "./data";
 import { isProjectKey, type ProjectKey } from "../config/projects";
-import { planFor, planPayload, planUnits } from "../study/plans";
+import { planFor, planPayload, planUnits, PLANS } from "../study/plans";
 import { nextReview, spreadDates, type ExerciseStatus } from "../study/review";
+import { scheduleRoadmap } from "../study/roadmap";
 import { addHours, formatHours, parseSessionForm, sessionComment, STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { addDays, shortDate, weekdayIndex, zonedInstant } from "../dates/week";
 
@@ -383,6 +384,42 @@ export async function loadPlan(project: string): Promise<OpResult & { added?: nu
     return { added };
   } catch (err) {
     return fail(err, "Could not load the plan.");
+  }
+}
+
+/** Adds what any plan lacks, for starting on the roadmap in one go. */
+export async function loadAllPlans(): Promise<OpResult & { added?: number }> {
+  const blocked = studyOnly();
+  if (blocked) return blocked;
+  try {
+    const added = await Promise.all(PLANS.map((plan) => native.importPlan(plan.project, planPayload(plan))));
+    revalidateTasks();
+    return { added: added.reduce((sum, n) => sum + n, 0) };
+  } catch (err) {
+    return fail(err, "Could not load the plans.");
+  }
+}
+
+/** Dates the main path of all three plans at so many hours a week, in roadmap order. */
+export async function setRoadmapPace(hoursPerWeek: number, start: string): Promise<OpResult & { last?: string; count?: number }> {
+  const blocked = studyOnly();
+  if (blocked) return blocked;
+  if (!Number.isFinite(hoursPerWeek) || hoursPerWeek <= 0 || hoursPerWeek > 100) return { error: "Choose how many hours a week, from 1 to 100." };
+  if (!isDate(start)) return { error: "Pick a valid start date." };
+  try {
+    const tasks = (await Promise.all(PLANS.map((plan) => native.listTasks(plan.project)))).flat();
+    const byRef = new Map(tasks.filter((t) => t.ref).map((t) => [t.ref as string, t]));
+    const dated = scheduleRoadmap({ isDone: (ref) => byRef.get(ref)?.completed ?? false, start, hoursPerWeek });
+    // A task with a time on the Schedule keeps it, and one not loaded yet cannot be dated.
+    const items = dated.flatMap((d) => {
+      const task = byRef.get(d.ref);
+      return task && !task.due_at ? [{ gid: task.gid, due_on: d.dueOn }] : [];
+    });
+    await native.setDueDates(items);
+    revalidateTasks();
+    return { count: items.length, last: items.at(-1)?.due_on };
+  } catch (err) {
+    return fail(err, "Could not set the dates.");
   }
 }
 

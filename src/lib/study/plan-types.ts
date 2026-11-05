@@ -20,8 +20,12 @@ export type PlanUnit = {
   /** Left out of pacing and of what comes next, but still there to do. */
   optional?: boolean;
   milestone?: boolean;
-  /** Printed page, for books that can be opened at a page. */
+  /** Page to open at: printed for a linked book, the PDF's own for a local file. */
   page?: number;
+  /** A rough guess at the work, used to pace the roadmap. Falls back to the plan's default. */
+  hours?: number;
+  /** Outside references worth having open for this unit. */
+  links?: { label: string; url: string }[];
 };
 
 export type PlanSection = { name: string; units: PlanUnit[] };
@@ -33,14 +37,20 @@ export type StudyPlan = {
   subtitle: string;
   /** What to read before starting, shown above the plan. */
   guidance: string;
-  /** A link to the source, with the page when given. */
+  /** A link to the source, with the page when given. Without one, pages show as plain text. */
   sourceUrl?: (page?: number) => string;
   extraLinks?: { label: string; url: string }[];
   defaultPerWeek: number;
+  /** Hours for a unit that gives none. */
+  defaultHours: number;
   unitLabel: string;
   sections: PlanSection[];
 };
 
 export function planUnits(plan: StudyPlan): PlanUnit[] {
   return plan.sections.flatMap((s) => s.units);
+}
+
+export function unitHours(unit: PlanUnit, plan: StudyPlan): number {
+  return unit.hours ?? plan.defaultHours;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { toast } from "@/components/toaster";
-import { METRICS, type BenchmarkRow } from "@/lib/study/benchmarks";
+import { GPUS, METRICS, type BenchmarkRow } from "@/lib/study/benchmarks";
 import type { RepoCommit } from "@/lib/study/github";
 import { addBenchmark, removeBenchmark } from "./actions";
 
@@ -85,7 +85,10 @@ export function BenchmarkForm({
       </div>
       <div>
         <label htmlFor="bench-gpu" className="field-label">GPU</label>
-        <input id="bench-gpu" className={input} value={gpu} maxLength={80} placeholder="Iris Xe" onChange={(e) => setGpu(e.target.value)} />
+        <input id="bench-gpu" className={input} list="gpu-names" value={gpu} maxLength={80} placeholder={GPUS[0]} onChange={(e) => setGpu(e.target.value)} />
+        <datalist id="gpu-names">
+          {GPUS.map((g) => <option key={g} value={g} />)}
+        </datalist>
       </div>
       <div>
         <label htmlFor="bench-task" className="field-label">Milestone</label>

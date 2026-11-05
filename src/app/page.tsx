@@ -210,8 +210,8 @@ function FirstRun({ native }: { native: boolean }) {
     <section className="card-special space-y-4" aria-label="Getting started">
       <h2 className="text-xl font-semibold">Start with your study plan</h2>
       <ol className="list-decimal space-y-2 pl-5 text-sm text-white/90">
-        <li>Open Study and load your books. Each section and chapter becomes a task, with its steps and exercises.</li>
-        <li>Set a pace, then drag the next few onto a time on the Schedule.</li>
+        <li>Open Study and load your plans. Each section, chapter and milestone becomes a task, with its steps and exercises.</li>
+        <li>Set a pace on the roadmap, then drag the next few onto a time on the Schedule.</li>
         <li>Press Start when you sit down, then Stop and log when you finish.</li>
       </ol>
       {native && (
