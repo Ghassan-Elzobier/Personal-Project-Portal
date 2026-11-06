@@ -12,36 +12,51 @@ export type Access = {
   projects: ProjectKey[];
 };
 
+type Check = { access: Access | null; failed: string | null };
+
 /**
- * The signed-in account's portal access, from the my_portal_access RPC.
- * Null when signed out or when the account has no access. Cached per request.
+ * The signed-in account's portal access, from the my_portal_access RPC, or the reason
+ * the check itself failed. Cached per request.
  */
-export const getAccess = cache(async (): Promise<Access | null> => {
+const checkAccess = cache(async (): Promise<Check> => {
   const supabase = await createClient();
   const { data: session } = await supabase.auth.getClaims();
   const claims = session?.claims;
-  if (!claims?.sub) return null;
+  if (!claims?.sub) return { access: null, failed: null };
 
   const { data, error } = await supabase.rpc("my_portal_access");
   if (error) {
     console.error("my_portal_access failed", error.message);
-    return null;
+    return { access: null, failed: error.message };
   }
   const row = (data as { role: string; display_name: string; projects: string[] }[] | null)?.[0];
-  if (!row || (row.role !== "owner" && row.role !== "mentor")) return null;
+  if (!row || (row.role !== "owner" && row.role !== "mentor")) return { access: null, failed: null };
 
   return {
-    userId: claims.sub,
-    email: typeof claims.email === "string" ? claims.email : "",
-    role: row.role,
-    displayName: row.display_name,
-    projects: (row.projects ?? []).filter(isProjectKey),
+    access: {
+      userId: claims.sub,
+      email: typeof claims.email === "string" ? claims.email : "",
+      role: row.role,
+      displayName: row.display_name,
+      projects: (row.projects ?? []).filter(isProjectKey),
+    },
+    failed: null,
   };
 });
 
-/** For pages: any account with access, or off to the no-access page. */
+/** The signed-in account's access. Null when signed out, without access, or when the check failed. */
+export async function getAccess(): Promise<Access | null> {
+  return (await checkAccess()).access;
+}
+
+/**
+ * For pages: any account with access, or off to the no-access page. A check that
+ * failed is not the same as no access, so it shows the error page and its Try again
+ * button instead of telling the owner they are not set up.
+ */
 export async function requireAccess(): Promise<Access> {
-  const access = await getAccess();
+  const { access, failed } = await checkAccess();
+  if (failed) throw new Error(`Could not check your access to the portal: ${failed}`);
   if (!access) redirect("/no-access");
   return access;
 }
