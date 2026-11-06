@@ -189,13 +189,13 @@ export const BRANCHES: readonly { key: string; name: string; why: string; skills
   {
     key: "real-time",
     name: "A real-time raster pipeline in Vulkan",
-    why: "What games and engine roles test first. It pairs with your path tracer, which can check its results.",
+    why: "What games and engine roles test first. It pairs with the path tracer, which can check its results.",
     skills: ["real-time-rendering", "raster-pipeline", "deferred", "pbr", "shadows", "global-illumination", "multithreading", "engine-dev", "unreal", "d3d12"],
   },
   {
     key: "ml-3d",
     name: "PyTorch and generative 3D, much earlier",
-    why: "Brings the neural work forward from phase 8, with training your own splats as the first project.",
+    why: "Brings the neural work forward from phase 8, with training a splat scene as the first project.",
     skills: ["pytorch", "deep-learning", "machine-learning", "model-training", "diffusion", "generative", "transformers", "reconstruction", "papers"],
   },
   {

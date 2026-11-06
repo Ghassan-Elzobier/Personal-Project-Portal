@@ -146,7 +146,8 @@ export function RolesView({ board, filters }: { board: JobBoard; filters: Filter
 
 const STATUS_DOT: Record<SkillStatus, string> = { evidenced: "bg-mint", in_plan: "bg-aqua", near: "bg-sand", missing: "bg-coral" };
 
-export function StandingNote({ standing }: { standing: Standing }) {
+export function StandingNote({ standing, about = "you" }: { standing: Standing; about?: "you" | "him" }) {
+  const plan = about === "you" ? "your plan" : "the plan";
   if (standing.status === "evidenced") {
     const top = standing.evidence[0];
     return (
@@ -165,11 +166,11 @@ export function StandingNote({ standing }: { standing: Standing }) {
       </span>
     );
   }
-  if (standing.nearName) return <span>Not in your plan, but close to {standing.nearName}</span>;
-  return <span>Not in your plan</span>;
+  if (standing.nearName) return <span>Not in {plan}, but close to {standing.nearName}</span>;
+  return <span>Not in {plan}</span>;
 }
 
-function SkillTable({ rows, empty }: { rows: MarketRow[]; empty: string }) {
+export function SkillTable({ rows, empty, about = "you" }: { rows: MarketRow[]; empty: string; about?: "you" | "him" }) {
   if (!rows.length) return <Empty>{empty}</Empty>;
   return (
     <div className="overflow-x-auto">
@@ -179,7 +180,7 @@ function SkillTable({ rows, empty }: { rows: MarketRow[]; empty: string }) {
             <th className="py-1 pr-4 font-normal">Skill</th>
             <th className="py-1 pr-4 text-right font-normal">Required by</th>
             <th className="py-1 pr-4 text-right font-normal">Wanted by</th>
-            <th className="py-1 font-normal">Where you stand</th>
+            <th className="py-1 font-normal">{about === "you" ? "Where you stand" : "Where he stands"}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
@@ -191,7 +192,7 @@ function SkillTable({ rows, empty }: { rows: MarketRow[]; empty: string }) {
               </td>
               <td className="py-2 pr-4 text-right tabular-nums">{row.must}</td>
               <td className="py-2 pr-4 text-right text-neutral-400 tabular-nums">{row.soft}</td>
-              <td className="py-2 text-neutral-300"><StandingNote standing={row.standing} /></td>
+              <td className="py-2 text-neutral-300"><StandingNote standing={row.standing} about={about} /></td>
             </tr>
           ))}
         </tbody>

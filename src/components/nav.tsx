@@ -32,11 +32,14 @@ export async function Nav() {
 
   const owner = access.role === "owner";
   const canAdd = owner && !usesAsana();
-  const tools = toolsFor(access.role).filter((t) => (t.key !== "tasks" && t.key !== "study" && t.key !== "jobs") || !usesAsana());
-  const links = (group: "primary" | "more") =>
-    tools.filter((t) => t.group === group).map((t) => ({ href: t.href, title: t.key === "today" && !owner ? "Home" : t.title }));
-  const primary = owner ? links("primary") : [{ href: "/", title: "Home" }, ...links("primary")];
-  const more = links("more");
+  const tools = toolsFor(access.role)
+    .filter((t) => !["tasks", "study", "jobs", "roadmap", "job-hunt"].includes(t.key) || !usesAsana())
+    .filter((t) => !t.share || access.shares.includes(t.share));
+  const title = (t: (typeof tools)[number]) => (owner && t.mentorView ? `${t.title} (mentor view)` : t.title);
+  const links = (group: "primary" | "more") => tools.filter((t) => t.group === group).map((t) => ({ href: t.href, title: title(t) }));
+  // A mentor has only a handful of places, so all of them stay in view.
+  const primary = owner ? links("primary") : [{ href: "/", title: "Home" }, ...tools.map((t) => ({ href: t.href, title: title(t) }))];
+  const more = owner ? links("more") : [];
 
   return (
     <>
