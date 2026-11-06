@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { LINKS } from "./links.ts";
 import { findUnit, PLANS } from "./plans.ts";
 import { planUnits, unitHours } from "./plan-types.ts";
+import { dayAfterHours, weeksFor } from "./pace.ts";
 import { linksAt, phaseOf, PHASES, scheduleRoadmap } from "./roadmap.ts";
 
 const nothingDone = () => false;
@@ -118,4 +119,29 @@ test("finished units are skipped, and the rest close up", () => {
 test("the whole path takes a believable amount of work", () => {
   const hours = PLANS.flatMap((p) => planUnits(p).filter((u) => !u.optional).map((u) => unitHours(u, p))).reduce((a, b) => a + b, 0);
   assert.ok(hours > 300 && hours < 700, `${hours} hours`);
+});
+
+test("a change of pace moves everything after it", () => {
+  const pace = { hoursPerWeek: 40, until: "2026-12-01", thenHoursPerWeek: 18 };
+  assert.equal(dayAfterHours("2026-11-06", 40, pace), "2026-11-12", "one week at the first pace");
+  // 25 days at 40 a week is about 142.9 hours, so 160 hours run about a week past the change.
+  assert.equal(dayAfterHours("2026-11-06", 160, pace), "2026-12-07");
+});
+
+test("no change of pace, or one already past, leaves a single pace", () => {
+  assert.equal(dayAfterHours("2026-11-06", 40, { hoursPerWeek: 40 }), "2026-11-12");
+  assert.equal(dayAfterHours("2026-11-06", 40, { hoursPerWeek: 40, until: "2026-11-01", thenHoursPerWeek: 5 }), "2026-11-12");
+});
+
+test("the roadmap uses both paces and still puts nothing before what it needs", () => {
+  const steady = scheduleRoadmap({ isDone: nothingDone, start: "2026-11-06", hoursPerWeek: 40 });
+  const changing = scheduleRoadmap({ isDone: nothingDone, start: "2026-11-06", hoursPerWeek: 40, until: "2026-12-01", thenHoursPerWeek: 18 });
+  assert.deepEqual(changing.map((d) => d.ref), steady.map((d) => d.ref), "the order does not depend on the pace");
+  assert.equal(changing[0].dueOn, steady[0].dueOn, "early units are unaffected");
+  assert.ok(changing.at(-1)!.dueOn > steady.at(-1)!.dueOn, "the finish moves out");
+});
+
+test("the weeks shown under the form match the finish date", () => {
+  assert.equal(weeksFor("2026-11-06", 40, { hoursPerWeek: 40 }), 1);
+  assert.equal(weeksFor("2026-11-06", 400, { hoursPerWeek: 40 }), 10);
 });

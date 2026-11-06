@@ -6,8 +6,8 @@
 // The hours behind the pacing are rough guesses. Your logged hours are the real
 // measure, so change them once you know how long things take you.
 
-import { addDays } from "../dates/week.ts";
 import { LINKS, type PlanLink } from "./links.ts";
+import { dayAfterHours, type Pace } from "./pace.ts";
 import { findUnit } from "./plans.ts";
 import { unitHours } from "./plan-types.ts";
 
@@ -90,9 +90,8 @@ export function linksAt(phase: number): PlanLink[] {
  * side by side rather than running one after the other. Nothing falls due before
  * what it needs.
  */
-export function scheduleRoadmap(input: { isDone: (ref: string) => boolean; start: string; hoursPerWeek: number }): { ref: string; dueOn: string }[] {
-  const { isDone, start, hoursPerWeek } = input;
-  const pace = Math.max(hoursPerWeek, 0.1);
+export function scheduleRoadmap(input: { isDone: (ref: string) => boolean; start: string } & Pace): { ref: string; dueOn: string }[] {
+  const { isDone, start, ...pace } = input;
   let hoursSoFar = 0;
 
   return PHASES.flatMap((phase) => {
@@ -129,7 +128,7 @@ export function scheduleRoadmap(input: { isDone: (ref: string) => boolean; start
 
     return [...ordered].map((u) => {
       hoursSoFar += u.hours;
-      return { ref: u.ref, dueOn: addDays(start, Math.max(Math.ceil((hoursSoFar * 7) / pace) - 1, 0)) };
+      return { ref: u.ref, dueOn: dayAfterHours(start, hoursSoFar, pace) };
     });
   });
 }

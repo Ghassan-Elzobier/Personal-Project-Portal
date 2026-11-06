@@ -401,15 +401,16 @@ export async function loadAllPlans(): Promise<OpResult & { added?: number }> {
 }
 
 /** Dates the main path of all three plans at so many hours a week, in roadmap order. */
-export async function setRoadmapPace(hoursPerWeek: number, start: string): Promise<OpResult & { last?: string; count?: number }> {
+export async function setRoadmapPace(hoursPerWeek: number, start: string, then?: { from: string; hoursPerWeek: number }): Promise<OpResult & { last?: string; count?: number }> {
   const blocked = studyOnly();
   if (blocked) return blocked;
   if (!Number.isFinite(hoursPerWeek) || hoursPerWeek <= 0 || hoursPerWeek > 100) return { error: "Choose how many hours a week, from 1 to 100." };
   if (!isDate(start)) return { error: "Pick a valid start date." };
+  if (then && (!isDate(then.from) || !Number.isFinite(then.hoursPerWeek) || then.hoursPerWeek <= 0 || then.hoursPerWeek > 100)) return { error: "Check the date and hours for the later pace." };
   try {
     const tasks = (await Promise.all(PLANS.map((plan) => native.listTasks(plan.project)))).flat();
     const byRef = new Map(tasks.filter((t) => t.ref).map((t) => [t.ref as string, t]));
-    const dated = scheduleRoadmap({ isDone: (ref) => byRef.get(ref)?.completed ?? false, start, hoursPerWeek });
+    const dated = scheduleRoadmap({ isDone: (ref) => byRef.get(ref)?.completed ?? false, start, hoursPerWeek, until: then?.from, thenHoursPerWeek: then?.hoursPerWeek });
     // A task with a time on the Schedule keeps it, and one not loaded yet cannot be dated.
     const items = dated.flatMap((d) => {
       const task = byRef.get(d.ref);
