@@ -55,6 +55,7 @@ Each book and the renderer is a plan in `src/lib/study`, loaded from the Study p
 - **They connect.** A milestone lists the chapters it builds on, and a chapter shows what it feeds into. `links.ts` says where the plans meet and why, and shows on both units.
 - **One path through all three.** `roadmap.ts` puts every unit in one of eight phases, each with a reason and a condition for moving on, and paces all three plans together by hours a week. Tests check that every unit has a place and that nothing comes before what it needs. The hours are rough guesses, so correct them once you have real ones.
 - **PMPP comes from the book.** Chapters, exercise counts and pages were read from the PDF, in the PDF's own page numbers. Notes are in our own words and the book's text stays out of this repo. The book never mentions ray tracing or Vulkan, so the links to the renderer are our own reading.
+- **GPU MODE sits beside the book.** Its lectures that cover a core chapter are a step in that chapter, and the rest are links on the chapters they suit. The links search GPU MODE's YouTube channel, because the video titles differ from the lecture repository's.
 - **Kernels run in three places.** CUDA needs NVIDIA and neither GPU here is one, so kernels are written on LeetGPU or a Colab GPU, then ported to Vulkan compute for real timings on the RX 5700 XT and Iris Xe. The roadmap has a CUDA to Vulkan table.
 
 ## How job tracking works

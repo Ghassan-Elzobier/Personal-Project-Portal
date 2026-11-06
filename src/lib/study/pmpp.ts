@@ -25,7 +25,17 @@ type ChapterInput = {
   needs?: string[];
   optional?: boolean;
   milestone?: boolean;
+  links?: { label: string; url: string }[];
 };
+
+/**
+ * A GPU MODE lecture, found by searching the channel. YouTube titles differ from the
+ * lecture repository's, so a search on the lecture's own words is steadier than a
+ * video id.
+ */
+function gpuMode(n: number, title: string, query = title): { label: string; url: string } {
+  return { label: `GPU MODE lecture ${n}: ${title}`, url: `https://www.youtube.com/@GPUMODE/search?query=${encodeURIComponent(`Lecture ${n} ${query}`)}` };
+}
 
 function chapter(n: number, title: string, input: ChapterInput): PlanUnit {
   const { reviews, ...rest } = input;
@@ -48,6 +58,8 @@ export const PMPP: StudyPlan = {
   extraLinks: [
     { label: "LeetGPU", url: "https://leetgpu.com" },
     { label: "Vulkan subgroups", url: "https://www.khronos.org/blog/vulkan-subgroup-tutorial" },
+    { label: "GPU MODE on YouTube", url: "https://www.youtube.com/@GPUMODE" },
+    { label: "GPU MODE lecture notes and code", url: "https://github.com/gpu-mode/lectures" },
   ],
   defaultPerWeek: 1,
   defaultHours: 6,
@@ -61,6 +73,7 @@ export const PMPP: StudyPlan = {
           name: "Set up your three places to run kernels",
           short: "CUDA setup",
           hours: 2,
+          links: [gpuMode(1, "Profiling and Integrating CUDA kernels in PyTorch", "Profiling"), gpuMode(26, "SYCL MODE (Intel GPU)", "SYCL"), gpuMode(27, "gpu.cpp"), gpuMode(41, "CUDA Docs for Humans")],
           notes:
             "CUDA needs an NVIDIA GPU and neither of yours is one. LeetGPU emulates one on a CPU, with a functional mode for output and a cycle-accurate mode, built on Accel-Sim, that estimates timing. Its authors say it covers most of the core runtime API, so expect gaps in what the book uses later: cuda::atomic_ref, warp shuffles, cooperative groups. Find out now rather than mid-chapter. A Colab GPU runtime is your fallback for real CUDA. Done when a small kernel runs in both, and you have saved vulkaninfo for both of your own GPUs.",
           steps: [
@@ -73,6 +86,7 @@ export const PMPP: StudyPlan = {
         chapter(1, "Introduction", {
           page: 47,
           hours: 1.5,
+          links: [gpuMode(2, "Recap Ch. 1-3 from the PMPP book", "Recap")],
           notes:
             "A short read, with no exercises. Read 1.7 for the map of the book, and write down what you most want from it: for you, a faster renderer. Amdahl's law comes up here and returns in Chapter 22.",
           steps: READ_STEPS,
@@ -88,7 +102,8 @@ export const PMPP: StudyPlan = {
       units: [
         chapter(2, "Heterogeneous data-parallel computing", {
           page: 88,
-          hours: 5,
+          hours: 6.5,
+          links: [gpuMode(3, "Getting Started With CUDA"), gpuMode(2, "Recap Ch. 1-3 from the PMPP book", "Recap")],
           exercises: 10,
           needs: ["pmpp-setup"],
           notes:
@@ -98,6 +113,7 @@ export const PMPP: StudyPlan = {
             "Rebuild it from a blank file: allocate, copy in, launch, copy out, free",
             "Run it at several sizes in cycle-accurate mode and see how the estimate grows",
             "Exercises 1 to 10, all on paper. Try each one before checking",
+            "Work through GPU MODE lecture 3 in its Colab notebook, which runs on a real NVIDIA GPU",
           ],
           reviews: [
             "From memory, list the steps that move a computation onto a GPU, and say where the data lives at each one.",
@@ -106,7 +122,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(3, "Multidimensional grids and data", {
           page: 150,
-          hours: 6,
+          hours: 7,
+          links: [gpuMode(2, "Recap Ch. 1-3 from the PMPP book", "Recap")],
           notes:
             "The book has no exercises for this chapter, so the steps below stand in for them. Your shader's 8×8 workgroup is one of this chapter's 2D blocks, and gl_GlobalInvocationID is the same index sum you write here by hand. Matrix multiplication returns in Chapters 5 and 15, so get it right now.",
           steps: [
@@ -114,6 +131,7 @@ export const PMPP: StudyPlan = {
             "Rebuild the image blur (3.3) from a blank file, and draw how one thread finds its pixels",
             "Rebuild matrix multiplication (3.4) from a blank file, and test it on a product you worked out by hand",
             "Check the blur is linear: blur(a·x + b·y) should match a·blur(x) + b·blur(y), up to rounding",
+            "Watch GPU MODE lecture 2, a recap of chapters 1 to 3, and note anything you would explain differently",
           ],
           reviews: [
             "Given a 2D grid of 2D blocks, write the pixel coordinates and the linear array index for one thread.",
@@ -122,7 +140,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(4, "Compute architecture and scheduling", {
           page: 202,
-          hours: 6,
+          hours: 7.5,
+          links: [gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory"), gpuMode(37, "Introduction to SASS & GPU Microarchitecture", "SASS")],
           exercises: 9,
           notes:
             "How threads actually run. All nine exercises are on paper. The book's warp is 32 threads, which is close to home: your RX 5700 XT can run compute at a subgroup size of 32 or 64, and the Iris Xe reports its own range. Then test the idea on your own path tracer, in the divergence lab.",
@@ -131,6 +150,7 @@ export const PMPP: StudyPlan = {
             "Work out SIMD efficiency by hand for a loop where threads stop at different iterations, as in Fig. 4.10",
             "Compare what 4.8 queries with your vulkaninfo: subgroup sizes, invocations per workgroup, shared memory",
             "Exercises 1 to 9, all on paper",
+            "Watch GPU MODE lecture 4 on compute and memory architecture, and check it against your notes on warps and scheduling",
           ],
           reviews: [
             "Define warp, SIMD efficiency and occupancy, and say what limits occupancy.",
@@ -140,7 +160,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(5, "Memory architecture and data locality", {
           page: 264,
-          hours: 8,
+          hours: 9.5,
+          links: [gpuMode(5, "Going Further with CUDA for Python Programmers", "Going Further with CUDA"), gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory")],
           exercises: 12,
           notes:
             "The most important chapter for the renderer. A kernel is limited by compute or by memory, and its arithmetic intensity in FLOP/B says which. The book's H100 crosses over at 20.0 FLOP/B (66.9 TFLOPS over 3.35 TB/s). Your RX 5700 XT's paper figures give about 21.8 (9.75 TFLOPS over 448 GB/s), so the book's reasoning carries over almost unchanged, at a lower absolute speed. The Iris Xe shares system RAM, so measure it. Exercises are on paper, with exercise 10 a kernel to debug by reading.",
@@ -150,6 +171,7 @@ export const PMPP: StudyPlan = {
             "Rebuild the tiled matrix multiplication (5.4) from a blank file",
             "Compute the intensity of the plain and tiled kernels. Say which side of the crossover each falls on",
             "Exercises 1 to 12, all without a GPU",
+            "Watch GPU MODE lecture 5, which builds a tiled matrix multiply with shared memory, and compare it with yours",
           ],
           reviews: [
             "Define arithmetic intensity, and work out where a GPU crosses from memory-bound to compute-bound.",
@@ -159,7 +181,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(6, "Performance considerations", {
           page: 346,
-          hours: 7,
+          hours: 8,
+          links: [gpuMode(8, "CUDA Performance Checklist", "Performance Checklist"), gpuMode(16, "On Hands profiling", "profiling")],
           exercises: 5,
           milestone: true,
           notes:
@@ -169,6 +192,7 @@ export const PMPP: StudyPlan = {
             "Rewrite the checklist (6.8) in your own words, grouped as compute, memory, synchronisation and coarsening",
             "Read 6.9, then write down how you would find what limits a kernel before changing any code",
             "Exercises 1, 3 and 5 on paper, then 2 and 4 on LeetGPU or Colab",
+            "Watch GPU MODE lecture 8 on the performance checklist, and match each item to Fig. 6.13",
           ],
           reviews: [
             "Give the checklist from memory, by category, with a line on what each item buys you.",
@@ -234,7 +258,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(10, "Reduction", {
           page: 587,
-          hours: 8,
+          hours: 9,
+          links: [gpuMode(9, "Reductions")],
           exercises: 6,
           notes:
             "A small pattern used to teach a lot: reducing divergence, coalescing and synchronisation in turn. Exercise 4 is a max reduction, which is half of a bounding box. Vulkan gives you the warp-level step directly as subgroupAdd, subgroupMin and subgroupMax, so compare them with the shuffles you write here. Exercises 1, 2 and 6 are on paper; 3 to 5 are code.",
@@ -243,6 +268,7 @@ export const PMPP: StudyPlan = {
             "Rebuild the kernel that avoids divergence and uncoalesced access (10.4, 10.5) from a blank file",
             "Read 10.7 and 10.8, and add the warp-level version",
             "Exercises 1, 2 and 6 on paper, then 3 to 5 in code",
+            "Watch GPU MODE lecture 9 on reductions, and compare its kernels with the book's",
           ],
           reviews: [
             "How does a reduction tree work? What must the operator satisfy, and when does the order of operands matter too?",
@@ -251,7 +277,8 @@ export const PMPP: StudyPlan = {
         }),
         chapter(11, "Scan", {
           page: 677,
-          hours: 10,
+          hours: 12,
+          links: [gpuMode(20, "Scan Algorithm"), gpuMode(21, "Scan Algorithm Part 2", "Scan Algorithm Part 2"), gpuMode(24, "Scan at the Speed of Light", "Speed of Light")],
           exercises: 7,
           notes:
             "The longest pattern chapter, and what filter and radix sort are built on. Budget for it. Take Kogge-Stone and reduce-scan-scan with you into Vulkan. Leave lookback (11.9) behind: it relies on other workgroups making progress, and Vulkan only gives a limited guarantee of that. Exercises 1, 2, 3 and 6 are on paper; 4, 5 and 7 are code.",
@@ -260,6 +287,7 @@ export const PMPP: StudyPlan = {
             "Rebuild Kogge-Stone from a blank file, and check it against a sequential scan on random input",
             "Read 11.5 to 11.10, and write a short comparison of scan-scan-add, reduce-scan-scan and lookback",
             "Exercises 1, 2, 3 and 6 on paper, then 4, 5 and 7 in code",
+            "Watch GPU MODE lectures 20 and 21, where Izzat El Hajj, one of the book's authors, teaches scan",
           ],
           reviews: [
             "Compare Kogge-Stone with Brent-Kung on work and on steps. Why can the less work-efficient one win on a GPU?",
@@ -325,6 +353,7 @@ export const PMPP: StudyPlan = {
         chapter(15, "Advanced optimizations for matrix multiplication", {
           page: 971,
           hours: 9,
+          links: [gpuMode(15, "CUTLASS"), gpuMode(23, "Tensor Cores")],
           exercises: 3,
           optional: true,
           notes:
@@ -437,6 +466,7 @@ export const PMPP: StudyPlan = {
         chapter(20, "Large language models", {
           page: 1362,
           hours: 10,
+          links: [gpuMode(12, "Flash Attention")],
           exercises: 4,
           optional: true,
           needs: ["pmpp-19"],
@@ -466,6 +496,7 @@ export const PMPP: StudyPlan = {
         chapter(23, "Multi-GPU programming", {
           page: 1556,
           hours: 8,
+          links: [gpuMode(17, "GPU Collective Communication (NCCL)", "NCCL")],
           exercises: 3,
           optional: true,
           notes:
@@ -496,6 +527,7 @@ export const PMPP: StudyPlan = {
           short: "PMPP App. A",
           page: 1679,
           hours: 3,
+          links: [gpuMode(84, "Numerics and AI")],
           exercises: 5,
           optional: true,
           notes:
