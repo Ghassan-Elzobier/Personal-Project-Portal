@@ -3,15 +3,18 @@ import { allTasks, attempt, today, type TaskView } from "../portal/data";
 import { PROJECTS, projectDef, type ProjectKey } from "../config/projects";
 import { listSections, studySnapshot, type StudySnapshot } from "../tasks/native";
 import { groupBenchmarks } from "./benchmarks";
+import { linksFor, type PlanLink } from "./links";
 import { dependents, findUnit, PLANS } from "./plans";
-import { planUnits, type PlanUnit, type StudyPlan } from "./plan-types";
+import { planUnits, unitHours, type PlanUnit, type StudyPlan } from "./plan-types";
 import { tallyExercises, type ExerciseTally } from "./review";
+import { linksAt, PHASES, type Phase } from "./roadmap";
 
 // Shapes the study plans and their progress for the Study page, Progress page
 // and Claude's connector. Everything comes from two cached reads, so asking for
 // several plans costs no more than asking for one.
 
 export type UnitLink = { short: string; href: string; done: boolean };
+export type UnitConnection = UnitLink & { why: string };
 
 export type UnitRow = {
   unit: PlanUnit;
@@ -20,7 +23,10 @@ export type UnitRow = {
   stepsDone: number;
   stepsTotal: number;
   needs: UnitLink[];
+  /** Units that build on this one and have no link of their own to explain why. */
   feeds: UnitLink[];
+  /** Where this meets the other plans, and why. */
+  connections: UnitConnection[];
 };
 
 export type PlanProgress = {
@@ -70,6 +76,7 @@ function buildProgress(plan: StudyPlan, { tasks, study }: Loaded): PlanProgress 
     const task = byRef.get(unit.ref);
     if (!task || task.project !== plan.project) return [];
     const steps = study.subtasks.filter((s) => s.task_gid === task.gid);
+    const linked = linksFor(unit.ref);
     return [
       {
         unit,
@@ -78,7 +85,13 @@ function buildProgress(plan: StudyPlan, { tasks, study }: Loaded): PlanProgress 
         stepsDone: steps.filter((s) => s.done).length,
         stepsTotal: steps.length,
         needs: (unit.needs ?? []).flatMap((r) => link(r) ?? []),
-        feeds: dependents(unit.ref).flatMap((d) => link(d.unit.ref) ?? []),
+        feeds: dependents(unit.ref)
+          .filter((d) => !linked.some((l) => l.ref === d.unit.ref))
+          .flatMap((d) => link(d.unit.ref) ?? []),
+        connections: linked.flatMap((l) => {
+          const to = link(l.ref);
+          return to ? [{ ...to, why: l.why }] : [];
+        }),
       },
     ];
   });
@@ -103,6 +116,86 @@ function buildProgress(plan: StudyPlan, { tasks, study }: Loaded): PlanProgress 
   };
 }
 
+export type RoadmapUnit = { ref: string; name: string; short: string; href: string | null; done: boolean; optional: boolean; hours: number };
+
+export type RoadmapPhase = {
+  phase: Phase;
+  index: number;
+  state: "done" | "now" | "later";
+  /** The three plans side by side, in the order they appear on the page. */
+  tracks: { project: ProjectKey; title: string; units: RoadmapUnit[] }[];
+  links: (PlanLink & { aShort: string; bShort: string })[];
+  done: number;
+  total: number;
+  hoursLeft: number;
+};
+
+export type Roadmap = {
+  phases: RoadmapPhase[];
+  current: RoadmapPhase | null;
+  /** Units in the plans that have not been added to the database. */
+  missing: number;
+  hoursLeft: number;
+  /** How many units on the main path still to do already have a date. */
+  dated: number;
+  remaining: number;
+};
+
+/** The roadmap's phases with each plan's progress filled in. */
+export function buildRoadmap(plans: PlanProgress[]): Roadmap {
+  const rows = new Map(plans.flatMap((p) => p.rows.map((r) => [r.unit.ref, r] as const)));
+  const short = (ref: string) => findUnit(ref)?.unit.short ?? ref;
+
+  const shaped = PHASES.map((phase, index) => {
+    const tracks = PLANS.map((plan) => ({
+      project: plan.project,
+      title: projectDef(plan.project).title,
+      units: phase.units.flatMap((ref): RoadmapUnit[] => {
+        const found = findUnit(ref);
+        if (found?.plan !== plan) return [];
+        const row = rows.get(ref);
+        return [
+          {
+            ref,
+            name: row?.task.name ?? found.unit.name,
+            short: found.unit.short,
+            href: row ? `/study?task=${row.task.gid}` : null,
+            done: row?.task.completed ?? false,
+            optional: found.unit.optional ?? false,
+            hours: unitHours(found.unit, plan),
+          },
+        ];
+      }),
+    }));
+    const core = tracks.flatMap((t) => t.units).filter((u) => !u.optional);
+    return {
+      phase,
+      index,
+      tracks,
+      links: linksAt(index).map((l) => ({ ...l, aShort: short(l.a), bShort: short(l.b) })),
+      done: core.filter((u) => u.done).length,
+      total: core.length,
+      hoursLeft: core.filter((u) => !u.done).reduce((sum, u) => sum + u.hours, 0),
+    };
+  });
+
+  const nowIndex = shaped.findIndex((p) => p.done < p.total);
+  const phases: RoadmapPhase[] = shaped.map((p) => ({
+    ...p,
+    state: p.done === p.total ? "done" : p.index === nowIndex ? "now" : "later",
+  }));
+  const open = plans.flatMap((p) => p.rows).filter((r) => !r.unit.optional && !r.task.completed);
+
+  return {
+    phases,
+    current: phases.find((p) => p.state === "now") ?? null,
+    missing: plans.reduce((sum, p) => sum + p.missing, 0),
+    hoursLeft: phases.reduce((sum, p) => sum + p.hoursLeft, 0),
+    dated: open.filter((r) => r.task.dueOn).length,
+    remaining: open.length,
+  };
+}
+
 export type ReviewItem = {
   gid: string;
   prompt: string;
@@ -117,6 +210,7 @@ export type ReviewItem = {
 export type StudyOverview = {
   today: string;
   plans: PlanProgress[];
+  roadmap: Roadmap;
   due: ReviewItem[];
   upcoming: number;
   study: StudySnapshot;
@@ -155,14 +249,23 @@ export async function loadStudy(): Promise<StudyOverview> {
       return [p.key, result.ok ? result.value : []] as const;
     })),
   );
-  return { today: date, plans, due, upcoming, study: loaded.study, sections: (project) => sectionLists.get(project) ?? [] };
+  return { today: date, plans, roadmap: buildRoadmap(plans), due, upcoming, study: loaded.study, sections: (project) => sectionLists.get(project) ?? [] };
 }
 
 /** The same thing in a compact form for Claude. */
 export async function studyOverview() {
-  const { today: date, plans, due, upcoming, study } = await loadStudy();
+  const { today: date, plans, roadmap, due, upcoming, study } = await loadStudy();
+  const now = roadmap.current;
   return {
     today: date,
+    roadmap: now && {
+      phase: `${now.index + 1} of ${roadmap.phases.length}: ${now.phase.name}`,
+      why: now.phase.why,
+      done_when: now.phase.exit,
+      still_to_do: now.tracks.flatMap((t) => t.units.filter((u) => !u.done && !u.optional).map((u) => ({ plan: t.title, unit: u.name }))),
+      connections: now.links.map((l) => ({ between: [l.aShort, l.bShort], why: l.why })),
+      estimated_hours_left_overall: roadmap.hoursLeft,
+    },
     plans: plans.map((p) => ({
       project: p.plan.project,
       title: projectDef(p.plan.project).title,
@@ -177,7 +280,9 @@ export async function studyOverview() {
         steps_done: `${p.next.stepsDone} of ${p.next.stepsTotal}`,
         due_on: p.next.task.dueOn,
         needs_unfinished: p.next.needs.filter((n) => !n.done).map((n) => n.short),
+        connections: p.next.connections.map((c) => ({ with: c.short, why: c.why })),
         open_at: p.plan.sourceUrl && p.next.unit.page ? p.plan.sourceUrl(p.next.unit.page) : undefined,
+        local_pdf_page: !p.plan.sourceUrl && p.next.unit.page ? p.next.unit.page : undefined,
       },
       stuck: p.rows.flatMap((r) =>
         study.exercises
@@ -199,6 +304,7 @@ export function panelFor(row: Pick<UnitRow, "task"> & Partial<UnitRow>, study: S
   if (found?.plan.sourceUrl && found.unit.page) links.push({ label: `Open at page ${found.unit.page}`, href: found.plan.sourceUrl(found.unit.page) });
   if (found?.plan.mode === "lab" && found.plan.sourceUrl) links.push({ label: "Open the repo", href: found.plan.sourceUrl() });
   for (const l of found?.plan.extraLinks ?? []) links.push({ label: l.label, href: l.url });
+  for (const l of found?.unit.links ?? []) links.push({ label: l.label, href: l.url });
   return {
     taskGid: task.gid,
     mode: found?.plan.mode ?? null,
@@ -208,7 +314,9 @@ export function panelFor(row: Pick<UnitRow, "task"> & Partial<UnitRow>, study: S
     steps: study.subtasks.filter((s) => s.task_gid === task.gid).map((s) => ({ gid: s.gid, name: s.name, done: s.done })),
     reviews: study.reviews.filter((r) => r.task_gid === task.gid).map((r) => ({ gid: r.gid, prompt: r.prompt, dueOn: r.due_on })),
     links,
+    pdfPage: found && !found.plan.sourceUrl ? (found.unit.page ?? null) : null,
     needs: row.needs ?? [],
     feeds: row.feeds ?? [],
+    connections: row.connections ?? [],
   };
 }

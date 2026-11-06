@@ -36,10 +36,10 @@ Claude connector working. The details for each step are in
       `npx supabase projects create personal-project-portal`. Ask for the
       region (closest to London) and the plan (Free).
 - [ ] `npx supabase link --project-ref <ref>`, then `npx supabase db push`.
-      It should apply six migrations: portal access, Google Calendar,
-      Claude connector, native tasks, bulk reads and study.
+      It should apply eight migrations: portal access, Google Calendar,
+      Claude connector, native tasks, bulk reads, study and the PMPP correction, then the job tracker.
 - [ ] `npx supabase config push` applies sign-ups off and the auth settings.
-- [ ] If Docker is running, `npx supabase test db`. 106 pgTAP checks should pass.
+- [ ] If Docker is running, `npx supabase test db`. 136 pgTAP checks should pass.
 - [ ] Copy the project URL and anon key into `.env.local`
       (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 - [ ] Ghassan invites his own email under Authentication, then Users, then

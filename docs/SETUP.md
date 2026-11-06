@@ -133,9 +133,15 @@ and each one crosses that distance. If your Supabase project is elsewhere, chang
 
 ## Study plans
 
-Open **Study** and load each plan. It adds the book's structure as sections and
-tasks, with steps, exercises and things to recall. Loading again only adds what is
-missing and never changes existing work. To change a plan, edit `src/lib/study`.
+Open **Study** and load the plans. It adds each book's structure and the renderer's
+milestones as sections and tasks, with steps, exercises and things to recall.
+Loading again only adds what is missing and never changes existing work. Then set a
+pace on the roadmap, which dates all three plans together.
+
+To change a plan, edit `src/lib/study`. New units arrive when you press "Add
+missing", and links and prerequisites show straight away. Text already loaded stays
+as it is, so changing the meaning of a `ref` needs a migration like
+`20261105130000_pmpp_fifth_edition.sql`.
 
 Do not add a `loading.tsx` or a `<Suspense>` boundary to a page that saves things
 without testing it repeatedly: see the note in `src/components/link-pending.tsx`.

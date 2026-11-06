@@ -210,7 +210,7 @@ export const TOOLS: Tool[] = [
     name: "get_study",
     title: "Study progress",
     description:
-      "Progress through each study plan: Linear Algebra Done Right (Axler), Programming Massively Parallel Processors (PMPP) and the Vulkan renderer. Gives what comes next, exercises solved, what is stuck, things due for review, and renderer benchmarks. Read this before helping the owner study.",
+      "Progress through each study plan: Linear Algebra Done Right (Axler), Programming Massively Parallel Processors (PMPP) and the Vulkan renderer. Gives the current roadmap phase across all three, how the current units connect, what comes next, exercises solved, what is stuck, things due for review, and renderer benchmarks. Read this before helping the owner study.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run() {
@@ -457,6 +457,6 @@ export const INSTRUCTIONS = [
   "Call get_today first for the date, time zone and current state. Read get_week before planning, and avoid clashes with existing blocks.",
   "Study work is tasks (create_task) with time slots (schedule_task). Lunch, cooking, cleaning, gym and rest are life blocks in Google Calendar only (add_life_block).",
   "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
-  "For studying, call get_study first. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
+  "For studying, call get_study first. Work from the current roadmap phase, and bring up its connections between the plans when they help. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",
 ].join(" ");

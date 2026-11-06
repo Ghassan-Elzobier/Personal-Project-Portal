@@ -27,10 +27,11 @@ export const AXLER: StudyPlan = {
   title: "Linear Algebra Done Right",
   subtitle: "Sheldon Axler, 4th edition",
   guidance:
-    "Open access, so every section opens at its page. Proof-based, so the work is in writing proofs yourself. Rereading and highlighting feel productive but do little: recalling from a blank page and spacing it out are what the evidence supports. Chapters 6 and 7 feed the renderer directly.",
+    "Open access, so every section opens at its page. Proof-based, so the work is in writing proofs yourself. Rereading and highlighting feel productive but do little: recalling from a blank page and spacing it out are what the evidence supports. Chapters 6 and 7 feed the renderer directly, and the Roadmap shows where each section meets PMPP and the renderer.",
   sourceUrl: (page) => `https://linear.axler.net/LADR4e.pdf${page ? `#page=${page + PDF_OFFSET}` : ""}`,
   extraLinks: [{ label: "Axler's videos", url: "https://linear.axler.net/LADRvideos.html" }],
-  defaultPerWeek: 3,
+  defaultPerWeek: 2,
+  defaultHours: 5,
   unitLabel: "sections",
   sections: [
     {
@@ -178,6 +179,7 @@ export const AXLER: StudyPlan = {
           short: "Axler 4",
           page: 119,
           exercises: 14,
+          hours: 2,
           notes: "Axler suggests this chapter can go quickly, about half an hour, if you are pressed for time. It is mostly background you can return to. " + DONE,
           steps: QUICK_STEPS,
           reviews: [{"kind": "result", "prompt": "Axler 4.13: state and prove “fundamental theorem of algebra, second version” on blank paper."}],

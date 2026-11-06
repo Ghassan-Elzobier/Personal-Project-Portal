@@ -4,7 +4,7 @@
 export type Role = "owner" | "mentor";
 
 export type Tool = {
-  key: "today" | "study" | "tasks" | "schedule" | "log" | "week" | "timeline" | "progress" | "people" | "claude";
+  key: "today" | "study" | "jobs" | "tasks" | "schedule" | "log" | "week" | "timeline" | "progress" | "people" | "claude";
   title: string;
   href: string;
   description: string;
@@ -16,6 +16,7 @@ export type Tool = {
 export const TOOLS: readonly Tool[] = [
   { key: "today", title: "Today", href: "/", description: "What to do now, what is planned and what needs you.", roles: ["owner"], group: "primary" },
   { key: "study", title: "Study", href: "/study", description: "Work through each book and the renderer, with exercises, reviews and results.", roles: ["owner"], group: "primary" },
+  { key: "jobs", title: "Jobs", href: "/jobs", description: "The roles out there, what they ask for, and how your study and projects match.", roles: ["owner"], group: "primary" },
   { key: "tasks", title: "Tasks", href: "/tasks", description: "Every project at a glance, with list and board views and the full task.", roles: ["owner"], group: "primary" },
   { key: "schedule", title: "Schedule", href: "/schedule", description: "Plan the week: tasks into time slots, plus lunch, gym and the rest.", roles: ["owner"], group: "primary" },
   { key: "log", title: "Log a session", href: "/log", description: "Hours, stage and evidence on a task, in under a minute.", roles: ["owner"], group: "more" },

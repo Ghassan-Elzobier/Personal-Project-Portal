@@ -11,6 +11,16 @@ export async function loadPlan(project: string): Promise<ActionResult & { added?
   return ops.loadPlan(project);
 }
 
+export async function loadAllPlans(): Promise<ActionResult & { added?: number }> {
+  await requireOwner();
+  return ops.loadAllPlans();
+}
+
+export async function setRoadmapPace(hoursPerWeek: number, start: string, then?: { from: string; hoursPerWeek: number }): Promise<ActionResult & { last?: string; count?: number }> {
+  await requireOwner();
+  return ops.setRoadmapPace(hoursPerWeek, start, then);
+}
+
 export async function setPace(project: string, perWeek: number, start: string): Promise<ActionResult & { last?: string; count?: number }> {
   await requireOwner();
   return ops.setPace(project, perWeek, start);

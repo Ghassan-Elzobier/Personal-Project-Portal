@@ -32,7 +32,7 @@ export async function Nav() {
 
   const owner = access.role === "owner";
   const canAdd = owner && !usesAsana();
-  const tools = toolsFor(access.role).filter((t) => (t.key !== "tasks" && t.key !== "study") || !usesAsana());
+  const tools = toolsFor(access.role).filter((t) => (t.key !== "tasks" && t.key !== "study" && t.key !== "jobs") || !usesAsana());
   const links = (group: "primary" | "more") =>
     tools.filter((t) => t.group === group).map((t) => ({ href: t.href, title: t.key === "today" && !owner ? "Home" : t.title }));
   const primary = owner ? links("primary") : [{ href: "/", title: "Home" }, ...links("primary")];
