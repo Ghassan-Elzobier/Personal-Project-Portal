@@ -7,8 +7,9 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 
 | Page | Who | What it does |
 | --- | --- | --- |
-| Today (`/`) | Me | Needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
+| Today (`/`) | Me | Studying, the job market and the job hunt side by side, then needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
 | Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer as one roadmap: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
+| Jobs (`/jobs`) | Me | The roles out there, what each asks for and where I stand on it, with a quote from the advert and evidence or a plan date beside every requirement. Supabase backend only. |
 | Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
 | Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times). Add lunch, gym and other life blocks, which go to Google Calendar only. |
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
@@ -54,6 +55,18 @@ Each book and the renderer is a plan in `src/lib/study`, loaded from the Study p
 - **PMPP comes from the book.** Chapters, exercise counts and pages were read from the PDF, in the PDF's own page numbers. Notes are in our own words and the book's text stays out of this repo. The book never mentions ray tracing or Vulkan, so the links to the renderer are our own reading.
 - **Kernels run in three places.** CUDA needs NVIDIA and neither GPU here is one, so kernels are written on LeetGPU or a Colab GPU, then ported to Vulkan compute for real timings on the RX 5700 XT and Iris Xe. The roadmap has a CUDA to Vulkan table.
 
+## How job tracking works
+
+The point is to test the study plan against the market, not only to list roles. It shows which skills employers keep asking for, which of those are evidenced, which the plan will reach and when, and which the plan never reaches.
+
+- **Roles come from feeds that allow it.** Greenhouse, Ashby, Lever, Workable and Teamtailor for employers I follow, plus Arbeitnow UK and the RSE Society to find new ones. `src/lib/jobs/feeds.ts` builds every URL itself from a kind and a checked name, so nothing stored or in an advert can point a request elsewhere. LinkedIn, Indeed, Glassdoor and sites whose terms bar automation stay out: those go on a list to check by hand, and a form takes pasted adverts.
+- **There is no scheduler yet.** The page checks the feeds when the last read is over 12 hours old, or on request.
+- **Adverts are read by rules, with no model and no API key.** `extract.ts` finds the sections and `skills.ts` is a hand-kept skill list, because public taxonomies do not cover this field. Every requirement keeps the line it came from, so it can be checked by eye. The limit is that an unlisted skill cannot be seen, so the Skills tab also lists the terms adverts keep requiring that are not on the list.
+- **Fit is the worst must-have, never an average.** Ready, On your plan, One gap or Stretch. There is no percentage, because a percentage hides which requirement is missing. Interest and fit stay separate, and only you set interest.
+- **Evidence is computed.** Reading a unit is Studied, exercises or a finished milestone are Practised, a result with a commit is Measured, and work anyone can see is Public. Only Practised and above count as evidence.
+- **A role closes on good evidence.** It must be missing from two good reads in a row. A failed, partial or empty read closes nothing, and closed adverts keep their text.
+- **Advert text is untrusted.** It renders as plain text. The job RPCs take no connector token and anonymous callers have no access, so the Claude connector cannot read an advert. Employers and applications are private, so they live in the database, not in this public repo.
+
 ## Layout
 
 ```text
@@ -64,6 +77,7 @@ src/
     auth/       Who is signed in and what they may do.
     calendar/   Google Calendar and life blocks.
     config/     Environment, projects and the list of tools.
+    jobs/       Job feeds, reading adverts, the skill list and matching.
     connector/  The Claude connector (MCP and OAuth).
     dates/      Weeks and time zones.
     portal/     What pages show, and every change the portal makes.

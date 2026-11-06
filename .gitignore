@@ -9,3 +9,7 @@ next-env.d.ts
 .DS_Store
 supabase/.temp/
 supabase/.branches/
+
+# Job-hunt research names employers, and this repo is public.
+research_notes/
+reports/

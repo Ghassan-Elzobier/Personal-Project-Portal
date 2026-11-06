@@ -27,7 +27,7 @@ export function RoadmapTab({ roadmap, active }: { roadmap: Roadmap; active: bool
 }
 
 /** All three plans as one path, with the current phase up front. */
-export function RoadmapView({ roadmap, today, defaultHours }: { roadmap: Roadmap; today: string; defaultHours: number }) {
+export function RoadmapView({ roadmap, today, defaultHours, market }: { roadmap: Roadmap; today: string; defaultHours: number; market?: Map<number, { name: string; must: number; soft: number }[]> }) {
   const { phases, missing, hoursLeft, dated, remaining } = roadmap;
   const untouched = phases.every((p) => p.tracks.every((t) => t.units.every((u) => !u.href)));
 
@@ -62,7 +62,7 @@ export function RoadmapView({ roadmap, today, defaultHours }: { roadmap: Roadmap
 
       <div className="space-y-4">
         {phases.map((p) => (
-          <PhaseCard key={p.index} phase={p} count={phases.length} />
+          <PhaseCard key={p.index} phase={p} count={phases.length} market={market?.get(p.index)} />
         ))}
       </div>
 
@@ -106,7 +106,7 @@ export function RoadmapView({ roadmap, today, defaultHours }: { roadmap: Roadmap
   );
 }
 
-function PhaseCard({ phase: p, count }: { phase: RoadmapPhase; count: number }) {
+function PhaseCard({ phase: p, count, market }: { phase: RoadmapPhase; count: number; market?: { name: string; must: number; soft: number }[] }) {
   const label = `Phase ${p.index + 1} of ${count}`;
   return (
     <details open={p.state === "now"} className={`group/phase ${p.state === "now" ? "card" : "rounded-xl bg-white/5 p-4 ring-1 ring-white/5"}`}>
@@ -141,6 +141,14 @@ function PhaseCard({ phase: p, count }: { phase: RoadmapPhase; count: number }) 
           <span className="font-semibold">Done when: </span>
           <span className="text-neutral-300">{p.phase.exit}</span>
         </p>
+
+        {market && market.length > 0 && (
+          <p className="max-w-3xl text-sm">
+            <span className="font-semibold">In the job market: </span>
+            <span className="text-neutral-300">{market.map((m) => `${m.name} (${m.must + m.soft} ${m.must + m.soft === 1 ? "role" : "roles"})`).join(", ")}.</span>{" "}
+            <Link href="/jobs?view=skills" className="text-aqua underline-offset-4 hover:underline">See the market</Link>
+          </p>
+        )}
 
         {p.links.length > 0 && (
           <details>

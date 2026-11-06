@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireOwner } from "@/lib/auth/access";
 import { timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { projectDef } from "@/lib/config/projects";
+import { loadJobBoard, phaseMarket, unitMarket, type JobBoard } from "@/lib/jobs/load";
 import { attempt } from "@/lib/portal/data";
 import { recentCommits } from "@/lib/study/github";
 import { loadStudy, panelFor, type PlanProgress, type StudyOverview, type UnitRow } from "@/lib/study/load";
@@ -38,6 +39,9 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
   const selected = params.task ? overview.plans.flatMap((p) => p.rows).find((r) => r.task.gid === params.task) : undefined;
   const comments = selected ? await attempt(() => listComments(selected.task.gid)) : null;
   const commits = current?.plan.mode === "lab" && current.loaded ? await recentCommits() : [];
+  // What the market says about each unit. The page works the same without it.
+  const loadedBoard = await attempt(() => loadJobBoard(overview));
+  const board = loadedBoard.ok ? loadedBoard.value : null;
 
   return (
     <div className="space-y-6">
@@ -53,9 +57,9 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
       <ReviewQueue due={overview.due} today={overview.today} />
 
       {!current ? (
-        <RoadmapView roadmap={overview.roadmap} today={overview.today} defaultHours={weeklyHoursTarget() ?? 12} />
+        <RoadmapView roadmap={overview.roadmap} today={overview.today} defaultHours={weeklyHoursTarget() ?? 12} market={board ? phaseMarket(board) : undefined} />
       ) : current.loaded ? (
-        <PlanView progress={current} overview={overview} href={href} commits={commits} />
+        <PlanView progress={current} overview={overview} href={href} commits={commits} board={board} />
       ) : (
         <LoadCard progress={current} />
       )}
@@ -81,7 +85,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
           comments={comments?.ok ? comments.value.map((c) => ({ gid: c.gid, text: c.text, createdAt: c.created_at })) : []}
           loadError={comments && !comments.ok ? comments.error : null}
         >
-          <StudyPanel data={panelFor(selected, overview.study)} />
+          <StudyPanel data={{ ...panelFor(selected, overview.study), market: board ? unitMarket(board, selected.unit.ref) : [] }} />
         </TaskPane>
       )}
     </div>
@@ -132,7 +136,7 @@ function LoadCard({ progress }: { progress: PlanProgress }) {
   );
 }
 
-function PlanView({ progress, overview, href, commits }: { progress: PlanProgress; overview: StudyOverview; href: (next: Search) => string; commits: Awaited<ReturnType<typeof recentCommits>> }) {
+function PlanView({ progress, overview, href, commits, board }: { progress: PlanProgress; overview: StudyOverview; href: (next: Search) => string; commits: Awaited<ReturnType<typeof recentCommits>>; board: JobBoard | null }) {
   const { plan, core, exercises, hours, next, rows, missing, others } = progress;
   const remaining = rows.filter((r) => !r.unit.optional && !r.task.completed);
   const undated = remaining.filter((r) => !r.task.dueOn).length;
@@ -163,7 +167,7 @@ function PlanView({ progress, overview, href, commits }: { progress: PlanProgres
         </details>
       </div>
 
-      {next ? <NextUp row={next} href={href} today={overview.today} plan={plan} /> : <Empty>Everything in the main path is done. The optional ones are still here.</Empty>}
+      {next ? <NextUp row={next} href={href} today={overview.today} plan={plan} market={board ? unitMarket(board, next.unit.ref) : []} /> : <Empty>Everything in the main path is done. The optional ones are still here.</Empty>}
 
       {remaining.length > 0 && (
         <details open={undated === remaining.length}>
@@ -233,7 +237,7 @@ function PlanView({ progress, overview, href, commits }: { progress: PlanProgres
   );
 }
 
-function NextUp({ row, href, today, plan }: { row: UnitRow; href: (next: Search) => string; today: string; plan: PlanProgress["plan"] }) {
+function NextUp({ row, href, today, plan, market }: { row: UnitRow; href: (next: Search) => string; today: string; plan: PlanProgress["plan"]; market: ReturnType<typeof unitMarket> }) {
   const { task, unit } = row;
   const unfinished = row.needs.filter((n) => !n.done);
   return (
@@ -246,6 +250,12 @@ function NextUp({ row, href, today, plan }: { row: UnitRow; href: (next: Search)
         </Link>
       </div>
       {task.notes && <p className="line-clamp-3 max-w-3xl text-sm text-neutral-300">{task.notes}</p>}
+      {market.length > 0 && (
+        <p className="text-sm text-neutral-300">
+          Why it matters: teaches {market.slice(0, 3).map((m) => `${m.name} (${m.must + m.soft} ${m.must + m.soft === 1 ? "role" : "roles"})`).join(", ")}.{" "}
+          <Link href="/jobs?view=skills" className="text-aqua underline-offset-4 hover:underline">See the market</Link>
+        </p>
+      )}
       {unfinished.length > 0 && (
         <p className="text-sm text-sand">
           Do these first:{" "}

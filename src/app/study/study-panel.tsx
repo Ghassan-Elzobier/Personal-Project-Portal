@@ -21,6 +21,8 @@ export type PanelData = {
   needs: { short: string; href: string; done: boolean }[];
   feeds: { short: string; href: string; done: boolean }[];
   connections: { short: string; href: string; done: boolean; why: string }[];
+  /** The skills this unit teaches, and how many open roles ask for each. */
+  market?: { name: string; must: number; soft: number }[];
 };
 
 function useRun() {
@@ -40,9 +42,26 @@ export function StudyPanel({ data }: { data: PanelData }) {
     <div className="space-y-5 border-b border-white/10 pb-5">
       {(data.links.length > 0 || data.pdfPage !== null || data.needs.length > 0 || data.feeds.length > 0) && <References data={data} />}
       {data.connections.length > 0 && <Connections items={data.connections} />}
+      {data.market && data.market.length > 0 && <JobMarket items={data.market} />}
       <Steps taskGid={data.taskGid} steps={data.steps} />
       {(data.mode === "book" || data.exerciseCount !== null) && <Exercises data={data} />}
       {(data.mode === "book" || data.reviews.length > 0) && <Reviews data={data} />}
+    </div>
+  );
+}
+
+function JobMarket({ items }: { items: NonNullable<PanelData["market"]> }) {
+  return (
+    <div>
+      <h3 className="mb-1 text-sm font-semibold">In the job market</h3>
+      <ul className="space-y-1 text-sm text-neutral-300">
+        {items.map((item) => (
+          <li key={item.name}>
+            {item.name}: required by {item.must}, wanted by {item.soft} of the roles you are tracking
+          </li>
+        ))}
+      </ul>
+      <Link href="/jobs?view=skills" className="text-sm text-aqua underline-offset-4 hover:underline">See skills against the market</Link>
     </div>
   );
 }

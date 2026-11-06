@@ -8,12 +8,15 @@ import { loadScheduleWeek, type Block, type ScheduleWeek } from "@/lib/portal/sc
 import { studyTotals } from "@/lib/portal/stats";
 import { formatHours } from "@/lib/tasks/session-log";
 import { studySnapshot } from "@/lib/tasks/native";
+import { hubFrom, loadJobBoard } from "@/lib/jobs/load";
+import { loadStudy } from "@/lib/study/load";
 import { findUnit } from "@/lib/study/plans";
 import { listSessionComments, listStatusUpdates, listTasks } from "@/lib/tasks/tracker";
 import { projectStats } from "@/lib/tasks/model";
 import { Empty, ErrorNote, Hours, PageHeader, SectionTitle, StatusPill, TaskLink } from "@/components/ui";
 import { QuickAddButton } from "@/components/quick-add";
 import { FocusList, type FocusGroup, type FocusTask } from "./focus-list";
+import { HubCard } from "./jobs/hub-card";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +37,7 @@ async function OwnerHome() {
   const tz = timeZone();
   const configured = PROJECTS.filter((p) => projectGid(p.key));
 
-  const [perProject, comments, schedule, study] = await Promise.all([
+  const [perProject, comments, schedule, study, overview] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -52,7 +55,11 @@ async function OwnerHome() {
     attempt(() => listSessionComments(week.startsAt)),
     attempt(() => loadScheduleWeek(week)),
     usesAsana() ? null : attempt(() => studySnapshot()),
+    usesAsana() ? null : attempt(() => loadStudy()),
   ]);
+  // A problem with the job tracker must never take the rest of Today down with it.
+  const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
+  const hub = overview?.ok && board?.ok ? hubFrom(board.value, overview.value) : null;
 
   const open = perProject.flatMap((p) => (p.open.ok ? p.open.value : []));
   const buckets = bucketForToday(open, date);
@@ -79,6 +86,11 @@ async function OwnerHome() {
   const reviewsDue = study?.ok ? study.value.reviews.filter((r) => r.due_on && r.due_on <= date).length : 0;
   if (reviewsDue > 0) {
     attention.push({ text: `${reviewsDue} ${reviewsDue === 1 ? "thing" : "things"} to recall today. Short and worth doing first.`, href: "/study", tone: "aqua" });
+  }
+  for (const a of hub?.actions ?? []) {
+    if (a.next_action_on && a.next_action_on <= date) {
+      attention.push({ text: `Job hunt: ${a.next_action}, ${a.company}.`, href: `/jobs?view=applications&role=${a.gid}`, tone: a.next_action_on < date ? "coral" : "sand" });
+    }
   }
   const noEvidence = perProject.flatMap((p) =>
     p.finished.ok
@@ -150,6 +162,8 @@ async function OwnerHome() {
       )}
 
       {firstRun && <FirstRun native={native} />}
+
+      {hub && overview?.ok && !firstRun && <HubCard hub={hub} roadmap={overview.value.roadmap} today={date} />}
 
       {!firstRun && (
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
