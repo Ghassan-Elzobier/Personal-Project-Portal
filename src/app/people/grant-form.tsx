@@ -31,6 +31,16 @@ export function GrantForm() {
           ))}
         </div>
       </fieldset>
+      <fieldset>
+        <legend className="field-label">Also share</legend>
+        <label className="mt-2 flex items-start gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
+          <input type="checkbox" name="share_job_hunt" className="mt-1 accent-lavender" />
+          <span>
+            Job hunt <span className="text-neutral-400">· closest roles, the skills gap and application counts. Never your notes, next actions, ratings or contacts.</span>
+          </span>
+        </label>
+        <p className="mt-2 text-xs text-neutral-400">The study roadmap follows the projects above: a mentor sees the plans they can see.</p>
+      </fieldset>
       {state.error && <p className="text-sm text-coral">{state.error}</p>}
       {state.ok && <p className="text-sm text-mint">{state.ok}</p>}
       <button className="btn-primary" disabled={pending}>

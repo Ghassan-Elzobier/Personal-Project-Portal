@@ -15,8 +15,10 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
 | Log a session (`/log`) | Me | Adds hours to the task's Hours field, sets Stage and Evidence, and posts a session comment. Stage Done completes the task. |
 | Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it. |
+| Roadmap (`/roadmap`) | Me and mentors | The study roadmap, read-only: phases, progress, the finish date, what is overdue and recent recall practice. A mentor sees only the plans shared with them. |
+| Job hunt (`/job-hunt`) | Me and mentors I share it with | The closest roles, the skills gap, the choice after phase 3 and application counts. Never notes, next actions, ratings, contacts or advert text. |
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
-| People (`/people`) | Me | Add mentors and choose which projects each one sees. |
+| People (`/people`) | Me | Add mentors, choose which projects each one sees, and switch the job hunt on for each. |
 | Claude (`/claude`) | Me | Connect the Claude app, then plan, schedule and log by asking Claude. |
 
 Everyone signs in with Google or an email link (invited accounts only), so mentors don't need accounts anywhere else.

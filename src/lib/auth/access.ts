@@ -10,6 +10,8 @@ export type Access = {
   role: "owner" | "mentor";
   displayName: string;
   projects: ProjectKey[];
+  /** What else is shared: the owner has all of it, a mentor what the owner switched on. */
+  shares: string[];
 };
 
 type Check = { access: Access | null; failed: string | null };
@@ -32,6 +34,14 @@ const checkAccess = cache(async (): Promise<Check> => {
   const row = (data as { role: string; display_name: string; projects: string[] }[] | null)?.[0];
   if (!row || (row.role !== "owner" && row.role !== "mentor")) return { access: null, failed: null };
 
+  // A failure here only hides the extra views, so it must not lock anyone out.
+  let shares: string[] = row.role === "owner" ? ["job-hunt"] : [];
+  if (row.role === "mentor") {
+    const extra = await supabase.rpc("my_mentor_shares");
+    if (extra.error) console.error("my_mentor_shares failed", extra.error.message);
+    else shares = (extra.data as string[] | null) ?? [];
+  }
+
   return {
     access: {
       userId: claims.sub,
@@ -39,6 +49,7 @@ const checkAccess = cache(async (): Promise<Check> => {
       role: row.role,
       displayName: row.display_name,
       projects: (row.projects ?? []).filter(isProjectKey),
+      shares,
     },
     failed: null,
   };

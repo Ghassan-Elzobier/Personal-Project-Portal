@@ -2,15 +2,18 @@ import Link from "next/link";
 import { requireAccess, type Access } from "@/lib/auth/access";
 import { configProblems, projectGid, timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { PROJECTS, projectDef, type ProjectKey } from "@/lib/config/projects";
-import { addDays, clock, weekdayIndex, zonedParts } from "@/lib/dates/week";
+import { addDays, clock, shortDate, weekdayIndex, zonedParts } from "@/lib/dates/week";
 import { allTasks, attempt, bucketForToday, latestStatus, openTasks, thisWeek, today, type Result } from "@/lib/portal/data";
 import { loadScheduleWeek, type Block, type ScheduleWeek } from "@/lib/portal/schedule";
 import { studyTotals } from "@/lib/portal/stats";
 import { formatHours } from "@/lib/tasks/session-log";
 import { studySnapshot } from "@/lib/tasks/native";
 import { hubFrom, loadJobBoard } from "@/lib/jobs/load";
+import { mentorJobView, type MentorSource } from "@/lib/jobs/mentor";
+import { shareRoadmap } from "@/lib/study/shared-roadmap";
+import { createClient } from "@/lib/supabase/server";
 import { loadStudy } from "@/lib/study/load";
-import { findUnit } from "@/lib/study/plans";
+import { findUnit, PLANS } from "@/lib/study/plans";
 import { listSessionComments, listStatusUpdates, listTasks } from "@/lib/tasks/tracker";
 import { projectStats } from "@/lib/tasks/model";
 import { Empty, ErrorNote, Hours, PageHeader, SectionTitle, StatusPill, TaskLink } from "@/components/ui";
@@ -297,9 +300,25 @@ type StatusResult = Awaited<ReturnType<typeof latestStatus>>;
 
 async function MentorHome({ access }: { access: Access }) {
   const keys = access.projects.filter((k) => projectGid(k));
-  const statuses = await Promise.all(
-    keys.map(async (k) => ({ key: k, status: await attempt(() => latestStatus(k)), tasks: await attempt(() => allTasks(k)) })),
-  );
+  const studyKeys = PLANS.map((p) => p.project).filter((k) => keys.includes(k));
+  const [statuses, roadmap, jobs] = await Promise.all([
+    Promise.all(keys.map(async (k) => ({ key: k, status: await attempt(() => latestStatus(k)), tasks: await attempt(() => allTasks(k)) }))),
+    studyKeys.length && !usesAsana()
+      ? attempt(async () => {
+          const overview = await loadStudy();
+          const dueOn = new Map(overview.plans.flatMap((p) => p.rows.map((r) => [r.unit.ref, r.task.dueOn] as const)));
+          return shareRoadmap(overview.roadmap, { projects: studyKeys, dueOn, today: overview.today });
+        })
+      : null,
+    access.shares.includes("job-hunt") && !usesAsana()
+      ? attempt(async () => {
+          const supabase = await createClient();
+          const { data, error } = await supabase.rpc("tracker_mentor_job_source");
+          if (error) throw new Error(error.message);
+          return mentorJobView(data as MentorSource);
+        })
+      : null,
+  ]);
   const date = today();
 
   return (
@@ -308,6 +327,31 @@ async function MentorHome({ access }: { access: Access }) {
         Each project gets a status update every Sunday. Open a project for tasks, hours and evidence.
       </PageHeader>
       {keys.length === 0 && <Empty>No projects are shared with you yet.</Empty>}
+      {(roadmap?.ok || jobs?.ok) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {roadmap?.ok && (
+            <Link href="/roadmap" className="card-link space-y-2">
+              <p className="eyebrow">Study roadmap</p>
+              <p className="text-xl font-semibold">{roadmap.value.current ? `Phase ${roadmap.value.current.index + 1} of 8: ${roadmap.value.current.name}` : "Every phase done"}</p>
+              <p className="text-sm text-neutral-300">
+                {roadmap.value.done} of {roadmap.value.total} units done.
+                {roadmap.value.finishOn ? ` Finish planned for ${shortDate(roadmap.value.finishOn)}.` : ""}
+                {roadmap.value.overdue.length ? ` ${roadmap.value.overdue.length} overdue.` : ""}
+              </p>
+            </Link>
+          )}
+          {jobs?.ok && (
+            <Link href="/job-hunt" className="card-link space-y-2">
+              <p className="eyebrow">Job hunt</p>
+              <p className="text-xl font-semibold">{jobs.value.inScope} {jobs.value.inScope === 1 ? "role" : "roles"} in scope</p>
+              <p className="text-sm text-neutral-300">
+                {jobs.value.pipeline.applied} applied, {jobs.value.pipeline.interview} interviewing.
+                {jobs.value.gaps[0] ? ` Biggest gap: ${jobs.value.gaps[0].skill.name}, required by ${jobs.value.gaps[0].must}.` : ""}
+              </p>
+            </Link>
+          )}
+        </div>
+      )}
       <ul className="grid gap-4 md:grid-cols-2">
         {statuses.map(({ key, status, tasks }) => (
           <li key={key}>
