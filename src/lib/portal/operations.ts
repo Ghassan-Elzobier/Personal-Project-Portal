@@ -69,7 +69,9 @@ export async function scheduleTask(input: { gid: string; date: string; start: nu
     const to = zonedInstant(date, start + duration, tz);
     await updateTask(task.gid, { start_at: from.toISOString(), due_at: to.toISOString() });
     const project = await projectKeyOfTask(task);
-    const warning = await mirrorSlot(() => upsertTaskSlot({ gid: task.gid, name: task.name, project }, from, to));
+    const warning = await mirrorSlot(async () => {
+      await upsertTaskSlot({ gid: task.gid, name: task.name, project }, from, to);
+    });
     revalidateSchedule();
     return { task: task.name, warning };
   } catch (err) {
@@ -93,34 +95,42 @@ export async function addStudySession(input: { gid: string; date: string; start:
   }
 }
 
-/** Writes every open task's time slot to Google Calendar, for slots made before mirroring existed. */
-export async function syncStudyCalendar(): Promise<OpResult & { synced?: number; failed?: number }> {
+/**
+ * Writes every open task's time slot to Google Calendar, for slots made before
+ * mirroring existed. One at a time, skipping slots already there, and inside a
+ * time budget: when the budget runs out it reports what is left, and pressing
+ * again carries on, since finished tasks are skipped.
+ */
+export async function syncStudyCalendar(): Promise<OpResult & { synced?: number; unchanged?: number; failed?: number; remaining?: number; firstError?: string }> {
   try {
     if (!(await googleReady())) return { error: "Connect Google Calendar on the Schedule page first." };
     const keys = PROJECTS.filter((p) => projectGid(p.key)).map((p) => p.key);
     const tasks = (await Promise.all(keys.map((k) => openTasks(k)))).flat().filter((t) => t.dueAt);
     const since = Date.now() - 7 * 24 * 3600 * 1000;
-    const todo = tasks.filter((t) => new Date(t.dueAt!).getTime() >= since);
+    const todo = tasks.filter((t) => new Date(t.dueAt!).getTime() >= since).sort((a, b) => a.dueAt!.localeCompare(b.dueAt!));
+    const deadline = Date.now() + 40_000;
     let synced = 0;
+    let unchanged = 0;
     let failed = 0;
-    // A few at a time, to stay inside Google's rate limits.
-    for (let i = 0; i < todo.length; i += 4) {
-      await Promise.all(
-        todo.slice(i, i + 4).map(async (t) => {
-          const end = new Date(t.dueAt!);
-          const start = t.startAt ? new Date(t.startAt) : new Date(end.getTime() - 3600 * 1000);
-          try {
-            await upsertTaskSlot({ gid: t.gid, name: t.name, project: t.project }, start, end);
-            synced++;
-          } catch (err) {
-            console.error(err);
-            failed++;
-          }
-        }),
-      );
+    let firstError: string | undefined;
+    let i = 0;
+    for (; i < todo.length && Date.now() < deadline; i++) {
+      const t = todo[i];
+      const end = new Date(t.dueAt!);
+      const start = t.startAt ? new Date(t.startAt) : new Date(end.getTime() - 3600 * 1000);
+      try {
+        if (await upsertTaskSlot({ gid: t.gid, name: t.name, project: t.project }, start, end)) synced++;
+        else unchanged++;
+      } catch (err) {
+        console.error(err);
+        failed++;
+        firstError ??= err instanceof Error ? err.message : String(err);
+        // The same failure on every task, such as revoked access, is not worth repeating.
+        if (failed >= 3 && synced + unchanged === 0) break;
+      }
     }
     revalidateSchedule();
-    return { synced, failed };
+    return { synced, unchanged, failed, remaining: todo.length - i, firstError };
   } catch (err) {
     return fail(err, "Could not sync Google Calendar.");
   }

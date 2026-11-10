@@ -122,7 +122,9 @@ const accessToken = cache(async (): Promise<string> => {
   return fresh.access_token;
 });
 
-async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function api<T>(path: string, init: { method?: string; body?: unknown } = {}, attempt = 0): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     method: init.method ?? "GET",
     headers: {
@@ -135,7 +137,14 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
   });
   if (res.status === 204) return undefined as T;
   if (!res.ok) {
-    const detail = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    const detail = (await res.json().catch(() => ({}))) as { error?: { message?: string; errors?: { reason?: string }[] } };
+    // Google answers bursts of writes with 403 rateLimitExceeded or 429. Back off and try again.
+    const reason = detail.error?.errors?.[0]?.reason ?? "";
+    const limited = res.status === 429 || (res.status === 403 && /rateLimit|usageLimits|quotaExceeded/i.test(reason));
+    if (limited && attempt < 3) {
+      await pause(800 * 2 ** attempt);
+      return api<T>(path, init, attempt + 1);
+    }
     throw new GoogleError(`Google Calendar: ${detail.error?.message ?? res.status}`, res.status);
   }
   return res.json() as Promise<T>;
@@ -240,8 +249,13 @@ async function slotEvents(gid: string): Promise<GoogleEvent[]> {
   return body.items.filter((e) => e.status !== "cancelled");
 }
 
-/** Writes a task's time slot to the calendar, replacing what was there for it. */
-export async function upsertTaskSlot(task: StudyTask, start: Date, end: Date): Promise<void> {
+const sameInstant = (a: string | undefined, b: Date) => Boolean(a) && Date.parse(a!) === b.getTime();
+
+/**
+ * Writes a task's time slot to the calendar, replacing what was there for it.
+ * Returns false when the calendar already had it, so nothing was written.
+ */
+export async function upsertTaskSlot(task: StudyTask, start: Date, end: Date): Promise<boolean> {
   const tz = timeZone();
   const body = {
     summary: task.name,
@@ -252,9 +266,11 @@ export async function upsertTaskSlot(task: StudyTask, start: Date, end: Date): P
     extendedProperties: { private: studyTag(task.gid, "slot", task.project) },
   };
   const [first, ...extra] = await slotEvents(task.gid);
+  for (const e of extra) await api(`${cal()}/events/${encodeURIComponent(e.id)}`, { method: "DELETE" });
+  if (first && first.summary === task.name && sameInstant(first.start.dateTime, start) && sameInstant(first.end.dateTime, end)) return false;
   if (first) await api(`${cal()}/events/${encodeURIComponent(first.id)}`, { method: "PATCH", body });
   else await api(`${cal()}/events`, { method: "POST", body });
-  for (const e of extra) await api(`${cal()}/events/${encodeURIComponent(e.id)}`, { method: "DELETE" });
+  return true;
 }
 
 /** Removes a task's mirrored slot, if it has one. */

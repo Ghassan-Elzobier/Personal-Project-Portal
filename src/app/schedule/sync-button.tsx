@@ -14,9 +14,16 @@ export function SyncStudyButton() {
       title="Copy every planned study block to Google Calendar"
       onClick={() =>
         start(async () => {
-          const r = await syncStudyCalendar();
-          if (r.error) toast(r.error, { tone: "error" });
-          else toast(`Synced ${r.synced} study ${r.synced === 1 ? "block" : "blocks"} to Google Calendar${r.failed ? `, ${r.failed} failed` : ""}.`, r.failed ? { tone: "error" } : {});
+          try {
+            const r = await syncStudyCalendar();
+            if (r.error) return toast(r.error, { tone: "error" });
+            const parts = [`${r.synced} written`, `${r.unchanged} already there`];
+            if (r.failed) parts.push(`${r.failed} failed (${r.firstError ?? "unknown error"})`);
+            const more = r.remaining ? ` ${r.remaining} left: press again to carry on.` : "";
+            toast(`Study blocks in Google Calendar: ${parts.join(", ")}.${more}`, r.failed ? { tone: "error" } : {});
+          } catch {
+            toast("The sync took too long and stopped. Press again: it carries on where it left off.", { tone: "error" });
+          }
         })
       }
     >
