@@ -11,6 +11,8 @@ import { WeekPlanner } from "./week-planner";
 
 export const metadata: Metadata = { title: "Schedule" };
 export const dynamic = "force-dynamic";
+// The study sync writes to Google Calendar one task at a time.
+export const maxDuration = 60;
 
 const GOOGLE_NOTES: Record<string, string> = {
   connected: "Google Calendar is connected. Study blocks and life blocks you add here appear there too.",

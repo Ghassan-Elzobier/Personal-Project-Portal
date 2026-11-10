@@ -20,7 +20,7 @@ export async function addStudySession(input: { gid: string; date: string; start:
   return plain(await ops.addStudySession(input));
 }
 
-export async function syncStudyCalendar(): Promise<ActionResult & { synced?: number; failed?: number }> {
+export async function syncStudyCalendar(): Promise<Awaited<ReturnType<typeof ops.syncStudyCalendar>>> {
   await requireOwner();
   return ops.syncStudyCalendar();
 }
