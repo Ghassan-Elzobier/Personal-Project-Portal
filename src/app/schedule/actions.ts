@@ -11,7 +11,18 @@ const plain = ({ error }: ActionResult): ActionResult => (error ? { error } : {}
 
 export async function scheduleTask(input: { gid: string; date: string; start: number; duration: number }): Promise<ActionResult> {
   await requireOwner();
-  return plain(await ops.scheduleTask(input));
+  const result = await ops.scheduleTask(input);
+  return result.error ? { error: result.error } : result.warning ? { error: result.warning } : {};
+}
+
+export async function addStudySession(input: { gid: string; date: string; start: number; duration: number }): Promise<ActionResult> {
+  await requireOwner();
+  return plain(await ops.addStudySession(input));
+}
+
+export async function syncStudyCalendar(): Promise<ActionResult & { synced?: number; failed?: number }> {
+  await requireOwner();
+  return ops.syncStudyCalendar();
 }
 
 export async function unscheduleTask(input: { gid: string; date: string }): Promise<ActionResult> {
@@ -32,14 +43,14 @@ export async function addLifeBlock(input: {
 }
 
 export async function moveBlock(input: {
-  source: "asana" | "google";
+  source: "asana" | "session" | "google";
   id: string;
   date: string;
   start: number;
   duration: number;
 }): Promise<ActionResult> {
   await requireOwner();
-  if (input.source === "asana") return plain(await ops.scheduleTask({ gid: input.id, ...input }));
+  if (input.source === "asana") return scheduleTask({ gid: input.id, ...input });
   return ops.moveLifeBlockTo(input);
 }
 

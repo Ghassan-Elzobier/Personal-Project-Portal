@@ -33,6 +33,7 @@ const TIME = { type: "string", pattern: "^\\d{1,2}:\\d{2}$", description: "Start
 const MINUTES = { type: "integer", minimum: 15, maximum: 720, description: "Length in minutes, a multiple of 5." };
 const TASK = { type: "string", pattern: "^\\d+$", description: "Task gid, from get_today, list_tasks or get_week." };
 const EVENT = { type: "string", description: "Google Calendar event id of a life block, from get_week." };
+const SESSION = { type: "string", description: "event_id of a study session, from get_week or get_today." };
 const PROJECT = { type: "string", enum: PROJECTS.map((p) => p.key), description: PROJECTS.map((p) => `${p.key} = ${p.title}`).join("; ") };
 
 /** Task links are relative inside the portal. Claude needs the whole address. */
@@ -71,12 +72,16 @@ function block(b: Block) {
   if (b.source === "asana") {
     return { ...base, type: "study", task_gid: b.id.split(":")[0], project: b.project, stage: b.stage, completed: b.completed };
   }
+  if (b.source === "session") {
+    return { ...base, type: "study_session", task_gid: b.taskGid, event_id: b.id.slice(0, b.id.lastIndexOf(":")), project: b.project, stage: b.stage, completed: b.completed };
+  }
   return {
     ...base,
     type: b.kind ? "life" : "other_calendar_event",
     event_id: b.kind ? b.id.slice(0, b.id.lastIndexOf(":")) : undefined,
     kind: b.kind ?? undefined,
     repeats: b.seriesId ? true : undefined,
+    invite: b.invite,
     note: b.kind ? undefined : "Made outside the portal; read-only here.",
   };
 }
@@ -126,6 +131,7 @@ export const TOOLS: Tool[] = [
         },
         projects: PROJECTS.map((p) => ({ key: p.key, title: p.title, configured: Boolean(projectGid(p.key)) })),
         plan_today: schedule.blocks.filter((x) => x.date === date).map(block),
+        hidden_invites_this_week: schedule.hiddenInvites || undefined,
         overdue: b.overdue.map(task),
         due_today: b.dueToday.map(task),
         blocked: b.blocked.map(task),
@@ -139,21 +145,25 @@ export const TOOLS: Tool[] = [
     name: "get_week",
     title: "Week schedule",
     description:
-      "One week (Monday to Sunday) of the planner: study blocks (tasks with times), life blocks from Google Calendar (lunch, gym and so on), other calendar events, and open tasks that have no time yet. Read this before planning or moving things, to avoid clashes.",
+      "One week (Monday to Sunday) of the planner: study blocks (a task's own time slot), study sessions (more time on a task), life blocks from Google Calendar (lunch, gym and so on), other calendar events, and open tasks that have no time yet. Invites the owner has not accepted are left out unless asked for. Read this before planning or moving things, to avoid clashes.",
     inputSchema: {
       type: "object",
-      properties: { week_of: { ...DATE, description: "Any day in the week wanted. Leave out for this week." } },
+      properties: {
+        week_of: { ...DATE, description: "Any day in the week wanted. Leave out for this week." },
+        show_invites: { type: "boolean", description: "True includes invites the owner has not accepted or has declined." },
+      },
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
       const week = resolveWeek(str(args, "week_of") || undefined);
-      const s = await loadScheduleWeek(week);
+      const s = await loadScheduleWeek(week, { showInvites: args.show_invites === true });
       return ok({
         week: { start: s.week.start, end: s.week.end },
         page: `${base}/schedule?week=${s.week.start}`,
         blocks: s.blocks.map(block),
         unscheduled_tasks: s.unscheduled.map((u) => ({ gid: u.gid, name: u.title, project: u.project, due_on: u.dueOn, stage: u.stage })),
+        hidden_invites: s.hiddenInvites || undefined,
         google_calendar: typeof s.google === "string" ? s.google : "error" in s.google ? s.google.error : "connected",
         errors: s.errors,
       });
@@ -280,7 +290,7 @@ export const TOOLS: Tool[] = [
     name: "schedule_task",
     title: "Schedule a task",
     description:
-      "Put a task in a time slot (sets its start and due time). Also moves a task that already has a slot. Mentors see these times on the timeline.",
+      "Put a task in a time slot (sets its start and due time) and mirror it to Google Calendar. Also moves a task that already has a slot. The slot ends when the task is due, so use it for the last session on a task and add_study_session for the ones before. Mentors see these times on the timeline.",
     inputSchema: {
       type: "object",
       properties: { task_gid: TASK, date: DATE, start: TIME, minutes: MINUTES },
@@ -292,7 +302,70 @@ export const TOOLS: Tool[] = [
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
       const r = await ops.scheduleTask({ gid: str(args, "task_gid"), date: str(args, "date"), start, duration: Number(args.minutes) });
-      return fromOp(r, { scheduled: r.task, date: str(args, "date"), start: clock(start), end: clock(start + Number(args.minutes)) });
+      return fromOp(r, { scheduled: r.task, date: str(args, "date"), start: clock(start), end: clock(start + Number(args.minutes)), warning: r.warning });
+    },
+  },
+  {
+    name: "add_study_session",
+    title: "Add a study session",
+    description:
+      "Add one more block of study time on a task, for work spread over several days. Sessions go to Google Calendar and show on the Schedule; they do not change the task's due date. Mentors do not see them.",
+    inputSchema: {
+      type: "object",
+      properties: { task_gid: TASK, date: DATE, start: TIME, minutes: MINUTES },
+      required: ["task_gid", "date", "start", "minutes"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async run(args) {
+      const start = startMinutes(args);
+      if (start === null) return err("start must be HH:MM.");
+      const r = await ops.addStudySession({ gid: str(args, "task_gid"), date: str(args, "date"), start, duration: Number(args.minutes) });
+      return fromOp(r, { added: r.task, date: str(args, "date"), start: clock(start), end: clock(start + Number(args.minutes)) });
+    },
+  },
+  {
+    name: "move_study_session",
+    title: "Move a study session",
+    description: "Move or resize one study session. Use schedule_task to move a task's own slot.",
+    inputSchema: {
+      type: "object",
+      properties: { event_id: SESSION, date: DATE, start: TIME, minutes: MINUTES },
+      required: ["event_id", "date", "start", "minutes"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async run(args) {
+      const start = startMinutes(args);
+      if (start === null) return err("start must be HH:MM.");
+      const r = await ops.moveLifeBlockTo({ id: str(args, "event_id"), date: str(args, "date"), start, duration: Number(args.minutes) });
+      return fromOp(r, { moved: true, date: str(args, "date"), start: clock(start) });
+    },
+  },
+  {
+    name: "remove_study_session",
+    title: "Delete a study session",
+    description: "Delete one study session. The task and its own slot stay as they are.",
+    inputSchema: {
+      type: "object",
+      properties: { event_id: SESSION },
+      required: ["event_id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    async run(args) {
+      return fromOp(await ops.removeLifeBlock({ id: str(args, "event_id"), wholeSeries: false }), { deleted: true });
+    },
+  },
+  {
+    name: "sync_study_calendar",
+    title: "Sync study to Google Calendar",
+    description: "Copy every open task's time slot to Google Calendar. Safe to run again: each task keeps one event. Needed once for slots made before mirroring existed.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async run() {
+      const r = await ops.syncStudyCalendar();
+      return fromOp(r, { synced: r.synced, failed: r.failed });
     },
   },
   {
@@ -343,7 +416,7 @@ export const TOOLS: Tool[] = [
   {
     name: "move_life_block",
     title: "Move a life block",
-    description: "Move or resize one occurrence of a life block the portal made. Use schedule_task for study blocks.",
+    description: "Move or resize one occurrence of a life block the portal made. Use schedule_task for a task's slot and move_study_session for study sessions.",
     inputSchema: {
       type: "object",
       properties: { event_id: EVENT, date: DATE, start: TIME, minutes: MINUTES },
@@ -455,7 +528,7 @@ export const TOOLS: Tool[] = [
 export const INSTRUCTIONS = [
   "This is Ghassan's personal project portal: PMPP (CUDA), Axler (linear algebra), the Rendering lab and the Weekly log.",
   "Call get_today first for the date, time zone and current state. Read get_week before planning, and avoid clashes with existing blocks.",
-  "Study work is tasks (create_task) with time slots (schedule_task). Lunch, cooking, cleaning, gym and rest are life blocks in Google Calendar only (add_life_block).",
+  "Study work is tasks (create_task) with time slots (schedule_task). A task worked on over several days gets its slot on the last day and study sessions (add_study_session) on the days before. Study time is mirrored to Google Calendar. Lunch, cooking, cleaning, gym and rest are life blocks in Google Calendar only (add_life_block).",
   "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
   "For studying, call get_study first. Work from the current roadmap phase, and bring up its connections between the plans when they help. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",

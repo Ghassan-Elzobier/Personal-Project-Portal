@@ -2,12 +2,12 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { addComment, AsanaError, createStatusUpdate, enumOption, field, getTask, listStatusUpdates, projectKeyOfTask, updateTask } from "../tasks/tracker";
 import { completionChange, stageChange } from "../tasks/model";
-import { timeZone, usesAsana } from "../config/env";
+import { projectGid, timeZone, usesAsana } from "../config/env";
 import * as native from "../tasks/native";
-import { createLifeBlock, deleteLifeBlock, GoogleError, moveLifeBlock } from "../calendar/google";
+import { createLifeBlock, createStudySession, deleteLifeBlock, deleteTaskSlot, googleConfigured, googleConnection, GoogleError, moveLifeBlock, upsertTaskSlot } from "../calendar/google";
 import { isLifeKind, parseBlock, REPEATS, type Repeat } from "../calendar/life-blocks";
-import { thisWeek, today } from "./data";
-import { isProjectKey, type ProjectKey } from "../config/projects";
+import { openTasks, thisWeek, today } from "./data";
+import { isProjectKey, PROJECTS, type ProjectKey } from "../config/projects";
 import { planFor, planPayload, planUnits, PLANS } from "../study/plans";
 import { nextReview, spreadDates, type ExerciseStatus } from "../study/review";
 import { scheduleRoadmap } from "../study/roadmap";
@@ -38,22 +38,91 @@ async function ourTask(gid: string) {
   return task;
 }
 
-/** Puts a task in a time slot: sets its start and due time. */
-export async function scheduleTask(input: { gid: string; date: string; start: number; duration: number }): Promise<OpResult & { task?: string }> {
+async function googleReady(): Promise<boolean> {
+  return googleConfigured() && Boolean(await googleConnection());
+}
+
+/**
+ * Keeps Google Calendar in step with a task's own slot. Best effort: the task
+ * change has already been saved, so a calendar failure comes back as a note.
+ */
+async function mirrorSlot(change: () => Promise<void>): Promise<string | undefined> {
+  try {
+    if (!(await googleReady())) return undefined;
+    await change();
+    return undefined;
+  } catch (err) {
+    console.error(err);
+    return err instanceof GoogleError ? `Saved, but Google Calendar was not updated: ${err.message}` : "Saved, but Google Calendar was not updated.";
+  }
+}
+
+/** Puts a task in a time slot: sets its start and due time, and mirrors it to Google Calendar. */
+export async function scheduleTask(input: { gid: string; date: string; start: number; duration: number }): Promise<OpResult & { task?: string; warning?: string }> {
   const block = parseBlock(input);
   if (!block.ok) return { error: block.error };
   try {
     const task = await ourTask(input.gid);
     const tz = timeZone();
     const { date, start, duration } = block.value;
-    await updateTask(task.gid, {
-      start_at: zonedInstant(date, start, tz).toISOString(),
-      due_at: zonedInstant(date, start + duration, tz).toISOString(),
-    });
+    const from = zonedInstant(date, start, tz);
+    const to = zonedInstant(date, start + duration, tz);
+    await updateTask(task.gid, { start_at: from.toISOString(), due_at: to.toISOString() });
+    const project = await projectKeyOfTask(task);
+    const warning = await mirrorSlot(() => upsertTaskSlot({ gid: task.gid, name: task.name, project }, from, to));
+    revalidateSchedule();
+    return { task: task.name, warning };
+  } catch (err) {
+    return fail(err, "Could not schedule the task. Check the task.");
+  }
+}
+
+/** Adds one more study session on a task. Sessions live in Google Calendar only. */
+export async function addStudySession(input: { gid: string; date: string; start: number; duration: number }): Promise<OpResult & { task?: string }> {
+  const block = parseBlock(input);
+  if (!block.ok) return { error: block.error };
+  try {
+    if (!(await googleReady())) return { error: "Connect Google Calendar on the Schedule page first. Study sessions are kept there." };
+    const task = await ourTask(input.gid);
+    if (task.completed) return { error: "That task is finished." };
+    await createStudySession({ gid: task.gid, name: task.name, project: await projectKeyOfTask(task) }, block.value);
     revalidateSchedule();
     return { task: task.name };
   } catch (err) {
-    return fail(err, "Could not schedule the task. Check the task.");
+    return fail(err, "Could not add the session.");
+  }
+}
+
+/** Writes every open task's time slot to Google Calendar, for slots made before mirroring existed. */
+export async function syncStudyCalendar(): Promise<OpResult & { synced?: number; failed?: number }> {
+  try {
+    if (!(await googleReady())) return { error: "Connect Google Calendar on the Schedule page first." };
+    const keys = PROJECTS.filter((p) => projectGid(p.key)).map((p) => p.key);
+    const tasks = (await Promise.all(keys.map((k) => openTasks(k)))).flat().filter((t) => t.dueAt);
+    const since = Date.now() - 7 * 24 * 3600 * 1000;
+    const todo = tasks.filter((t) => new Date(t.dueAt!).getTime() >= since);
+    let synced = 0;
+    let failed = 0;
+    // A few at a time, to stay inside Google's rate limits.
+    for (let i = 0; i < todo.length; i += 4) {
+      await Promise.all(
+        todo.slice(i, i + 4).map(async (t) => {
+          const end = new Date(t.dueAt!);
+          const start = t.startAt ? new Date(t.startAt) : new Date(end.getTime() - 3600 * 1000);
+          try {
+            await upsertTaskSlot({ gid: t.gid, name: t.name, project: t.project }, start, end);
+            synced++;
+          } catch (err) {
+            console.error(err);
+            failed++;
+          }
+        }),
+      );
+    }
+    revalidateSchedule();
+    return { synced, failed };
+  } catch (err) {
+    return fail(err, "Could not sync Google Calendar.");
   }
 }
 
@@ -63,8 +132,9 @@ export async function unscheduleTask(input: { gid: string; date: string }): Prom
   try {
     const task = await ourTask(input.gid);
     await updateTask(task.gid, { start_at: null, due_on: input.date });
+    const warning = await mirrorSlot(() => deleteTaskSlot(task.gid));
     revalidateSchedule();
-    return {};
+    return warning ? { error: warning } : {};
   } catch (err) {
     return fail(err, "Could not unschedule the task.");
   }
@@ -342,7 +412,9 @@ export async function setTaskCompleted(gid: string, completed: boolean): Promise
 
 
 export async function removeTask(gid: string): Promise<OpResult> {
-  return taskChange(() => native.deleteTask(gid), "Could not delete the task.");
+  const result = await taskChange(() => native.deleteTask(gid), "Could not delete the task.");
+  if (!result.error && /^\d{1,30}$/.test(gid)) await mirrorSlot(() => deleteTaskSlot(gid));
+  return result;
 }
 
 export async function commentOnTask(gid: string, text: string): Promise<OpResult> {

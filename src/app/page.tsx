@@ -256,17 +256,18 @@ function Agenda({ blocks, nowMinutes }: { blocks: Block[]; nowMinutes: number })
       {blocks.map((b) => {
         const past = b.end <= nowMinutes;
         const current = b.start <= nowMinutes && nowMinutes < b.end;
-        const gid = b.id.split(":")[0];
+        const gid = b.taskGid ?? b.id.split(":")[0];
+        const study = b.source === "asana" || b.source === "session";
         return (
           <li key={b.id} className={`flex items-center gap-3 px-4 py-3 ${current ? "bg-lavender/10" : ""}`}>
             <span className={`w-11 shrink-0 text-sm tabular-nums ${past ? "text-neutral-400" : "text-neutral-200"}`}>{clock(b.start)}</span>
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${b.source === "asana" ? "bg-lavender" : b.kind ? "bg-mint" : "bg-neutral-400"}`} aria-hidden />
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${study ? "bg-lavender" : b.kind ? "bg-mint" : "bg-neutral-400"}`} aria-hidden />
             <span className="min-w-0 flex-1">
               <span className={`block truncate text-sm ${past ? "text-neutral-400" : ""} ${b.completed ? "line-through" : ""}`}>{b.title}</span>
               {b.project && <span className="text-xs text-neutral-400">{b.project}</span>}
             </span>
             {current && <span className="chip bg-lavender/20 text-white ring-lavender/40">Now</span>}
-            {b.source === "asana" && !b.completed && past && (
+            {study && !b.completed && past && (
               <Link href={`/log?task=${gid}`} className="btn-ghost shrink-0 px-3 py-1 text-xs">Log</Link>
             )}
           </li>

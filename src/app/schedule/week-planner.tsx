@@ -7,7 +7,7 @@ import { LIFE_KINDS, REPEATS, type LifeKind, type Repeat } from "@/lib/calendar/
 import type { Block, Unscheduled } from "@/lib/portal/schedule";
 import { clock, parseClock, shortDate } from "@/lib/dates/week";
 import { TaskLink } from "@/components/ui";
-import { addLifeBlock, moveBlock, removeLifeBlock, scheduleTask, unscheduleTask, type ActionResult } from "./actions";
+import { addLifeBlock, addStudySession, moveBlock, removeLifeBlock, scheduleTask, unscheduleTask, type ActionResult } from "./actions";
 
 const DAY_START = 6 * 60;
 const DAY_END = 24 * 60;
@@ -25,9 +25,11 @@ type DragData =
 
 const rawId = (block: Block) => block.id.split(":")[0];
 
+const isStudy = (block: Block) => block.source === "asana" || block.source === "session";
+
 /** A day's planned study, such as "3.5 h". Life blocks do not count. */
 function plannedHours(blocks: Block[]): string {
-  const minutes = blocks.filter((b) => b.source === "asana").reduce((sum, b) => sum + (b.end - b.start), 0);
+  const minutes = blocks.filter(isStudy).reduce((sum, b) => sum + (b.end - b.start), 0);
   return minutes ? `${Math.round((minutes / 60) * 100) / 100} h` : "";
 }
 
@@ -276,6 +278,10 @@ export function WeekPlanner({
               block={dialog.block}
               days={days}
               pending={pending}
+              googleReady={googleReady}
+              onAddSession={(date, start, duration) =>
+                run(() => addStudySession({ gid: dialog.block.taskGid ?? rawId(dialog.block), date, start, duration }))
+              }
               onMove={(date, start, duration) =>
                 run(() => moveBlock({ source: dialog.block.source, id: rawId(dialog.block), date, start, duration }))
               }
@@ -381,6 +387,11 @@ function blockStyle(block: Block): string {
       ? "bg-royal/30 ring-royal/40 text-neutral-300"
       : "bg-gradient-to-b from-royal to-lavender ring-lavender/60 text-white";
   }
+  if (block.source === "session") {
+    return block.completed
+      ? "bg-royal/20 ring-royal/30 text-neutral-300"
+      : "bg-gradient-to-b from-royal/60 to-lavender/50 ring-lavender/40 text-white";
+  }
   if (block.kind && block.kind in LIFE_KINDS) return LIFE_KINDS[block.kind as LifeKind].className;
   return "bg-white/5 ring-white/15 text-neutral-400 [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
 }
@@ -408,7 +419,10 @@ function Legend() {
   return (
     <div className="space-y-1 pt-4 text-xs text-neutral-400">
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-gradient-to-b from-royal to-lavender" /> Work
+        <span className="h-3 w-3 rounded bg-gradient-to-b from-royal to-lavender" /> Study: when a task is due
+      </p>
+      <p className="flex items-center gap-2">
+        <span className="h-3 w-3 rounded bg-gradient-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
       </p>
       <p className="flex items-center gap-2">
         <span className="h-3 w-3 rounded bg-mint/40" /> Life blocks, saved in Google Calendar
@@ -625,27 +639,39 @@ function EditBlockForm({
   block,
   days,
   pending,
+  googleReady,
   onMove,
   onUnschedule,
   onDelete,
+  onAddSession,
 }: {
   block: Block;
   days: string[];
   pending: boolean;
+  googleReady: boolean;
   onMove: (date: string, start: number, duration: number) => void;
   onUnschedule: () => void;
   onDelete: (wholeSeries: boolean) => void;
+  onAddSession: (date: string, start: number, duration: number) => void;
 }) {
   const [date, setDate] = useState(block.date);
   const [start, setStart] = useState(block.start);
   const [duration, setDuration] = useState(block.end - block.start);
-  const isWork = block.source === "asana";
+  const isWork = isStudy(block);
+  const isSession = block.source === "session";
+  const taskGid = block.taskGid ?? rawId(block);
 
   return (
     <div className="space-y-5">
       <div>
         <p className="eyebrow">
-          {isWork ? block.project : block.kind ? LIFE_KINDS[block.kind as LifeKind]?.label : "Google Calendar"}
+          {isWork
+            ? `${block.project ?? "Study"}${isSession ? " · session" : ""}`
+            : block.kind
+              ? LIFE_KINDS[block.kind as LifeKind]?.label
+              : block.invite
+                ? `Google Calendar · ${INVITE_LABEL[block.invite]}`
+                : "Google Calendar"}
         </p>
         <h2 className="text-xl font-semibold">{block.title}</h2>
         <p className="text-sm text-neutral-400">
@@ -674,18 +700,25 @@ function EditBlockForm({
         </p>
       )}
 
+      {isWork && block.editable && googleReady && <AddSessionForm block={block} days={days} pending={pending} onAdd={onAddSession} />}
+
       <div className="flex flex-wrap gap-2">
         {isWork && !block.completed && (
-          <Link href={`/log?task=${rawId(block)}`} className="btn-ghost">
+          <Link href={`/log?task=${taskGid}`} className="btn-ghost">
             Log session
           </Link>
         )}
-        {isWork && block.editable && (
+        {block.source === "asana" && block.editable && (
           <button className="btn-ghost" disabled={pending} onClick={onUnschedule}>
             Remove time
           </button>
         )}
-        {!isWork && block.editable && (
+        {isSession && block.editable && (
+          <button className="btn-ghost text-coral" disabled={pending} onClick={() => onDelete(false)}>
+            Delete this session
+          </button>
+        )}
+        {block.source === "google" && block.editable && (
           <>
             <button className="btn-ghost text-coral" disabled={pending} onClick={() => onDelete(false)}>
               {block.seriesId ? "Delete this one" : "Delete"}
@@ -702,5 +735,49 @@ function EditBlockForm({
         </TaskLink>
       </div>
     </div>
+  );
+}
+
+const INVITE_LABEL = { accepted: "going", tentative: "maybe", needsAction: "not answered", declined: "declined" } as const;
+
+/** Another block of time on the same task, the next day at the same time by default. */
+function AddSessionForm({
+  block,
+  days,
+  pending,
+  onAdd,
+}: {
+  block: Block;
+  days: string[];
+  pending: boolean;
+  onAdd: (date: string, start: number, duration: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const next = days[days.indexOf(block.date) + 1] ?? block.date;
+  const [date, setDate] = useState(next);
+  const [start, setStart] = useState(block.start);
+  const [duration, setDuration] = useState(block.end - block.start);
+  if (!open) {
+    return (
+      <button className="btn-ghost w-full" disabled={pending} onClick={() => setOpen(true)}>
+        Add another session on this task
+      </button>
+    );
+  }
+  return (
+    <form
+      className="space-y-3 rounded-xl bg-white/5 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onAdd(date, start, duration);
+      }}
+    >
+      <p className="text-sm font-semibold">Another session</p>
+      <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
+      <p className="text-xs text-neutral-400">Sessions go to Google Calendar. The task stays due when its own block ends.</p>
+      <button className="btn-primary w-full" disabled={pending}>
+        Add session
+      </button>
+    </form>
   );
 }

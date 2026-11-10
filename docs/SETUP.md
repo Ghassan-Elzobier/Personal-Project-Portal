@@ -66,11 +66,13 @@ invite can get a link.
 
 Database tests (pgTAP) run with `supabase test db`.
 
-## 3. Google Calendar (life blocks)
+## 3. Google Calendar (life blocks and study time)
 
 Lunch, cooking, cleaning, gym and rest live in Google Calendar, never in
-Asana, so mentors never see them. Your timed Asana work reaches the same
-calendar through Asana's own sync, so your phone shows the whole day.
+tasks, so mentors never see them. Study time goes there too: each task's slot
+is copied to the calendar whenever it is scheduled, and extra study sessions
+on a task are kept there only. After connecting, press **Sync study to
+Google** on the Schedule page once to copy slots made earlier.
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a
    project (for example "personal-portal") with your personal Google account.
@@ -110,10 +112,9 @@ first. Invite mentors by the Gmail address they will sign in with. Email links
 still work for anyone without Google. Sign-in asks Google only for name and
 email; calendar access is the separate Connect button, for you alone.
 
-To see Asana work in Google Calendar too: in Asana, open My Tasks, then the
-dropdown by the title, then Sync to calendar, and add the link in Google
-Calendar under Other calendars, then From URL. Google refreshes it every few
-hours. The portal's schedule always shows the live Asana times.
+With `TASK_BACKEND=asana`, Asana's own calendar sync is no longer needed,
+since the portal copies study slots itself. Leave it off to avoid seeing each
+block twice.
 
 How scheduling works: dragging a task onto the week sets its start and due
 time in Asana. Remove time puts it back to a plain due date on that day.
