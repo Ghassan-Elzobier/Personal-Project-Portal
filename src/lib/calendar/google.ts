@@ -1,12 +1,13 @@
 import "server-only";
 import { cache } from "react";
 import { timeZone } from "../config/env";
-import { isLifeKind, LIFE_KINDS, recurrence, wallClock, type LifeKind, type Repeat } from "./life-blocks";
+import { LIFE_KINDS, recurrence, wallClock, type LifeKind, type Repeat } from "./life-blocks";
+import { isEditable, readTag, selfResponse, STUDY_COLOR, studyTag, type InviteResponse, type StudyRole } from "./study-events";
 import { connectorCaller } from "../connector/context";
 import { createClient } from "../supabase/server";
 import { decryptToken } from "./token-crypto";
 
-// Google Calendar for life blocks. The OAuth client secret and the token key
+// Google Calendar for life blocks and study time. The OAuth client secret and the token key
 // are server-side env vars; the refresh token is stored encrypted through the
 // owner-only RPCs. Only the calendar.events scope is requested.
 
@@ -149,6 +150,7 @@ type GoogleEvent = {
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   extendedProperties?: { private?: Record<string, string> };
+  attendees?: { self?: boolean; responseStatus?: string }[];
 };
 
 export type CalendarEvent = {
@@ -158,8 +160,12 @@ export type CalendarEvent = {
   start: string;
   end: string;
   url: string;
-  /** Set for blocks the portal created; others are shown read-only. */
+  /** Set for life blocks the portal created; others are shown read-only. */
   kind: LifeKind | null;
+  /** Set for study time the portal put in the calendar. */
+  study: { task: string; role: StudyRole; project: string | null } | null;
+  /** The owner's answer when this is someone else's invite. */
+  response: InviteResponse | null;
 };
 
 const cal = () => `/calendars/${encodeURIComponent(calendarId())}`;
@@ -180,7 +186,7 @@ export async function listEvents(from: Date, to: Date): Promise<CalendarEvent[]>
     const body = await api<{ items: GoogleEvent[]; nextPageToken?: string }>(`${cal()}/events?${params}`);
     for (const e of body.items) {
       if (e.status === "cancelled" || !e.start.dateTime || !e.end.dateTime) continue;
-      const kind = e.extendedProperties?.private?.portalKind;
+      const tag = readTag(e.extendedProperties?.private);
       events.push({
         id: e.id,
         seriesId: e.recurringEventId ?? null,
@@ -188,7 +194,9 @@ export async function listEvents(from: Date, to: Date): Promise<CalendarEvent[]>
         start: e.start.dateTime,
         end: e.end.dateTime,
         url: e.htmlLink,
-        kind: isLifeKind(kind) ? kind : null,
+        kind: tag?.type === "life" ? tag.kind : null,
+        study: tag?.type === "study" ? { task: tag.task, role: tag.role, project: tag.project } : null,
+        response: selfResponse(e.attendees),
       });
     }
     pageToken = body.nextPageToken;
@@ -221,7 +229,56 @@ export async function createLifeBlock(input: {
   });
 }
 
-/** Moves or resizes one occurrence. Only portal-made blocks can be changed. */
+type StudyTask = { gid: string; name: string; project: string | null };
+
+/** The events holding a task's mirrored slot. Normally one; more only after a race. */
+async function slotEvents(gid: string): Promise<GoogleEvent[]> {
+  const params = new URLSearchParams({ maxResults: "10" });
+  params.append("privateExtendedProperty", `portalTask=${gid}`);
+  params.append("privateExtendedProperty", "portalRole=slot");
+  const body = await api<{ items: GoogleEvent[] }>(`${cal()}/events?${params}`);
+  return body.items.filter((e) => e.status !== "cancelled");
+}
+
+/** Writes a task's time slot to the calendar, replacing what was there for it. */
+export async function upsertTaskSlot(task: StudyTask, start: Date, end: Date): Promise<void> {
+  const tz = timeZone();
+  const body = {
+    summary: task.name,
+    start: { dateTime: start.toISOString(), timeZone: tz },
+    end: { dateTime: end.toISOString(), timeZone: tz },
+    colorId: STUDY_COLOR,
+    reminders: { useDefault: false, overrides: [] },
+    extendedProperties: { private: studyTag(task.gid, "slot", task.project) },
+  };
+  const [first, ...extra] = await slotEvents(task.gid);
+  if (first) await api(`${cal()}/events/${encodeURIComponent(first.id)}`, { method: "PATCH", body });
+  else await api(`${cal()}/events`, { method: "POST", body });
+  for (const e of extra) await api(`${cal()}/events/${encodeURIComponent(e.id)}`, { method: "DELETE" });
+}
+
+/** Removes a task's mirrored slot, if it has one. */
+export async function deleteTaskSlot(gid: string): Promise<void> {
+  for (const e of await slotEvents(gid)) await api(`${cal()}/events/${encodeURIComponent(e.id)}`, { method: "DELETE" });
+}
+
+/** Adds one more block of study time on a task. */
+export async function createStudySession(task: StudyTask, input: { date: string; start: number; duration: number }): Promise<void> {
+  const tz = timeZone();
+  await api(`${cal()}/events`, {
+    method: "POST",
+    body: {
+      summary: task.name,
+      start: { dateTime: wallClock(input.date, input.start), timeZone: tz },
+      end: { dateTime: wallClock(input.date, input.start + input.duration), timeZone: tz },
+      colorId: STUDY_COLOR,
+      reminders: { useDefault: false, overrides: [] },
+      extendedProperties: { private: studyTag(task.gid, "session", task.project) },
+    },
+  });
+}
+
+/** Moves or resizes one occurrence. Only life blocks and study sessions the portal made can be changed. */
 export async function moveLifeBlock(eventId: string, date: string, start: number, duration: number): Promise<void> {
   await assertPortalEvent(eventId);
   const tz = timeZone();
@@ -234,7 +291,7 @@ export async function moveLifeBlock(eventId: string, date: string, start: number
   });
 }
 
-/** Deletes one occurrence, or the whole series. Only portal-made blocks. */
+/** Deletes one occurrence, or the whole series. Only life blocks and study sessions the portal made. */
 export async function deleteLifeBlock(eventId: string, wholeSeries: boolean): Promise<void> {
   const event = await assertPortalEvent(eventId);
   const target = wholeSeries && event.recurringEventId ? event.recurringEventId : eventId;
@@ -244,7 +301,7 @@ export async function deleteLifeBlock(eventId: string, wholeSeries: boolean): Pr
 async function assertPortalEvent(eventId: string): Promise<GoogleEvent> {
   if (!/^[a-zA-Z0-9_]{5,1024}$/.test(eventId)) throw new GoogleError("That is not a calendar event id.", 400);
   const event = await api<GoogleEvent>(`${cal()}/events/${encodeURIComponent(eventId)}`);
-  if (!isLifeKind(event.extendedProperties?.private?.portalKind)) {
+  if (!isEditable(readTag(event.extendedProperties?.private))) {
     throw new GoogleError("Only blocks made in the portal can be changed here. Edit this one in Google Calendar.", 403);
   }
   return event;

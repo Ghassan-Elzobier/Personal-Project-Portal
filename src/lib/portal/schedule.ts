@@ -3,16 +3,20 @@ import { projectGid, timeZone } from "../config/env";
 import { googleConfigured, googleConnection, listEvents } from "../calendar/google";
 import { attempt, openTasks, toView, type TaskView } from "./data";
 import { listTasks } from "../tasks/tracker";
-import { PROJECTS, projectDef } from "../config/projects";
+import { isProjectKey, PROJECTS, projectDef } from "../config/projects";
+import { isUnanswered, type InviteResponse } from "../calendar/study-events";
 import { addDays, weekOf, zonedParts, type Week } from "../dates/week";
 import { midnightIn } from "../dates/week";
 
-// One week of schedule: tasks with times (work) and Google Calendar
-// events (life), flattened into blocks the grid can place.
+// One week of schedule: tasks with times (work), extra study sessions and
+// Google Calendar events (life and the rest), flattened into blocks the grid
+// can place. A task's slot is also mirrored to Google Calendar; that copy is
+// skipped here so it does not show twice.
 
 export type Block = {
   id: string;
-  source: "asana" | "google";
+  /** asana: a task's own slot. session: more study time on a task, kept in Google. google: any other event. */
+  source: "asana" | "session" | "google";
   title: string;
   date: string;
   /** Minutes after midnight in the portal's time zone. */
@@ -20,8 +24,12 @@ export type Block = {
   end: number;
   url: string;
   editable: boolean;
-  /** Asana: the project title. Google: the life kind, or null for other events. */
+  /** The project title, for study blocks. */
   project?: string;
+  /** The task a study block belongs to. */
+  taskGid?: string;
+  /** Someone else's invite: how it was answered. */
+  invite?: InviteResponse;
   stage?: string | null;
   kind?: string | null;
   seriesId?: string | null;
@@ -45,6 +53,8 @@ export type ScheduleWeek = {
   unscheduled: Unscheduled[];
   errors: string[];
   google: GoogleState;
+  /** Invites not said yes or maybe to, left off the grid. */
+  hiddenInvites: number;
 };
 
 /** Week containing ?week=YYYY-MM-DD, or this week. */
@@ -82,6 +92,7 @@ export function workBlocks(tasks: TaskView[], tz: string): Block[] {
         url: t.url,
         editable: !t.completed,
         project: projectDef(t.project).title,
+        taskGid: t.gid,
         stage: t.stage,
         completed: t.completed,
       });
@@ -90,7 +101,7 @@ export function workBlocks(tasks: TaskView[], tz: string): Block[] {
   return blocks;
 }
 
-export async function loadScheduleWeek(week: Week): Promise<ScheduleWeek> {
+export async function loadScheduleWeek(week: Week, options: { showInvites?: boolean } = {}): Promise<ScheduleWeek> {
   const tz = timeZone();
   const days = Array.from({ length: 7 }, (_, i) => addDays(week.start, i));
   const configured = PROJECTS.filter((p) => projectGid(p.key));
@@ -125,6 +136,7 @@ export async function loadScheduleWeek(week: Week): Promise<ScheduleWeek> {
     .map((t) => ({ gid: t.gid, title: t.name, project: projectDef(t.project).title, dueOn: t.dueOn, stage: t.stage }));
 
   let google: GoogleState;
+  const hidden = new Set<string>();
   if (!googleConfigured()) {
     google = "not-configured";
   } else {
@@ -134,18 +146,43 @@ export async function loadScheduleWeek(week: Week): Promise<ScheduleWeek> {
     } else {
       try {
         const events = await listEvents(week.startsAt, week.endsAt);
+        const titles = new Map(tasks.map((t) => [t.gid, t]));
         for (const e of events) {
+          // The task's own block already shows its slot.
+          if (e.study?.role === "slot") continue;
+          if (!e.study && isUnanswered(e.response) && !options.showInvites) {
+            hidden.add(e.id);
+            continue;
+          }
+          const study = e.study;
+          const owner = study ? titles.get(study.task) : undefined;
+          const projectKey = study?.project && isProjectKey(study.project) ? study.project : owner?.project;
           for (const piece of place(new Date(e.start), new Date(e.end), tz)) {
-            const block: Block = {
-              id: `${e.id}:${piece.date}`,
-              source: "google",
-              title: e.title,
-              ...piece,
-              url: e.url,
-              editable: e.kind !== null,
-              kind: e.kind,
-              seriesId: e.seriesId,
-            };
+            const block: Block = study
+              ? {
+                  id: `${e.id}:${piece.date}`,
+                  source: "session",
+                  title: owner?.name ?? e.title,
+                  ...piece,
+                  url: projectKey ? `/tasks?project=${projectKey}&task=${study.task}` : e.url,
+                  editable: !owner?.completed,
+                  project: projectKey ? projectDef(projectKey).title : undefined,
+                  taskGid: study.task,
+                  stage: owner?.stage,
+                  completed: owner?.completed,
+                  seriesId: e.seriesId,
+                }
+              : {
+                  id: `${e.id}:${piece.date}`,
+                  source: "google",
+                  title: e.title,
+                  ...piece,
+                  url: e.url,
+                  editable: e.kind !== null,
+                  kind: e.kind,
+                  seriesId: e.seriesId,
+                  invite: e.response && e.response !== "accepted" ? e.response : undefined,
+                };
             if (inWeek(block)) blocks.push(block);
           }
         }
@@ -157,5 +194,5 @@ export async function loadScheduleWeek(week: Week): Promise<ScheduleWeek> {
   }
 
   blocks.sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
-  return { week, days, blocks, unscheduled, errors, google };
+  return { week, days, blocks, unscheduled, errors, google, hiddenInvites: hidden.size };
 }

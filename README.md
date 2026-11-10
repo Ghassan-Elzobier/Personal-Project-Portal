@@ -11,7 +11,7 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer as one roadmap: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
 | Jobs (`/jobs`) | Me | The roles out there, what each asks for and where I stand on it, with a quote from the advert and evidence or a plan date beside every requirement. Supabase backend only. |
 | Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
-| Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times). Add lunch, gym and other life blocks, which go to Google Calendar only. |
+| Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times), then add more study sessions on a task from its block. Add lunch, gym and other life blocks. Study and life blocks both go to Google Calendar, and invites you have not accepted stay hidden unless you show them. |
 | Timeline (`/timeline`) | Me and mentors | Dated tasks and milestones across projects, Gantt-style. |
 | Log a session (`/log`) | Me | Adds hours to the task's Hours field, sets Stage and Evidence, and posts a session comment. Stage Done completes the task. |
 | Sunday update (`/week`) | Me | Drafts each project's status update from the week's sessions in the template mentors expect, then posts it. |
@@ -37,7 +37,9 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
   `server-only`). The token is an environment variable and never reaches the
   browser. Every project is checked against the personal workspace gid before
   it is read or written.
-- **Google Calendar API** for life blocks, connected once with OAuth. The
+- **Google Calendar API** for life blocks and study time, connected once with OAuth.
+  A task's slot is mirrored there, and extra study sessions on a task live
+  there only (`src/lib/calendar/study-events.ts`). The
   refresh token is AES-256-GCM encrypted with `GOOGLE_TOKEN_KEY` before it is
   stored.
 - **Claude connector**: an MCP server at `/api/mcp` with OAuth 2.1 and PKCE,
@@ -78,7 +80,7 @@ src/
   components/   UI shared between pages.
   lib/
     auth/       Who is signed in and what they may do.
-    calendar/   Google Calendar and life blocks.
+    calendar/   Google Calendar: life blocks and study time.
     config/     Environment, projects and the list of tools.
     jobs/       Job feeds, reading adverts, the skill list and matching.
     connector/  The Claude connector (MCP and OAuth).

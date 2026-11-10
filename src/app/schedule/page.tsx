@@ -6,13 +6,14 @@ import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import { addDays, dateIn, shortDate, zonedParts } from "@/lib/dates/week";
 import { ErrorNote, PageHeader } from "@/components/ui";
 import { disconnectGoogle } from "./actions";
+import { SyncStudyButton } from "./sync-button";
 import { WeekPlanner } from "./week-planner";
 
 export const metadata: Metadata = { title: "Schedule" };
 export const dynamic = "force-dynamic";
 
 const GOOGLE_NOTES: Record<string, string> = {
-  connected: "Google Calendar is connected. Life blocks you add here appear there too.",
+  connected: "Google Calendar is connected. Study blocks and life blocks you add here appear there too.",
   cancelled: "Google Calendar was not connected.",
   expired: "That took too long. Try connecting again.",
   denied: "Only the owner can connect Google Calendar.",
@@ -25,12 +26,15 @@ const GOOGLE_NOTES: Record<string, string> = {
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; google?: string }>;
+  searchParams: Promise<{ week?: string; google?: string; invites?: string }>;
 }) {
   await requireOwner();
   const params = await searchParams;
   const week = resolveWeek(params.week);
-  const data = await loadScheduleWeek(week);
+  const showInvites = params.invites === "show";
+  const data = await loadScheduleWeek(week, { showInvites });
+  const keep = showInvites ? "&invites=show" : "";
+  const googleReady = typeof data.google === "object" && "email" in data.google;
   const tz = timeZone();
   const now = zonedParts(new Date(), tz);
   const thisWeek = dateIn(new Date(), tz);
@@ -39,23 +43,36 @@ export default async function SchedulePage({
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={`${shortDate(week.start)} to ${shortDate(week.end)}`} title="Schedule">
-        Drag a task onto a time to plan it. Click an empty slot to add lunch, gym or anything else, which goes to
-        Google Calendar only.
+        Drag a task onto a time to plan it, then add more sessions on it from its block. Click an empty slot to add
+        lunch, gym or anything else. Study and life blocks both go to Google Calendar.
       </PageHeader>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={`/schedule?week=${addDays(week.start, -7)}`} className="btn-ghost px-4 py-1.5" aria-label="Previous week">
+          <Link href={`/schedule?week=${addDays(week.start, -7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Previous week">
             ←
           </Link>
-          <Link href="/schedule" className="btn-ghost px-4 py-1.5">
+          <Link href={`/schedule${showInvites ? "?invites=show" : ""}`} className="btn-ghost px-4 py-1.5">
             This week
           </Link>
-          <Link href={`/schedule?week=${addDays(week.start, 7)}`} className="btn-ghost px-4 py-1.5" aria-label="Next week">
+          <Link href={`/schedule?week=${addDays(week.start, 7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Next week">
             →
           </Link>
         </div>
-        <GoogleStatus google={data.google} />
+        <div className="flex flex-wrap items-center gap-3">
+          {googleReady && (data.hiddenInvites > 0 || showInvites) && (
+            <Link
+              href={`/schedule?week=${week.start}${showInvites ? "" : "&invites=show"}`}
+              className="text-sm text-neutral-400 hover:text-white"
+            >
+              {showInvites
+                ? "Hide invites I haven't accepted"
+                : `${data.hiddenInvites} unanswered ${data.hiddenInvites === 1 ? "invite" : "invites"} hidden · Show`}
+            </Link>
+          )}
+          {googleReady && <SyncStudyButton />}
+          <GoogleStatus google={data.google} />
+        </div>
       </div>
 
       {note && <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-300">{note}</p>}
@@ -69,7 +86,7 @@ export default async function SchedulePage({
         unscheduled={data.unscheduled}
         today={thisWeek}
         nowMinutes={now.minutes}
-        googleReady={typeof data.google === "object" && "email" in data.google}
+        googleReady={googleReady}
       />
     </div>
   );
