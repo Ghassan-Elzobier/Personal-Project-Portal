@@ -82,7 +82,18 @@ export const MODEL = {
   sphereTests: 7.8,
   flopPerPath: 324,
   bytesPerPixel: 36,
-  efficiency: { 8: 0.854, 16: 0.808, 32: 0.77, 64: 0.74 },
+  /**
+   * Bounce-loop SIMD efficiency by lane time: lanes still in the loop over width ×
+   * subgroups still looping, summed over every trip. A GPU counter measures this.
+   */
+  efficiency: { 8: 0.72, 16: 0.644, 32: 0.583, 64: 0.534 },
+  /** The same, trip by trip, as fractions. */
+  perTrip: {
+    8: [1, 0.993, 0.471, 0.296, 0.246, 0.213, 0.196, 0.186],
+    16: [1, 0.991, 0.425, 0.234, 0.178, 0.146, 0.129, 0.118],
+    32: [1, 0.988, 0.408, 0.202, 0.137, 0.106, 0.09, 0.079],
+    64: [1, 0.982, 0.399, 0.188, 0.113, 0.083, 0.066, 0.056],
+  },
 } as const;
 
 /** Read off this laptop on 2026-11-11: vulkaninfo, Mesa's shader dump and the validation layer. */
@@ -96,6 +107,24 @@ export const IRIS_XE = {
   shader: "SIMD16, 2,197 instructions, no register spills; the bounce loop stays a loop and the 16-try loop is unrolled",
   hazards: "SYNC-HAZARD-WRITE-AFTER-READ on 1,100 of 1,100 frames",
   dispatchMs: { wayland: 2.21, x11: 0.8 },
+} as const;
+
+/**
+ * The RX 5700 XT's chip (gfx1010), compiled by its Linux driver, RADV in Mesa
+ * 25.2.8, on the laptop with RADV_FORCE_FAMILY=navi10, so without the card.
+ * The statistics are the driver's own, from VK_KHR_pipeline_executable_properties.
+ */
+export const RX_5700_XT = {
+  device: "AMD Radeon RX 5700 XT (gfx1010, RDNA 1)",
+  driver: "RADV, Mesa 25.2.8, compiled without the card",
+  subgroup: { reported: 64, min: 32, max: 64, compiled: 64 },
+  sharedMemory: "64 KiB",
+  maxInvocations: 1024,
+  wave64: { vgprs: 44, sgprs: 128, instructions: 1951, branches: 37, perSimd: 22 },
+  wave32: { vgprs: 48, sgprs: 128, instructions: 1951, branches: 37, perSimd: 20 },
+  shader: "wave64 by default, 44 vector registers a lane, 1,951 instructions, no spills, no shared memory",
+  /** Paper figures at reference clocks, from the study plan. */
+  peak: { gbs: 448, tflops: 9.75 },
 } as const;
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -243,7 +272,7 @@ const BASE: readonly Omit<View, "part">[] = [
       { title: "A workgroup", text: "local_size 8 × 8 × 1 is 64 invocations. gl_LocalInvocationID is a position in the tile.", code: [["shader", 3]] },
       { title: "The global index", text: "gl_GlobalInvocationID = gl_WorkGroupID × 8 + gl_LocalInvocationID. In CUDA: blockIdx × blockDim + threadIdx.", code: [["shader", 120]] },
       { title: "The edge check", text: "Invocations past the image return at once.", code: [["shader", 123, 125]] },
-      { title: "Subgroups", text: "The 64 invocations fill subgroups in order of gl_LocalInvocationIndex, which is x + 8y. At 16 wide, which is what the Iris Xe compiled, that is four subgroups of two rows each. On the RX 5700 XT it is 32 (four rows) or 64 (the tile), whichever the driver picks.", code: [["shader", 3]] },
+      { title: "Subgroups", text: "The 64 invocations fill subgroups in order of gl_LocalInvocationIndex, which is x + 8y. At 16 wide, which is what the Iris Xe compiled, that is four subgroups of two rows each. The RX 5700 XT's Linux driver compiles it at 64, so one subgroup is the whole tile; 32 (four rows) is available if you ask for it.", code: [["shader", 3]] },
       { title: "Lanes", text: "One subgroup is one stream of instructions. Each lane keeps its own registers (seed, ray, colour) and works on one pixel.", code: [["shader", 25], ["shader", 137]] },
     ],
     book: [
@@ -259,7 +288,8 @@ const BASE: readonly Omit<View, "part">[] = [
     ],
     facts: [
       { label: "Subgroup size on the Iris Xe", value: `reported ${IRIS_XE.subgroup.reported}, range ${IRIS_XE.subgroup.min} to ${IRIS_XE.subgroup.max}`, source: "measured" },
-      { label: "What Mesa compiled", value: `SIMD${IRIS_XE.subgroup.compiled}`, source: "measured", note: "The shader uses no subgroup operations, so the driver may choose any width." },
+      { label: "What Mesa compiled", value: `SIMD${IRIS_XE.subgroup.compiled} on the Iris Xe; wave64 for the RX 5700 XT`, source: "measured", note: "The shader uses no subgroup operations, so each driver may choose any width it supports." },
+      { label: "Subgroup size on the RX 5700 XT", value: `range ${RX_5700_XT.subgroup.min} to ${RX_5700_XT.subgroup.max}, ${RX_5700_XT.subgroup.reported} by default`, source: "measured", note: RX_5700_XT.driver },
       { label: "Workgroups per frame", value: "7,500", source: "code" },
     ],
     findings: [
@@ -308,14 +338,14 @@ const BASE: readonly Omit<View, "part">[] = [
   {
     id: "divergence",
     title: "Divergence: lanes that wait",
-    claim: `Lanes in a subgroup share one instruction stream, so the bounce loop runs as long as its slowest lane. At 16 wide, ${pct(1 - MODEL.efficiency[16])} of lane-trips in this scene are lanes waiting.`,
+    claim: `Lanes in a subgroup share one instruction stream, so the bounce loop runs as long as its slowest lane. Counted by time, ${pct(1 - MODEL.efficiency[16])} of the loop's lanes are waiting at the Iris Xe's 16 wide, and ${pct(1 - MODEL.efficiency[64])} at the RX 5700 XT's 64.`,
     steps: [
       { title: "Pick a pixel", text: "The explorer finds the subgroup holding it: two rows of its 8 × 8 tile at 16 wide." },
       { title: "Read the grid", text: "A column is a lane. A row is a trip through the bounce loop. A filled cell is work, and an empty one is a lane that has finished and waits." },
       { title: "The loop ends last", text: "Each lane leaves when its ray escapes, but the subgroup keeps going until every lane has.", code: [["shader", 139, 145]] },
       { title: "Both branches run", text: "If some lanes hit diffuse and others metal on the same trip, the subgroup runs both branches, each with the other lanes switched off.", code: [["shader", 150, 156]] },
       { title: "The same inside each trip", text: "The 16-try loop in randomUnitVector ends at different times per lane too. The Iris Xe's compiler turned it into nested ifs, so the waiting happens there as well.", code: [["shader", 43, 51]] },
-      { title: "SIMD efficiency", text: "Useful lane-trips divided by width times trips. 100% means no lane ever waited." },
+      { title: "SIMD efficiency", text: "Lanes doing work over width × trips. For one subgroup it is the number shown. Over a whole frame, long-running subgroups count for more because they take more time, which is also what a GPU counter measures." },
     ],
     book: [
       { section: "4.4", title: "Warps and SIMD hardware", page: 216, why: "Why the lanes of a warp share instructions in the first place." },
@@ -326,15 +356,16 @@ const BASE: readonly Omit<View, "part">[] = [
     units: ["pmpp-4", "r-divergence", "r-wavefront"],
     checks: [
       { q: "Before clicking: where do you expect the lowest efficiency?", a: "Along silhouettes, where a subgroup straddles a sphere's edge: some lanes hit the sky on trip 1 and others keep bouncing. Also between the mirror sphere and the ground, where paths bounce back and forth." },
-      { q: "Why does a wider subgroup lose efficiency here?", a: "A wider subgroup covers more pixels, so it is more likely to hold one long path, and the loop runs to that lane's length." },
+      { q: "Why does a wider subgroup lose efficiency here?", a: "A wider subgroup covers more pixels, so it is more likely to hold one long path, and the loop runs to that lane's length. That is why the RX 5700 XT, at 64 wide, wastes more of its loop than the Iris Xe at 16." },
+      { q: "Trip 2 is still 99% busy but trip 3 drops to about 42%. Why there?", a: "42% of rays leave on trip 1 and 39% after one hit, but almost every subgroup holds at least one ray still going, so trip 2 runs nearly full. By trip 3 most rays have reached the sky, while their subgroups keep looping for the few that bounce on." },
       { q: "Which milestone attacks this, and how?", a: "Wavefront path tracing. After each bounce, the live rays are compacted into a queue, so subgroups fill up with rays that still have work." },
     ],
     facts: [
-      { label: "SIMD efficiency of the bounce loop", value: `${pct(MODEL.efficiency[8])} at 8, ${pct(MODEL.efficiency[16])} at 16, ${pct(MODEL.efficiency[32])} at 32, ${pct(MODEL.efficiency[64])} at 64`, source: "model", note: "Frame 0, all 480,000 pixels." },
-      { label: "Width the Iris Xe compiled", value: `${IRIS_XE.subgroup.compiled}`, source: "measured" },
+      { label: "SIMD efficiency of the bounce loop", value: `${pct(MODEL.efficiency[8])} at 8, ${pct(MODEL.efficiency[16])} at 16, ${pct(MODEL.efficiency[32])} at 32, ${pct(MODEL.efficiency[64])} at 64`, source: "model", note: "Counted by lane time, frame 0, all 480,000 pixels. It barely changes from frame to frame." },
+      { label: "Width each GPU compiled", value: `Iris Xe ${IRIS_XE.subgroup.compiled}, RX 5700 XT ${RX_5700_XT.subgroup.compiled} (Linux driver)`, source: "measured" },
     ],
     findings: [
-      { kind: "note", title: "This is a model", text: "The explorer runs the shader's own logic in your browser, with the same random numbers. The GPU's grouping and float precision can differ in detail, so a single pixel's path may part ways after a few bounces. The divergence milestone measures the real thing with subgroupBallot." },
+      { kind: "note", title: "This is a model, so measure it", text: "The explorer runs the shader's own logic in your browser, with the same random numbers. The GPU's grouping and float precision can differ in detail, so a single pixel's path may part ways after a few bounces. The chart below puts the model's curve next to whatever you measure with subgroupBallot, which is the divergence milestone." },
     ],
   },
   {
@@ -342,7 +373,7 @@ const BASE: readonly Omit<View, "part">[] = [
     title: "Where the bytes and FLOPs go",
     claim: `The scene lives in the instructions and each path lives in registers. The only memory traffic is ${MODEL.bytesPerPixel} bytes per pixel for the two images, so the kernel does about 9 FLOP per byte.`,
     steps: [
-      { title: "Registers", text: "Seed, ray, colour and the hit record, per lane. Mesa reports no spills on the Iris Xe.", code: [["shader", 25], ["shader", 137, 139]] },
+      { title: "Registers", text: `Seed, ray, colour and the hit record, per lane. No spills on either GPU. For the RX 5700 XT the driver uses ${RX_5700_XT.wave64.vgprs} vector registers a lane, low enough that registers do not limit how many subgroups fit (PMPP 4.7).`, code: [["shader", 25], ["shader", 137, 139]] },
       { title: "Instructions", text: "The four spheres are constants in hitScene, compiled into the code. Reading the scene costs no memory traffic at all.", code: [["shader", 93, 117]] },
       { title: "Push constant", text: "frameCount, 4 bytes, recorded into the command buffer.", code: [["shader", 8, 10], ["main", 783]] },
       { title: "accumImage", text: "RGBA32F: 16 bytes read (not on frame 0) and 16 written per pixel.", code: [["shader", 6], ["shader", 160, 162]] },
@@ -366,9 +397,10 @@ const BASE: readonly Omit<View, "part">[] = [
       { label: "Achieved on the Iris Xe, Wayland", value: "7.8 GB/s and 70 GFLOP/s", source: "measured", note: "From the 2.21 ms dispatch and the model's work per path." },
       { label: "Achieved on the Iris Xe, X11", value: "21.6 GB/s and 194 GFLOP/s", source: "measured", note: "From the 0.8 ms dispatch." },
       { label: "RX 5700 XT on paper", value: "448 GB/s, about 9.75 TFLOP/s, ridge near 21.8 FLOP/B", source: "published" },
+      { label: "RX 5700 XT registers", value: `${RX_5700_XT.wave64.vgprs} vector registers a lane at wave64 (${RX_5700_XT.wave32.vgprs} at wave32), no spills; the driver estimates ${RX_5700_XT.wave64.perSimd} subgroups fit per SIMD`, source: "measured", note: RX_5700_XT.driver },
     ],
     findings: [
-      { kind: "note", title: "Below both roofs", text: "Both measured rates sit far below what either GPU's memory or maths could do. So neither is the limit: divergence, long chains of dependent maths and how many subgroups each core keeps in flight are (PMPP 4.6 and 4.7). The roofline milestone measures each GPU's real roofs to place this point properly." },
+      { kind: "note", title: "Below both roofs", text: "Your recorded results sit well below what either GPU's memory or maths could do; the RX 5700 XT reaches about a quarter of its paper roof. With registers not the limit, the likely causes are divergence (a third to a half of the loop's lane time waits) and long chains of dependent maths (PMPP 4.6). The roofline milestone measures each GPU's real roofs to place these points properly." },
     ],
   },
   {

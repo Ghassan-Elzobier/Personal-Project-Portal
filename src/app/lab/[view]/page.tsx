@@ -10,8 +10,12 @@ import { loadStudy } from "@/lib/study/load";
 import { LinkPending } from "@/components/link-pending";
 import { PageHeader } from "@/components/ui";
 import { Legend } from "../kit";
-import { BookLinks, CodeLinks, FindingCard, SourceChip } from "../shared";
+import { BookLinks, CodeLinks, DriftBanner, FindingCard, SourceChip } from "../shared";
+import { rendererDrift } from "@/lib/lab/drift";
 import { ViewFigure } from "../view-figure";
+import { GpuTable, MeasuredVsModel } from "../figures-measured";
+import { RecordDivergence } from "../record-divergence";
+import { latestResults } from "@/lib/lab/results";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +36,7 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
   const next = VIEWS[index + 1];
 
   // The plan units this view helps with, linked to their tasks when the plan is loaded.
-  const study = await attempt(() => loadStudy());
+  const [study, drift] = await Promise.all([attempt(() => loadStudy()), rendererDrift()]);
   const rows = study.ok ? study.value.plans.flatMap((p) => p.rows) : [];
   const units = view.units.flatMap((ref) => {
     const found = findUnit(ref);
@@ -40,6 +44,10 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
     const row = rows.find((r) => r.unit.ref === ref);
     return [{ ref, name: found.unit.name, done: row?.task.completed ?? false, href: row ? `/study?project=${row.task.project}&task=${row.task.gid}` : `/study?project=${found.plan.project}` }];
   });
+  // Your recorded results, from Study's Results, for the views that use them.
+  const benchmarks = study.ok ? study.value.study.benchmarks.filter((b) => b.project === "rendering") : [];
+  const results = latestResults(benchmarks);
+  const gpuNames = [...new Set([results.rx.name, results.iris.name, ...benchmarks.map((b) => b.gpu)].filter(Boolean))];
 
   return (
     <div className="space-y-8">
@@ -53,10 +61,60 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
 
       <PageHeader title={view.title}>{view.claim}</PageHeader>
 
+      <DriftBanner drift={drift} />
+
       <section aria-label="Figure" className="space-y-3">
         <Legend />
-        <ViewFigure id={view.id} />
+        <ViewFigure id={view.id} results={results} />
       </section>
+
+      {(view.id === "memory" || view.id === "timing") && (
+        <section aria-labelledby="gpus-title" className="space-y-3">
+          <h2 id="gpus-title" className="text-xl font-semibold">Your two GPUs</h2>
+          <p className="text-sm text-neutral-400">From the results you recorded in Study, and what each driver compiled.</p>
+          <GpuTable results={results} />
+        </section>
+      )}
+
+      {view.id === "divergence" && (
+        <section aria-labelledby="measured-title" className="space-y-4">
+          <div>
+            <h2 id="measured-title" className="text-xl font-semibold">Model against measurement</h2>
+            <p className="subtext">The model predicts how many lanes are still working on each trip. The divergence milestone measures it on the GPU. Where they differ is the interesting part.</p>
+          </div>
+          <MeasuredVsModel results={results} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3 text-sm text-neutral-300">
+              <h3 className="font-semibold text-white">How to measure it</h3>
+              <p>Count, at the top of each trip through the bounce loop, how many lanes are still in it. After the timed frames, print one line:</p>
+              <pre className="overflow-x-auto rounded-lg bg-white/5 p-3 text-xs ring-1 ring-white/10">DIVERGENCE subgroup=64 lanes=L1,…,L8 subgroups=S1,…,S8</pre>
+              <ul className="list-disc space-y-1 pl-5">
+                <li><span className="font-mono text-xs">lanes</span>: on each trip, the lanes still looping, summed over every subgroup and frame.</li>
+                <li><span className="font-mono text-xs">subgroups</span>: how many subgroups were still looping on that trip.</li>
+                <li><span className="font-mono text-xs">subgroup</span>: gl_SubgroupSize. Fix it with requiredSubgroupSize so you know what you measured.</li>
+              </ul>
+              <p>Keep the 16 counters in a small storage buffer at a new binding, and read it back once at the end. 32-bit counters hold about 8,900 frames at 800 × 600 before trip 1 overflows.</p>
+              <details className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+                <summary className="cursor-pointer font-medium text-white">Hints, if you are stuck</summary>
+                <p className="mt-2">You need GL_KHR_shader_subgroup_ballot. subgroupBallot(true) gives a mask of the lanes taking part, subgroupBallotBitCount counts it, and subgroupElect picks one lane per subgroup to do the two atomicAdds. Put it as the first thing inside the loop, before hitScene.</p>
+              </details>
+              <details className="rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+                <summary className="cursor-pointer font-medium text-white">Show a sketch (spoiler)</summary>
+                <pre className="mt-2 overflow-x-auto text-xs">{`#extension GL_KHR_shader_subgroup_ballot : require
+layout(binding = 2) buffer Counters { uint lanes[8]; uint groups[8]; } counters;
+
+// first thing inside the bounce loop:
+uint active = subgroupBallotBitCount(subgroupBallot(true));
+if (subgroupElect()) {
+    atomicAdd(counters.lanes[bounce], active);
+    atomicAdd(counters.groups[bounce], 1u);
+}`}</pre>
+              </details>
+            </div>
+            <RecordDivergence gpus={gpuNames.length ? gpuNames : ["AMD Radeon RX 5700 XT", "Intel Iris Xe (TGL GT2)"]} scene={results.rx.dispatch?.scene ?? results.iris.dispatch?.scene ?? "4 spheres (hard-coded), 800x600"} commit="" />
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-labelledby="steps-title" className="space-y-3">

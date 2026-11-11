@@ -48,7 +48,10 @@ test("the model still gives the numbers the Lab pages quote", () => {
   near(s.hitLimit, MODEL.hitLimit, 0.0005);
   near(s.meanUnitTries, MODEL.unitTries, 0.005);
   assert.equal(s.inwardMetal, MODEL.inwardMetal);
-  for (const size of [8, 16, 32, 64] as const) near(s.efficiency[size], MODEL.efficiency[size], 0.005);
+  for (const size of [8, 16, 32, 64] as const) {
+    near(s.pooled[size].overall, MODEL.efficiency[size], 0.001);
+    s.pooled[size].perTrip.forEach((x, k) => near(x, MODEL.perTrip[size][k], 0.001));
+  }
 });
 
 test("every view names real study units, line ranges inside the files, and numbered steps", () => {
@@ -96,4 +99,19 @@ test("the worked examples come from the same code path as the frame statistics",
   // Its jitter is the second and third hash after the pixel index, as in the shader.
   const draws = randomSequence(pcgHash(400 + 300 * 800), 2).map((d) => d.value);
   assert.deepEqual(draws, CENTRE.jitter);
+});
+
+test("every code reference has an anchor recorded at the pinned commit", async () => {
+  const { readFileSync } = await import("node:fs");
+  const saved = JSON.parse(readFileSync(new URL("./anchors.json", import.meta.url), "utf8")) as { commit: string; anchors: Record<string, { offset: number; text: string }> };
+  assert.equal(saved.commit, RENDERER.commit, "RENDERER.commit changed: run npm run lab:anchors, then npm run lab:check");
+  const keys = new Set<string>();
+  const add = (f: string, a: number, b?: number) => keys.add(`${f}:${a}${b ? `-${b}` : ""}`);
+  for (const v of VIEWS) {
+    for (const s of v.steps) for (const [f, a, b] of s.code ?? []) add(f, a, b);
+    for (const x of v.findings ?? []) for (const [f, a, b] of x.code ?? []) add(f, a, b);
+  }
+  for (const c of CODE_MAP) add(c.file, c.from, c.to);
+  for (const k of keys) assert.ok(saved.anchors[k], `${k} has no anchor: run npm run lab:anchors`);
+  for (const [k, a] of Object.entries(saved.anchors)) assert.ok(a.text.length > 0, `${k} anchors on an empty line`);
 });

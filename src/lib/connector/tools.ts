@@ -13,6 +13,8 @@ import { BookError, bookOutline, chaptersOf, cite, readBook, searchBook } from "
 import { bookHref } from "../library/links";
 import { excerptForClaude } from "../library/query";
 import { CODE_MAP, PARTS, RENDERER, VIEWS, allFindings, codeLabel, viewById, viewForClaude } from "../lab/guide";
+import { achieved, latestResults } from "../lab/results";
+import { loadStudy } from "../study/load";
 
 // The portal's tools as Claude sees them through the connector. Reads run
 // freely; every write goes through src/lib/portal/operations.ts, the same code the
@@ -623,9 +625,23 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
       const id = str(args, "view");
+      // The owner's recorded results on each GPU, so explanations use real numbers.
+      const study = await attempt(() => loadStudy());
+      const latest = latestResults(study.ok ? study.value.study.benchmarks.filter((b) => b.project === "rendering") : []);
+      const recorded = (["iris", "rx"] as const).map((g) => {
+        const r = latest[g];
+        const a = r.dispatch ? achieved(r.dispatch.ms) : null;
+        return {
+          gpu: r.name,
+          dispatch_ms: r.dispatch?.ms ?? null,
+          commit: r.dispatch?.commit ?? null,
+          achieved: a ? { gflops: Math.round(a.gflops), gbs: Math.round(a.gbs), mpaths: Math.round(a.mpaths) } : null,
+          measured_simd_efficiency: r.divergence ? { subgroup: r.divergence.subgroup, overall_percent: Math.round(r.divergence.overall * 1000) / 10, per_trip_percent: r.divergence.perTrip.map((x) => Math.round(x * 1000) / 10) } : "not measured yet",
+        };
+      });
       if (id) {
         const v = viewById(id);
-        return v ? ok(viewForClaude(v, base)) : err(`Unknown view. Use one of: ${VIEWS.map((x) => x.id).join(", ")}.`);
+        return v ? ok({ ...viewForClaude(v, base), recorded_results: ["memory", "timing", "divergence", "dispatch"].includes(v.id) ? recorded : undefined }) : err(`Unknown view. Use one of: ${VIEWS.map((x) => x.id).join(", ")}.`);
       }
       return ok({
         commit: RENDERER.short,
@@ -636,6 +652,7 @@ export const TOOLS: Tool[] = [
         })),
         findings: allFindings().map((f) => ({ kind: f.kind, title: f.title, view: f.view })),
         code_map: CODE_MAP.map((c) => `${codeLabel([c.file, c.from, c.to])} ${c.what} → ${c.views.join(", ")}`),
+        recorded_results: recorded,
       });
     },
   },

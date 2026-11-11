@@ -1,4 +1,5 @@
 import type { ViewId } from "@/lib/lab/guide";
+import type { GpuResult } from "@/lib/lab/results";
 import { Accumulation, Dispatch, Invocation, Memory } from "./figures-gpu";
 import { FrameMap, Objects, Timeline } from "./figures-host";
 import { DivergenceExplorer } from "./divergence-explorer";
@@ -8,7 +9,7 @@ import { MemoryBinding, ShaderBuild, Swapchain, Timing } from "./figures-vulkan"
 
 // The figure for each Lab view.
 
-export function ViewFigure({ id }: { id: ViewId }) {
+export function ViewFigure({ id, results }: { id: ViewId; results?: Record<"iris" | "rx", GpuResult> }) {
   switch (id) {
     case "frame":
       return <FrameMap />;
@@ -25,7 +26,7 @@ export function ViewFigure({ id }: { id: ViewId }) {
     case "divergence":
       return <DivergenceExplorer />;
     case "memory":
-      return <Memory />;
+      return <Memory results={results} />;
     case "accumulation":
       return <Accumulation />;
     case "shader-build":

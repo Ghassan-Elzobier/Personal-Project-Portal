@@ -281,6 +281,11 @@ export type FrameStats = {
   meanUnitTries: number;
   /** Mean SIMD efficiency of the bounce loop, per subgroup size. */
   efficiency: Record<8 | 16 | 32 | 64, number>;
+  /**
+   * What a GPU counter measures: on each trip, the lanes still in the loop over
+   * width × the subgroups still looping, and the same summed over all trips.
+   */
+  pooled: Record<8 | 16 | 32 | 64, { overall: number; perTrip: number[] }>;
 };
 
 /** Every pixel of one frame, or every step-th row and column for speed. */
@@ -289,6 +294,12 @@ export function frameStats(width: number, height: number, frame = 0, step = 1): 
   const histogram = new Array(MAX_BOUNCES).fill(0);
   let pixels = 0, iterations = 0, hits = 0, limit = 0, inward = 0, tries = 0;
   const eff: Record<number, { sum: number; n: number }> = { 8: { sum: 0, n: 0 }, 16: { sum: 0, n: 0 }, 32: { sum: 0, n: 0 }, 64: { sum: 0, n: 0 } };
+  const lanesOn: Record<number, number[]> = {};
+  const groupsOn: Record<number, number[]> = {};
+  for (const size of sizes) {
+    lanesOn[size] = new Array(MAX_BOUNCES).fill(0);
+    groupsOn[size] = new Array(MAX_BOUNCES).fill(0);
+  }
   const groupsX = Math.ceil(width / WORKGROUP);
   const groupsY = Math.ceil(height / WORKGROUP);
   for (let gy = 0; gy < groupsY; gy += step) {
@@ -316,6 +327,10 @@ export function frameStats(width: number, height: number, frame = 0, step = 1): 
           if (!trips) continue;
           eff[size].sum += lanes.reduce((s, p) => s + (p?.iterations ?? 0), 0) / (size * trips);
           eff[size].n++;
+          for (let k = 0; k < trips; k++) {
+            groupsOn[size][k]++;
+            lanesOn[size][k] += lanes.filter((p) => p && p.iterations > k).length;
+          }
         }
       }
     }
@@ -329,5 +344,12 @@ export function frameStats(width: number, height: number, frame = 0, step = 1): 
     inwardMetal: inward,
     meanUnitTries: hits ? tries / hits : 0,
     efficiency: { 8: eff[8].sum / eff[8].n, 16: eff[16].sum / eff[16].n, 32: eff[32].sum / eff[32].n, 64: eff[64].sum / eff[64].n },
+    pooled: Object.fromEntries(
+      sizes.map((size) => {
+        const lanes = lanesOn[size].reduce((a, b) => a + b, 0);
+        const slots = groupsOn[size].reduce((a, b) => a + b, 0) * size;
+        return [size, { overall: lanes / slots, perTrip: lanesOn[size].map((l, k) => (groupsOn[size][k] ? l / (groupsOn[size][k] * size) : 0)) }];
+      }),
+    ) as FrameStats["pooled"],
   };
 }
