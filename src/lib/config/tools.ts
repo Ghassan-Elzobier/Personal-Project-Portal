@@ -4,7 +4,7 @@
 export type Role = "owner" | "mentor";
 
 export type Tool = {
-  key: "today" | "study" | "jobs" | "roadmap" | "job-hunt" | "tasks" | "schedule" | "log" | "week" | "timeline" | "progress" | "people" | "claude";
+  key: "today" | "study" | "lab" | "library" | "jobs" | "roadmap" | "job-hunt" | "tasks" | "schedule" | "log" | "week" | "timeline" | "progress" | "people" | "claude";
   title: string;
   href: string;
   description: string;
@@ -23,6 +23,8 @@ export const TOOLS: readonly Tool[] = [
   { key: "jobs", title: "Jobs", href: "/jobs", description: "The roles out there, what they ask for, and how your study and projects match.", roles: ["owner"], group: "primary" },
   { key: "tasks", title: "Tasks", href: "/tasks", description: "Every project at a glance, with list and board views and the full task.", roles: ["owner"], group: "primary" },
   { key: "schedule", title: "Schedule", href: "/schedule", description: "Plan the week: tasks into time slots, plus lunch, gym and the rest.", roles: ["owner"], group: "primary" },
+  { key: "lab", title: "Lab", href: "/lab", description: "How the renderer works: diagrams of its Vulkan code and shader, tied to PMPP.", roles: ["owner"], group: "more" },
+  { key: "library", title: "Book", href: "/library", description: "Search and read PMPP, in Vulkan words or CUDA ones.", roles: ["owner"], group: "more" },
   { key: "log", title: "Log a session", href: "/log", description: "Hours, stage and evidence on a task, in under a minute.", roles: ["owner"], group: "more" },
   { key: "week", title: "Sunday update", href: "/week", description: "Drafts each project's status update from the week's sessions.", roles: ["owner"], group: "more" },
   { key: "roadmap", title: "Roadmap", href: "/roadmap", description: "The study roadmap: phases, progress, pace and recall.", roles: ["owner", "mentor"], group: "more", mentorView: true },

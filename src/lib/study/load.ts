@@ -4,6 +4,8 @@ import { PROJECTS, projectDef, type ProjectKey } from "../config/projects";
 import { listSections, studySnapshot, type StudySnapshot } from "../tasks/native";
 import { groupBenchmarks } from "./benchmarks";
 import { linksFor, type PlanLink } from "./links";
+import { viewsForUnit } from "../lab/guide";
+import { bookHref } from "../library/links";
 import { dependents, findUnit, PLANS } from "./plans";
 import { planUnits, unitHours, type PlanUnit, type StudyPlan } from "./plan-types";
 import { tallyExercises, type ExerciseTally } from "./review";
@@ -305,6 +307,11 @@ export function panelFor(row: Pick<UnitRow, "task"> & Partial<UnitRow>, study: S
   if (found?.plan.mode === "lab" && found.plan.sourceUrl) links.push({ label: "Open the repo", href: found.plan.sourceUrl() });
   for (const l of found?.plan.extraLinks ?? []) links.push({ label: l.label, href: l.url });
   for (const l of found?.unit.links ?? []) links.push({ label: l.label, href: l.url });
+  // A book kept as a private PDF opens in the portal's own reader.
+  if (found && !found.plan.sourceUrl && found.unit.page) {
+    links.unshift({ label: `Read p. ${found.unit.page} here`, href: bookHref.page(found.unit.page) }, { label: "Open the PDF", href: bookHref.pdf(found.unit.page) });
+  }
+  for (const v of viewsForUnit(task.ref ?? "")) links.push({ label: `Lab: ${v.title}`, href: `/lab/${v.id}` });
   return {
     taskGid: task.gid,
     mode: found?.plan.mode ?? null,

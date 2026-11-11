@@ -9,6 +9,7 @@ import { attempt } from "@/lib/portal/data";
 import { recentCommits } from "@/lib/study/github";
 import { loadStudy, panelFor, type PlanProgress, type StudyOverview, type UnitRow } from "@/lib/study/load";
 import { listComments } from "@/lib/tasks/native";
+import { bookHref } from "@/lib/library/links";
 import { formatHours } from "@/lib/tasks/session-log";
 import { LinkPending } from "@/components/link-pending";
 import { StartSessionButton } from "@/components/session-timer";
@@ -149,6 +150,8 @@ function PlanView({ progress, overview, href, commits, board }: { progress: Plan
           <h2 className="text-xl font-semibold">{plan.title} <span className="text-sm font-normal text-neutral-400">{plan.subtitle}</span></h2>
           <p className="flex flex-wrap gap-x-4 text-sm">
             {plan.sourceUrl && <a href={plan.sourceUrl()} target="_blank" rel="noreferrer" className="text-aqua hover:underline">{plan.mode === "lab" ? "Open the repo" : "Open the book"}</a>}
+            {plan.project === "rendering" && <Link href="/lab" className="text-aqua hover:underline">How it works</Link>}
+            {plan.project === "pmpp" && <Link href="/library" className="text-aqua hover:underline">Read the book here</Link>}
             {plan.extraLinks?.map((l) => (
               <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">{l.label}</a>
             ))}
@@ -161,6 +164,13 @@ function PlanView({ progress, overview, href, commits, board }: { progress: Plan
           {plan.mode === "lab" && `, ${benchmarks.length} ${benchmarks.length === 1 ? "result" : "results"} recorded`}
           {`, ${formatHours(hours)} h logged`}
         </p>
+        {plan.project === "pmpp" && (
+          <form action="/library" role="search" className="flex max-w-xl gap-2">
+            <label htmlFor="ask-book" className="sr-only">Search the book</label>
+            <input id="ask-book" name="q" placeholder="Search PMPP: warp divergence, subgroup ballot…" className="field-input mt-0" />
+            <button className="btn-ghost shrink-0 px-4 py-1.5">Search</button>
+          </form>
+        )}
         <details className="text-sm text-neutral-300">
           <summary className="cursor-pointer hover:text-white">How to work through this</summary>
           <p className="mt-2 max-w-3xl">{plan.guidance}</p>
@@ -273,7 +283,7 @@ function NextUp({ row, href, today, plan, market }: { row: UnitRow; href: (next:
         {plan.sourceUrl && unit.page && (
           <a href={plan.sourceUrl(unit.page)} target="_blank" rel="noreferrer" className="btn-ghost px-4 py-1.5">Open at page {unit.page}</a>
         )}
-        {!plan.sourceUrl && unit.page && <span className="text-neutral-300 tabular-nums">PDF page {unit.page}</span>}
+        {!plan.sourceUrl && unit.page && <Link href={bookHref.page(unit.page)} className="btn-ghost px-4 py-1.5">Read from page {unit.page}</Link>}
         <DueDate dueOn={task.dueOn} today={today} />
       </div>
     </section>
@@ -315,7 +325,7 @@ function UnitRowView({ row, href, today, plan }: { row: UnitRow; href: (next: Se
         {plan.sourceUrl && unit.page && (
           <a href={plan.sourceUrl(unit.page)} target="_blank" rel="noreferrer" className="text-aqua hover:underline" aria-label={`Open ${task.name} at page ${unit.page}`}>p. {unit.page}</a>
         )}
-        {!plan.sourceUrl && unit.page && <span title="Page in your PDF">p. {unit.page}</span>}
+        {!plan.sourceUrl && unit.page && <Link href={bookHref.page(unit.page)} className="text-aqua hover:underline" aria-label={`Read ${task.name} from page ${unit.page}`}>p. {unit.page}</Link>}
         {task.hours > 0 && <span>{formatHours(task.hours)} h</span>}
       </span>
     </li>

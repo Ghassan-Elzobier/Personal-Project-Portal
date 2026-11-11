@@ -147,6 +147,15 @@ as it is, so changing the meaning of a `ref` needs a migration like
 Do not add a `loading.tsx` or a `<Suspense>` boundary to a page that saves things
 without testing it repeatedly: see the note in `src/components/link-pending.tsx`.
 
+## The book and the Lab
+
+The Lab works as soon as the portal is deployed. The book needs your PDF, once:
+
+1. `supabase db push` applies `20261111120000_library.sql`, which adds the page tables, the search RPCs and the private `library` bucket.
+2. Install pdftotext if you do not have it: `sudo apt install poppler-utils`.
+3. From the portal's folder: `npm run load:book -- "/path/to/your PMPP.pdf"`. It reads the PDF, labels each page with its chapter and section, and loads about 1,700 pages into the linked database in a minute or so. The index pages are left out. Add `--local` to load a local database instead. Running it again replaces the pages.
+4. Open `/library` and use **Choose the PDF** to put the file in the private bucket. Search works without it; with it, every page number in the portal opens the PDF at that page.
+
 ## 5. Claude connector (after Vercel)
 
 This lets you plan, schedule and log by asking Claude in the Claude app, on

@@ -90,14 +90,20 @@ function References({ data }: { data: PanelData }) {
   const unfinished = data.needs.filter((n) => !n.done);
   return (
     <div className="space-y-2 text-sm">
-      {data.pdfPage !== null && <p className="text-neutral-300">In your PDF at page {data.pdfPage}</p>}
       {data.links.length > 0 && (
         <p className="flex flex-wrap gap-2">
-          {data.links.map((l) => (
-            <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="btn-ghost px-3 py-1 text-xs">
-              {l.label}
-            </a>
-          ))}
+          {data.links.map((l) =>
+            // The portal's own pages open here; the PDF and other sites open beside it.
+            l.href.startsWith("/") && !l.href.startsWith("/library/pdf") ? (
+              <Link key={l.href} href={l.href} className="btn-ghost px-3 py-1 text-xs">
+                {l.label}
+              </Link>
+            ) : (
+              <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="btn-ghost px-3 py-1 text-xs">
+                {l.label}
+              </a>
+            ),
+          )}
         </p>
       )}
       {data.needs.length > 0 && (

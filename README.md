@@ -9,6 +9,8 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | --- | --- | --- |
 | Today (`/`) | Me | Studying, the job market and the job hunt side by side, then needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
 | Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer as one roadmap: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
+| Lab (`/lab`) | Me | How the renderer works, in 17 views drawn from its code: Vulkan setup, the swapchain and sync, the ray tracer's maths worked through with real pixels, and how it runs on the GPU. Every line of the code maps to a view, each step links to its lines at a pinned commit and to the PMPP section behind it. Includes a divergence explorer and a barrier walkthrough. |
+| Book (`/library`) | Me | Search and read PMPP from your own PDF, in Vulkan words or CUDA ones, and open the PDF at any page. |
 | Jobs (`/jobs`) | Me | The roles out there, what each asks for and where I stand on it, with a quote from the advert and evidence or a plan date beside every requirement. Supabase backend only. |
 | Tasks (`/tasks`) | Me | Every project at a glance, with list and board views and a panel for the full task. Supabase backend only. |
 | Schedule (`/schedule`) | Me | Week planner. Drag tasks into time slots (sets their start and due times), then add more study sessions on a task from its block. Add lunch, gym and other life blocks. Study and life blocks both go to Google Calendar, and invites you have not accepted stay hidden unless you show them. |
@@ -46,6 +48,7 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
   so the Claude app can use the portal on my subscription. Its tools call the
   same code as the buttons (`src/lib/portal/operations.ts`), and only token hashes are
   stored (`supabase/migrations/20261104210000_claude_connector.sql`).
+- **Book library**: PMPP's pages in the private `portal` schema, searched with Postgres full-text search and reached through three owner-only RPCs (`supabase/migrations/20261111120000_library.sql`). The PDF sits in a private storage bucket, opened through signed links.
 - Tools are listed once in `src/lib/config/tools.ts`; projects in `src/lib/config/projects.ts`.
 
 ## How studying works
@@ -59,6 +62,16 @@ Each book and the renderer is a plan in `src/lib/study`, loaded from the Study p
 - **PMPP comes from the book.** Chapters, exercise counts and pages were read from the PDF, in the PDF's own page numbers. Notes are in our own words and the book's text stays out of this repo. The book never mentions ray tracing or Vulkan, so the links to the renderer are our own reading.
 - **GPU MODE sits beside the book.** Its lectures that cover a core chapter are a step in that chapter, and the rest are links on the chapters they suit. The links search GPU MODE's YouTube channel, because the video titles differ from the lecture repository's.
 - **Kernels run in three places.** CUDA needs NVIDIA and neither GPU here is one, so kernels are written on LeetGPU or a Colab GPU, then ported to Vulkan compute for real timings on the RX 5700 XT and Iris Xe. The roadmap has a CUDA to Vulkan table.
+
+## How the Lab and the book work
+
+The Lab explains the renderer, and the book lets you check every explanation against PMPP. Both are also tools for Claude, so it explains the code the way the diagrams draw it and cites the book by section and page. Why it is built this way, and what drawing found: [reports/Renderer diagrams and PMPP library.md](reports/Renderer%20diagrams%20and%20PMPP%20library.md).
+
+- **Drawn from the code, not from memory.** `src/lib/lab/guide.ts` holds each view's steps, line links, PMPP sections, numbers and check-yourself questions, plus a code map that a test keeps covering every line of main.cpp, raytrace.comp and CMakeLists.txt. Worked examples (a pixel's camera ray, its sphere tests, its path's colour, its random numbers) are computed from the shader model, not typed in. The figures are hand-written SVG in the portal's palette; the two charts use d3-scale and d3-shape, and the two walkthroughs use Motion.
+- **Every number says where it came from.** Measured on the Iris Xe, computed by `src/lib/lab/pathtracer.ts` (the shader's logic in TypeScript, checked against a C build of its hash), from the code, or a published figure. Tests keep the quoted numbers in step with the model.
+- **Lines are pinned.** Links point at the renderer commit in `guide.ts`. When main.cpp is split, move the commit and re-check the lines.
+- **The book speaks CUDA, the renderer Vulkan.** `src/lib/library/query.ts` adds the book's word for each Vulkan or GLSL one, and says what it added. Headings are weighted above page text, and a section that teaches an idea outranks pages that mention it.
+- **The book stays private.** `npm run load:book` reads your own PDF into your database; none of it is in this repo, and only the owner can read it, from the portal or the connector.
 
 ## How job tracking works
 
@@ -83,12 +96,15 @@ src/
     calendar/   Google Calendar: life blocks and study time.
     config/     Environment, projects and the list of tools.
     jobs/       Job feeds, reading adverts, the skill list and matching.
+    lab/        The renderer guide behind /lab, and the shader model.
+    library/    The book library: search, reading and the PDF.
     connector/  The Claude connector (MCP and OAuth).
     dates/      Weeks and time zones.
     portal/     What pages show, and every change the portal makes.
     study/      The study plans for each book and the renderer, reviews and results.
     supabase/   Supabase clients.
     tasks/      The task model, both backends and the switch between them.
+scripts/       One-off loaders, such as the book.
 supabase/       Migrations, database tests and auth config.
 docs/           Setup and launch guides.
 ```
@@ -102,6 +118,6 @@ Setup: [docs/SETUP.md](docs/SETUP.md).
 ```sh
 npm run lint
 npm run typecheck
-npm test              # unit tests for dates, session logs and drafts
+npm test              # unit tests, including the shader model and book search
 supabase test db      # pgTAP tests for access rules
 ```
