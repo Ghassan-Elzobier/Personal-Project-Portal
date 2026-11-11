@@ -9,6 +9,10 @@ import { STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { clock, parseClock, weekdayIndex } from "../dates/week";
 import { METRICS } from "../study/benchmarks";
 import { studyOverview } from "../study/load";
+import { BookError, bookOutline, chaptersOf, cite, readBook, searchBook } from "../library/book";
+import { bookHref } from "../library/links";
+import { excerptForClaude } from "../library/query";
+import { CODE_MAP, PARTS, RENDERER, VIEWS, allFindings, codeLabel, viewById, viewForClaude } from "../lab/guide";
 
 // The portal's tools as Claude sees them through the connector. Reads run
 // freely; every write goes through src/lib/portal/operations.ts, the same code the
@@ -523,6 +527,118 @@ export const TOOLS: Tool[] = [
       return fromOp(r, { posted: true });
     },
   },
+  {
+    name: "search_pmpp",
+    title: "Search PMPP",
+    description:
+      "Search the owner's copy of Programming Massively Parallel Processors (PMPP, 5th edition, Hwu, Kirk and El Hajj) and get the best pages, each with a short excerpt and a citation. The book speaks CUDA. Vulkan and GLSL words (subgroup, workgroup, shared variables, push constant, barrier and so on) are also searched as the CUDA words the book uses, and the reply says which. Pages that match every idea come first, with at most three from any one section. Use a few key words rather than a whole sentence, and run several small searches rather than one broad one. Follow with read_pmpp to read a page in full. Page numbers are the PDF's own, the same ones get_study uses.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", minLength: 2, maxLength: 300, description: "Key words or a short question, e.g. \"warp divergence loop\" or \"subgroup ballot\". Quote a phrase to search it exactly." },
+        chapter: { type: "string", pattern: "^([0-9]{1,2}|[A-C])$", description: "Only this chapter: a number such as 4, or an appendix letter A, B or C." },
+        limit: { type: "integer", minimum: 1, maximum: 10, description: "How many pages. Default 6." },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+    async run(args, { base }) {
+      try {
+        const r = await searchBook(str(args, "query"), { chapter: str(args, "chapter") || null, limit: Number(args.limit ?? 6) });
+        if (!r.groups.length) return err("Every word in that query is too common to search. Use the idea itself, such as \"coalescing\" or \"occupancy\".");
+        return ok({
+          query: r.query,
+          also_searched: r.translated.map((t) => ({ for: t.from, book_words: t.to })),
+          note: r.results.length && r.matchedEvery < r.results.length ? `${r.matchedEvery} of ${r.results.length} pages match every term; the rest match some.` : undefined,
+          results: r.results.map((h) => ({
+            cite: cite(h),
+            page: h.page,
+            section: h.section,
+            where: h.heading,
+            kind: h.kind === "figure" ? "describes a figure in words" : h.kind === "front" ? "front matter" : undefined,
+            excerpt: excerptForClaude(h.excerpt),
+            read: `${base}${bookHref.page(h.page)}`,
+            pdf: `${base}${bookHref.pdf(h.page)}`,
+          })),
+        });
+      } catch (e) {
+        if (e instanceof BookError && e.status === 403) return err("Only the owner can search the book.");
+        throw e;
+      }
+    },
+  },
+  {
+    name: "read_pmpp",
+    title: "Read PMPP",
+    description:
+      "Read the owner's PMPP in full: up to 6 pages from a page number, or from the start of a section such as 6.1 or a chapter such as 6. With neither, returns the table of contents: every chapter and section with its first page. Pages at the end of each chapter describe its figures in words; the figures themselves are only in the PDF, so give the owner the pdf link when a figure matters. Quote only the sentences you need and give their page.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        page: { type: "integer", minimum: 1, maximum: 5000, description: "First page to read, the PDF's own number, from search_pmpp or get_study." },
+        section: { type: "string", pattern: "^([0-9]{1,2}|[A-C])(\\.[0-9]{1,2})?$", description: "A section such as 4.5, or a chapter such as 4. Reads from its first page." },
+        pages: { type: "integer", minimum: 1, maximum: 6, description: "How many pages. Default 3." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+    async run(args, { base }) {
+      const page = typeof args.page === "number" ? args.page : undefined;
+      const section = str(args, "section") || undefined;
+      try {
+        if (!page && !section) {
+          const outline = await bookOutline();
+          if (!outline.pages) return err("The book is not loaded yet. The owner loads it once with npm run load:book from the portal's folder.");
+          return ok({
+            pages: outline.pages,
+            chapters: chaptersOf(outline).map((c) => ({ chapter: c.chapter, title: c.title, first_page: c.first_page, sections: c.sections.map((s) => `${s.number} ${s.title}, p. ${s.first_page}`) })),
+          });
+        }
+        const r = await readBook({ page, section, count: Number(args.pages ?? 3) });
+        if (!r.pages.length) return err(`There is no page ${page ?? ""} in the loaded book.${r.last_page ? ` It ends at page ${r.last_page}.` : ""}`);
+        return ok({
+          section: r.section ? `${r.section.number} ${r.section.title}, pages ${r.section.first_page} to ${r.section.last_page}` : undefined,
+          pages: r.pages.map((p) => ({ cite: cite(p), page: p.page, kind: p.kind === "figure" ? "describes a figure in words" : undefined, text: p.text })),
+          next_page: r.next_page,
+          pdf: `${base}${bookHref.pdf(r.pages[0].page)}`,
+        });
+      } catch (e) {
+        if (e instanceof BookError && (e.status === 404 || e.status === 400)) return err(`${e.message} Call read_pmpp with no arguments for the contents.`);
+        if (e instanceof BookError && e.status === 403) return err("Only the owner can read the book.");
+        throw e;
+      }
+    },
+  },
+  {
+    name: "explain_renderer",
+    title: "How the renderer works",
+    description:
+      "How the owner's Vulkan path tracer works, from the Lab's diagrams at /lab: what each part of main.cpp and shaders/raytrace.comp does, with links to the lines at a pinned commit, the maths worked through with real pixels' numbers, the PMPP sections that explain it, numbers measured on the owner's Iris Xe or computed from a model of the shader (each labelled), problems found in the code (two bugs confirmed: a synchronization hazard and a red/blue swap through X11), and check-yourself questions with answers. With no view, lists every view by part, every finding, and a map from each range of lines to the views that explain it. Read this before explaining the renderer, so you describe it the way the owner's diagrams draw it.",
+    inputSchema: {
+      type: "object",
+      properties: { view: { type: "string", enum: VIEWS.map((v) => v.id), description: VIEWS.map((v) => `${v.id} = ${v.title}`).join("; ") } },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+    async run(args, { base }) {
+      const id = str(args, "view");
+      if (id) {
+        const v = viewById(id);
+        return v ? ok(viewForClaude(v, base)) : err(`Unknown view. Use one of: ${VIEWS.map((x) => x.id).join(", ")}.`);
+      }
+      return ok({
+        commit: RENDERER.short,
+        page: `${base}/lab`,
+        parts: PARTS.map((p) => ({
+          part: p.title,
+          views: VIEWS.filter((v) => v.part === p.id).map((v) => ({ view: v.id, title: v.title, claim: v.claim, pmpp: v.book.map((b) => `${b.section} ${b.title}, p. ${b.page}`) })),
+        })),
+        findings: allFindings().map((f) => ({ kind: f.kind, title: f.title, view: f.view })),
+        code_map: CODE_MAP.map((c) => `${codeLabel([c.file, c.from, c.to])} ${c.what} → ${c.views.join(", ")}`),
+      });
+    },
+  },
 ];
 
 export const INSTRUCTIONS = [
@@ -532,4 +648,6 @@ export const INSTRUCTIONS = [
   "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
   "For studying, call get_study first. Work from the current roadmap phase, and bring up its connections between the plans when they help. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",
+  "For GPU questions, look in the owner's PMPP: search_pmpp with a few key words, then read_pmpp for the pages that matter. Cite section and page (\"PMPP 4.5, p. 225\"), explain in your own words and quote only a sentence or two. Vulkan words are translated to the book's CUDA words for you.",
+  "For the renderer, call explain_renderer first; the owner sees the same diagrams at /lab. Each view has check-yourself questions: ask one and let the owner predict before you explain.",
 ].join(" ");

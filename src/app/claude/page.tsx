@@ -12,9 +12,11 @@ export const dynamic = "force-dynamic";
 type Connection = { id: string; client_name: string | null; created_at: string; last_used_at: string | null };
 
 const PROJECT_LINE =
-  "Use the Portal connector to plan my week, schedule study blocks, add life blocks and log sessions. Call get_today first.";
+  "Use the Portal connector to plan my week, schedule study blocks, add life blocks and log sessions. Call get_today first. For GPU questions, search my PMPP and cite section and page; for my renderer, read explain_renderer first.";
 
 const EXAMPLES = [
+  "Why does my bounce loop waste lanes? Quiz me first, then show me where PMPP explains it.",
+  "Walk me through the barrier bug in my renderer and how I would prove the fix.",
   "Plan Thursday: 2 hours of PMPP chapter 3 in the morning, lunch at 1, gym at 6.",
   "Move everything I didn't finish today to tomorrow.",
   "Log 1.5 hours on Axler 1.B, stage In progress, notes: did exercises 1 to 8.",
