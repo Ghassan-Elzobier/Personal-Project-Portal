@@ -1,0 +1,641 @@
+{
+ "commit": "355324b446aaee4faee8a283d5be413d508f0fe8",
+ "anchors": {
+  "main:716-863": {
+   "offset": 0,
+   "text": "while (!glfwWindowShouldClose(window)) {"
+  },
+  "main:744-835": {
+   "offset": 0,
+   "text": "vkResetCommandBuffer(commandBuffer, 0);"
+  },
+  "main:851": {
+   "offset": 0,
+   "text": "vkQueueSubmit(computeQueue, 1, &submitInfo, inFlight);"
+  },
+  "main:785": {
+   "offset": 0,
+   "text": "vkCmdDispatch(commandBuffer, (swapchain.extent.width + 7) / 8, (swapchain.extent.height + 7) / 8, 1);"
+  },
+  "shader:3": {
+   "offset": 0,
+   "text": "layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;"
+  },
+  "main:678": {
+   "offset": 0,
+   "text": "StorageImage accumImage = createStorageImage(device, physicalDevice, swapchain.extent, VK_FORMAT_R32G32B32A32_SFLOAT);"
+  },
+  "shader:159-162": {
+   "offset": 0,
+   "text": "if (pc.frameCount > 0u) {"
+  },
+  "main:677": {
+   "offset": 0,
+   "text": "StorageImage storageImage = createStorageImage(device, physicalDevice, swapchain.extent, VK_FORMAT_R8G8B8A8_UNORM);"
+  },
+  "shader:164-167": {
+   "offset": 0,
+   "text": "vec3 averaged = accumulated / float(pc.frameCount + 1u);"
+  },
+  "main:821-822": {
+   "offset": 0,
+   "text": "vkCmdCopyImage(commandBuffer, storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,"
+  },
+  "main:861": {
+   "offset": 0,
+   "text": "vkQueuePresentKHR(presentQueue, &presentInfo);"
+  },
+  "main:72-111": {
+   "offset": 0,
+   "text": "VkInstance createInstance() {"
+  },
+  "main:649-654": {
+   "offset": 0,
+   "text": "VkInstance instance = createInstance();"
+  },
+  "main:656-659": {
+   "offset": 0,
+   "text": "VkSurfaceKHR surface = VK_NULL_HANDLE;"
+  },
+  "main:166-179": {
+   "offset": 0,
+   "text": "VkPhysicalDevice pickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {"
+  },
+  "main:661-665": {
+   "offset": 0,
+   "text": "VkPhysicalDevice physicalDevice = pickPhysicalDevice(instance, surface);"
+  },
+  "main:181-205": {
+   "offset": 0,
+   "text": "VkDevice createLogicalDevice(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex) {"
+  },
+  "main:668-673": {
+   "offset": 0,
+   "text": "VkDevice device = createLogicalDevice(physicalDevice, indices.compute.value());"
+  },
+  "main:275-332": {
+   "offset": 0,
+   "text": "Swapchain createSwapchain(VkDevice device, VkPhysicalDevice physicalDevice,"
+  },
+  "main:400-459": {
+   "offset": 0,
+   "text": "StorageImage createStorageImage(VkDevice device, VkPhysicalDevice physicalDevice, VkExtent2D extent, VkFormat imageFormat) {"
+  },
+  "main:677-678": {
+   "offset": 0,
+   "text": "StorageImage storageImage = createStorageImage(device, physicalDevice, swapchain.extent, VK_FORMAT_R8G8B8A8_UNORM);"
+  },
+  "main:461-544": {
+   "offset": 0,
+   "text": "VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device) {"
+  },
+  "shader:5-6": {
+   "offset": 0,
+   "text": "layout(binding = 0, rgba8) uniform writeonly image2D outputImage;"
+  },
+  "main:546-616": {
+   "offset": 0,
+   "text": "VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {"
+  },
+  "main:685-688": {
+   "offset": 0,
+   "text": "VkPipelineLayout pipelineLayout = createPipelineLayout(device, descriptorSetLayout);"
+  },
+  "main:690-699": {
+   "offset": 0,
+   "text": "VkCommandPool commandPool = createCommandPool(device, indices.compute.value());"
+  },
+  "main:157": {
+   "offset": 0,
+   "text": "if (queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) indices.compute = i;"
+  },
+  "main:161": {
+   "offset": 0,
+   "text": "if (presentSupport) indices.present = i;"
+  },
+  "main:185": {
+   "offset": 0,
+   "text": "queueCreateInfo.queueFamilyIndex = queueFamilyIndex;"
+  },
+  "main:673": {
+   "offset": 0,
+   "text": "vkGetDeviceQueue(device, indices.present.value(), 0, &presentQueue);"
+  },
+  "main:865-902": {
+   "offset": 0,
+   "text": "vkDeviceWaitIdle(device);"
+  },
+  "main:172-177": {
+   "offset": 0,
+   "text": "for (VkPhysicalDevice device : devices) {"
+  },
+  "cmake:37-48": {
+   "offset": 0,
+   "text": "target_link_libraries(Ray_Tracing_Renderer PRIVATE glfw Vulkan::Vulkan)"
+  },
+  "main:567-582": {
+   "offset": 0,
+   "text": "std::vector<char> readFile(const std::string& filename) {"
+  },
+  "main:686": {
+   "offset": 0,
+   "text": "VkShaderModule shaderModule = createShaderModule(device, \"build/raytrace.comp.spv\");"
+  },
+  "main:584-597": {
+   "offset": 0,
+   "text": "VkShaderModule createShaderModule(VkDevice device, const std::string& filename) {"
+  },
+  "main:599-616": {
+   "offset": 0,
+   "text": "VkPipeline createPipeline(VkDevice device, VkShaderModule shaderModule, VkPipelineLayout pipelineLayout) {"
+  },
+  "main:687": {
+   "offset": 0,
+   "text": "VkPipeline computePipeline = createPipeline(device, shaderModule, pipelineLayout);"
+  },
+  "main:688": {
+   "offset": 0,
+   "text": "vkDestroyShaderModule(device, shaderModule, nullptr);"
+  },
+  "main:780": {
+   "offset": 0,
+   "text": "vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);"
+  },
+  "main:400-419": {
+   "offset": 0,
+   "text": "StorageImage createStorageImage(VkDevice device, VkPhysicalDevice physicalDevice, VkExtent2D extent, VkFormat imageFormat) {"
+  },
+  "main:421-422": {
+   "offset": 0,
+   "text": "VkMemoryRequirements memRequirements;"
+  },
+  "main:382-392": {
+   "offset": 0,
+   "text": "uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {"
+  },
+  "main:424": {
+   "offset": 0,
+   "text": "uint32_t memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);"
+  },
+  "main:426-435": {
+   "offset": 0,
+   "text": "VkMemoryAllocateInfo allocInfo{};"
+  },
+  "main:437-451": {
+   "offset": 0,
+   "text": "VkImageViewCreateInfo viewInfo{};"
+  },
+  "main:461-483": {
+   "offset": 0,
+   "text": "VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device) {"
+  },
+  "main:486-544": {
+   "offset": 0,
+   "text": "VkDescriptorPool createDescriptorPool(VkDevice device) {"
+  },
+  "main:781-782": {
+   "offset": 0,
+   "text": "vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,"
+  },
+  "main:546-565": {
+   "offset": 0,
+   "text": "VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout) {"
+  },
+  "main:783": {
+   "offset": 0,
+   "text": "vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t), &frameCount);"
+  },
+  "shader:8-10": {
+   "offset": 0,
+   "text": "layout(push_constant) uniform PushConstants {"
+  },
+  "main:207-228": {
+   "offset": 0,
+   "text": "struct SwapchainSupportDetails {"
+  },
+  "main:230-238": {
+   "offset": 0,
+   "text": "VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {"
+  },
+  "main:240-247": {
+   "offset": 0,
+   "text": "VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {"
+  },
+  "main:249-287": {
+   "offset": 0,
+   "text": "VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {"
+  },
+  "main:289-332": {
+   "offset": 0,
+   "text": "VkSwapchainCreateInfoKHR createInfo{};"
+  },
+  "main:743": {
+   "offset": 0,
+   "text": "vkAcquireNextImageKHR(device, swapchain.handle, UINT64_MAX, imageAvailable, VK_NULL_HANDLE, &imageIndex);"
+  },
+  "main:798-833": {
+   "offset": 0,
+   "text": "barrier.image = swapchain.images[imageIndex];"
+  },
+  "main:853-861": {
+   "offset": 0,
+   "text": "VkPresentInfoKHR presentInfo{};"
+  },
+  "main:694-698": {
+   "offset": 0,
+   "text": "VkSemaphore imageAvailable = createSemaphore(device);"
+  },
+  "main:718": {
+   "offset": 0,
+   "text": "vkWaitForFences(device, 1, &inFlight, VK_TRUE, UINT64_MAX);"
+  },
+  "main:719-740": {
+   "offset": 0,
+   "text": "if (frameCount != 0) {"
+  },
+  "main:744-851": {
+   "offset": 0,
+   "text": "vkResetCommandBuffer(commandBuffer, 0);"
+  },
+  "main:750-833": {
+   "offset": 0,
+   "text": "vkCmdResetQueryPool(commandBuffer, queryPool, 0,2);"
+  },
+  "main:838": {
+   "offset": 0,
+   "text": "VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };"
+  },
+  "main:760-768": {
+   "offset": 0,
+   "text": "barrier.image = storageImage.image;"
+  },
+  "main:770-778": {
+   "offset": 0,
+   "text": "barrier.image = accumImage.image;"
+  },
+  "main:788-796": {
+   "offset": 0,
+   "text": "barrier.image = storageImage.image;"
+  },
+  "main:798-806": {
+   "offset": 0,
+   "text": "barrier.image = swapchain.images[imageIndex];"
+  },
+  "main:824-833": {
+   "offset": 0,
+   "text": "barrier.image = swapchain.images[imageIndex];"
+  },
+  "main:804": {
+   "offset": 0,
+   "text": "vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,"
+  },
+  "main:618-629": {
+   "offset": 0,
+   "text": "VkQueryPool createQueryPool(VkDevice device) {"
+  },
+  "main:692": {
+   "offset": 0,
+   "text": "VkQueryPool queryPool = createQueryPool(device);"
+  },
+  "main:750": {
+   "offset": 0,
+   "text": "vkCmdResetQueryPool(commandBuffer, queryPool, 0,2);"
+  },
+  "main:784": {
+   "offset": 0,
+   "text": "vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);"
+  },
+  "main:786": {
+   "offset": 0,
+   "text": "vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);"
+  },
+  "main:718-722": {
+   "offset": 0,
+   "text": "vkWaitForFences(device, 1, &inFlight, VK_TRUE, UINT64_MAX);"
+  },
+  "main:724": {
+   "offset": 0,
+   "text": "double ms = (results[1] - results[0]) * timestampPeriod / 1e6;"
+  },
+  "main:664": {
+   "offset": 0,
+   "text": "float timestampPeriod = props.limits.timestampPeriod;"
+  },
+  "main:705-737": {
+   "offset": 0,
+   "text": "uint32_t frameCount = 0;"
+  },
+  "main:732": {
+   "offset": 0,
+   "text": "double pathsPerSec = double(width) * height / (avgMs / 1000.0);"
+  },
+  "shader:120-125": {
+   "offset": 0,
+   "text": "ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);"
+  },
+  "shader:127": {
+   "offset": 0,
+   "text": "seed = pcgHash(uint(pixel.x) + uint(pixel.y) * uint(size.x) + pc.frameCount * 719393u);"
+  },
+  "shader:27-31": {
+   "offset": 0,
+   "text": "uint pcgHash(uint v) {"
+  },
+  "shader:129-135": {
+   "offset": 0,
+   "text": "vec2 jitter = vec2(randomFloat(), randomFloat());"
+  },
+  "shader:139": {
+   "offset": 0,
+   "text": "for (int bounce = 0; bounce < 8; bounce++) {"
+  },
+  "shader:93-117": {
+   "offset": 0,
+   "text": "HitRecord hitScene(vec3 origin, vec3 direction) {"
+  },
+  "shader:60-91": {
+   "offset": 0,
+   "text": "HitRecord hitSphere(vec3 origin, vec3 direction, vec3 center, float radius,"
+  },
+  "shader:142-145": {
+   "offset": 0,
+   "text": "if (!hit.didHit) {"
+  },
+  "shader:147-156": {
+   "offset": 0,
+   "text": "color *= hit.albedo;"
+  },
+  "shader:42-53": {
+   "offset": 0,
+   "text": "vec3 randomUnitVector() {"
+  },
+  "shader:158-162": {
+   "offset": 0,
+   "text": "vec3 accumulated = color;"
+  },
+  "shader:158": {
+   "offset": 0,
+   "text": "vec3 accumulated = color;"
+  },
+  "shader:81-84": {
+   "offset": 0,
+   "text": "float t = (-b - sqrt(discriminant)) / (2.0 * a);"
+  },
+  "shader:153-154": {
+   "offset": 0,
+   "text": "rayDirection = normalize(reflect(rayDirection, hit.normal)"
+  },
+  "shader:72": {
+   "offset": 0,
+   "text": "float a = dot(direction, direction);"
+  },
+  "shader:129": {
+   "offset": 0,
+   "text": "vec2 jitter = vec2(randomFloat(), randomFloat());"
+  },
+  "shader:130": {
+   "offset": 0,
+   "text": "vec2 uv = (vec2(pixel) + jitter) / vec2(size);"
+  },
+  "shader:131": {
+   "offset": 0,
+   "text": "uv = uv * 2.0 - 1.0;"
+  },
+  "shader:132": {
+   "offset": 0,
+   "text": "uv.x *= float(size.x) / float(size.y);"
+  },
+  "shader:135": {
+   "offset": 0,
+   "text": "vec3 rayDirection = normalize(vec3(uv.x, -uv.y, -1.0));"
+  },
+  "shader:134": {
+   "offset": 0,
+   "text": "vec3 rayOrigin = vec3(0.0, 0.0, 0.0);"
+  },
+  "shader:71-74": {
+   "offset": 0,
+   "text": "vec3 oc = origin - center;"
+  },
+  "shader:75-79": {
+   "offset": 0,
+   "text": "float discriminant = b * b - 4.0 * a * c;"
+  },
+  "shader:81": {
+   "offset": 0,
+   "text": "float t = (-b - sqrt(discriminant)) / (2.0 * a);"
+  },
+  "shader:82-84": {
+   "offset": 0,
+   "text": "if (t <= 0.001) {"
+  },
+  "shader:86-90": {
+   "offset": 0,
+   "text": "rec.didHit = true;"
+  },
+  "shader:137": {
+   "offset": 0,
+   "text": "vec3 color = vec3(1.0);"
+  },
+  "shader:147": {
+   "offset": 0,
+   "text": "color *= hit.albedo;"
+  },
+  "shader:150-151": {
+   "offset": 0,
+   "text": "if (hit.material == LAMBERTIAN) {"
+  },
+  "shader:152-153": {
+   "offset": 0,
+   "text": "} else {"
+  },
+  "shader:55-58": {
+   "offset": 0,
+   "text": "vec3 skyColor(vec3 direction) {"
+  },
+  "shader:165": {
+   "offset": 0,
+   "text": "averaged = sqrt(averaged);"
+  },
+  "shader:33-36": {
+   "offset": 0,
+   "text": "float randomFloat() {"
+  },
+  "shader:38-40": {
+   "offset": 0,
+   "text": "float randomFloatRange(float lo, float hi) {"
+  },
+  "shader:25": {
+   "offset": 0,
+   "text": "uint seed;"
+  },
+  "shader:160-162": {
+   "offset": 0,
+   "text": "accumulated += imageLoad(accumImage, pixel).rgb;"
+  },
+  "shader:164": {
+   "offset": 0,
+   "text": "vec3 averaged = accumulated / float(pc.frameCount + 1u);"
+  },
+  "main:862": {
+   "offset": 0,
+   "text": "frameCount++;"
+  },
+  "shader:120": {
+   "offset": 0,
+   "text": "ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);"
+  },
+  "shader:123-125": {
+   "offset": 0,
+   "text": "if (pixel.x >= size.x || pixel.y >= size.y) {"
+  },
+  "shader:139-145": {
+   "offset": 0,
+   "text": "for (int bounce = 0; bounce < 8; bounce++) {"
+  },
+  "shader:150-156": {
+   "offset": 0,
+   "text": "if (hit.material == LAMBERTIAN) {"
+  },
+  "shader:43-51": {
+   "offset": 0,
+   "text": "for (int i = 0; i < 16; i++) {"
+  },
+  "shader:137-139": {
+   "offset": 0,
+   "text": "vec3 color = vec3(1.0);"
+  },
+  "shader:6": {
+   "offset": 0,
+   "text": "layout(binding = 1, rgba32f) uniform image2D accumImage;"
+  },
+  "shader:5": {
+   "offset": 0,
+   "text": "layout(binding = 0, rgba8) uniform writeonly image2D outputImage;"
+  },
+  "shader:167": {
+   "offset": 0,
+   "text": "imageStore(outputImage, pixel, vec4(averaged, 1.0));"
+  },
+  "cmake:1-36": {
+   "offset": 0,
+   "text": "cmake_minimum_required(VERSION 3.20)"
+  },
+  "main:1-29": {
+   "offset": 0,
+   "text": "#define GLFW_INCLUDE_NONE // Don't pull in OpenGL's GL/gl.h (not needed for Vulkan)"
+  },
+  "main:30-71": {
+   "offset": 0,
+   "text": "bool checkValidationLayerSupport() {"
+  },
+  "main:72-144": {
+   "offset": 0,
+   "text": "VkInstance createInstance() {"
+  },
+  "main:145-206": {
+   "offset": 0,
+   "text": "struct QueueFamilyIndices {"
+  },
+  "main:207-333": {
+   "offset": 0,
+   "text": "struct SwapchainSupportDetails {"
+  },
+  "main:334-359": {
+   "offset": 0,
+   "text": "VkCommandPool createCommandPool(VkDevice device, uint32_t queueFamilyIndex) {"
+  },
+  "main:360-381": {
+   "offset": 0,
+   "text": "VkSemaphore createSemaphore(VkDevice device) {"
+  },
+  "main:382-460": {
+   "offset": 0,
+   "text": "uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {"
+  },
+  "main:461-566": {
+   "offset": 0,
+   "text": "VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device) {"
+  },
+  "main:567-617": {
+   "offset": 0,
+   "text": "std::vector<char> readFile(const std::string& filename) {"
+  },
+  "main:618-631": {
+   "offset": 0,
+   "text": "VkQueryPool createQueryPool(VkDevice device) {"
+  },
+  "main:632-715": {
+   "offset": 0,
+   "text": "int main() {"
+  },
+  "main:716-751": {
+   "offset": 0,
+   "text": "while (!glfwWindowShouldClose(window)) {"
+  },
+  "main:752-779": {
+   "offset": 0,
+   "text": "VkImageMemoryBarrier barrier{};"
+  },
+  "main:780-787": {
+   "offset": 0,
+   "text": "vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);"
+  },
+  "main:788-836": {
+   "offset": 0,
+   "text": "barrier.image = storageImage.image;"
+  },
+  "main:837-864": {
+   "offset": 0,
+   "text": "VkSemaphore waitSemaphores[] = { imageAvailable };"
+  },
+  "main:865-909": {
+   "offset": 0,
+   "text": "vkDeviceWaitIdle(device);"
+  },
+  "shader:1-11": {
+   "offset": 0,
+   "text": "#version 450"
+  },
+  "shader:12-24": {
+   "offset": 0,
+   "text": "const int LAMBERTIAN = 0;"
+  },
+  "shader:25-41": {
+   "offset": 0,
+   "text": "uint seed;"
+  },
+  "shader:42-54": {
+   "offset": 0,
+   "text": "vec3 randomUnitVector() {"
+  },
+  "shader:55-59": {
+   "offset": 0,
+   "text": "vec3 skyColor(vec3 direction) {"
+  },
+  "shader:60-118": {
+   "offset": 0,
+   "text": "HitRecord hitSphere(vec3 origin, vec3 direction, vec3 center, float radius,"
+  },
+  "shader:119-126": {
+   "offset": 0,
+   "text": "void main() {"
+  },
+  "shader:127-128": {
+   "offset": 0,
+   "text": "seed = pcgHash(uint(pixel.x) + uint(pixel.y) * uint(size.x) + pc.frameCount * 719393u);"
+  },
+  "shader:129-136": {
+   "offset": 0,
+   "text": "vec2 jitter = vec2(randomFloat(), randomFloat());"
+  },
+  "shader:137-157": {
+   "offset": 0,
+   "text": "vec3 color = vec3(1.0);"
+  },
+  "shader:158-167": {
+   "offset": 0,
+   "text": "vec3 accumulated = color;"
+  }
+ }
+}

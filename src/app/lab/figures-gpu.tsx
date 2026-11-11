@@ -1,6 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { area, line } from "d3-shape";
 import { tracePixel } from "@/lib/lab/pathtracer";
+import { achieved, type GpuResult } from "@/lib/lab/results";
 import { Arrow, Badge, Box, Figure, Label, Text, TONES } from "./kit";
 
 // The GPU side of the renderer: how the dispatch is cut up, what one invocation
@@ -71,8 +72,8 @@ export function Dispatch() {
       <Text x={lanes.x} y={lanes.y + 128} className="fill-neutral-200 text-[12.5px]">and colour, for its own pixel.</Text>
       <Badge n={6} x={lanes.x - 16} y={lanes.y + 15} tone="shader" />
 
-      <Text x={lanes.x} y={lanes.y + 168} className="fill-white text-[13px] font-semibold">On the RX 5700 XT, the driver picks</Text>
-      {[{ rows: 4, label: "32 lanes: 4 rows" }, { rows: 8, label: "64 lanes: the tile" }].map((m, k) => (
+      <Text x={lanes.x} y={lanes.y + 168} className="fill-white text-[13px] font-semibold">On the RX 5700 XT (Linux driver)</Text>
+      {[{ rows: 8, label: "64: what it compiles" }, { rows: 4, label: "32: if you ask" }].map((m, k) => (
         <g key={m.label}>
           {Array.from({ length: 64 }, (_, i) => (
             <rect key={i} x={lanes.x + k * 140 + (i % 8) * 9} y={lanes.y + 182 + Math.floor(i / 8) * 9} width={8} height={8} rx={1} className={Math.floor(i / 8) < m.rows ? "fill-aqua/50" : "fill-white/10"} />
@@ -177,8 +178,12 @@ export function Invocation() {
   );
 }
 
-/** Where each value lives, and the kernel on a roofline. */
-export function Memory() {
+/** Where each value lives, and the kernel on a roofline, with your recorded results on it. */
+export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult> }) {
+  const points = (["iris", "rx"] as const).flatMap((g) => {
+    const d = results?.[g].dispatch;
+    return d ? [{ g, ms: d.ms, a: achieved(d.ms) }] : [];
+  });
   const id = "fig-memory";
   // Both axes are log scales: FLOP per byte across, GFLOP/s up.
   const X = scaleLog().domain([0.1, 100]).range([560, 960]);
@@ -233,10 +238,16 @@ export function Memory() {
       <line x1={X(k)} y1={Y(9750)} x2={X(k)} y2={380} className="stroke-aqua/60" strokeDasharray="4 4" />
       <circle cx={X(k)} cy={Y(448 * k)} r={4} className="fill-none stroke-sand" strokeWidth={1.5} />
       <Label x={X(k) - 10} y={Y(448 * k) + 4} tone="cpu" size={11} anchor="end">its roof here: 4.0 TFLOP/s</Label>
-      <circle cx={X(k)} cy={Y(194)} r={5} className="fill-aqua" />
-      <circle cx={X(k)} cy={Y(70)} r={5} className="fill-aqua/60" />
-      <Label x={X(k) + 10} y={Y(194) + 4} tone="shader" size={11} anchor="start">Iris Xe, X11: 194</Label>
-      <Label x={X(k) + 10} y={Y(70) + 4} tone="shader" size={11} anchor="start">Iris Xe, Wayland: 70</Label>
+      {points.map(({ g, ms, a }) => (
+        <g key={g}>
+          <circle cx={X(k)} cy={Y(a.gflops)} r={5.5} className={g === "rx" ? "fill-[#a58bf0] stroke-primary" : "fill-aqua stroke-primary"} strokeWidth={1.5} />
+          <Label x={X(k) + 12} y={Y(a.gflops) + 4} tone={g === "rx" ? "gpu" : "shader"} size={11} anchor="start">
+            {`${g === "rx" ? "RX 5700 XT" : "Iris Xe"}: ${Math.round(a.gflops).toLocaleString("en-GB")}${g === "rx" ? `, ${Math.round(a.ofRxRoof * 100)}% of roof` : ""}`}
+          </Label>
+          <Text x={X(k) + 12} y={Y(a.gflops) + 20} className="fill-neutral-500 text-[10.5px]">{`${ms} ms, recorded`}</Text>
+        </g>
+      ))}
+      {!points.length && <Text x={X(k) + 12} y={Y(100)} className="fill-neutral-400 text-[11px]">Record a frame time to place it here</Text>}
       <Badge n={7} x={X(k)} y={Y(9750) - 4} tone="shader" />
       <Text x={X(k) - 14} y={Y(30)} anchor="end" className="fill-aqua text-[11.5px]">this kernel ≈ 9</Text>
       <Text x={965} y={Y(15)} anchor="end" className="fill-neutral-400 text-[11px]">Iris Xe roofs: measure them</Text>

@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
-import { CODE_MAP, IRIS_XE, MODEL, PARTS, RENDERER, VIEWS, allFindings, codeHref } from "@/lib/lab/guide";
+import { CODE_MAP, MODEL, PARTS, RENDERER, VIEWS, allFindings, codeHref } from "@/lib/lab/guide";
+import { latestResults } from "@/lib/lab/results";
+import { attempt } from "@/lib/portal/data";
+import { loadStudy } from "@/lib/study/load";
+import { GpuTable } from "./figures-measured";
 import { LinkPending } from "@/components/link-pending";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { FrameMap } from "./figures-host";
 import { Legend } from "./kit";
-import { FindingCard } from "./shared";
+import { DriftBanner, FindingCard } from "./shared";
+import { rendererDrift } from "@/lib/lab/drift";
 
 export const metadata: Metadata = { title: "Lab" };
 export const dynamic = "force-dynamic";
@@ -14,6 +19,8 @@ export const dynamic = "force-dynamic";
 export default async function LabPage() {
   await requireOwner();
   const findings = allFindings();
+  const [study, drift] = await Promise.all([attempt(() => loadStudy()), rendererDrift()]);
+  const results = latestResults(study.ok ? study.value.study.benchmarks.filter((b) => b.project === "rendering") : []);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   return (
     <div className="space-y-10">
@@ -22,6 +29,8 @@ export default async function LabPage() {
         <a href={`${RENDERER.repo}/tree/${RENDERER.commit}`} target="_blank" rel="noreferrer" className="font-mono text-aqua hover:underline">{RENDERER.short}</a>.
         Each figure numbers its steps, each step links to the lines that do it, and each view says where PMPP explains it.
       </PageHeader>
+
+      <DriftBanner drift={drift} />
 
       <section aria-labelledby="map-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -112,29 +121,15 @@ export default async function LabPage() {
         </div>
       </section>
 
-      <section aria-labelledby="numbers-title" className="grid gap-6 lg:grid-cols-2">
-        <div className="card space-y-3">
-          <h2 id="numbers-title" className="font-semibold">Measured on the Iris Xe laptop</h2>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-neutral-400">Device</dt><dd>{IRIS_XE.device}</dd>
-            <dt className="text-neutral-400">Subgroup size</dt><dd>reports {IRIS_XE.subgroup.reported} (range {IRIS_XE.subgroup.min} to {IRIS_XE.subgroup.max}), compiled at {IRIS_XE.subgroup.compiled}</dd>
-            <dt className="text-neutral-400">Compiled shader</dt><dd>{IRIS_XE.shader}</dd>
-            <dt className="text-neutral-400">Dispatch</dt><dd>{IRIS_XE.dispatchMs.wayland} ms on Wayland, about {IRIS_XE.dispatchMs.x11} ms on X11</dd>
-            <dt className="text-neutral-400">Timestamp tick</dt><dd>{IRIS_XE.timestampNs} ns</dd>
-            <dt className="text-neutral-400">Sync validation</dt><dd>{IRIS_XE.hazards}</dd>
-          </dl>
-          <p className="text-xs text-neutral-400">The RX 5700 XT has no numbers yet. Run vulkaninfo and the benchmark on the desktop and record them as results.</p>
-        </div>
-        <div className="card space-y-3">
-          <h2 className="font-semibold">From the shader model, frame 0 at 800 × 600</h2>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-neutral-400">Trips per path</dt><dd>{MODEL.meanTrips}, with {pct(MODEL.escapeFirstTrip)} leaving on the first</dd>
-            <dt className="text-neutral-400">Bounce-loop efficiency</dt><dd>{pct(MODEL.efficiency[8])} at 8, {pct(MODEL.efficiency[16])} at 16, {pct(MODEL.efficiency[32])} at 32, {pct(MODEL.efficiency[64])} at 64</dd>
-            <dt className="text-neutral-400">Work per path</dt><dd>about {MODEL.flopPerPath} FLOP over {MODEL.bytesPerPixel} bytes, roughly 9 FLOP/B</dd>
-            <dt className="text-neutral-400">At the 8-trip cap</dt><dd>{(MODEL.hitLimit * 100).toFixed(1)}% of paths</dd>
-          </dl>
-          <p className="text-xs text-neutral-400">The model is the shader&apos;s own logic in TypeScript, with the same random numbers. Tests keep these numbers in step with it.</p>
-        </div>
+      <section aria-labelledby="numbers-title" className="space-y-3">
+        <SectionTitle><span id="numbers-title">Your two GPUs</span></SectionTitle>
+        <p className="max-w-3xl text-sm text-neutral-400">
+          Dispatch times come from the results you recorded in Study. The rest: Mesa compiled the shader for the Iris Xe on this laptop, and RADV, the RX 5700 XT&apos;s Linux driver, compiled it for that card&apos;s chip without the card. Efficiency is counted by lane time, as a GPU counter would.
+        </p>
+        <GpuTable results={results} />
+        <p className="text-xs text-neutral-400">
+          Model, frame 0 at 800 × 600: {MODEL.meanTrips} trips per path, {pct(MODEL.escapeFirstTrip)} leaving on the first, about {MODEL.flopPerPath} FLOP over {MODEL.bytesPerPixel} bytes. If the desktop runs Windows, AMD&apos;s own driver compiles differently from RADV; Radeon GPU Profiler shows what it does. <Link href="/study?project=rendering" className="text-aqua hover:underline">Record a result</Link>.
+        </p>
       </section>
 
       <p className="text-sm text-neutral-400">

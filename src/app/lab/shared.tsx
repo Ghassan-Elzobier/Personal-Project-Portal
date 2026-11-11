@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { codeHref, codeLabel, type CodeRef, type Finding, type Source } from "@/lib/lab/guide";
 import { bookHref } from "@/lib/library/links";
+import { RENDERER } from "@/lib/lab/guide";
+import type { Drift } from "@/lib/lab/drift";
 // Pieces the Lab hub and the view pages share. The figures themselves are in
 // view-figure.tsx, so the hub does not load the interactive ones.
 
@@ -54,6 +56,21 @@ export function FindingCard({ finding, view }: { finding: Finding; view?: { id: 
         {finding.code && <CodeLinks refs={finding.code} />}
         {view && <Link href={`/lab/${view.id}`} className="text-xs text-neutral-400 hover:text-white">In {view.title}</Link>}
       </div>
+    </div>
+  );
+}
+
+/** Shown when the renderer's main branch has changed the explained files since the pinned commit. */
+export function DriftBanner({ drift }: { drift: Drift | null }) {
+  if (!drift) return null;
+  return (
+    <div role="status" className="rounded-xl bg-sand/10 p-4 text-sm ring-1 ring-sand/30">
+      <p className="font-semibold text-sand">The renderer has moved on since these figures were drawn</p>
+      <p className="mt-1 text-neutral-200">
+        {drift.commits} {drift.commits === 1 ? "commit" : "commits"} on main after {RENDERER.short} change {drift.files.join(", ")}. The figures and line links still describe {RENDERER.short}.{" "}
+        Run <span className="font-mono text-xs">npm run lab:check</span> in the portal to see which references moved.{" "}
+        <a href={drift.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">See the changes</a>
+      </p>
     </div>
   );
 }

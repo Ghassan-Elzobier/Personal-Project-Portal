@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types \"src/lib/**/*.test.ts\"",
-    "load:book": "node --experimental-strip-types --no-warnings scripts/load-book.mjs"
+    "load:book": "node --experimental-strip-types --no-warnings scripts/load-book.mjs",
+    "lab:anchors": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs write",
+    "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check"
   },
   "engines": {
     "node": ">=22"

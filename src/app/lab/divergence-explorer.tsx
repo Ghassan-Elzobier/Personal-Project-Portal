@@ -132,7 +132,7 @@ export function DivergenceExplorer() {
               {s}
             </button>
           ))}
-          <span className="ml-1 text-xs text-neutral-400">16 is what the Iris Xe compiled</span>
+          <span className="ml-1 text-xs text-neutral-400">16: the Iris Xe. 64: the RX 5700 XT on Linux</span>
         </div>
         <div role="group" aria-label="Preview" className="flex items-center gap-1">
           <span className="mr-1 text-neutral-400">Show</span>
