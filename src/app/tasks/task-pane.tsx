@@ -101,7 +101,7 @@ export function TaskPane({
             <input
               type="checkbox"
               checked={completed}
-              disabled={pending}
+              disabled={pending} aria-busy={pending}
               onChange={(e) => {
                 const done = e.target.checked;
                 run(() => {
@@ -152,7 +152,7 @@ export function TaskPane({
             <select
               id="task-stage"
               value={stage}
-              disabled={pending}
+              disabled={pending} aria-busy={pending}
               onChange={(e) => {
                 const next = e.target.value;
                 run(() => {
@@ -251,12 +251,12 @@ export function TaskPane({
           <form onSubmit={addComment} className="space-y-2">
             <label className="sr-only" htmlFor="task-comment">Add a comment</label>
             <textarea id="task-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} maxLength={10000} placeholder="Add a comment" className="field-input" />
-            <button disabled={pending || !comment.trim()} className="btn-ghost px-4 py-1.5">Comment</button>
+            <button disabled={pending || !comment.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">Comment</button>
           </form>
         </section>
 
         <div className="border-t border-white/10 pt-5">
-          <button onClick={remove} disabled={pending} className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50">Delete task</button>
+          <button onClick={remove} disabled={pending} aria-busy={pending} className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50">Delete task</button>
         </div>
       </aside>
     </>

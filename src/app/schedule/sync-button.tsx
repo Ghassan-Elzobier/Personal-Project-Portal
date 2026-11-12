@@ -10,7 +10,7 @@ export function SyncStudyButton() {
   return (
     <button
       className="btn-ghost px-4 py-1.5 text-sm"
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       title="Copy every planned study block to Google Calendar"
       onClick={() =>
         start(async () => {

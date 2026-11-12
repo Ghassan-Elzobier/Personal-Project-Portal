@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
-import { LinkPending } from "@/components/link-pending";
 import { StartSessionButton } from "@/components/session-timer";
 import { toast } from "@/components/toaster";
 import { DueDate, Hours, StagePill } from "@/components/ui";
@@ -208,7 +207,7 @@ function SectionBlock({ project, group, narrowed, today, tomorrow }: { project: 
           {group.name} <span className="ml-1 text-sm font-normal text-neutral-400 tabular-nums">{open.length}</span>
         </h3>
         {group.gid && !narrowed && (
-          <button onClick={remove} disabled={pending} className="cursor-pointer text-xs text-neutral-400 hover:text-white disabled:opacity-50">
+          <button onClick={remove} disabled={pending} aria-busy={pending} className="cursor-pointer text-xs text-neutral-400 hover:text-white disabled:opacity-50">
             Delete section
           </button>
         )}
@@ -272,7 +271,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         <input
           type="checkbox"
           checked={completed}
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           onChange={(e) => complete(e.target.checked)}
           aria-label={`Mark ${task.name} ${completed ? "not done" : "done"}`}
           className="h-5 w-5 shrink-0 cursor-pointer accent-mint"
@@ -280,14 +279,14 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         <Link href={href(task.gid)} scroll={false} className={`min-w-40 flex-1 text-sm hover:underline ${completed ? "text-neutral-400 line-through" : ""}`}>
           {task.milestone && <span className="mr-1 text-lavender" title="Milestone">◆</span>}
           {task.name}
-          <LinkPending />
+          
         </Link>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <DueDate dueOn={completed ? null : task.dueOn} today={today} />
           {overdue && (
             <>
-              <button disabled={pending} onClick={() => run(() => rescheduleTask(task.gid, today))} className="cursor-pointer text-aqua hover:underline">Today</button>
-              <button disabled={pending} onClick={() => run(() => rescheduleTask(task.gid, tomorrow))} className="cursor-pointer text-aqua hover:underline">Tomorrow</button>
+              <button disabled={pending} aria-busy={pending} onClick={() => run(() => rescheduleTask(task.gid, today))} className="cursor-pointer text-aqua hover:underline">Today</button>
+              <button disabled={pending} aria-busy={pending} onClick={() => run(() => rescheduleTask(task.gid, tomorrow))} className="cursor-pointer text-aqua hover:underline">Tomorrow</button>
             </>
           )}
           {task.hours > 0 && <span className="text-neutral-400"><Hours value={task.hours} /></span>}
@@ -302,7 +301,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         <select
           id={`stage-${task.gid}`}
           value={stage}
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           onChange={(e) => changeStage(e.target.value)}
           className="w-28 rounded-md border border-transparent bg-transparent px-1 py-1 text-xs text-neutral-300 hover:border-white/10 focus:border-white/20"
         >
@@ -367,7 +366,7 @@ function AddTask({ project, section, placeholder = "Add a task" }: { project: st
             <input type="checkbox" checked={milestone} onChange={(e) => setMilestone(e.target.checked)} className="accent-lavender" />
             Milestone
           </label>
-          <button disabled={pending} className="btn-ghost px-4 py-1.5">Add</button>
+          <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5">Add</button>
         </>
       )}
     </form>
@@ -391,7 +390,7 @@ function AddSection({ project }: { project: string }) {
         maxLength={120}
         className="min-h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-neutral-400"
       />
-      <button disabled={pending || !name.trim()} className="btn-ghost px-4 py-1.5">Add section</button>
+      <button disabled={pending || !name.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">Add section</button>
     </form>
   );
 }
@@ -440,7 +439,7 @@ function Board({ project, section, tasks, today }: { project: string; section?: 
                   <Link href={href(t.gid)} scroll={false} className={`block text-sm hover:underline ${t.completed ? "text-neutral-400 line-through" : ""}`}>
                     {t.milestone && <span className="mr-1 text-lavender" title="Milestone">◆</span>}
                     {t.name}
-                    <LinkPending />
+                    
                   </Link>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <DueDate dueOn={t.completed ? null : t.dueOn} today={today} />
@@ -450,7 +449,7 @@ function Board({ project, section, tasks, today }: { project: string; section?: 
                   <select
                     id={`board-stage-${t.gid}`}
                     value={t.stage}
-                    disabled={pending}
+                    disabled={pending} aria-busy={pending}
                     onChange={(e) => run(() => setTaskStage(t.gid, e.target.value))}
                     className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs"
                   >

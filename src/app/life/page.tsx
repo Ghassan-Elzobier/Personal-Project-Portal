@@ -7,21 +7,21 @@ import { portionMacros } from "@/lib/life/nutrition";
 import { spare, weekDays } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
-import { placedMacros, remainingNeeds, unlogged, type LifeState } from "@/lib/life/state";
+import { placedMacros, remainingNeeds, unlogged, weekView, type LifeState, type WeekView as MealWeek } from "@/lib/life/state";
 import { rank } from "@/lib/life/suggest";
 import { ErrorNote } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek, logPastAsEaten } from "./actions";
-import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
+import { clock, dayLabel, LifeHeader, SetupCard, Tabs, weekRange, weekdayShort } from "./parts";
 import { WeekView, type Alt, type CookGroup, type DayView } from "./week-view";
 import { CalendarButton } from "./calendar-button";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
 
-export default async function MealsPage() {
-  await requireOwner();
-  const loaded = await loadLife();
+export default async function MealsPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
+  // Both start at once: life_read checks for the owner itself.
+  const [, loaded, params] = await Promise.all([requireOwner(), loadLife(), searchParams]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -31,10 +31,14 @@ export default async function MealsPage() {
     );
   }
   const s = loaded.state;
-  const end = addDays(s.weekStart, 6);
+  const which = params.week === "next" ? "next" : "this";
+  const v = weekView(s, which);
+  const end = addDays(v.start, 6);
+  // In the last two days of a week, the next one wants planning and shopping.
+  const nudge = which === "this" && !s.next.plan && s.today >= addDays(s.next.start, -2);
   return (
     <div className="space-y-6">
-      <LifeHeader eyebrow={weekRange(s.weekStart, end)} title="Meals">
+      <LifeHeader eyebrow={weekRange(v.start, end)} title="Meals">
         {s.targets ? (
           <>
             {s.kcal.toLocaleString("en-GB")} kcal and {s.targets.protein} g protein a day. Portions are sized to hit it.
@@ -44,7 +48,23 @@ export default async function MealsPage() {
         )}
       </LifeHeader>
       {!s.setUp && <SetupCard />}
-      {s.plan ? <Planned s={s} /> : <Unplanned s={s} />}
+      <Tabs
+        current={which}
+        tabs={[
+          { key: "this", label: "This week", href: "/life" },
+          { key: "next", label: `Next week${s.next.plan ? "" : " · plan it"}`, href: "/life?week=next" },
+        ]}
+      />
+      {nudge && (
+        <Link href="/life?week=next" className="card-life flex flex-wrap items-center justify-between gap-3 ring-mint/30 transition hover:ring-mint/50">
+          <span className="min-w-0">
+            <span className="block font-semibold">Next week starts {dayLabel(s.next.start, s.today).toLowerCase()}</span>
+            <span className="text-sm text-neutral-300">Plan it now so the shopping can arrive before the first cook.</span>
+          </span>
+          <span className="text-sm text-mint">Plan next week →</span>
+        </Link>
+      )}
+      {v.plan ? <Planned key={v.start} s={s} v={v} /> : <Unplanned s={s} v={v} />}
     </div>
   );
 }
@@ -70,7 +90,7 @@ function alts(s: LifeState, meal: "main" | "breakfast" | "shake", weekend = fals
     });
 }
 
-function Unplanned({ s }: { s: LifeState }) {
+function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
   const menu = alts(s, "main").slice(0, 6);
   return (
     <section className="card-life space-y-5">
@@ -81,8 +101,8 @@ function Unplanned({ s }: { s: LifeState }) {
           anything afterwards.
         </p>
       </div>
-      <ActionButton action={planWeek.bind(null, s.weekStart)} className="btn-life w-full sm:w-auto" done="This week is planned.">
-        Plan {weekRange(s.weekStart, addDays(s.weekStart, 6))}
+      <ActionButton action={planWeek.bind(null, v.start)} className="btn-life w-full sm:w-auto" done="Planned.">
+        Plan {weekRange(v.start, addDays(v.start, 6))}
       </ActionButton>
       {menu.length > 0 && (
         <div className="space-y-2">
@@ -106,10 +126,10 @@ function Unplanned({ s }: { s: LifeState }) {
   );
 }
 
-function Planned({ s }: { s: LifeState }) {
-  const plan = s.plan!;
+function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
+  const plan = v.plan!;
   const cooked = new Set(s.batches.filter((b) => b.planStart === plan.start && b.cookId).map((b) => b.cookId!));
-  const left = spare(plan, s.placements);
+  const left = spare(plan, v.placements);
   const groups: CookGroup[] = [];
   for (const c of [...plan.cooks].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)) {
     const r = recipe(c.recipe);
@@ -136,7 +156,7 @@ function Planned({ s }: { s: LifeState }) {
   }
   const from = plan.createdOn ?? plan.start;
   const days: DayView[] = weekDays(plan.start).filter((date) => date >= from).map((date) => {
-    const meals = s.placements
+    const meals = v.placements
       .filter((p) => p.date === date)
       .sort((a, b) => a.time - b.time)
       .map((p) => {
@@ -165,13 +185,13 @@ function Planned({ s }: { s: LifeState }) {
       meals,
       kcal: meals.reduce((t, m) => t + m.kcal, 0),
       protein: meals.reduce((t, m) => t + m.protein, 0),
-      notes: s.reminders.filter((r) => r.date === date && (r.kind === "defrost" || r.kind === "freeze")).map((r) => `${clock(r.time)} · ${r.text}`),
+      notes: v.reminders.filter((r) => r.date === date && (r.kind === "defrost" || r.kind === "freeze")).map((r) => `${clock(r.time)} · ${r.text}`),
     };
   });
-  const lines = buildList(remainingNeeds(s), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
+  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
   const total = listTotal(lines);
-  const missing = unlogged(s, s.today).length;
-  const nothing = s.placements.filter((p) => p.source === "none" && p.date >= s.today && (p.slot === "lunch" || p.slot === "dinner")).length;
+  const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
+  const nothing = v.placements.filter((p) => p.source === "none" && p.date >= s.today && (p.slot === "lunch" || p.slot === "dinner")).length;
 
   return (
     <div className="space-y-6">
@@ -185,7 +205,7 @@ function Planned({ s }: { s: LifeState }) {
           </ActionButton>
         </section>
       )}
-      <Link href="/life/kitchen" className="card-life flex flex-wrap items-center justify-between gap-3 transition hover:ring-mint/30">
+      <Link href={v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next"} className="card-life flex flex-wrap items-center justify-between gap-3 transition hover:ring-mint/30">
         <span className="min-w-0">
           <span className="block font-semibold">{plan.shop?.deliveredOn ? (total.packs ? "Top-ups" : "Shopping is in") : plan.shop?.orderedOn ? "Order placed" : "Shopping list"}</span>
           <span className="text-sm text-neutral-300">

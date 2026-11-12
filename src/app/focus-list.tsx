@@ -69,7 +69,7 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
         <input
           type="checkbox"
           checked={done}
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           onChange={complete}
           aria-label={`Mark ${task.name} done`}
           className="h-5 w-5 shrink-0 cursor-pointer accent-mint"
@@ -84,8 +84,8 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
           <DueDate dueOn={task.dueOn} today={today} />
           {overdue && (
             <>
-              <button disabled={pending} onClick={() => moveTo(today, "today")} className="min-h-6 cursor-pointer text-aqua hover:underline">Today</button>
-              <button disabled={pending} onClick={() => moveTo(tomorrow, "tomorrow")} className="min-h-6 cursor-pointer text-aqua hover:underline">Tomorrow</button>
+              <button disabled={pending} aria-busy={pending} onClick={() => moveTo(today, "today")} className="min-h-6 cursor-pointer text-aqua hover:underline">Today</button>
+              <button disabled={pending} aria-busy={pending} onClick={() => moveTo(tomorrow, "tomorrow")} className="min-h-6 cursor-pointer text-aqua hover:underline">Tomorrow</button>
             </>
           )}
           {task.hours > 0 && <Hours value={task.hours} />}

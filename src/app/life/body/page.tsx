@@ -16,8 +16,7 @@ export const metadata: Metadata = { title: "Body" };
 export const dynamic = "force-dynamic";
 
 export default async function BodyPage() {
-  await requireOwner();
-  const loaded = await loadLife();
+  const [, loaded] = await Promise.all([requireOwner(), loadLife()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -45,7 +44,7 @@ export default async function BodyPage() {
       </LifeHeader>
       {!s.setUp && <SetupCard />}
 
-      <WeighIn today={s.today} todays={todays} last={last?.kg ?? null} />
+      <WeighIn key={s.today} today={s.today} todays={todays} last={last?.kg ?? null} />
 
       <section className="card-life space-y-3" aria-labelledby="trend-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

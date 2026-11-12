@@ -6,7 +6,6 @@ import { latestResults } from "@/lib/lab/results";
 import { attempt } from "@/lib/portal/data";
 import { loadStudy } from "@/lib/study/load";
 import { GpuTable } from "./figures-measured";
-import { LinkPending } from "@/components/link-pending";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { FrameMap } from "./figures-host";
 import { Legend } from "./kit";
@@ -54,7 +53,7 @@ export default async function LabPage() {
               return (
                 <li key={v.id}>
                   <Link href={`/lab/${v.id}`} className="card-link h-full space-y-2">
-                    <LinkPending />
+                    
                     <span className="eyebrow block">View {VIEWS.indexOf(v) + 1}</span>
                     <span className="block text-lg font-semibold">{v.title}</span>
                     <span className="line-clamp-3 block text-sm text-neutral-300">{v.claim}</span>

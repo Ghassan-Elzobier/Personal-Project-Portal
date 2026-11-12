@@ -59,7 +59,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
           ))}
         </div>
       )}
-      <LogForm tasks={options} preselect={preselect ?? null} startHours={startHours} />
+      <LogForm key={`${preselect ?? "none"}:${startHours ?? ""}`} tasks={options} preselect={preselect ?? null} startHours={startHours} />
     </div>
   );
 }

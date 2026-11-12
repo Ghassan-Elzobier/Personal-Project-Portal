@@ -43,7 +43,7 @@ export function WeighIn({ today, todays, last }: { today: string; todays: number
         <button type="button" onClick={() => bump(0.1)} className="tap h-14 w-12 rounded-xl bg-white/5 text-2xl" aria-label="0.1 kg more">
           +
         </button>
-        <button type="submit" disabled={!valid || pending} className="btn-life ml-auto h-14 px-6">
+        <button type="submit" disabled={!valid || pending} aria-busy={pending} className="btn-life ml-auto h-14 px-6">
           {todays !== null ? "Update" : "Save"}
         </button>
       </form>

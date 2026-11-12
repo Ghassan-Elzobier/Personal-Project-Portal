@@ -23,11 +23,9 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 const SPICE = ["No heat", "Warm", "Medium", "Hot"];
 
 export default async function RecipePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ portions?: string }> }) {
-  await requireOwner();
-  const { key } = await params;
+  const [, { key }, loaded] = await Promise.all([requireOwner(), params, loadLife()]);
   const r = recipe(key);
   if (!r) notFound();
-  const loaded = await loadLife();
   if (loaded.error !== undefined) return <ErrorNote message={loaded.error} />;
   const s = loaded.state;
   const v = verdict(r, s.profile.food);
@@ -140,7 +138,7 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
         </section>
       </div>
 
-      <RateRecipe recipe={r.key} stars={rating?.stars ?? null} note={rating?.note ?? ""} favourite={s.profile.favourites.includes(r.key)} hidden={s.profile.hidden.includes(r.key)} />
+      <RateRecipe key={r.key} recipe={r.key} stars={rating?.stars ?? null} note={rating?.note ?? ""} favourite={s.profile.favourites.includes(r.key)} hidden={s.profile.hidden.includes(r.key)} />
     </article>
   );
 }

@@ -33,7 +33,7 @@ export function LoginForm({ next }: { next: string }) {
         />
       </label>
       {state.error && <p className="text-sm text-coral">{state.error}</p>}
-      <button className="btn-primary w-full" disabled={pending}>
+      <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
         {pending ? "Sending…" : "Email me a sign-in link"}
       </button>
     </form>

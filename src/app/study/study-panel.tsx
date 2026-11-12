@@ -161,7 +161,7 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
               <input
                 type="checkbox"
                 checked={s.done}
-                disabled={pending}
+                disabled={pending} aria-busy={pending}
                 onChange={(e) => {
                   const next = e.target.checked;
                   run(() => {
@@ -192,7 +192,7 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
           maxLength={300}
           className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
         />
-        {name.trim() && <button disabled={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
+        {name.trim() && <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
       </form>
     </section>
   );
@@ -256,7 +256,7 @@ function Exercises({ data }: { data: PanelData }) {
         >
           <label htmlFor="exercise-count" className="text-neutral-300">How many in this chapter?</label>
           <input id="exercise-count" type="number" min={1} max={1000} value={count} onChange={(e) => setCount(e.target.value)} className="min-h-9 w-20 rounded-md border border-white/10 bg-white/5 px-2" />
-          <button disabled={pending || !count} className="btn-ghost px-3 py-1 text-xs">Track them</button>
+          <button disabled={pending || !count} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Track them</button>
         </form>
       </section>
     );
@@ -316,7 +316,7 @@ function Reviews({ data }: { data: PanelData }) {
             </span>
             <button
               onClick={() => run(() => removeReview(r.gid))}
-              disabled={pending}
+              disabled={pending} aria-busy={pending}
               aria-label={`Delete review: ${r.prompt}`}
               className="cursor-pointer px-1 text-xs text-neutral-400 hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
@@ -334,7 +334,7 @@ function Reviews({ data }: { data: PanelData }) {
           maxLength={500}
           className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
         />
-        {prompt.trim() && <button disabled={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
+        {prompt.trim() && <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
       </form>
     </section>
   );

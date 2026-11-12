@@ -14,9 +14,7 @@ export const dynamic = "force-dynamic";
 const FILTERS: (Cuisine | "All")[] = ["All", "Italian", "Middle Eastern", "Chinese & SE Asian", "Indian", "Caribbean & West African", "British & American", "Breakfast", "Shake"];
 
 export default async function RecipesPage({ searchParams }: { searchParams: Promise<{ cuisine?: string; all?: string }> }) {
-  await requireOwner();
-  const params = await searchParams;
-  const loaded = await loadLife();
+  const [, params, loaded] = await Promise.all([requireOwner(), searchParams, loadLife()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">

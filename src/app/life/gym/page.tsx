@@ -19,9 +19,8 @@ export const dynamic = "force-dynamic";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default async function GymPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
-  await requireOwner();
-  const params = await searchParams;
-  const loaded = await loadLife();
+  // In parallel: life_read checks for the owner itself.
+  const [, params, loaded] = await Promise.all([requireOwner(), searchParams, loadLife()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -132,6 +131,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
       )}
 
       <SessionLogger
+        key={`${today}:${w.key}`}
         day={today}
         workout={w.key}
         warmup={w.warmup}

@@ -82,7 +82,7 @@ export function DraftForm({
           {state.error}
         </p>
       )}
-      <button className="btn-primary" disabled={pending}>
+      <button className="btn-primary" disabled={pending} aria-busy={pending}>
         {pending ? "Posting…" : "Post update"}
       </button>
     </form>

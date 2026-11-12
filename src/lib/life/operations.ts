@@ -7,7 +7,7 @@ import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
 import { cookScale, sizeCooks, type WeekPlan } from "./planner";
 import { recipe } from "./recipes";
 import { buildList, cookUse, delivery, weekNeeds, type Product } from "./shopping";
-import { placedMacros, remainingNeeds, unlogged, type LifeState } from "./state";
+import { placedMacros, remainingNeeds, unlogged, weekView, type LifeState, type WeekView } from "./state";
 import * as store from "./store";
 import { suggestWeek } from "./suggest";
 import type { Tag } from "./allergens";
@@ -34,6 +34,13 @@ async function run<T extends object>(fn: () => Promise<T>): Promise<Result<T>> {
   } catch (e) {
     return { error: e instanceof store.LifeError ? e.message : e instanceof Error && e.message.startsWith("Life: ") ? e.message.slice(6) : "That didn't save. Try again." };
   }
+}
+
+/** The meal week starting on `start`, this one or the next. */
+function viewFor(s: LifeState, start: string): WeekView | null {
+  if (start === s.weekStart) return weekView(s, "this");
+  if (start === s.next.start) return weekView(s, "next");
+  return null;
 }
 
 async function state(): Promise<LifeState> {
@@ -240,7 +247,7 @@ export function cookPlanned(start: string, cookId: string): Promise<Result> {
     const c = plan?.cooks.find((x) => x.id === cookId);
     const r = c ? recipe(c.recipe) : undefined;
     if (!plan || !c || !r) fail("That cook is not in the plan.");
-    const placed = s.plan?.start === start ? s.placements.filter((p) => p.cookId === cookId) : [];
+    const placed = viewFor(s, start)?.placements.filter((p) => p.cookId === cookId) ?? [];
     const frozen = placed.filter((p) => p.storage === "freezer").length;
     // Portions nobody is down to eat this week go in the freezer if they can.
     const spare = Math.max(0, c!.portions - placed.length);
@@ -298,7 +305,8 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan) fail("Plan the week first.");
     if (plan!.shop?.deliveredOn) fail("This week's delivery is already in.");
-    const needs = s.plan?.start === start ? remainingNeeds(s) : weekNeeds(plan!, []);
+    const v = viewFor(s, start);
+    const needs = v ? remainingNeeds(s, v) : weekNeeds(plan!, []);
     const lines = buildList(needs, s.stock, s.products, s.profile.food, s.today);
     const changes = delivery(lines, got, s.today);
     if (changes.length) await store.changeStock(changes.map((c) => ({ item: c.item, qty: c.add, ...(c.status ? { status: c.status } : {}), ...(c.goodUntil ? { good_until: c.goodUntil } : {}) })), "add");

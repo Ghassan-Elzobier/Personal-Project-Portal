@@ -50,11 +50,12 @@ export function ActionButton({
       type="button"
       aria-label={label}
       disabled={pending || disabled}
+      aria-busy={pending}
       onClick={() => {
         if (confirm && !window.confirm(confirm)) return;
         void run(action, done);
       }}
-      className={`${className} ${pending ? "opacity-60" : ""}`}
+      className={className}
     >
       {children}
     </button>

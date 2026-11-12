@@ -10,7 +10,6 @@ import { groupBySection, projectStats, type ProjectStats } from "@/lib/tasks/mod
 import { panelFor } from "@/lib/study/load";
 import { listComments, listSections, studySnapshot } from "@/lib/tasks/native";
 import { formatHours } from "@/lib/tasks/session-log";
-import { LinkPending } from "@/components/link-pending";
 import { ErrorNote, PageHeader } from "@/components/ui";
 import { StudyPanel } from "../study/study-panel";
 import { TaskPane } from "./task-pane";
@@ -88,11 +87,11 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         <div className="flex gap-2" role="group" aria-label="View">
           <Link href={hrefFor({})} aria-current={view === "list" ? "true" : undefined} className={`px-4 py-1.5 ${view === "list" ? "btn-primary" : "btn-ghost"}`}>
             List
-            <LinkPending />
+            
           </Link>
           <Link href={hrefFor({ view: "board" })} aria-current={view === "board" ? "true" : undefined} className={`px-4 py-1.5 ${view === "board" ? "btn-primary" : "btn-ghost"}`}>
             Board
-            <LinkPending />
+            
           </Link>
         </div>
       </div>
@@ -139,7 +138,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 function ProjectTab({ href, title, active, stats }: { href: string; title: string; active: boolean; stats: ProjectStats | null }) {
   return (
     <Link href={href} aria-current={active ? "page" : undefined} className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}>
-      <LinkPending />
+      
       <span className="block text-sm font-semibold">{title}</span>
       {!stats ? (
         <span className="text-xs text-neutral-400">Could not load</span>
