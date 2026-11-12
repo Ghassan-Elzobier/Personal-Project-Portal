@@ -14,7 +14,6 @@ import { ActionButton } from "./kit";
 import { planWeek, logPastAsEaten } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, Tabs, weekRange, weekdayShort } from "./parts";
 import { WeekView, type Alt, type CookGroup, type DayView } from "./week-view";
-import { CalendarButton } from "./calendar-button";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -228,12 +227,13 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         options={{ main: alts(s, "main"), breakfast: alts(s, "breakfast"), shake: alts(s, "shake"), fresh: alts(s, "main", true) }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
       />
-      <div className="flex flex-wrap items-center gap-3">
-        <CalendarButton />
-        <Link href="/schedule" className="text-sm text-neutral-400 hover:text-white">
-          Open the schedule →
-        </Link>
-      </div>
+      <p className="text-sm text-neutral-400">
+        Your meals, cooking and gym are on the{" "}
+        <Link href="/schedule" className="text-neutral-200 underline decoration-white/30 underline-offset-2 hover:text-white">
+          Schedule
+        </Link>{" "}
+        and in Google Calendar. They follow this plan, and move around study when they clash.
+      </p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import type { Slot } from "./nutrition";
@@ -11,11 +12,7 @@ import { placedMacros, remainingNeeds, unlogged, weekView, type LifeState, type 
 import * as store from "./store";
 import { suggestWeek } from "./suggest";
 import type { Tag } from "./allergens";
-import { addDays, weekdayIndex } from "../dates/week";
-import { addLifeBlock } from "../portal/operations";
-import { loadScheduleWeek, resolveWeek, type Block } from "../portal/schedule";
-import { workout } from "./gym/program";
-import { nextWorkout } from "./gym/progress";
+import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
 
 // Every change Life makes, shared by the pages' actions and the Claude connector.
 // Each returns { error } with a message for people instead of throwing.
@@ -26,10 +23,17 @@ function refresh() {
   for (const p of ["/", "/life", "/life/gym", "/life/kitchen", "/life/body", "/life/recipes", "/life/settings", "/schedule"]) revalidatePath(p);
 }
 
-async function run<T extends object>(fn: () => Promise<T>): Promise<Result<T>> {
+/**
+ * Runs a change and refreshes the pages. `calendar` is for changes that move the
+ * plan's times or names (the meal week, the routine, a gym session): the Google
+ * Calendar copy is brought up to date once the answer has gone back, so the
+ * button does not wait on Google.
+ */
+async function run<T extends object>(fn: () => Promise<T>, calendar = false): Promise<Result<T>> {
   try {
     const out = await fn();
     refresh();
+    if (calendar) after(syncLifeMirrorQuietly);
     return out;
   } catch (e) {
     return { error: e instanceof store.LifeError ? e.message : e instanceof Error && e.message.startsWith("Life: ") ? e.message.slice(6) : "That didn't save. Try again." };
@@ -59,7 +63,7 @@ export function saveProfile(profile: LifeProfile): Promise<Result> {
   return run(async () => {
     await store.saveProfile(parseProfile(profile));
     return {};
-  });
+  }, true);
 }
 
 export function logWeight(day: string, kg: number | null): Promise<Result> {
@@ -105,7 +109,7 @@ export function planWeek(start?: string): Promise<Result<{ start: string }>> {
     if (!plan.cooks.length) fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
     await savePlan(s, { ...plan, shop: existing?.shop, createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today });
     return { start: week };
-  });
+  }, true);
 }
 
 async function editPlan(start: string, edit: (plan: WeekPlan, s: LifeState) => WeekPlan | void): Promise<Result> {
@@ -116,7 +120,7 @@ async function editPlan(start: string, edit: (plan: WeekPlan, s: LifeState) => W
     const next = edit(structuredClone(plan!), s) ?? plan!;
     await savePlan(s, next);
     return {};
-  });
+  }, true);
 }
 
 export function swapCook(start: string, cookId: string, recipeKey: string): Promise<Result> {
@@ -362,66 +366,24 @@ export function gymSession(input: { day: string; workout: string; finished?: boo
   return run(async () => {
     await store.gymSession(input);
     return {};
-  });
+  }, true);
 }
 
 
 // ---------------------------------------------------------------- calendar
 
 /**
- * Puts the meal week's cook sessions and gym sessions into Google Calendar as
- * life blocks, so the Schedule shows them beside study. Anything already there
- * at that time is left alone, so pressing it twice adds nothing.
+ * Brings the Google Calendar copy of the plan up to date now. It also happens by
+ * itself after every change to the plan; this is for when Google was offline.
  */
-export function syncLifeCalendar(): Promise<Result<{ added: number; skipped: number }>> {
-  return run(async () => {
-    const s = await state();
-    const days = Array.from({ length: 7 }, (_, i) => addDays(s.weekStart, i)).filter((d) => d >= s.today);
-    const weeks = [...new Set(days.map((d) => resolveWeek(d).start))];
-    const loaded = await Promise.all(weeks.map((w) => loadScheduleWeek(resolveWeek(w))));
-    const google = loaded[0]?.google;
-    if (google === "not-configured") fail("Google Calendar is not set up for the portal.");
-    if (google === "not-connected") fail("Connect Google Calendar on the Schedule page first.");
-    if (google && typeof google === "object" && "error" in google) fail(`${google.error} Reconnect it on the Schedule page.`);
-    const blocks: Block[] = loaded.flatMap((w) => w.blocks);
-    const clash = (date: string, start: number, end: number, kind: string) => blocks.some((b) => b.date === date && b.kind === kind && b.start < end && start < b.end);
-    let added = 0;
-    let skipped = 0;
-    const put = async (kind: string, title: string, date: string, start: number, duration: number) => {
-      if (clash(date, start, start + duration, kind)) {
-        skipped++;
-        return;
-      }
-      const r = await addLifeBlock({ kind, title, date, start, duration: Math.min(duration, 12 * 60), repeat: "none" });
-      if (r.error) fail(r.error);
-      blocks.push({ id: `new-${added}`, source: "google", title, date, start, end: start + duration, url: "", editable: true, kind });
-      added++;
-    };
-    // Cook sessions: one block per session, as long as its longest recipe plus clearing up.
-    const sessions = new Map<string, { date: string; start: number; names: string[]; minutes: number }>();
-    for (const c of s.plan?.cooks ?? []) {
-      if (!days.includes(c.date)) continue;
-      const r = recipe(c.recipe);
-      if (!r) continue;
-      const key = `${c.date}-${c.start}`;
-      const x = sessions.get(key) ?? { date: c.date, start: c.start, names: [], minutes: 0 };
-      x.names.push(r.name);
-      x.minutes = Math.max(x.minutes, r.totalMin);
-      sessions.set(key, x);
-    }
-    for (const x of sessions.values()) {
-      const duration = Math.ceil((x.minutes + 20) / 15) * 15;
-      await put("cooking", `Cook: ${x.names.join(", ")}`.slice(0, 120), x.date, x.start, duration);
-    }
-    // Gym: the rotation carries on from the last session.
-    let next = nextWorkout(s.sessions);
-    for (const d of days) {
-      if (!s.profile.gym.days.includes(weekdayIndex(d))) continue;
-      if (s.sessions.some((x) => x.day === d && x.finished)) continue;
-      const w = workout(next);
-      await put("gym", `Gym: ${w ? `${w.key}, ${w.name}` : "session"}`, d, s.profile.gym.start, s.profile.gym.minutes);
-      next = nextWorkout([{ day: d, workout: next, finished: true, feel: null, notes: "" }]);
-    }
-    return { added, skipped };
-  });
+export async function syncLifeCalendar(): Promise<Result<{ written: number; removed: number; partial: boolean }>> {
+  try {
+    const r = await syncLifeMirror();
+    if ("error" in r) return { error: `${r.error} Reconnect Google Calendar on the Schedule page.` };
+    if ("skipped" in r) return { error: `${r.skipped} Connect it on the Schedule page first.` };
+    return r;
+  } catch (e) {
+    // Google's errors already say "Google Calendar: …".
+    return { error: e instanceof Error ? e.message : "Google Calendar could not be updated. Try again." };
+  }
 }

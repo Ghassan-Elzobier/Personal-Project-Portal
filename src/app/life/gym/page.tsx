@@ -11,7 +11,6 @@ import { ErrorNote } from "@/components/ui";
 import { Chip, dayLabel, LifeHeader, weekdayShort } from "../parts";
 import { LineChart } from "../chart";
 import { SessionLogger, type BlockView } from "./session";
-import { CalendarButton } from "../calendar-button";
 
 export const metadata: Metadata = { title: "Gym" };
 export const dynamic = "force-dynamic";
@@ -223,7 +222,9 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         <p className="text-xs text-neutral-500">
           Missing a piece of kit? Tell Settings what your gym lacks, and every exercise that needs it swaps for its alternative.
         </p>
-        <CalendarButton />
+        <p className="text-xs text-neutral-500">
+          Sessions are on the <Link href="/schedule" className="underline decoration-white/30 underline-offset-2 hover:text-white">Schedule</Link> and in Google Calendar on your gym days, with the workout the rotation says is next.
+        </p>
       </section>
     </div>
   );

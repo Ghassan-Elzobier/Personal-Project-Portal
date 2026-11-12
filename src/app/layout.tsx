@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Nav } from "@/components/nav";
 import { Toaster } from "@/components/toaster";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { RefreshOnReturn } from "@/components/refresh-on-return";
 import "./globals.css";
 
 // Served from the portal itself, so no request ever goes to Google for it.
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <NavigationProgress />
+        <RefreshOnReturn />
         <Nav />
         <main id="main" className="c-space mx-auto max-w-6xl pt-8 pb-28 md:pb-24">
           {children}

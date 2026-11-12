@@ -1,5 +1,6 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { addComment, AsanaError, createStatusUpdate, enumOption, field, getTask, listStatusUpdates, projectKeyOfTask, updateTask } from "../tasks/tracker";
 import { completionChange, stageChange } from "../tasks/model";
 import { projectGid, timeZone, usesAsana } from "../config/env";
@@ -13,6 +14,7 @@ import { nextReview, spreadDates, type ExerciseStatus } from "../study/review";
 import { scheduleRoadmap } from "../study/roadmap";
 import { addHours, formatHours, parseSessionForm, sessionComment, STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { addDays, shortDate, weekdayIndex, zonedInstant } from "../dates/week";
+import { syncLifeMirrorQuietly } from "../life/calendar-sync";
 
 // Every change the portal makes, in one place. The buttons (server actions)
 // and the Claude connector both call these after their own owner check, so
@@ -20,9 +22,11 @@ import { addDays, shortDate, weekdayIndex, zonedInstant } from "../dates/week";
 
 export type OpResult = { error?: string };
 
+/** After a change to the week's times: the Life plan moves around study, so its calendar copy follows. */
 function revalidateSchedule() {
   revalidatePath("/schedule");
   revalidatePath("/");
+  after(syncLifeMirrorQuietly);
 }
 
 function fail(err: unknown, fallback: string): OpResult {

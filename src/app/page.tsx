@@ -20,7 +20,8 @@ import { Empty, ErrorNote, Hours, PageHeader, SectionTitle, StatusPill, TaskLink
 import { QuickAddButton } from "@/components/quick-add";
 import { FocusList, type FocusGroup, type FocusTask } from "./focus-list";
 import { loadLife } from "@/lib/life/load";
-import { nextUp, placedMacros, routineFor, type LifeState } from "@/lib/life/state";
+import { nextUp, placedMacros, routineFor, viewOn, type LifeState } from "@/lib/life/state";
+import type { AgendaItem } from "@/lib/life/agenda";
 import { YourDay, type DayItem } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
 
@@ -42,6 +43,8 @@ async function OwnerHome() {
   const week = thisWeek();
   const tz = timeZone();
   const configured = PROJECTS.filter((p) => projectGid(p.key));
+  // Read once: the Schedule arranges the Life plan from it too.
+  const lifeLoad = loadLife();
 
   const [perProject, comments, schedule, study, overview, life] = await Promise.all([
     Promise.all(
@@ -59,10 +62,10 @@ async function OwnerHome() {
       }),
     ),
     attempt(() => listSessionComments(week.startsAt)),
-    attempt(() => loadScheduleWeek(week)),
+    attempt(() => loadScheduleWeek(week, { life: lifeLoad })),
     usesAsana() ? null : attempt(() => studySnapshot()),
     usesAsana() ? null : attempt(() => loadStudy()),
-    loadLife(),
+    lifeLoad,
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -148,7 +151,7 @@ async function OwnerHome() {
     <div className="space-y-8">
       <PageHeader eyebrow={heading} title="Today" />
 
-      {life.state && <LifeDay s={life.state} date={date} />}
+      {life.state && <LifeDay s={life.state} date={date} agenda={schedule.ok ? schedule.value.life : []} />}
 
       {totals && !firstRun && (
         <dl className="card grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
@@ -219,9 +222,29 @@ async function OwnerHome() {
   );
 }
 
-/** Meals, gym, cooking and weigh-in, in time order, from the Life space. */
-function LifeDay({ s, date }: { s: LifeState; date: string }) {
-  const routine = routineFor(s, date);
+/** The Schedule's key for a routine item, to find where it was arranged to. */
+function agendaKey(i: ReturnType<typeof routineFor>[number], date: string, cookStart: (id: string) => number | undefined): string | null {
+  if (i.kind === "weigh") return `${date}:weigh`;
+  if (i.kind === "gym") return `${date}:gym`;
+  if (i.kind === "meal" && i.slot) return `${date}:meal:${i.slot}`;
+  if (i.kind === "cook" && i.cookId) return `${date}:cook:${cookStart(i.cookId)}`;
+  return null;
+}
+
+/**
+ * Meals, gym, cooking and weigh-in, in time order, from the Life space. Times are
+ * the Schedule's, so a lunch moved for a meeting shows at its new time here too.
+ */
+function LifeDay({ s, date, agenda }: { s: LifeState; date: string; agenda: AgendaItem[] }) {
+  const placed = new Map(agenda.filter((a) => a.date === date).map((a) => [a.key, a]));
+  const cooks = viewOn(s, date).plan?.cooks ?? [];
+  const routine = routineFor(s, date)
+    .map((i) => {
+      const key = agendaKey(i, date, (id) => cooks.find((c) => c.id === id)?.start);
+      const a = key ? placed.get(key) : undefined;
+      return a ? { ...i, time: a.start, detail: a.moved ? `${i.detail} · moved, ${a.moved.slice(a.moved.indexOf(": ") + 2)}` : a.clash ? `${i.detail} · ${a.clash.toLowerCase()}` : i.detail } : i;
+    })
+    .sort((a, b) => a.time - b.time);
   if (!s.plan && !s.profile.gym.days.length) return null;
   const now = zonedParts(new Date(), timeZone()).minutes;
   const next = nextUp(routine, now);

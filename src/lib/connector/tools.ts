@@ -16,6 +16,7 @@ import { CODE_MAP, PARTS, RENDERER, VIEWS, allFindings, codeLabel, viewById, vie
 import { achieved, latestResults } from "../lab/results";
 import { loadStudy } from "../study/load";
 import { LIFE_INSTRUCTIONS, LIFE_TOOLS } from "../life/connector";
+import * as lifeOps from "../life/operations";
 
 // The portal's tools as Claude sees them through the connector. Reads run
 // freely; every write goes through src/lib/portal/operations.ts, the same code the
@@ -81,6 +82,9 @@ function block(b: Block) {
   }
   if (b.source === "session") {
     return { ...base, type: "study_session", task_gid: b.taskGid, event_id: b.id.slice(0, b.id.lastIndexOf(":")), project: b.project, stage: b.stage, completed: b.completed };
+  }
+  if (b.source === "plan") {
+    return { ...base, type: "life_plan", kind: b.kind ?? undefined, moved: b.clash ? undefined : b.note, clash: b.clash ? b.note : undefined, note: "From the Life plan: changes with the meal plan, routine and gym days, not here." };
   }
   return {
     ...base,
@@ -152,7 +156,7 @@ export const TOOLS: Tool[] = [
     name: "get_week",
     title: "Week schedule",
     description:
-      "One week (Monday to Sunday) of the planner: study blocks (a task's own time slot), study sessions (more time on a task), life blocks from Google Calendar (lunch, gym and so on), other calendar events, and open tasks that have no time yet. Invites the owner has not accepted are left out unless asked for. Read this before planning or moving things, to avoid clashes.",
+      "One week (Monday to Sunday) of the planner: study blocks (a task's own time slot), study sessions (more time on a task), the Life plan's meals, cooking, gym and weigh-in (type life_plan, moved around study and events when they clash), other life blocks from Google Calendar, other calendar events, and open tasks that have no time yet. Invites the owner has not accepted are left out unless asked for. Read this before planning or moving things, to avoid clashes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -373,6 +377,18 @@ export const TOOLS: Tool[] = [
     async run() {
       const r = await ops.syncStudyCalendar();
       return fromOp(r, { synced: r.synced, failed: r.failed });
+    },
+  },
+  {
+    name: "sync_life_calendar",
+    title: "Update Life in Google Calendar",
+    description:
+      "Bring the Google Calendar copy of the Life plan (meals, cooking, gym and weigh-in for the next two weeks) up to date. It updates by itself after every change; use this when Google was offline.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async run() {
+      const r = await lifeOps.syncLifeCalendar();
+      return r.error !== undefined ? err(r.error) : ok({ written: r.written, removed: r.removed, partial: r.partial || undefined });
     },
   },
   {
@@ -663,7 +679,7 @@ export const TOOLS: Tool[] = [
 export const INSTRUCTIONS = [
   "This is Ghassan's personal project portal: PMPP (CUDA), Axler (linear algebra), the Rendering lab and the Weekly log.",
   "Call get_today first for the date, time zone and current state. Read get_week before planning, and avoid clashes with existing blocks.",
-  "Study work is tasks (create_task) with time slots (schedule_task). A task worked on over several days gets its slot on the last day and study sessions (add_study_session) on the days before. Study time is mirrored to Google Calendar. Lunch, cooking, cleaning, gym and rest are life blocks in Google Calendar only (add_life_block).",
+  "Study work is tasks (create_task) with time slots (schedule_task). A task worked on over several days gets its slot on the last day and study sessions (add_study_session) on the days before. Study time is mirrored to Google Calendar. Meals, cooking and the gym come from the Life plan (type life_plan in get_week) and move around study by themselves; change them through the Life tools, not add_life_block. Other personal time (cleaning, rest) is a life block in Google Calendar only (add_life_block).",
   "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
   "For studying, call get_study first. Work from the current roadmap phase, and bring up its connections between the plans when they help. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",
