@@ -33,12 +33,14 @@ function useSpace(initial: SpaceKey): SpaceKey {
   const pathname = usePathname();
   const own = spaceOf(pathname);
   const [last, setLast] = useState<SpaceKey>(initial);
+  // Arriving on a page that belongs to a space makes it the last one used. Only
+  // on arrival: this must not run again when the switch changes, or a tap on Work
+  // from a Life page would be undone before the Work page loads.
   useEffect(() => {
-    if (own && own !== last) {
-      setLast(own);
-      remember(own);
-    }
-  }, [own, last]);
+    if (!own) return;
+    setLast(own);
+    remember(own);
+  }, [own]);
   // Remember the page you were on in this space, so switching back returns to it.
   useEffect(() => {
     if (!own) return;
@@ -101,6 +103,25 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
       setTargets(HOME);
     }
   }, [pathname]);
+  // Each history entry keeps the space it was seen in, so Back shows Today or the
+  // Schedule as you left them, not in whichever space you were in since. Not while
+  // a tap is on its way to another page: that space belongs to the page arriving.
+  useEffect(() => {
+    if (tapped) return;
+    try {
+      if (window.history.state?.portalSpace !== space) window.history.replaceState({ ...window.history.state, portalSpace: space }, "");
+    } catch {
+      // Without history state, a shared page keeps the last space used.
+    }
+  }, [space, pathname, tapped]);
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const s = (e.state as { portalSpace?: unknown } | null)?.portalSpace;
+      if (s === "work" || s === "life") remember(s);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const shown = tapped ?? space;
   return (
     <nav aria-label="Space" className="flex shrink-0 rounded-full bg-white/5 p-0.5 text-sm ring-1 ring-white/10">
@@ -109,10 +130,13 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
           key={s}
           href={s === space ? HOME[s] : targets[s]}
           aria-current={shown === s ? "true" : undefined}
-          onClick={() => {
-            if (s === space) return;
+          onClick={(e) => {
             remember(s);
-            setTapped(s);
+            // The space you are in, even mid-way through switching away, puts the switch back on it.
+            if (s === space) return setTapped(null);
+            // Already on the page it opens (Today, say): only the space changes.
+            const href = e.currentTarget.getAttribute("href");
+            setTapped(href === window.location.pathname + window.location.search ? null : s);
           }}
           className={`flex min-h-9 items-center rounded-full px-3.5 font-medium transition ${shown === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-neutral-400 hover:text-white"}`}
         >

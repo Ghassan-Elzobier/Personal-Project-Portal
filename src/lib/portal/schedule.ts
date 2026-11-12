@@ -7,16 +7,24 @@ import { isProjectKey, PROJECTS, projectDef } from "../config/projects";
 import { isUnanswered, type InviteResponse } from "../calendar/study-events";
 import { addDays, weekOf, zonedParts, type Week } from "../dates/week";
 import { midnightIn } from "../dates/week";
+import type { AgendaItem } from "../life/agenda";
+import { loadLife } from "../life/load";
+import { lifeBlocks } from "./life-plan";
 
-// One week of schedule: tasks with times (work), extra study sessions and
-// Google Calendar events (life and the rest), flattened into blocks the grid
-// can place. A task's slot is also mirrored to Google Calendar; that copy is
-// skipped here so it does not show twice.
+// One week of schedule: tasks with times (work), extra study sessions, Google
+// Calendar events, and the Life plan (meals, cooking, gym and the weigh-in, read
+// from the meal plan and the gym rotation), flattened into blocks the grid can
+// place. The Life items are arranged around everything else, so a clash moves
+// the meal and not the meeting. A task's slot and the Life items are also copied
+// to Google Calendar; those copies are skipped here so nothing shows twice.
 
 export type Block = {
   id: string;
-  /** asana: a task's own slot. session: more study time on a task, kept in Google. google: any other event. */
-  source: "asana" | "session" | "google";
+  /**
+   * asana: a task's own slot. session: more study time on a task, kept in Google.
+   * google: any other event. plan: from the Life plan, changed in Life.
+   */
+  source: "asana" | "session" | "google" | "plan";
   title: string;
   date: string;
   /** Minutes after midnight in the portal's time zone. */
@@ -34,6 +42,9 @@ export type Block = {
   kind?: string | null;
   seriesId?: string | null;
   completed?: boolean;
+  /** A Life plan item that moved for a clash, or could not: why. */
+  note?: string;
+  clash?: boolean;
 };
 
 export type Unscheduled = {
@@ -55,8 +66,15 @@ export type ScheduleWeek = {
   google: GoogleState;
   /** Invites not said yes or maybe to, left off the grid. */
   hiddenInvites: number;
+  /** The Life plan's items this week, where they ended up. */
+  life: AgendaItem[];
+  /** The plan's copies already in Google Calendar, for the sync. */
+  mirrors: Mirror[];
 };
 
+export type Mirror = { id: string; key: string; title: string; date: string; start: number; end: number };
+
+type LoadedLife = Awaited<ReturnType<typeof loadLife>>;
 /** Week containing ?week=YYYY-MM-DD, or this week. */
 export function resolveWeek(param: string | undefined): Week {
   const tz = timeZone();
@@ -101,11 +119,20 @@ export function workBlocks(tasks: TaskView[], tz: string): Block[] {
   return blocks;
 }
 
-export async function loadScheduleWeek(week: Week, options: { showInvites?: boolean } = {}): Promise<ScheduleWeek> {
+export async function loadScheduleWeek(
+  week: Week,
+  options: {
+    showInvites?: boolean;
+    /** The Life state when the caller has it already, so it is read once. null leaves Life out. */
+    life?: LoadedLife | Promise<LoadedLife> | null;
+  } = {},
+): Promise<ScheduleWeek> {
   const tz = timeZone();
   const days = Array.from({ length: 7 }, (_, i) => addDays(week.start, i));
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   const errors: string[] = [];
+  // Read alongside the tasks and the calendar, not after them.
+  const lifeLoad = options.life === undefined ? loadLife() : Promise.resolve(options.life);
 
   // Open tasks, plus tasks finished this week so done sessions stay on the grid.
   const perProject = await Promise.all(
@@ -137,6 +164,7 @@ export async function loadScheduleWeek(week: Week, options: { showInvites?: bool
 
   let google: GoogleState;
   const hidden = new Set<string>();
+  const mirrors: Mirror[] = [];
   if (!googleConfigured()) {
     google = "not-configured";
   } else {
@@ -148,7 +176,13 @@ export async function loadScheduleWeek(week: Week, options: { showInvites?: bool
         const events = await listEvents(week.startsAt, week.endsAt);
         const titles = new Map(tasks.map((t) => [t.gid, t]));
         for (const e of events) {
-          // The task's own block already shows its slot.
+          // The task's own block already shows its slot, and the Life plan its items.
+          if (e.mirror) {
+            const a = zonedParts(new Date(e.start), tz);
+            const b = zonedParts(new Date(e.end), tz);
+            mirrors.push({ id: e.id, key: e.mirror, title: e.title, date: a.date, start: a.minutes, end: b.date === a.date ? b.minutes : 24 * 60 });
+            continue;
+          }
           if (e.study?.role === "slot") continue;
           if (!e.study && isUnanswered(e.response) && !options.showInvites) {
             hidden.add(e.id);
@@ -193,6 +227,16 @@ export async function loadScheduleWeek(week: Week, options: { showInvites?: bool
     }
   }
 
+  const loaded = await lifeLoad;
+  let life: AgendaItem[] = [];
+  if (loaded?.state) {
+    const planned = lifeBlocks(loaded.state, days, blocks);
+    blocks.push(...planned.blocks);
+    life = planned.items;
+  } else if (loaded?.error) {
+    errors.push(`Life: ${loaded.error}`);
+  }
+
   blocks.sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
-  return { week, days, blocks, unscheduled, errors, google, hiddenInvites: hidden.size };
+  return { week, days, blocks, unscheduled, errors, google, hiddenInvites: hidden.size, life, mirrors };
 }

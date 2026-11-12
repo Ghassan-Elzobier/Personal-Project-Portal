@@ -46,8 +46,8 @@ export default async function SchedulePage({
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={`${shortDate(week.start)} to ${shortDate(week.end)}`} title="Schedule">
-        Drag a task onto a time to plan it, then add more sessions on it from its block. Click an empty slot to add
-        lunch, gym or anything else. Study and life blocks both go to Google Calendar.
+        Drag a task onto a time to plan it, then add more sessions on it from its block. Meals, cooking and the gym come
+        from your Life plans and make room for study when they clash. Everything is copied to Google Calendar.
       </PageHeader>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -74,7 +74,7 @@ export default async function SchedulePage({
             </Link>
           )}
           {googleReady && <SyncStudyButton />}
-          {googleReady && <CalendarButton className="btn-ghost px-4 py-1.5" label="Add Life cooking and gym" />}
+          {googleReady && <CalendarButton className="btn-ghost px-4 py-1.5" label="Update Life in Google" />}
           <GoogleStatus google={data.google} />
         </div>
       </div>

@@ -9,7 +9,8 @@ import { clock, parseClock, shortDate } from "@/lib/dates/week";
 import { TaskLink } from "@/components/ui";
 import { addLifeBlock, addStudySession, moveBlock, removeLifeBlock, scheduleTask, unscheduleTask, type ActionResult } from "./actions";
 
-const DAY_START = 6 * 60;
+// From 05:00, so an early weigh-in, breakfast and gym session fit on the grid.
+const DAY_START = 5 * 60;
 const DAY_END = 24 * 60;
 const PX_PER_MIN = 0.9;
 const DURATIONS = [15, 30, 45, 60, 90, 120, 150, 180, 240];
@@ -17,15 +18,22 @@ const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 type Dialog =
   | { mode: "new"; date: string; start: number; tab: "life" | "work"; gid?: string }
-  | { mode: "edit"; block: Block };
+  | { mode: "edit"; block: Block }
+  | { mode: "plan"; block: Block };
 
 type DragData =
   | { type: "task"; gid: string }
-  | { type: "block"; source: Block["source"]; id: string; duration: number; grab: number };
+  | { type: "block"; source: Movable; id: string; duration: number; grab: number };
+
+/** Blocks the grid can move. The Life plan's items move with the plan, in Life. */
+type Movable = Exclude<Block["source"], "plan">;
 
 const rawId = (block: Block) => block.id.split(":")[0];
 
 const isStudy = (block: Block) => block.source === "asana" || block.source === "session";
+
+/** What a tap on a block opens: the Life plan's items explain themselves, the rest can be edited. */
+const dialogFor = (block: Block): Dialog => (block.source === "plan" ? { mode: "plan", block } : { mode: "edit", block });
 
 /** A day's planned study, such as "3.5 h". Life blocks do not count. */
 function plannedHours(blocks: Block[]): string {
@@ -166,7 +174,7 @@ export function WeekPlanner({
                   nowMinutes={nowMinutes}
                   onDrop={(e) => onDrop(d, e)}
                   onEmptyClick={(start) => setDialog({ mode: "new", date: d, start, tab: googleReady ? "life" : "work" })}
-                  onBlockClick={(block) => setDialog({ mode: "edit", block })}
+                  onBlockClick={(block) => setDialog(dialogFor(block))}
                 />
               ))}
             </div>
@@ -190,7 +198,7 @@ export function WeekPlanner({
           <ul className="space-y-2">
             {(byDay.get(mobileDay) ?? []).map((b) => (
               <li key={b.id}>
-                <button className="w-full text-left" onClick={() => setDialog({ mode: "edit", block: b })}>
+                <button className="w-full text-left" onClick={() => setDialog(dialogFor(b))}>
                   <BlockCard block={b} compact={false} />
                 </button>
               </li>
@@ -275,8 +283,11 @@ export function WeekPlanner({
               onSubmitLife={(input) => run(() => addLifeBlock(input))}
               onSubmitWork={(input) => run(() => scheduleTask(input))}
             />
+          ) : dialog.mode === "plan" ? (
+            <PlanBlockInfo block={dialog.block} />
           ) : (
             <EditBlockForm
+              key={dialog.block.id}
               block={dialog.block}
               days={days}
               pending={pending}
@@ -285,7 +296,7 @@ export function WeekPlanner({
                 run(() => addStudySession({ gid: dialog.block.taskGid ?? rawId(dialog.block), date, start, duration }))
               }
               onMove={(date, start, duration) =>
-                run(() => moveBlock({ source: dialog.block.source, id: rawId(dialog.block), date, start, duration }))
+                run(() => moveBlock({ source: dialog.block.source as Movable, id: rawId(dialog.block), date, start, duration }))
               }
               onUnschedule={() => run(() => unscheduleTask({ gid: rawId(dialog.block), date: dialog.block.date }))}
               onDelete={(wholeSeries) => run(() => removeLifeBlock({ id: rawId(dialog.block), wholeSeries }))}
@@ -361,12 +372,14 @@ function DayColumn({
             key={b.id}
             draggable={b.editable}
             onDragStart={(e) => {
+              if (b.source === "plan") return e.preventDefault();
               const grab = e.clientY - e.currentTarget.getBoundingClientRect().top;
               const data: DragData = { type: "block", source: b.source, id: rawId(b), duration: b.end - b.start, grab };
               e.dataTransfer.setData("application/x-portal", JSON.stringify(data));
               e.dataTransfer.effectAllowed = "move";
             }}
             onClick={() => onBlockClick(b)}
+            title={b.note}
             className="absolute z-20 overflow-hidden p-0.5 text-left"
             style={{
               top,
@@ -394,6 +407,7 @@ function blockStyle(block: Block): string {
       ? "bg-royal/20 ring-royal/30 text-neutral-300"
       : "bg-gradient-to-b from-royal/60 to-lavender/50 ring-lavender/40 text-white";
   }
+  if (block.source === "plan" && block.clash) return `${LIFE_KINDS[(block.kind ?? "other") as LifeKind]?.className ?? LIFE_KINDS.other.className} !ring-2 !ring-coral`;
   if (block.kind && block.kind in LIFE_KINDS) return LIFE_KINDS[block.kind as LifeKind].className;
   return "bg-white/5 ring-white/15 text-neutral-400 [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
 }
@@ -402,9 +416,9 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
   const short = block.end - block.start < 45;
   return (
     <span
-      className={`flex h-full w-full flex-col rounded-lg px-2 py-1 text-xs ring-1 transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`flex h-full w-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
-      <span className={`font-semibold ${compact ? "line-clamp-2" : ""} ${block.completed ? "line-through" : ""}`}>
+      <span className={`font-semibold ${compact ? (short ? "truncate" : "line-clamp-2") : ""} ${block.completed ? "line-through" : ""}`}>
         {block.title}
       </span>
       {(!compact || !short) && (
@@ -413,6 +427,7 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
           {block.project ? ` · ${block.project}` : ""}
         </span>
       )}
+      {!compact && block.note && <span className={`mt-0.5 ${block.clash ? "text-coral" : "opacity-75"}`}>{block.note}</span>}
     </span>
   );
 }
@@ -427,7 +442,10 @@ function Legend() {
         <span className="h-3 w-3 rounded bg-gradient-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-mint/40" /> Life blocks, saved in Google Calendar
+        <span className="h-3 w-3 rounded bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around study when they clash
+      </p>
+      <p className="flex items-center gap-2">
+        <span className="h-3 w-3 rounded bg-sand/25 ring-2 ring-coral" /> Life item with nowhere to move to
       </p>
       <p className="flex items-center gap-2">
         <span className="h-3 w-3 rounded bg-white/10 ring-1 ring-white/20" /> Other calendar events (read-only)
@@ -736,6 +754,34 @@ function EditBlockForm({
           {isWork ? "Open task" : "Open in Google"}
         </TaskLink>
       </div>
+    </div>
+  );
+}
+
+/** A Life plan item: where it comes from and why it sits where it does. Changed in Life, not here. */
+function PlanBlockInfo({ block }: { block: Block }) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="eyebrow">From your Life plan</p>
+        <h2 className="text-xl font-semibold">{block.title}</h2>
+        <p className="text-sm text-neutral-400">
+          {shortDate(block.date)} · {clock(block.start)}–{clock(block.end)}
+        </p>
+      </div>
+      {block.note && (
+        <p className={`rounded-xl p-3 text-sm ${block.clash ? "bg-coral/10 text-coral" : "bg-white/5 text-neutral-300"}`}>
+          {block.note}.{block.clash ? " Move the other event, or change the plan in Life." : ""}
+        </p>
+      )}
+      <p className="text-sm text-neutral-400">
+        This follows your meal plan and gym days. When study or an event takes its time, it moves to the nearest free time
+        that still works (lunch stays at lunchtime, the shake after the gym). Change the plan in Life and it moves here and in
+        Google Calendar.
+      </p>
+      <Link href={block.url} className="btn-primary w-full">
+        Open in Life
+      </Link>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { cache } from "react";
 import { timeZone } from "../config/env";
 import { LIFE_KINDS, recurrence, wallClock, type LifeKind, type Repeat } from "./life-blocks";
@@ -175,6 +176,8 @@ export type CalendarEvent = {
   study: { task: string; role: StudyRole; project: string | null } | null;
   /** The owner's answer when this is someone else's invite. */
   response: InviteResponse | null;
+  /** Set on the calendar copy of a Life plan item: its key. The plan, not the event, is the source. */
+  mirror: string | null;
 };
 
 const cal = () => `/calendars/${encodeURIComponent(calendarId())}`;
@@ -206,6 +209,7 @@ export async function listEvents(from: Date, to: Date): Promise<CalendarEvent[]>
         kind: tag?.type === "life" ? tag.kind : null,
         study: tag?.type === "study" ? { task: tag.task, role: tag.role, project: tag.project } : null,
         response: selfResponse(e.attendees),
+        mirror: e.extendedProperties?.private?.portalLife ?? null,
       });
     }
     pageToken = body.nextPageToken;
@@ -321,4 +325,55 @@ async function assertPortalEvent(eventId: string): Promise<GoogleEvent> {
     throw new GoogleError("Only blocks made in the portal can be changed here. Edit this one in Google Calendar.", 403);
   }
   return event;
+}
+
+// ---------------------------------------------------------------------------
+// Copies of the Life plan
+// ---------------------------------------------------------------------------
+
+/**
+ * A fixed event id for a Life plan item, from its key. Google accepts ids in
+ * base32hex (0-9, a-v), and hex digits are a subset. The same item always has the
+ * same id, so two syncs at once update one event instead of making two.
+ */
+export function mirrorId(key: string): string {
+  return `plife${createHash("sha1").update(key).digest("hex").slice(0, 32)}`;
+}
+
+export type MirrorEvent = { key: string; title: string; date: string; start: number; end: number; colour: string; note?: string };
+
+const MIRROR_COLOR: Record<string, string> = { lunch: LIFE_KINDS.lunch.googleColor, cooking: LIFE_KINDS.cooking.googleColor, gym: LIFE_KINDS.gym.googleColor, other: LIFE_KINDS.other.googleColor };
+
+function mirrorBody(m: MirrorEvent) {
+  const tz = timeZone();
+  return {
+    summary: m.title,
+    description: `From your Life plan in the portal. Change it there and this follows.${m.note ? `\n\n${m.note}.` : ""}`,
+    start: { dateTime: wallClock(m.date, m.start), timeZone: tz },
+    end: { dateTime: wallClock(m.date, m.end), timeZone: tz },
+    colorId: MIRROR_COLOR[m.colour] ?? LIFE_KINDS.other.googleColor,
+    reminders: { useDefault: false, overrides: [] },
+    extendedProperties: { private: { portalLife: m.key } },
+    status: "confirmed",
+  };
+}
+
+/** Creates the copy, or brings back and updates one deleted earlier under the same id. */
+export async function putMirror(m: MirrorEvent): Promise<void> {
+  const id = mirrorId(m.key);
+  try {
+    await api(`${cal()}/events`, { method: "POST", body: { id, ...mirrorBody(m) } });
+  } catch (err) {
+    if (!(err instanceof GoogleError) || err.status !== 409) throw err;
+    await api(`${cal()}/events/${id}`, { method: "PUT", body: mirrorBody(m) });
+  }
+}
+
+export async function deleteMirror(eventId: string): Promise<void> {
+  try {
+    await api(`${cal()}/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
+  } catch (err) {
+    // Already gone is the goal.
+    if (!(err instanceof GoogleError) || (err.status !== 404 && err.status !== 410)) throw err;
+  }
 }
