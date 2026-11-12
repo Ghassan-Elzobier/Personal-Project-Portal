@@ -79,7 +79,7 @@ export default async function ProjectProgress({ params }: Params) {
         )}
       </PageHeader>
 
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Complete" value={`${pct}%`} detail={`${done.length} of ${list.length} tasks`} bar={pct} />
         <Stat label="Hours logged" value={`${formatHours(Math.round(totalHours * 100) / 100)} h`} detail="Across all tasks" />
         <Stat

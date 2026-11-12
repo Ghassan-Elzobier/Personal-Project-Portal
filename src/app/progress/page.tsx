@@ -25,7 +25,7 @@ export default async function ProgressIndex() {
         {access.role === "owner" ? "What mentors see for each project." : "The projects shared with you."}
       </PageHeader>
       {projects.length === 0 && <Empty>No projects to show yet.</Empty>}
-      <ul className="grid gap-4 md:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map(({ p, tasks, status }) => {
           const stats = tasks.ok ? projectStats(tasks.value, date) : null;
           return (

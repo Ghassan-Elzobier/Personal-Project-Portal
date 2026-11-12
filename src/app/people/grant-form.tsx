@@ -8,7 +8,7 @@ export function GrantForm() {
   const [state, action, pending] = useActionState<PeopleState, FormData>(grantMentor, {});
   return (
     <form action={action} className="card space-y-5 p-6">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">Email</span>
           <input name="email" type="email" required className="field-input" autoComplete="off" />
@@ -20,7 +20,7 @@ export function GrantForm() {
       </div>
       <fieldset>
         <legend className="field-label">Projects they can see</legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PROJECTS.map((p) => (
             <label key={p.key} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
               <input type="checkbox" name="projects" value={p.key} className="accent-lavender" />

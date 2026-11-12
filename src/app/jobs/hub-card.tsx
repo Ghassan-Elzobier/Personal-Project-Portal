@@ -12,7 +12,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
   const phase = roadmap.current;
   const due = hub.actions.filter((a) => a.next_action_on && a.next_action_on <= today);
   return (
-    <section aria-label="Your goals" className="grid gap-4 md:grid-cols-3">
+    <section aria-label="Your goals" className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div className="card space-y-2">
         <p className="eyebrow">Studying</p>
         {phase ? (

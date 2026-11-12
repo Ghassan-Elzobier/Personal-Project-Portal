@@ -44,7 +44,7 @@ export function RecordDivergence({ gpus, scene, commit }: { gpus: string[]; scen
           {Math.round(preview.overall * 100)}% over the loop. Per trip: {preview.perTrip.map((x) => `${Math.round(x * 100)}%`).join(", ")}.
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="block">
           <span className="field-label">GPU</span>
           <input list="lab-gpus" value={gpu} onChange={(e) => setGpu(e.target.value)} className="field-input" />

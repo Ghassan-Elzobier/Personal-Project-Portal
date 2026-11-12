@@ -60,7 +60,7 @@ export default async function WeekPage() {
               <ErrorNote message={s.error} />
             ) : (
               <>
-                <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                   <div className="rounded-xl bg-white/5 p-3">
                     <dt className="text-neutral-400">Hours</dt>
                     <dd className="text-xl font-semibold">

@@ -76,7 +76,7 @@ export default async function ClaudePage({ searchParams }: { searchParams: Promi
 
       <section>
         <SectionTitle>Things to ask</SectionTitle>
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {EXAMPLES.map((e) => (
             <li key={e} className="card text-sm text-neutral-200">
               &ldquo;{e}&rdquo;

@@ -44,7 +44,7 @@ export function BenchmarkForm({
   };
   const input = "field-input mt-1";
   return (
-    <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form onSubmit={submit} className="card grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <label htmlFor="bench-metric" className="field-label">Measured</label>
         <input

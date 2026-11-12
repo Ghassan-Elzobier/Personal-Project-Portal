@@ -100,7 +100,7 @@ export default async function SharedJobHuntPage() {
       <section aria-labelledby="branch-title" className="space-y-3">
         <SectionTitle><span id="branch-title">Which way after phase 3</span></SectionTitle>
         <p className="max-w-3xl text-sm text-neutral-300">The first three phases are fundamentals every route needs. These are the options after them, and what each would do for the roles in scope.</p>
-        <ul className="grid gap-3 md:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {view.branches.map((b) => (
             <li key={b.key} className="card space-y-2">
               <h3 className="font-semibold">{b.name}</h3>

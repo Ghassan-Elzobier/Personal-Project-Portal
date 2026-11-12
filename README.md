@@ -1,13 +1,19 @@
 # Personal Project Portal
 
-A small portal for studying PMPP and Axler and for my rendering projects. It
-makes the daily and weekly routine faster and gives my mentors a clean read-only
-view. Tasks live in Supabase by default, and the same pages can run on Asana with
+A small portal for studying PMPP and Axler and for my rendering projects, and for
+the life around them: meals, the kitchen, the gym and the body. It makes the daily
+and weekly routine faster and gives my mentors a clean read-only view of the work.
+Tasks live in Supabase by default, and the same pages can run on Asana with
 `TASK_BACKEND=asana`.
+
+The portal has two spaces, switched at the top. **Work** is study, the renderer and
+the job hunt. **Life** is meals, the kitchen, the gym and the body. Today and the
+Schedule belong to both, so the day's plan never splits in two. Mentors only ever
+see Work.
 
 | Page | Who | What it does |
 | --- | --- | --- |
-| Today (`/`) | Me | Studying, the job market and the job hunt side by side, then needs attention, today's plan, plus what is overdue, due today or in progress, each with a one-click "Log session". |
+| Today (`/`) | Me | Your day in order (weigh-in, meals, gym, cooking, defrosting), each with one tap, then studying, the job market and the job hunt, needs attention, today's plan, and what is overdue, due today or in progress, each with a one-click "Log session". |
 | Study (`/study`) | Me | Works through Linear Algebra Done Right, PMPP and the Vulkan renderer as one roadmap: next up, steps, every exercise, spaced recall and measured results. Supabase backend only. |
 | Lab (`/lab`) | Me | How the renderer works, in 17 views drawn from its code: Vulkan setup, the swapchain and sync, the ray tracer's maths worked through with real pixels, and how it runs on the GPU. Every line of the code maps to a view, each step links to its lines at a pinned commit and to the PMPP section behind it. Includes a divergence explorer and a barrier walkthrough. |
 | Book (`/library`) | Me | Search and read PMPP from your own PDF, in Vulkan words or CUDA ones, and open the PDF at any page. |
@@ -22,6 +28,12 @@ view. Tasks live in Supabase by default, and the same pages can run on Asana wit
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
 | People (`/people`) | Me | Add mentors, choose which projects each one sees, and switch the job hunt on for each. |
 | Claude (`/claude`) | Me | Connect the Claude app, then plan, schedule and log by asking Claude. |
+| Meals (`/life`) | Me | The meal week: plan it in one tap from a ranked menu, swap any recipe, tick meals as you eat them. Portions are sized to the calorie target, and it says what goes in the freezer and when to defrost. |
+| Gym (`/life/gym`) | Me | Today's session of a three-day full-body programme with every target filled in from last time, a rest timer, and the bench forecast. |
+| Kitchen (`/life/kitchen`) | Me | The Sainsbury's basket (one tap per product, label checks, freeze on arrival), the fridge and freezer by portions, and the cupboard. |
+| Body (`/life/body`) | Me | Weigh-ins, the trend, targets that learn from it, and the week's effort. |
+| Recipes (`/life/recipes`) | Me | Every recipe with your food rules applied, scaled to your portions, with ratings that steer the menu. |
+| Life settings (`/life/settings`) | Me | Body, goal, food rules with their nuance, tastes, routine, gym and shopping. |
 
 Everyone signs in with Google or an email link (invited accounts only), so mentors don't need accounts anywhere else.
 
@@ -74,6 +86,18 @@ The Lab explains the renderer, and the book lets you check every explanation aga
 - **The book speaks CUDA, the renderer Vulkan.** `src/lib/library/query.ts` adds the book's word for each Vulkan or GLSL one, and says what it added. Headings are weighted above page text, and a section that teaches an idea outranks pages that mention it.
 - **The book stays private.** `npm run load:book` reads your own PDF into your database; none of it is in this repo, and only the owner can read it, from the portal or the connector.
 
+## How Life works
+
+The aim is a stable routine with no admin: plan once a week, then tap through the day. Why it is built this way, with sources, is in `reports/Life hub design.md` (private).
+
+- **Food rules have nuance.** A rule can allow some forms of a food: egg baked into a cake is not egg in an omelette, which is why allergy clinics use an egg ladder (BSACI 2021). `src/lib/life/allergens.ts` applies the rules; every recipe line says how its egg is used, and every ingredient lists what some brands add (soya flour in bread, pea protein in protein powders, tamarind in Worcestershire sauce) so the shopping list says what to check on the label. The rules themselves are the owner's and live in the database, never in this repo.
+- **Recipes are written for a bulk.** `src/lib/life/recipes.ts` holds batch recipes with big, high-protein portions that reheat in a microwave. Nutrition comes from McCance and Widdowson's CoFID 2021 (Open Government Licence), cited by food code in `ingredients.ts`; foods it lacks use typical label values and say so. A test checks every recipe against the strictest rules the library is written for.
+- **The planner follows the Food Standards Agency.** Cooked food keeps 2 days in the fridge and rice 1, so `planner.ts` fills each meal from the oldest safe batch, freezes what will be eaten later, and reminds you to defrost the evening before. Plan a week late and the cook days already gone become one catch-up cook today.
+- **Targets learn.** Mifflin-St Jeor times an activity factor is only the start (`nutrition.ts`). A smoothed weight trend and a three-week rate move the target by at most 150 kcal a week, after two weeks of data, and only if you ate the plan.
+- **The basket is exact, the ordering is yours.** Sainsbury's has no public API and its terms don't allow bots, so the list links each ingredient to the product you picked once, with the number of packs. Delivery, cooking and eating move stock automatically; staples are have, low or out.
+- **The gym is a programme, not a log.** `gym/program.ts` is three full-body sessions for athletic strength built around the bench (heavy, paused, close-grip), with jumps and throws first, back-friendly lower-body lifts and a short finisher. `gym/progress.ts` sets each target from the last session by double progression and forecasts the bench from estimated maxes.
+- **Claude can log for you.** The connector has `get_life_day`, `log_weight`, `log_meal`, `log_gym_set` and `plan_meal_week`.
+
 ## How job tracking works
 
 The point is to test the study plan against the market, not only to list roles. It shows which skills employers keep asking for, which of those are evidenced, which the plan will reach and when, and which the plan never reaches.
@@ -98,6 +122,7 @@ src/
     config/     Environment, projects and the list of tools.
     jobs/       Job feeds, reading adverts, the skill list and matching.
     lab/        The renderer guide behind /lab, and the shader model.
+    life/       Meals, the kitchen, the gym and the body: food rules, recipes, the planner, shopping and progression.
     library/    The book library: search, reading and the PDF.
     connector/  The Claude connector (MCP and OAuth).
     dates/      Weeks and time zones.

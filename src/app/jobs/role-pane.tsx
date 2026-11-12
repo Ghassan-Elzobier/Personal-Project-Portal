@@ -178,7 +178,7 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
             </select>
           </label>
 
-          <div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <label className="block text-sm">
               <span className="mb-1 block font-semibold">Next action</span>
               <input value={action} onChange={(e) => setAction(e.target.value)} onBlur={() => action !== role.next_action && save({ next_action: action })} placeholder="Ask X for a referral" className={field} />
