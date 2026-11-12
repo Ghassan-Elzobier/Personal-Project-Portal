@@ -43,7 +43,7 @@ export function UploadPdf() {
         <p className="text-sm text-neutral-400">Search works without it. With it, every page number here, in Study and in the Lab opens the real book at that page. It stays private to you.</p>
       </div>
       <input ref={input} type="file" accept="application/pdf" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} aria-label="Choose the PDF" />
-      <button type="button" className="btn-ghost" disabled={busy} onClick={() => input.current?.click()}>
+      <button type="button" className="btn-ghost" disabled={busy} aria-busy={busy} onClick={() => input.current?.click()}>
         {status ?? "Choose the PDF"}
       </button>
     </section>

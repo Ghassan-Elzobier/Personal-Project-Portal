@@ -7,6 +7,7 @@ import { PROJECTS, projectDef, type ProjectKey } from "@/lib/config/projects";
 import { shortDate } from "@/lib/dates/week";
 import { parseQuickAdd, pastedLines } from "@/lib/tasks/quick-add";
 import { toast } from "./toaster";
+import { startNavigation } from "./navigation-progress";
 
 // Add a task from anywhere. Press n, or the Add button, and type a line such as
 // "Read chapter 5 #axler fri". Paste several lines to add them all.
@@ -47,7 +48,10 @@ export function QuickAdd({ today }: { today: string }) {
       if (pendingGo && Date.now() - pendingGo < 1200) {
         pendingGo = 0;
         const href = GO_TO[e.key];
-        if (href) router.push(href);
+        if (href) {
+          startNavigation();
+          router.push(href);
+        }
         return;
       }
       if (e.key === "n") {
@@ -163,7 +167,7 @@ function QuickAddDialog({ today, projectHere, onClose }: { today: string; projec
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose} className="btn-ghost px-4 py-1.5">Cancel</button>
-            <button disabled={pending || !lines.length} className="btn-primary px-4 py-1.5">
+            <button disabled={pending || !lines.length} aria-busy={pending} className="btn-primary px-4 py-1.5">
               {pending ? "Adding…" : many ? `Add ${lines.length}` : "Add"}
             </button>
           </div>

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LinkPending } from "./link-pending";
 import { QuickAddButton, openQuickAdd } from "./quick-add";
 
 type NavLink = { href: string; title: string };
@@ -13,6 +12,8 @@ type SpaceKey = "work" | "life";
 
 const COOKIE = "portal-space";
 const EVENT = "portal:space";
+const LAST = "portal.lastPage.";
+const HOME: Record<SpaceKey, string> = { work: "/", life: "/life" };
 // Pages that belong to both spaces keep whichever space you were last in.
 const SHARED = ["/", "/schedule"];
 
@@ -38,6 +39,15 @@ function useSpace(initial: SpaceKey): SpaceKey {
       remember(own);
     }
   }, [own, last]);
+  // Remember the page you were on in this space, so switching back returns to it.
+  useEffect(() => {
+    if (!own) return;
+    try {
+      localStorage.setItem(LAST + own, pathname + window.location.search);
+    } catch {
+      // Private mode or blocked storage: the switch falls back to the space's home.
+    }
+  }, [own, pathname]);
   useEffect(() => {
     const on = (e: Event) => setLast((e as CustomEvent<SpaceKey>).detail);
     window.addEventListener(EVENT, on);
@@ -73,28 +83,43 @@ function useMenu() {
   return menu;
 }
 
-/** Work or Life. Switching goes to that space's home and keeps the choice. */
+/**
+ * Work or Life. A real link to the last page you used in that space (or its home),
+ * so it works before the page's script loads, shows the loading bar, and lights
+ * up the moment you tap it rather than when the next page arrives.
+ */
 export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
   const space = useSpace(initial);
-  const router = useRouter();
-  const go = (to: SpaceKey) => {
-    remember(to);
-    router.push(to === "life" ? "/life" : "/");
-  };
+  const [targets, setTargets] = useState<Record<SpaceKey, string>>(HOME);
+  const [tapped, setTapped] = useState<SpaceKey | null>(null);
+  const pathname = usePathname();
+  useEffect(() => {
+    setTapped(null);
+    try {
+      setTargets({ work: localStorage.getItem(LAST + "work") || HOME.work, life: localStorage.getItem(LAST + "life") || HOME.life });
+    } catch {
+      setTargets(HOME);
+    }
+  }, [pathname]);
+  const shown = tapped ?? space;
   return (
-    <div role="group" aria-label="Space" className="flex shrink-0 rounded-full bg-white/5 p-0.5 text-sm ring-1 ring-white/10">
+    <nav aria-label="Space" className="flex shrink-0 rounded-full bg-white/5 p-0.5 text-sm ring-1 ring-white/10">
       {(["work", "life"] as const).map((s) => (
-        <button
+        <Link
           key={s}
-          type="button"
-          aria-pressed={space === s}
-          onClick={() => go(s)}
-          className={`min-h-9 cursor-pointer rounded-full px-3.5 font-medium transition ${space === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-neutral-400 hover:text-white"}`}
+          href={s === space ? HOME[s] : targets[s]}
+          aria-current={shown === s ? "true" : undefined}
+          onClick={() => {
+            if (s === space) return;
+            remember(s);
+            setTapped(s);
+          }}
+          className={`flex min-h-9 items-center rounded-full px-3.5 font-medium transition ${shown === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-neutral-400 hover:text-white"}`}
         >
           {s === "work" ? "Work" : "Life"}
-        </button>
+        </Link>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -119,7 +144,7 @@ export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initi
             className={`text-sm whitespace-nowrap transition-colors hover:text-white ${active === l.href ? `font-medium ${accent}` : "text-neutral-400"}`}
           >
             {l.title}
-            <LinkPending />
+            
           </Link>
         </span>
       ))}
@@ -147,7 +172,7 @@ function MenuItems({ links, active, className = "" }: { links: NavLink[]; active
           className={`block rounded-lg px-3 py-2.5 text-sm hover:bg-white/10 ${active === l.href ? "text-white" : "text-neutral-300"}`}
         >
           {l.title}
-          <LinkPending />
+          
         </Link>
       ))}
       <form action="/auth/signout" method="post">
@@ -183,7 +208,7 @@ export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial
     <Link key={l.href} href={l.href} aria-current={active === l.href ? "page" : undefined} className={item(active === l.href)}>
       {active === l.href && <span className={`absolute top-0 h-0.5 w-8 rounded-full ${space === "life" ? "bg-mint" : "bg-lavender"}`} aria-hidden />}
       <span className="max-w-full truncate">{l.title}</span>
-      <LinkPending />
+      
     </Link>
   );
   return (

@@ -81,7 +81,7 @@ export function WeekView({
       <section className="card-life space-y-4" aria-labelledby="menu-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="menu-title" className="text-lg font-semibold">
-            This week&apos;s cooking
+            The week&apos;s cooking
           </h2>
           {canReplan && (
             <ActionButton action={() => planWeek(start)} className="text-sm text-neutral-400 hover:text-white" confirm="Pick a fresh set of recipes for this week?" done="Re-planned.">

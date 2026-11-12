@@ -5,12 +5,12 @@ import { syncLifeCalendar } from "./actions";
 import { useAction } from "./kit";
 
 /** Puts this week's cooking and gym into Google Calendar, next to study. */
-export function CalendarButton({ className = "btn-soft" }: { className?: string }) {
+export function CalendarButton({ className = "btn-soft", label = "Add cooking and gym to my calendar" }: { className?: string; label?: string }) {
   const { pending, run } = useAction();
   return (
     <button
       type="button"
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       className={className}
       onClick={() =>
         void run(async () => {
@@ -20,7 +20,7 @@ export function CalendarButton({ className = "btn-soft" }: { className?: string 
         })
       }
     >
-      {pending ? "Adding…" : "Add cooking and gym to my calendar"}
+      {pending ? "Adding…" : label}
     </button>
   );
 }

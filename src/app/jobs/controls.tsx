@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import { addEvidence, addRoleByHand, addSource, markSourceChecked, refreshJobs, removeEvidence, setSourceActive } from "./actions";
+import { startNavigation } from "@/components/navigation-progress";
 
 const field = "min-h-9 w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm";
 
@@ -37,7 +38,7 @@ export function RefreshButton({ stale, hasSources }: { stale: boolean; hasSource
   }, []);
 
   return (
-    <button disabled={pending || !hasSources} onClick={() => run(false)} className="btn-ghost px-4 py-1.5 text-sm">
+    <button disabled={pending || !hasSources} aria-busy={pending} onClick={() => run(false)} className="btn-ghost px-4 py-1.5 text-sm">
       {pending ? "Checking, this can take a minute…" : "Check for new roles"}
     </button>
   );
@@ -51,9 +52,9 @@ export function SourceButtons({ gid, active, canCheck = false }: { gid: string; 
       if (result.error) toast(result.error, { tone: "error" });
     });
   return canCheck ? (
-    <button disabled={pending} onClick={() => run(() => markSourceChecked(gid))} className="text-aqua hover:underline">Checked today</button>
+    <button disabled={pending} aria-busy={pending} onClick={() => run(() => markSourceChecked(gid))} className="text-aqua hover:underline">Checked today</button>
   ) : (
-    <button disabled={pending} onClick={() => run(() => setSourceActive(gid, !active))} className="hover:text-white hover:underline">{active ? "Pause" : "Resume"}</button>
+    <button disabled={pending} aria-busy={pending} onClick={() => run(() => setSourceActive(gid, !active))} className="hover:text-white hover:underline">{active ? "Pause" : "Resume"}</button>
   );
 }
 
@@ -83,7 +84,7 @@ export function AddSourceForm() {
         <span className="sr-only">Employer</span>
         <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Employer" className={field} />
       </label>
-      <button disabled={pending} className="btn-ghost px-4 py-1.5 text-sm">Follow</button>
+      <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">Follow</button>
     </form>
   );
 }
@@ -103,6 +104,7 @@ export function AddRoleForm() {
           const result = await addRoleByHand(form);
           if (result.error) return toast(result.error, { tone: "error" });
           setForm(empty);
+          startNavigation();
           router.push(`/jobs?view=applications&role=${result.gid}`, { scroll: false });
         });
       }}
@@ -113,7 +115,7 @@ export function AddRoleForm() {
       <input aria-label="Link" type="url" value={form.url} onChange={set("url")} placeholder="Link" className={field} />
       <textarea aria-label="Advert text" value={form.text} onChange={set("text")} rows={6} placeholder="Paste the advert" className={`${field} sm:col-span-2`} />
       <div className="sm:col-span-2">
-        <button disabled={pending} className="btn-ghost px-4 py-1.5 text-sm">Add role</button>
+        <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">Add role</button>
       </div>
     </form>
   );
@@ -152,7 +154,7 @@ export function EvidenceForm({ skills, levels }: { skills: { key: string; name: 
       </select>
       <input required aria-label="What the evidence is" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it is, in a few words" className={field} />
       <input aria-label="Link" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link, if public" className={field} />
-      <button disabled={pending} className="btn-ghost px-4 py-1.5 text-sm">Add</button>
+      <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">Add</button>
     </form>
   );
 }
@@ -161,7 +163,7 @@ export function RemoveEvidenceButton({ gid }: { gid: string }) {
   const [pending, start] = useTransition();
   return (
     <button
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       className="text-xs text-neutral-400 hover:text-white hover:underline"
       onClick={() =>
         start(async () => {

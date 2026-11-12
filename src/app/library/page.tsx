@@ -5,7 +5,6 @@ import { VIEWS } from "@/lib/lab/guide";
 import { BOOK, BookError, bookOutline, chaptersOf, pdfUploaded, readBook, searchBook, type Outline } from "@/lib/library/book";
 import { bookHref } from "@/lib/library/links";
 import { splitExcerpt } from "@/lib/library/query";
-import { LinkPending } from "@/components/link-pending";
 import { Empty, ErrorNote, PageHeader } from "@/components/ui";
 import { UploadPdf } from "./upload-pdf";
 
@@ -116,7 +115,7 @@ async function Results({ q, chapter, hasPdf }: { q: string; chapter: string | nu
         {results.map((r) => (
           <li key={r.page} className="card space-y-2">
             <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <Link href={bookHref.page(r.page)} className="font-semibold hover:underline">{r.heading.split(" › ").at(-1)}<LinkPending /></Link>
+              <Link href={bookHref.page(r.page)} className="font-semibold hover:underline">{r.heading.split(" › ").at(-1)}</Link>
               <span className="text-sm text-neutral-400 tabular-nums">p. {r.page}</span>
             </p>
             <p className="text-xs text-neutral-400">

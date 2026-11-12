@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { timerClock, timerHours } from "@/lib/portal/stats";
 import { toast } from "./toaster";
+import { startNavigation } from "./navigation-progress";
 
 // A running study session, kept in the browser so it survives reloads and shows
 // in every tab. Stopping it opens Log a session with the hours filled in, which
@@ -92,6 +93,7 @@ export function SessionPill() {
         className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-xs font-medium hover:bg-white/20"
         onClick={() => {
           write(null);
+          startNavigation();
           router.push(`/log?task=${running.gid}&hours=${timerHours(Date.now() - running.startedAt)}`);
         }}
       >

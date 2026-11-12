@@ -60,7 +60,9 @@ export function WeekPlanner({
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [mobileDay, setMobileDay] = useState(days.includes(today) ? today : days[0]);
+  const [chosenDay, setMobileDay] = useState(days.includes(today) ? today : days[0]);
+  // Derived, so a week change can never leave the phone view on a day from another week.
+  const mobileDay = days.includes(chosenDay) ? chosenDay : days.includes(today) ? today : days[0];
   const scroller = useRef<HTMLDivElement>(null);
 
   // Open the grid an hour before now (or at 07:00), not at the top of the day.
@@ -600,7 +602,7 @@ function NewBlockForm({
               ))}
             </select>
           </label>
-          <button className="btn-primary w-full" disabled={pending}>
+          <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
             Add to Google Calendar
           </button>
         </form>
@@ -626,7 +628,7 @@ function NewBlockForm({
           </label>
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
           <p className="text-xs text-neutral-400">Sets the task&apos;s start and due time.</p>
-          <button className="btn-primary w-full" disabled={pending || !gid}>
+          <button className="btn-primary w-full" disabled={pending || !gid} aria-busy={pending}>
             Plan it
           </button>
         </form>
@@ -690,7 +692,7 @@ function EditBlockForm({
         >
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
           {block.seriesId && <p className="text-xs text-neutral-400">Changes this occurrence only.</p>}
-          <button className="btn-primary w-full" disabled={pending}>
+          <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
             Save
           </button>
         </form>
@@ -709,22 +711,22 @@ function EditBlockForm({
           </Link>
         )}
         {block.source === "asana" && block.editable && (
-          <button className="btn-ghost" disabled={pending} onClick={onUnschedule}>
+          <button className="btn-ghost" disabled={pending} aria-busy={pending} onClick={onUnschedule}>
             Remove time
           </button>
         )}
         {isSession && block.editable && (
-          <button className="btn-ghost text-coral" disabled={pending} onClick={() => onDelete(false)}>
+          <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(false)}>
             Delete this session
           </button>
         )}
         {block.source === "google" && block.editable && (
           <>
-            <button className="btn-ghost text-coral" disabled={pending} onClick={() => onDelete(false)}>
+            <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(false)}>
               {block.seriesId ? "Delete this one" : "Delete"}
             </button>
             {block.seriesId && (
-              <button className="btn-ghost text-coral" disabled={pending} onClick={() => onDelete(true)}>
+              <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(true)}>
                 Delete all repeats
               </button>
             )}
@@ -759,7 +761,7 @@ function AddSessionForm({
   const [duration, setDuration] = useState(block.end - block.start);
   if (!open) {
     return (
-      <button className="btn-ghost w-full" disabled={pending} onClick={() => setOpen(true)}>
+      <button className="btn-ghost w-full" disabled={pending} aria-busy={pending} onClick={() => setOpen(true)}>
         Add another session on this task
       </button>
     );
@@ -775,7 +777,7 @@ function AddSessionForm({
       <p className="text-sm font-semibold">Another session</p>
       <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
       <p className="text-xs text-neutral-400">Sessions go to Google Calendar. The task stays due when its own block ends.</p>
-      <button className="btn-primary w-full" disabled={pending}>
+      <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
         Add session
       </button>
     </form>

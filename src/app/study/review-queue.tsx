@@ -55,7 +55,7 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
               {(["got", "shaky", "missed"] as const).map((rating) => (
                 <button
                   key={rating}
-                  disabled={pending}
+                  disabled={pending} aria-busy={pending}
                   onClick={() => rate(r.gid, rating)}
                   title={`Next: ${gapLabel(today, nextReview({ step: r.step, kind: r.kind, rating, today }).dueOn)}`}
                   className="btn-ghost px-3 py-1 text-xs"

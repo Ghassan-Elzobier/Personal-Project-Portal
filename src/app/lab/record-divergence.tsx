@@ -59,7 +59,7 @@ export function RecordDivergence({ gpus, scene, commit }: { gpus: string[]; scen
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. 1000 frames, Release" className="field-input" />
         </label>
       </div>
-      <button className="btn-primary" disabled={pending || !preview}>{pending ? "Recording…" : "Record it"}</button>
+      <button className="btn-primary" disabled={pending || !preview} aria-busy={pending}>{pending ? "Recording…" : "Record it"}</button>
     </form>
   );
 }

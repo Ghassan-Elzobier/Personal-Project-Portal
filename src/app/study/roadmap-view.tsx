@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LinkPending } from "@/components/link-pending";
 import type { Roadmap, RoadmapPhase, RoadmapUnit } from "@/lib/study/load";
 import { CUDA_TO_VULKAN, TOOLS } from "@/lib/study/roadmap";
 import { LoadAllButton, RoadmapPaceForm } from "./plan-controls";
@@ -14,7 +13,7 @@ export function RoadmapTab({ roadmap, active }: { roadmap: Roadmap; active: bool
       aria-current={active ? "page" : undefined}
       className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
     >
-      <LinkPending />
+      
       <span className="block text-sm font-semibold">Roadmap</span>
       <span className="block text-xs text-neutral-300 tabular-nums">
         {current ? `Phase ${current.index + 1} of ${phases.length}` : `All ${phases.length} phases done`}
@@ -184,7 +183,7 @@ function PhaseUnit({ unit }: { unit: RoadmapUnit }) {
         {unit.href ? (
           <Link href={unit.href} scroll={false} className="hover:underline">
             {label}
-            <LinkPending />
+            
           </Link>
         ) : (
           label

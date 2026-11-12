@@ -6,7 +6,8 @@ import { INGREDIENTS, packFromSlug } from "@/lib/life/ingredients";
 import { loadLife } from "@/lib/life/load";
 import { recipe, RECIPES } from "@/lib/life/recipes";
 import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse } from "@/lib/life/shopping";
-import { remainingNeeds } from "@/lib/life/state";
+import { remainingNeeds, weekView, type WeekView } from "@/lib/life/state";
+import Link from "next/link";
 import { eligible } from "@/lib/life/suggest";
 import { ErrorNote } from "@/components/ui";
 import { dayLabel, LifeHeader, Tabs, weekRange } from "../parts";
@@ -15,10 +16,8 @@ import { CupboardView, FridgeView, ShopView, type ShopLine } from "./views";
 export const metadata: Metadata = { title: "Kitchen" };
 export const dynamic = "force-dynamic";
 
-export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  await requireOwner();
-  const { tab = "shop" } = await searchParams;
-  const loaded = await loadLife();
+export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ tab?: string; week?: string }> }) {
+  const [, loaded, { tab = "shop", week }] = await Promise.all([requireOwner(), loadLife(), searchParams]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -28,24 +27,36 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
     );
   }
   const s = loaded.state;
-  const plan = s.plan;
+  const which = week === "next" ? "next" : "this";
+  const v = weekView(s, which);
   const soon = soonToUse(s.stock, s.today);
   const current = ["shop", "fridge", "cupboard"].includes(tab) ? tab : "shop";
   const portions = s.open.reduce((n, b) => n + b.remaining, 0);
+  const q = (t: string) => `/life/kitchen?tab=${t}${which === "next" ? "&week=next" : ""}`;
 
   return (
     <div className="space-y-4">
-      <LifeHeader eyebrow={plan ? weekRange(plan.start, addDays(plan.start, 6)) : "No plan this week"} title="Kitchen" />
+      <LifeHeader
+        eyebrow={`${which === "next" ? "Next week · " : ""}${weekRange(v.start, addDays(v.start, 6))}`}
+        title="Kitchen"
+        action={
+          current !== "cupboard" && (
+            <Link href={`/life/kitchen?tab=${current}${which === "next" ? "" : "&week=next"}`} className="text-sm text-mint hover:underline">
+              {which === "next" ? "← This week" : "Next week →"}
+            </Link>
+          )
+        }
+      />
       <Tabs
         current={current}
         tabs={[
-          { key: "shop", label: "Shop", href: "/life/kitchen?tab=shop" },
-          { key: "fridge", label: "Fridge", href: "/life/kitchen?tab=fridge", count: portions },
-          { key: "cupboard", label: "Cupboard", href: "/life/kitchen?tab=cupboard", count: soon.length },
+          { key: "shop", label: "Shop", href: q("shop") },
+          { key: "fridge", label: "Fridge", href: q("fridge"), count: portions },
+          { key: "cupboard", label: "Cupboard", href: q("cupboard"), count: soon.length },
         ]}
       />
-      {current === "shop" && <Shop s={s} />}
-      {current === "fridge" && <Fridge s={s} />}
+      {current === "shop" && <Shop key={v.start} s={s} v={v} />}
+      {current === "fridge" && <Fridge s={s} v={v} />}
       {current === "cupboard" && <Cupboard s={s} soon={soon.map((x) => x.item)} />}
     </div>
   );
@@ -53,12 +64,21 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
 
 type S = NonNullable<Awaited<ReturnType<typeof loadLife>>["state"]>;
 
-function Shop({ s }: { s: S }) {
-  const plan = s.plan;
-  if (!plan) return <p className="card-life text-sm text-neutral-300">Plan the week on Meals first, and the list builds itself.</p>;
+function Shop({ s, v }: { s: S; v: WeekView }) {
+  const plan = v.plan;
+  if (!plan)
+    return (
+      <p className="card-life text-sm text-neutral-300">
+        Plan {v.start === s.weekStart ? "this" : "next"} week on{" "}
+        <Link href={v.start === s.weekStart ? "/life" : "/life?week=next"} className="text-mint underline">
+          Meals
+        </Link>{" "}
+        first, and the list builds itself.
+      </p>
+    );
   const delivered = plan.shop?.deliveredOn ?? null;
   const deliveryDay = delivered ?? (s.profile.shopping.deliveryWeekday !== null ? nextWeekday(s.today, s.profile.shopping.deliveryWeekday, plan.start) : s.today);
-  const lines = buildList(remainingNeeds(s), s.stock, s.products, s.profile.food, deliveryDay);
+  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, deliveryDay);
   const total = listTotal(lines);
   const view: ShopLine[] = lines.map((l) => ({
     item: l.item.key,
@@ -115,14 +135,14 @@ function nextWeekday(today: string, weekday: number, start: string): string {
   return today;
 }
 
-function Fridge({ s }: { s: S }) {
-  const plan = s.plan;
+function Fridge({ s, v }: { s: S; v: WeekView }) {
+  const plan = v.plan;
   const cooked = new Set(s.batches.filter((b) => plan && b.planStart === plan.start && b.cookId).map((b) => b.cookId!));
   const cooks = (plan?.cooks ?? [])
     .filter((c) => !cooked.has(c.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)
     .map((c) => {
-      const placed = s.placements.filter((p) => p.cookId === c.id);
+      const placed = v.placements.filter((p) => p.cookId === c.id);
       const freeze = placed.filter((p) => p.storage === "freezer").length;
       return {
         id: c.id,

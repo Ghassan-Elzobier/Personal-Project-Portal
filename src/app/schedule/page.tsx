@@ -7,6 +7,7 @@ import { addDays, dateIn, shortDate, zonedParts } from "@/lib/dates/week";
 import { ErrorNote, PageHeader } from "@/components/ui";
 import { disconnectGoogle } from "./actions";
 import { SyncStudyButton } from "./sync-button";
+import { CalendarButton } from "../life/calendar-button";
 import { WeekPlanner } from "./week-planner";
 
 export const metadata: Metadata = { title: "Schedule" };
@@ -73,6 +74,7 @@ export default async function SchedulePage({
             </Link>
           )}
           {googleReady && <SyncStudyButton />}
+          {googleReady && <CalendarButton className="btn-ghost px-4 py-1.5" label="Add Life cooking and gym" />}
           <GoogleStatus google={data.google} />
         </div>
       </div>
@@ -83,6 +85,7 @@ export default async function SchedulePage({
       ))}
 
       <WeekPlanner
+        key={week.start}
         days={data.days}
         blocks={data.blocks}
         unscheduled={data.unscheduled}
