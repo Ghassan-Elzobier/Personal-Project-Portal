@@ -3,23 +3,26 @@
 // Why this shape:
 // - Full body three times a week trains each muscle about three times, and once
 //   weekly volume is matched, how it is spread matters little (Schoenfeld et al.
-//   2016, 2019). Three sessions suit a working week.
+//   2016, 2019). Three sessions fit a working week; push / pull / legs over five
+//   or six days, a common earlier routine, does not.
 // - The bench is a skill as well as strength, so it is practised every session in
-//   three flavours: heavy, paused and close-grip. Each session's main lift has a
-//   rep range and a target of reps in reserve, which keeps sets hard but not to
-//   failure (Helms et al. 2016 on RIR-based loading).
+//   three flavours: heavy, paused and close-grip. Each main lift has a rep range
+//   and a target of reps in reserve, which keeps sets hard but not to failure
+//   (Helms et al. 2016 on RIR-based loading).
 // - Power comes first while you are fresh: low-rep jumps and throws with full
 //   intent improve jumping and sprinting more than lifting alone (Markovic 2007
 //   on plyometrics), and med ball chest passes carry over to pressing speed.
-// - Lower back friendly: the main lower-body lifts keep the torso upright (front
-//   or goblet squat, split squats) or the load close (trap bar), hinges stay
-//   submaximal, and every warm-up has McGill's "big three" for trunk endurance.
-// - Short conditioning at the end keeps you fit without eating into the surplus.
+// - Lower back friendly for a back that dislikes bending under load: no bent-over
+//   rows, no Romanian deadlifts and no back extensions. Rows are supported, the
+//   hinge is the trap bar deadlift (load in line with the body) learned light,
+//   and every warm-up has McGill's "big three" for trunk endurance.
+// - Core every session: bracing and anti-rotation (dead bug, Pallof press,
+//   carries) for force transfer and a resilient back, plus direct ab work.
+// - Supersets pair moves that don't compete, so a session is about 65 minutes.
 //
-// Every exercise lists alternatives, so a missing trap bar or sled never stops a
-// session. Pure data.
+// Every exercise lists alternatives, so missing kit never stops a session. Pure data.
 
-export type Equipment = "barbell" | "rack" | "bench" | "dumbbells" | "cable" | "box" | "med-ball" | "trap-bar" | "pull-up-bar" | "bike" | "rower" | "sled" | "landmine" | "leg-press" | "ham-curl" | "back-extension" | "kettlebell";
+export type Equipment = "barbell" | "rack" | "bench" | "dumbbells" | "cable" | "box" | "med-ball" | "trap-bar" | "pull-up-bar" | "bike" | "rower" | "sled" | "landmine" | "leg-press" | "leg-extension" | "ham-curl" | "back-extension" | "kettlebell" | "dip-station" | "ab-wheel";
 
 export type Load = "barbell" | "dumbbell" | "machine" | "bodyweight" | "ball" | "time" | "distance";
 
@@ -46,9 +49,10 @@ export const EXERCISES: Exercise[] = [
   { key: "squat-jump", name: "Squat jump", equipment: [], load: "bodyweight", step: 0, cues: ["Dip to a quarter squat and explode up", "Reset fully between reps"], alts: [] },
   { key: "broad-jump", name: "Broad jump", equipment: [], load: "bodyweight", step: 0, cues: ["Jump as far forward as you can", "Stick the landing for a second", "Walk back and reset"], alts: ["squat-jump"] },
   { key: "lateral-bound", name: "Lateral bound", equipment: [], load: "bodyweight", step: 0, perSide: true, cues: ["Push off one leg sideways", "Land on the other and hold for 2 seconds"], alts: [] },
-  { key: "mb-chest-pass", name: "Med ball chest pass", equipment: ["med-ball"], load: "ball", step: 0, cues: ["Stand an arm's length from a wall", "Throw as hard as you can from the chest, like a fast bench", "Catch, reset, repeat"], alts: ["plyo-pushup"] },
-  { key: "plyo-pushup", name: "Explosive push-up", equipment: [], load: "bodyweight", step: 0, cues: ["Lower under control, push so hard your hands leave the floor"], alts: [] },
-  { key: "mb-scoop-toss", name: "Med ball rotational throw", equipment: ["med-ball"], load: "ball", step: 0, perSide: true, cues: ["Side-on to a wall", "Load the back hip and turn it through hard", "The power comes from the hips, not the arms"], back: "Turn from the hips, keeping the ribs stacked over the pelvis.", alts: ["cable-woodchop"] },
+  { key: "mb-chest-pass", name: "Medicine ball chest pass", equipment: ["med-ball"], load: "ball", step: 0, cues: ["Stand an arm's length from a wall", "Throw as hard as you can from the chest, like a fast bench", "Catch, reset, repeat"], alts: ["plyo-pushup"] },
+  { key: "plyo-pushup", name: "Plyometric push-up", equipment: [], load: "bodyweight", step: 0, cues: ["Lower under control, push so hard your hands leave the floor"], alts: [] },
+  { key: "mb-slam", name: "Medicine ball slam", equipment: ["med-ball"], load: "ball", step: 0, cues: ["Ball overhead on your toes, ribs down", "Slam it into the floor as hard as you can, hinging at the hips", "Catch the bounce or pick it up with a flat back"], back: "Use a light ball (4 to 6 kg) and pick it up by squatting, not bending.", alts: ["box-jump"] },
+  { key: "mb-scoop-toss", name: "Medicine ball rotational throw", equipment: ["med-ball"], load: "ball", step: 0, perSide: true, cues: ["Side-on to a wall", "Load the back hip and turn it through hard", "The power comes from the hips, not the arms"], back: "Turn from the hips, keeping the ribs stacked over the pelvis.", alts: ["cable-woodchop"] },
 
   // Bench
   { key: "bench", name: "Bench press", equipment: ["barbell", "bench", "rack"], load: "barbell", step: 2.5, cues: ["Shoulder blades squeezed back and down, feet planted", "Bar to the lower chest, elbows about 45° from the body", "Drive up and slightly back towards the rack"], alts: ["db-bench"], start: "Build up in sets of 5 from the empty bar until it feels like 3 left in the tank." },
@@ -58,19 +62,25 @@ export const EXERCISES: Exercise[] = [
   { key: "incline-db", name: "Incline dumbbell press", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, cues: ["Bench at 30°", "Upper chest and shoulders: the 'athletic' look"], alts: ["db-bench"] },
 
   // Lower body
-  { key: "front-squat", name: "Front squat", equipment: ["barbell", "rack"], load: "barbell", step: 2.5, cues: ["Elbows high, bar on the shoulders", "Sit straight down between the heels", "Brace before each rep"], back: "Upright torso, so far less load on the lower back than a back squat.", alts: ["goblet-squat", "leg-press"], start: "Start with the empty bar to learn the rack position." },
+  { key: "back-squat", name: "Barbell back squat", equipment: ["barbell", "rack"], load: "barbell", step: 2.5, cues: ["Bar on the upper back, hands just outside the shoulders", "Big breath into the belly and brace before each rep", "Sit down between the heels to at least parallel, drive up through the whole foot"], back: "Keep the chest proud and the brace tight; stop a set as soon as the hips shoot up first.", alts: ["front-squat", "goblet-squat", "leg-press"], start: "Build up in sets of 5 from the empty bar until it feels like 3 left in the tank." },
+  { key: "front-squat", name: "Barbell front squat", equipment: ["barbell", "rack"], load: "barbell", step: 2.5, cues: ["Elbows high, bar on the shoulders", "Sit straight down between the heels", "Brace before each rep"], back: "Upright torso, so far less load on the lower back than a back squat.", alts: ["goblet-squat", "leg-press"], start: "Start with the empty bar to learn the rack position." },
   { key: "goblet-squat", name: "Goblet squat", equipment: ["dumbbells"], load: "dumbbell", step: 2, cues: ["Dumbbell held at the chest", "Elbows inside the knees at the bottom"], back: "Front-loaded and upright, the friendliest squat for a sensitive back.", alts: [] },
   { key: "leg-press", name: "Leg press", equipment: ["leg-press"], load: "machine", step: 5, cues: ["Lower until the hips are about to tuck, no further", "Lower back stays on the pad"], back: "Keep the lower back on the pad: the range stops before the hips curl up.", alts: ["goblet-squat"] },
-  { key: "trap-bar-deadlift", name: "Trap bar deadlift", equipment: ["trap-bar"], load: "barbell", step: 5, cues: ["Stand in the middle, hips back, chest up", "Push the floor away", "Stand tall at the top, no leaning back"], back: "The load sits in line with you, so the back works far less than in a straight-bar deadlift. Stop every set with 2 or more reps left.", alts: ["db-rdl", "hip-thrust"], start: "Start at 60 kg or lighter and build up." },
+  { key: "trap-bar-deadlift", name: "Trap bar deadlift", equipment: ["trap-bar"], load: "barbell", step: 5, cues: ["Stand in the middle, shins near the bars, hips back and chest up", "Brace, take the slack out of the bar, then push the floor away", "Stand tall at the top, no leaning back; lower with the same flat back"], back: "The load sits in line with you, so the back works far less than in a straight-bar deadlift. New lift: add weight only when every rep looks the same, and stop at the first sign of the back rounding.", alts: ["hip-thrust", "glute-bridge"], start: "Learn it light: 3 sets of 5 at about 50 to 60 kg (the bar is usually 20 to 25 kg)." },
   { key: "db-rdl", name: "Dumbbell Romanian deadlift", equipment: ["dumbbells"], load: "dumbbell", step: 2, cues: ["Soft knees, push the hips back", "Dumbbells slide down the thighs", "Stop when the hamstrings are tight and the back is still flat"], back: "Only go as low as you can keep a flat back.", alts: ["hip-thrust"] },
   { key: "hip-thrust", name: "Barbell hip thrust", equipment: ["barbell", "bench"], load: "barbell", step: 5, cues: ["Upper back on the bench, bar over the hips with a pad", "Chin tucked, drive through the heels", "Squeeze at the top, ribs down"], back: "Strong hips without loading the spine. Don't arch at the top.", alts: ["glute-bridge"] },
   { key: "glute-bridge", name: "Dumbbell glute bridge", equipment: ["dumbbells"], load: "dumbbell", step: 2, cues: ["Back on the floor, drive the hips up and squeeze"], alts: [] },
   { key: "split-squat", name: "Bulgarian split squat", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, perSide: true, cues: ["Back foot on the bench", "Front shin fairly vertical, drop the back knee", "Push through the front foot"], back: "Single leg means heavy legs with light spinal load.", alts: ["reverse-lunge"] },
   { key: "reverse-lunge", name: "Dumbbell reverse lunge", equipment: ["dumbbells"], load: "dumbbell", step: 2, perSide: true, cues: ["Step back, drop the knee, drive back up"], alts: [] },
+  { key: "leg-extension", name: "Leg extension", equipment: ["leg-extension"], load: "machine", step: 2.5, cues: ["Pad on the lower shin, knee in line with the machine's pivot", "Squeeze at the top for a second, lower slowly"], alts: ["goblet-squat"] },
   { key: "ham-curl", name: "Lying hamstring curl", equipment: ["ham-curl"], load: "machine", step: 2.5, cues: ["Hips pressed into the pad", "Lower slowly, 3 seconds"], alts: ["nordic"] },
   { key: "nordic", name: "Assisted Nordic curl", equipment: [], load: "bodyweight", step: 0, cues: ["Knees on a pad, heels anchored", "Lower as slowly as you can, push back up with the hands"], alts: [] },
 
   // Upper back and arms
+  { key: "cable-fly", name: "Cable fly", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Pulleys at shoulder height, a step forward", "Soft elbows, hug a big tree", "Squeeze for a second where the hands meet"], alts: ["db-fly"] },
+  { key: "db-fly", name: "Dumbbell fly", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, cues: ["Soft elbows, lower to a deep stretch", "Bring them up in an arc, not a press"], alts: [] },
+  { key: "dips", name: "Parallel bar dip", equipment: ["dip-station"], load: "bodyweight", step: 2.5, cues: ["Lean slightly forward for chest, upright for triceps", "Lower until the shoulders are level with the elbows", "Add weight with a belt once you get 12 clean reps"], alts: ["close-grip-pushup"] },
+  { key: "close-grip-pushup", name: "Close-grip push-up", equipment: [], load: "bodyweight", step: 0, cues: ["Hands under the shoulders, elbows brushing the ribs"], alts: [] },
   { key: "chest-row", name: "Chest-supported dumbbell row", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, cues: ["Chest on a 30° bench", "Pull the elbows to the hips", "Pause at the top"], back: "The bench takes the load off the lower back.", alts: ["cable-row"] },
   { key: "cable-row", name: "Seated cable row", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Sit tall, pull to the stomach", "Shoulders down, squeeze the shoulder blades"], alts: ["chest-row"] },
   { key: "one-arm-row", name: "One-arm dumbbell row", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, perSide: true, cues: ["Hand and knee on the bench, back flat", "Pull to the hip"], alts: ["cable-row"] },
@@ -78,13 +88,19 @@ export const EXERCISES: Exercise[] = [
   { key: "lat-pulldown", name: "Lat pulldown", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Pull the bar to the top of the chest", "Lead with the elbows"], alts: [] },
   { key: "landmine-press", name: "Half-kneeling landmine press", equipment: ["landmine", "barbell"], load: "barbell", step: 2.5, perSide: true, cues: ["One knee down, squeeze that glute", "Press up and forward, reach at the top"], back: "Kneeling with the glute squeezed stops you arching, unlike a standing overhead press.", alts: ["seated-db-press"], start: "Start with the empty bar plus 5 kg." },
   { key: "seated-db-press", name: "Seated dumbbell shoulder press", equipment: ["dumbbells", "bench"], load: "dumbbell", step: 2, cues: ["Back supported, slight incline", "Press up, don't arch"], back: "Back supported on the bench.", alts: [] },
-  { key: "lateral-raise", name: "Lateral raise", equipment: ["dumbbells"], load: "dumbbell", step: 1, cues: ["Lead with the elbows, raise to shoulder height", "Slow on the way down"], alts: [] },
+  { key: "lateral-raise", name: "Dumbbell lateral raise", equipment: ["dumbbells"], load: "dumbbell", step: 1, cues: ["Lead with the elbows, raise to shoulder height", "Slow on the way down"], alts: [] },
   { key: "face-pull", name: "Cable face pull", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Rope at face height, pull to the eyes", "Thumbs back at the end"], alts: ["lateral-raise"] },
-  { key: "curl", name: "Dumbbell curl", equipment: ["dumbbells"], load: "dumbbell", step: 1, cues: ["Elbows still, full range"], alts: [] },
+  { key: "curl", name: "Dumbbell biceps curl", equipment: ["dumbbells"], load: "dumbbell", step: 1, cues: ["Elbows still, full range"], alts: [] },
   { key: "pushdown", name: "Triceps rope pushdown", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Elbows pinned to the sides", "Spread the rope at the bottom"], alts: ["db-skull"] },
+  { key: "lying-triceps-ext", name: "Lying triceps extension", equipment: ["barbell", "bench"], load: "barbell", step: 2.5, cues: ["EZ bar or straight bar, arms vertical over the shoulders", "Bend only at the elbows, lowering to the forehead or just behind", "Elbows stay pointing up"], alts: ["db-skull"] },
   { key: "db-skull", name: "Dumbbell overhead triceps extension", equipment: ["dumbbells"], load: "dumbbell", step: 2, cues: ["Seated, elbows pointing up", "Lower behind the head, press up"], alts: [] },
 
   // Core and carries
+  { key: "dead-bug", name: "Dead bug", equipment: [], load: "bodyweight", step: 0, perSide: true, cues: ["On your back, arms up, knees over hips", "Press the lower back into the floor and keep it there", "Lower the opposite arm and leg slowly, breathe out, return"], back: "Trains the brace that protects the back, with no load on it.", alts: [] },
+  { key: "hanging-leg-raise", name: "Hanging leg raise", equipment: ["pull-up-bar"], load: "bodyweight", step: 0, cues: ["Hang still, shoulders engaged", "Curl the pelvis up and lift the knees (or straight legs) to hip height or higher", "Lower slowly, no swinging"], back: "Hanging also lets the spine decompress.", alts: ["captains-chair-raise"] },
+  { key: "captains-chair-raise", name: "Captain's chair knee raise", equipment: ["dip-station"], load: "bodyweight", step: 0, cues: ["Back against the pad, curl the knees to the chest", "Lower slowly"], alts: ["dead-bug"] },
+  { key: "ab-wheel", name: "Ab wheel rollout", equipment: ["ab-wheel"], load: "bodyweight", step: 0, cues: ["From the knees, ribs down and glutes squeezed", "Roll out only as far as you can without the lower back sagging", "Pull back with the abs, not the hips"], back: "Stop each rep before the lower back arches.", alts: ["dead-bug"] },
+  { key: "cable-crunch", name: "Cable crunch", equipment: ["cable"], load: "machine", step: 2.5, cues: ["Kneel, rope by the ears", "Crunch the ribs towards the hips, hips stay still", "Squeeze, then return slowly"], alts: ["ab-wheel"] },
   { key: "pallof", name: "Pallof press", equipment: ["cable"], load: "machine", step: 2.5, perSide: true, cues: ["Side-on to the cable", "Press the handle straight out and resist the twist"], back: "Anti-rotation: trains the trunk to stay still, which is what protects a back.", alts: ["side-plank"] },
   { key: "side-plank", name: "Side plank", equipment: [], load: "time", step: 0, perSide: true, cues: ["Straight line from head to feet"], alts: [] },
   { key: "farmer-carry", name: "Farmer's carry", equipment: ["dumbbells"], load: "dumbbell", step: 2, cues: ["Heaviest dumbbells you can hold for 30 m", "Walk tall, short quick steps"], back: "Loads the trunk standing tall: one of the best back-friendly core drills.", alts: ["suitcase-carry"] },
@@ -134,87 +150,96 @@ export type Workout = {
 };
 
 const WARMUP = [
-  "5 minutes easy on the bike or rower",
+  "3 minutes easy on the bike or rower",
   "McGill big three: 5 curl-ups, 2 × 10 s side planks a side, 5 bird dogs a side",
-  "10 bodyweight squats, 10 band pull-aparts or arm circles",
+  "10 bodyweight squats and 10 band pull-aparts or arm circles",
 ];
 
 export const PROGRAM: { key: string; name: string; summary: string; workouts: Workout[] } = {
   key: "athletic-3",
   name: "Athletic full body, 3 days",
-  summary: "Power first, then the bench in three flavours, a back-friendly lower-body lift, upper back and arms, and a short finisher. About 75 minutes.",
+  summary: "Jumps and throws first, then the bench in three flavours and a squat or trap bar deadlift, supersetted with pulls and core, then your favourite accessories. About 65 minutes.",
   workouts: [
     {
       key: "A",
-      name: "Heavy bench and squat",
-      focus: "Top-end bench strength and an upright squat.",
-      warmup: [...WARMUP, "Bench warm-up sets: bar × 10, then 3 to 4 sets of 3 to 5 building to your top set"],
+      name: "Heavy bench and back squat",
+      focus: "Top-end bench strength and the squat, with bracing and abs between sets.",
+      warmup: [...WARMUP, "Bench ramp-up: bar × 10, then 3 to 4 sets of 3 to 5 building to your top set"],
       blocks: [
-        { title: "Power", items: [
-          { exercise: "box-jump", sets: 3, reps: [3, 3], rir: 3, rest: 60, scheme: "power" },
-          { exercise: "mb-chest-pass", sets: 3, reps: [5, 5], rir: 3, rest: 60, scheme: "power" },
+        { title: "Power", superset: true, items: [
+          { exercise: "box-jump", sets: 3, reps: [3, 3], rir: 3, rest: 45, scheme: "power" },
+          { exercise: "mb-chest-pass", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
         ] },
-        { title: "Strength", items: [
-          { exercise: "bench", sets: 4, reps: [4, 6], rir: 2, rest: 180, scheme: "top-backoff", note: "1 top set of 4 to 6, then 3 × 5 at 90%" },
-          { exercise: "front-squat", sets: 3, reps: [5, 6], rir: 2, rest: 150, scheme: "straight" },
+        { title: "Bench", superset: true, items: [
+          { exercise: "bench", sets: 4, reps: [4, 6], rir: 2, rest: 150, scheme: "top-backoff", note: "1 top set of 4 to 6, then 3 × 5 at 90%" },
+          { exercise: "dead-bug", sets: 3, reps: [8, 8], rir: 2, rest: 30, scheme: "straight" },
         ] },
-        { title: "Build", superset: true, items: [
-          { exercise: "chest-row", sets: 3, reps: [8, 10], rir: 1, rest: 75, scheme: "straight" },
+        { title: "Squat", superset: true, items: [
+          { exercise: "back-squat", sets: 3, reps: [5, 6], rir: 2, rest: 150, scheme: "straight" },
+          { exercise: "hanging-leg-raise", sets: 3, reps: [8, 12], rir: 1, rest: 30, scheme: "straight" },
+        ] },
+        { title: "Accessories", superset: true, items: [
+          { exercise: "chest-row", sets: 3, reps: [8, 10], rir: 1, rest: 60, scheme: "straight" },
+          { exercise: "cable-fly", sets: 2, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
           { exercise: "lateral-raise", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
-        ] },
-        { title: "Core and finisher", items: [
-          { exercise: "pallof", sets: 3, reps: [10, 10], rir: 2, rest: 45, scheme: "straight" },
-          { exercise: "bike-sprint", sets: 6, reps: [10, 10], rir: 0, rest: 50, scheme: "timed", note: "6 × 10 s flat out, 50 s easy" },
         ] },
       ],
     },
     {
       key: "B",
-      name: "Hinge, pull and paused bench",
-      focus: "Hips and back, plus bench strength off the chest.",
-      warmup: [...WARMUP, "Trap bar warm-up: 3 sets of 3 building up"],
+      name: "Trap bar, paused bench and pull-ups",
+      focus: "Learning the hinge, bench strength off the chest, a strong back and abs.",
+      warmup: [...WARMUP, "Trap bar ramp-up: 3 sets of 3 building up"],
       blocks: [
-        { title: "Power", items: [
-          { exercise: "broad-jump", sets: 3, reps: [3, 3], rir: 3, rest: 60, scheme: "power" },
-          { exercise: "mb-scoop-toss", sets: 3, reps: [4, 4], rir: 3, rest: 45, scheme: "power" },
+        { title: "Power", superset: true, items: [
+          { exercise: "broad-jump", sets: 3, reps: [3, 3], rir: 3, rest: 45, scheme: "power" },
+          { exercise: "mb-slam", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
         ] },
-        { title: "Strength", items: [
-          { exercise: "trap-bar-deadlift", sets: 3, reps: [5, 5], rir: 2, rest: 180, scheme: "straight" },
-          { exercise: "paused-bench", sets: 4, reps: [5, 6], rir: 2, rest: 150, scheme: "straight" },
+        { title: "Hinge", superset: true, items: [
+          { exercise: "trap-bar-deadlift", sets: 3, reps: [5, 5], rir: 3, rest: 150, scheme: "straight", note: "3 × 5, light while you learn it" },
+          { exercise: "pallof", sets: 3, reps: [10, 10], rir: 2, rest: 30, scheme: "straight" },
         ] },
-        { title: "Build", superset: true, items: [
-          { exercise: "pull-up", sets: 4, reps: [6, 10], rir: 1, rest: 90, scheme: "straight" },
-          { exercise: "landmine-press", sets: 3, reps: [8, 10], rir: 1, rest: 60, scheme: "straight" },
+        { title: "Bench and pull", superset: true, items: [
+          { exercise: "paused-bench", sets: 4, reps: [5, 6], rir: 2, rest: 120, scheme: "straight" },
+          { exercise: "pull-up", sets: 4, reps: [6, 10], rir: 1, rest: 60, scheme: "straight" },
         ] },
-        { title: "Core and finisher", items: [
-          { exercise: "back-extension", sets: 2, reps: [12, 15], rir: 3, rest: 60, scheme: "straight" },
-          { exercise: "farmer-carry", sets: 4, reps: [30, 30], rir: 1, rest: 60, scheme: "timed", note: "4 × 30 m, heavy" },
+        { title: "Accessories", superset: true, items: [
+          { exercise: "seated-db-press", sets: 3, reps: [8, 10], rir: 1, rest: 60, scheme: "straight" },
+          { exercise: "face-pull", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
+          { exercise: "ham-curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
+        ] },
+        { title: "Core", superset: true, items: [
+          { exercise: "ab-wheel", sets: 3, reps: [6, 10], rir: 2, rest: 45, scheme: "straight" },
+          { exercise: "farmer-carry", sets: 3, reps: [30, 30], rir: 1, rest: 45, scheme: "timed", note: "3 × 30 m, heavy" },
         ] },
       ],
     },
     {
       key: "C",
-      name: "Close-grip bench and single leg",
-      focus: "Lockout strength, legs one at a time, arms and shoulders.",
-      warmup: [...WARMUP, "Bench warm-up sets: bar × 10, then 2 to 3 building sets"],
+      name: "Close-grip bench, single leg and arms",
+      focus: "Lockout strength, legs one at a time, upper chest and the arm work you used to do.",
+      warmup: [...WARMUP, "Bench ramp-up: bar × 10, then 2 to 3 building sets"],
       blocks: [
-        { title: "Power", items: [
-          { exercise: "lateral-bound", sets: 3, reps: [3, 3], rir: 3, rest: 45, scheme: "power" },
-          { exercise: "plyo-pushup", sets: 3, reps: [5, 5], rir: 3, rest: 60, scheme: "power" },
+        { title: "Power", superset: true, items: [
+          { exercise: "lateral-bound", sets: 3, reps: [3, 3], rir: 3, rest: 30, scheme: "power" },
+          { exercise: "plyo-pushup", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
         ] },
-        { title: "Strength", items: [
-          { exercise: "close-grip-bench", sets: 4, reps: [6, 8], rir: 2, rest: 150, scheme: "straight" },
-          { exercise: "split-squat", sets: 3, reps: [8, 10], rir: 2, rest: 90, scheme: "straight" },
+        { title: "Bench and row", superset: true, items: [
+          { exercise: "close-grip-bench", sets: 4, reps: [6, 8], rir: 2, rest: 120, scheme: "straight" },
+          { exercise: "cable-row", sets: 4, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
         ] },
-        { title: "Build", superset: true, items: [
-          { exercise: "one-arm-row", sets: 3, reps: [10, 12], rir: 1, rest: 60, scheme: "straight" },
-          { exercise: "incline-db", sets: 3, reps: [8, 12], rir: 1, rest: 75, scheme: "straight" },
-          { exercise: "ham-curl", sets: 3, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
+        { title: "Legs and abs", superset: true, items: [
+          { exercise: "split-squat", sets: 3, reps: [8, 10], rir: 2, rest: 75, scheme: "straight" },
+          { exercise: "cable-crunch", sets: 3, reps: [12, 15], rir: 1, rest: 30, scheme: "straight" },
         ] },
-        { title: "Arms and finisher", superset: true, items: [
+        { title: "Upper chest and quads", superset: true, items: [
+          { exercise: "incline-db", sets: 3, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
+          { exercise: "leg-extension", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
+        ] },
+        { title: "Arms", superset: true, items: [
+          { exercise: "dips", sets: 2, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
           { exercise: "curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
-          { exercise: "pushdown", sets: 3, reps: [10, 15], rir: 1, rest: 45, scheme: "straight" },
-          { exercise: "rower-intervals", sets: 4, reps: [250, 250], rir: 0, rest: 90, scheme: "timed", note: "4 × 250 m, 90 s easy" },
+          { exercise: "lying-triceps-ext", sets: 2, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
         ] },
       ],
     },

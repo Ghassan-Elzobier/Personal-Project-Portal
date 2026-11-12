@@ -1,7 +1,9 @@
 // What to lift next time, and how the bench is coming along.
 //
 // Progression is double progression: work in a rep range at a weight, and once
-// every set reaches the top of the range, add the smallest step. A heavy top set
+// every set reaches the top of the range, add the smallest step. Bodyweight moves
+// like pull-ups and dips work the same way with weight added on a belt; core moves
+// with nothing to add get slower and harder instead. A heavy top set
 // moves up when it reaches the top of its range. Missing the bottom of the range
 // twice running takes 5% off, which is the usual reset. Someone coming back from
 // a break keeps an extra rep in reserve for the first two weeks, because strength
@@ -53,12 +55,12 @@ export type Target = {
   rir: number;
 };
 
-/** Sessions of one exercise, newest first, each as its sets in order. */
+/** Sessions of one exercise, newest first, each as its sets in order. No weight counts as bodyweight. */
 function byDay(history: SetLog[], exercise: string): SetLog[][] {
   const days = new Map<string, SetLog[]>();
   for (const s of history) {
-    if (s.exercise !== exercise || s.kg === null || s.reps === null) continue;
-    days.set(s.day, [...(days.get(s.day) ?? []), s]);
+    if (s.exercise !== exercise || s.reps === null) continue;
+    days.set(s.day, [...(days.get(s.day) ?? []), { ...s, kg: s.kg ?? 0 }]);
   }
   return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([, sets]) => sets.sort((a, b) => a.position - b.position));
 }
@@ -96,7 +98,8 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
     const back = ex.step > 0 ? Math.floor((kg * 0.9) / ex.step) * ex.step : kg * 0.9;
     return { sets: [{ kg, reps: lo }, ...Array.from({ length: p.sets - 1 }, () => ({ kg: back, reps: 5 }))], change, why, rir };
   }
-  // Straight sets.
+  // Straight sets. Bodyweight shows as no weight rather than 0 kg.
+  const shown = (v: number) => (ex.load === "bodyweight" && v === 0 ? null : v);
   const kg = Math.max(...last.map((s) => s.kg ?? 0));
   const atWeight = last.filter((s) => s.kg === kg);
   const allTop = atWeight.length >= p.sets && atWeight.every((s) => (s.reps ?? 0) >= hi);
@@ -104,16 +107,20 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
   const prevKg = prev ? Math.max(...prev.map((s) => s.kg ?? 0)) : null;
   const under = atWeight.some((s) => (s.reps ?? 0) < lo);
   const prevUnder = prev && prevKg === kg && prev.some((s) => (s.reps ?? 0) < lo);
+  if (allTop && ex.step === 0) {
+    return { sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: hi })), change: "same", why: `Top of the range on every set: lower over 3 seconds and pause at the hardest point.`, rir };
+  }
   if (allTop) {
-    return { sets: Array.from({ length: p.sets }, () => ({ kg: kg + ex.step, reps: lo })), change: "up", why: `All sets hit ${hi}: +${ex.step} kg.`, rir };
+    const why = ex.load === "bodyweight" && kg === 0 ? `All sets hit ${hi}: add ${ex.step} kg on a belt, or hold a dumbbell.` : `All sets hit ${hi}: +${ex.step} kg.`;
+    return { sets: Array.from({ length: p.sets }, () => ({ kg: kg + ex.step, reps: lo })), change: "up", why, rir };
   }
   if (under && prevUnder) {
     const down = roundTo(kg * 0.95, ex.step);
-    return { sets: Array.from({ length: p.sets }, () => ({ kg: down, reps: lo })), change: "down", why: "Below the range twice: 5% off.", rir };
+    return { sets: Array.from({ length: p.sets }, () => ({ kg: shown(down), reps: lo })), change: "down", why: "Below the range twice: 5% off.", rir };
   }
   const best = Math.min(...atWeight.map((s) => s.reps ?? 0));
   const aim = Math.min(hi, Math.max(lo, best + 1));
-  return { sets: Array.from({ length: p.sets }, () => ({ kg, reps: aim })), change: "same", why: `Same weight: aim for ${aim} on every set.`, rir };
+  return { sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: aim })), change: "same", why: `${ex.load === "bodyweight" && kg === 0 ? "Same again" : "Same weight"}: aim for ${aim} on every set.`, rir };
 }
 
 /** Best estimated max on each day the lift was done. */

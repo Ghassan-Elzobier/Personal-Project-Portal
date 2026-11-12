@@ -19,8 +19,9 @@ const MISSING = [
   ["leg-press", "Leg press"],
   ["ham-curl", "Hamstring curl machine"],
   ["back-extension", "Back extension bench"],
-  ["rower", "Rower"],
-  ["bike", "Bike"],
+  ["leg-extension", "Leg extension machine"],
+  ["dip-station", "Dip station or captain's chair"],
+  ["ab-wheel", "Ab wheel"],
   ["pull-up-bar", "Pull-up bar"],
   ["cable", "Cable machine"],
 ] as const;

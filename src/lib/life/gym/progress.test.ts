@@ -1,10 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target, type SetLog } from "./progress.ts";
-import { resolve, workout } from "./program.ts";
+import { EXERCISE_MAP, resolve, workout } from "./program.ts";
 
-const bench = workout("A")!.blocks[1].items[0];
-const squat = workout("A")!.blocks[1].items[1];
+const item = (w: string, key: string) => workout(w)!.blocks.flatMap((b) => b.items).find((p) => p.exercise === key)!;
+const bench = item("A", "bench");
+const squat = item("A", "back-squat");
+const pullUp = item("B", "pull-up");
+const legRaise = item("A", "hanging-leg-raise");
 const set = (day: string, exercise: string, position: number, kg: number, reps: number, rir: number | null = null): SetLog => ({ day, workout: "A", exercise, position, kg, reps, rir });
 
 test("Epley with reps in reserve", () => {
@@ -29,9 +32,9 @@ test("a top set at the top of the range adds a step, with back-offs at 90%", () 
 });
 
 test("straight sets go up only when every set hits the top", () => {
-  const some = [1, 2, 3].map((i) => set("2026-11-13", "front-squat", i, 50, i === 3 ? 5 : 6));
+  const some = [1, 2, 3].map((i) => set("2026-11-13", "back-squat", i, 50, i === 3 ? 5 : 6));
   assert.equal(target(squat, some, false).change, "same");
-  const all = [1, 2, 3].map((i) => set("2026-11-13", "front-squat", i, 50, 6));
+  const all = [1, 2, 3].map((i) => set("2026-11-13", "back-squat", i, 50, 6));
   const up = target(squat, all, false);
   assert.equal(up.change, "up");
   assert.equal(up.sets[0].kg, 52.5);
@@ -39,12 +42,35 @@ test("straight sets go up only when every set hits the top", () => {
 
 test("missing the range twice takes 5% off", () => {
   const h = [
-    ...[1, 2, 3].map((i) => set("2026-11-10", "front-squat", i, 60, 4)),
-    ...[1, 2, 3].map((i) => set("2026-11-13", "front-squat", i, 60, 4)),
+    ...[1, 2, 3].map((i) => set("2026-11-10", "back-squat", i, 60, 4)),
+    ...[1, 2, 3].map((i) => set("2026-11-13", "back-squat", i, 60, 4)),
   ];
   const t = target(squat, h, false);
   assert.equal(t.change, "down");
   assert.equal(t.sets[0].kg, 57.5);
+});
+
+test("bodyweight moves add reps, then weight on a belt; core moves get harder, not heavier", () => {
+  const some = [1, 2, 3, 4].map((i) => ({ ...set("2026-11-13", "pull-up", i, 0, 8), kg: null }));
+  const same = target(pullUp, some, false);
+  assert.equal(same.change, "same");
+  assert.equal(same.sets[0].kg, null);
+  assert.equal(same.sets[0].reps, 9);
+  const all = [1, 2, 3, 4].map((i) => ({ ...set("2026-11-13", "pull-up", i, 0, 10), kg: null }));
+  const up = target(pullUp, all, false);
+  assert.equal(up.change, "up");
+  assert.equal(up.sets[0].kg, 2.5);
+  assert.match(up.why, /belt/);
+  const raises = [1, 2, 3].map((i) => ({ ...set("2026-11-13", "hanging-leg-raise", i, 0, 12), kg: null }));
+  const harder = target(legRaise, raises, false);
+  assert.equal(harder.change, "same");
+  assert.match(harder.why, /3 seconds/);
+});
+
+test("the programme never bends under load: no bent-over rows, Romanian deadlifts or back extensions", () => {
+  const used = ["A", "B", "C"].flatMap((w) => workout(w)!.blocks.flatMap((b) => b.items.map((p) => p.exercise)));
+  for (const banned of ["db-rdl", "back-extension", "one-arm-row"]) assert.ok(!used.includes(banned), banned);
+  for (const key of used) assert.ok(EXERCISE_MAP.has(key), key);
 });
 
 test("workouts rotate A, B, C", () => {
@@ -64,7 +90,8 @@ test("the bench forecast needs three days and a rising trend", () => {
 });
 
 test("a missing trap bar swaps to its alternative", () => {
-  assert.equal(resolve("trap-bar-deadlift", ["trap-bar"])?.key, "db-rdl");
+  // Never a bending alternative for this back: the hip thrust stands in.
+  assert.equal(resolve("trap-bar-deadlift", ["trap-bar"])?.key, "hip-thrust");
   assert.equal(resolve("trap-bar-deadlift", [])?.key, "trap-bar-deadlift");
   assert.equal(resolve("mb-chest-pass", ["med-ball"])?.key, "plyo-pushup");
 });
