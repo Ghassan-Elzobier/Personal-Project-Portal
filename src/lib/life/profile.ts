@@ -20,6 +20,8 @@ export type LifeProfile = {
   cuisines: Cuisine[];
   /** Recipe keys you love; they come round more often. */
   favourites: string[];
+  /** Recipe keys you never want suggested. */
+  hidden: string[];
   /** 0 to 3: the hottest recipe to suggest. */
   spiceMax: number;
   kit: Kit[];
@@ -35,6 +37,8 @@ export type LifeProfile = {
     maxRepeat: number;
     /** Lunch reheats at work, so lunch recipes must microwave well. */
     lunchAtWork: boolean;
+    /** Weekend dinners cooked fresh rather than from a batch: 0, 1 or 2. */
+    weekendFresh: number;
   };
   gym: {
     /** 0 = Monday ... 6 = Sunday. */
@@ -58,6 +62,7 @@ export const DEFAULT_PROFILE: LifeProfile = {
   food: NO_RULES,
   cuisines: [],
   favourites: [],
+  hidden: [],
   spiceMax: 2,
   kit: ["oven", "hob"],
   routine: {
@@ -71,6 +76,7 @@ export const DEFAULT_PROFILE: LifeProfile = {
     ],
     maxRepeat: 3,
     lunchAtWork: true,
+    weekendFresh: 0,
   },
   gym: { days: [0, 2, 4], start: 6 * 60 + 45, minutes: 75, benchGoalKg: null, returning: false, missing: [] },
   shopping: { budgetPence: null, deliveryWeekday: 5 },
@@ -135,6 +141,7 @@ export function parseProfile(raw: unknown): LifeProfile {
     food: parseRules(r.food),
     cuisines: Array.isArray(r.cuisines) ? r.cuisines.filter((c): c is Cuisine => CUISINES.includes(c as Cuisine)) : [],
     favourites: Array.isArray(r.favourites) ? r.favourites.filter((f): f is string => typeof f === "string").slice(0, 50) : [],
+    hidden: Array.isArray(r.hidden) ? r.hidden.filter((f): f is string => typeof f === "string").slice(0, 100) : [],
     spiceMax: num(r.spiceMax, 0, 3, d.spiceMax),
     kit: Array.isArray(r.kit) ? r.kit.filter((k): k is Kit => KIT.includes(k as Kit)) : d.kit,
     routine: {
@@ -145,6 +152,7 @@ export function parseProfile(raw: unknown): LifeProfile {
       cooks: cooks.length ? cooks : d.routine.cooks,
       maxRepeat: num(routine.maxRepeat, 1, 7, d.routine.maxRepeat),
       lunchAtWork: typeof routine.lunchAtWork === "boolean" ? routine.lunchAtWork : d.routine.lunchAtWork,
+      weekendFresh: num(routine.weekendFresh, 0, 2, d.routine.weekendFresh),
     },
     gym: {
       days: weekdays(gym.days, d.gym.days),
@@ -165,6 +173,11 @@ export function parseProfile(raw: unknown): LifeProfile {
 export function ageOn(profile: LifeProfile, today: string): number | null {
   if (!profile.body.birthYear) return null;
   return Number(today.slice(0, 4)) - profile.body.birthYear - (Number(today.slice(5, 7)) < 7 ? 1 : 0);
+}
+
+/** The routine as the planner needs it: the shake comes straight after training on gym days. */
+export function plannerRoutine(p: LifeProfile) {
+  return { ...p.routine, gymDays: p.gym.days, gymEnd: p.gym.start + p.gym.minutes };
 }
 
 /** True once there is enough to work out targets. */

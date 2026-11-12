@@ -30,8 +30,8 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   const showAll = params.all === "1";
   const list = RECIPES.map((r) => ({ r, v: verdict(r, s.profile.food), m: portionMacros(r), stars: s.ratings.find((x) => x.recipe === r.key)?.stars ?? null }))
     .filter((x) => filter === "All" || x.r.cuisine === filter)
-    .filter((x) => showAll || (x.v.ok && x.v.disliked.length === 0));
-  const hidden = RECIPES.filter((r) => (filter === "All" || r.cuisine === filter) && !(verdict(r, s.profile.food).ok)).length;
+    .filter((x) => showAll || (x.v.ok && x.v.disliked.length === 0 && !s.profile.hidden.includes(x.r.key)));
+  const hidden = RECIPES.filter((r) => (filter === "All" || r.cuisine === filter) && (!verdict(r, s.profile.food).ok || s.profile.hidden.includes(r.key))).length;
   const href = (c: string, all = showAll) => {
     const q = new URLSearchParams();
     if (c !== "All") q.set("cuisine", c);
@@ -70,6 +70,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
                 {r.tags.includes("weekend") && <Chip>Weekend</Chip>}
                 {r.keeps.freezes && r.meal === "main" && <Chip tone="ice">Freezes</Chip>}
                 {!v.ok && <Chip tone="coral">Not for you</Chip>}
+                {s.profile.hidden.includes(r.key) && <Chip>Hidden</Chip>}
               </div>
             </Link>
           </li>
@@ -77,7 +78,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       </ul>
       {hidden > 0 && (
         <p className="text-sm text-neutral-400">
-          {hidden} {hidden === 1 ? "recipe is" : "recipes are"} hidden by your food rules.{" "}
+          {hidden} {hidden === 1 ? "recipe is" : "recipes are"} hidden by your food rules or by you.{" "}
           <Link href={href(filter, !showAll)} className="text-mint hover:underline">
             {showAll ? "Hide them" : "Show them anyway"}
           </Link>

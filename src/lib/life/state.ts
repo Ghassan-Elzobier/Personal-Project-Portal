@@ -6,7 +6,7 @@ import { addDays, weekdayIndex } from "../dates/week.ts";
 import type { Tag } from "./allergens.ts";
 import type { Unit } from "./ingredients.ts";
 import { adjust, portionMacros, SPLIT, targetsFor, trend, type Adjustment, type Slot, type Targets, type Weight } from "./nutrition.ts";
-import { ageOn, isSetUp, parseProfile, type LifeProfile } from "./profile.ts";
+import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
 import { assign, mealWeekStart, reminders, type Placement, type Reminder, type WeekPlan } from "./planner.ts";
 import { recipe } from "./recipes.ts";
 import { weekNeeds, type Need, type Product, type StockRow } from "./shopping.ts";
@@ -91,7 +91,7 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   const weekStart = mealWeekStart(today, profile.routine.cooks[0]?.weekday ?? 6);
   const plan = raw.plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
-  const placements = plan ? withCooked(assign(plan, profile.routine, openForPlan(raw.batches, plan).map(toStock), kcal), raw.batches, plan) : [];
+  const placements = plan ? withCooked(assign(plan, plannerRoutine(profile), openForPlan(raw.batches, plan).map(toStock), kcal), raw.batches, plan) : [];
   const eaten = eatenShare(raw.meals, today);
   const adjustment = setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
   return {

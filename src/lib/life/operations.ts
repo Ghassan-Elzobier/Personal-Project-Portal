@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import type { Slot } from "./nutrition";
-import { parseProfile, type LifeProfile } from "./profile";
+import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
 import { cookScale, sizeCooks, type WeekPlan } from "./planner";
 import { recipe } from "./recipes";
 import { buildList, cookUse, delivery, weekNeeds, type Product } from "./shopping";
@@ -81,7 +81,7 @@ export function applyAdjustment(): Promise<Result<{ kcal: number }>> {
 // ---------------------------------------------------------------- plans
 
 async function savePlan(s: LifeState, plan: WeekPlan) {
-  const sized = { ...plan, cooks: sizeCooks(plan, s.profile.routine, s.kcal) };
+  const sized = { ...plan, cooks: sizeCooks(plan, plannerRoutine(s.profile), s.kcal) };
   await store.savePlan(plan.start, sized);
   return sized;
 }
@@ -143,6 +143,7 @@ export function setDaily(start: string, slot: "breakfast" | "shake", recipeKey: 
   return editPlan(start, (plan) => {
     if (!recipe(recipeKey)) fail("Unknown recipe.");
     plan[slot] = recipeKey;
+    if (slot === "shake") plan.shakes = undefined;
   });
 }
 
@@ -203,6 +204,20 @@ export function logPastAsEaten(): Promise<Result<{ count: number }>> {
       await store.logMeal({ day: p.date, slot: p.slot, status: "eaten", recipe: p.recipe, batch: p.batchGid ?? null, kcal: m?.kcal ?? null, protein: m?.protein ?? null });
     }
     return { count: todo.length };
+  });
+}
+
+/** "Not for me" hides a recipe from every suggestion; a favourite comes round more often. */
+export function setRecipePref(recipeKey: string, kind: "hidden" | "favourites", on: boolean): Promise<Result> {
+  return run(async () => {
+    if (!recipe(recipeKey)) fail("Unknown recipe.");
+    const s = await state();
+    const other = kind === "hidden" ? "favourites" : "hidden";
+    const next = { ...s.profile, [kind]: [...s.profile[kind].filter((k) => k !== recipeKey), ...(on ? [recipeKey] : [])] };
+    // A hidden recipe is no favourite, and the other way round.
+    if (on) next[other] = s.profile[other].filter((k) => k !== recipeKey);
+    await store.saveProfile(next);
+    return {};
   });
 }
 

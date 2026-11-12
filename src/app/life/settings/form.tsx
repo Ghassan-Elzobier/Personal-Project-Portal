@@ -19,8 +19,9 @@ const MISSING = [
   ["leg-press", "Leg press"],
   ["ham-curl", "Hamstring curl machine"],
   ["back-extension", "Back extension bench"],
-  ["rower", "Rower"],
-  ["bike", "Bike"],
+  ["leg-extension", "Leg extension machine"],
+  ["dip-station", "Dip station or captain's chair"],
+  ["ab-wheel", "Ab wheel"],
   ["pull-up-bar", "Pull-up bar"],
   ["cable", "Cable machine"],
 ] as const;
@@ -33,7 +34,7 @@ const mins = (v: string) => {
   return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 0;
 };
 
-export function SettingsForm({ profile, recipes }: { profile: LifeProfile; recipes: { key: string; name: string }[] }) {
+export function SettingsForm({ profile, recipes, allRecipes }: { profile: LifeProfile; recipes: { key: string; name: string }[]; allRecipes: { key: string; name: string }[] }) {
   const [p, setP] = useState<LifeProfile>(profile);
   const { pending, run } = useAction();
   const set = (fn: (d: LifeProfile) => void) =>
@@ -190,6 +191,18 @@ export function SettingsForm({ profile, recipes }: { profile: LifeProfile; recip
             </Pill>
           ))}
         </div>
+        {p.hidden.length > 0 && (
+          <>
+            <p className="field-label">Hidden from your menu (tap to bring back)</p>
+            <div className="flex flex-wrap gap-2">
+              {p.hidden.map((k) => (
+                <Pill key={k} on={false} onClick={() => set((d) => void (d.hidden = d.hidden.filter((x) => x !== k)))}>
+                  {allRecipes.find((r) => r.key === k)?.name ?? k} ✕
+                </Pill>
+              ))}
+            </div>
+          </>
+        )}
         <Field label="Hottest you'd like">
           <select className="field-input" value={p.spiceMax} onChange={(e) => set((d) => void (d.spiceMax = Number(e.target.value)))}>
             <option value={0}>No heat</option>
@@ -242,6 +255,13 @@ export function SettingsForm({ profile, recipes }: { profile: LifeProfile; recip
           </button>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Weekend dinners cooked fresh">
+            <select className="field-input" value={p.routine.weekendFresh} onChange={(e) => set((d) => void (d.routine.weekendFresh = Number(e.target.value)))}>
+              <option value={0}>None: batches all week</option>
+              <option value={1}>One (Saturday, or Sunday if Saturday is a cook day)</option>
+              <option value={2}>Both</option>
+            </select>
+          </Field>
           <Field label="Same lunch or dinner at most">
             <select className="field-input" value={p.routine.maxRepeat} onChange={(e) => set((d) => void (d.routine.maxRepeat = Number(e.target.value)))}>
               {[2, 3, 4, 5].map((n) => (

@@ -16,7 +16,8 @@ const strict: FoodRules = {
     { tag: "banana", level: "avoid" },
   ],
   mayContainOk: [],
-  dislikes: [],
+  // Not allergies: tangy soft dairy is written out of the library too.
+  dislikes: ["greek-yoghurt", "cream-cheese"],
   avoidTraits: ["strong"],
 };
 
@@ -34,6 +35,10 @@ test("every recipe passes the strict rules the library is written for", () => {
     assert.ok(v.ok, `${r.key}: ${v.blocked.map((b) => b.why).join("; ")}`);
     assert.deepEqual(v.disliked, [], r.key);
   }
+});
+
+test("no five-spice, sweet chilli or BBQ sauce: the library keeps sweet out of savoury", () => {
+  for (const r of RECIPES) for (const l of r.lines) assert.ok(!["five-spice", "sweet-chilli", "bbq-sauce", "pineapple"].includes(l.item), `${r.key}: ${l.item}`);
 });
 
 test("egg always says how it is used", () => {

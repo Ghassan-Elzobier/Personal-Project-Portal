@@ -13,6 +13,8 @@ export type ItemView = {
   cues: string[];
   back: string | null;
   weighted: boolean;
+  /** Bodyweight moves: the weight box is extra weight on a belt, empty for none. */
+  added: boolean;
   unit: "reps" | "s" | "m";
   step: number;
   rest: number;
@@ -246,9 +248,9 @@ function SetRow({ item, position, target, suggest, logged, onSave }: { item: Ite
             −
           </button>
           <label className="flex items-baseline gap-1">
-            <span className="sr-only">Weight in kg, set {position}</span>
-            <input inputMode="decimal" value={kg} onChange={(e) => setKg(e.target.value.replace(",", "."))} placeholder="kg" className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums" />
-            <span className="text-xs text-neutral-400">kg</span>
+            <span className="sr-only">{item.added ? "Added weight" : "Weight"} in kg, set {position}</span>
+            <input inputMode="decimal" value={kg} onChange={(e) => setKg(e.target.value.replace(",", "."))} placeholder={item.added ? "+0" : "kg"} className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums" />
+            <span className="text-xs text-neutral-400">{item.added ? "+kg" : "kg"}</span>
           </label>
           <button type="button" onClick={() => bump(step)} className="tap h-11 w-9 text-lg text-neutral-400" aria-label="More weight">
             +
