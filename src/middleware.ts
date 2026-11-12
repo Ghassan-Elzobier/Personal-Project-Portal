@@ -6,5 +6,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|manifest.webmanifest).*)"],
+  // exercises/ holds openly licensed drawings for the gym page: no session needed.
+  matcher: ["/((?!_next/static|_next/image|exercises/|favicon.ico|icon.svg|robots.txt|manifest.webmanifest).*)"],
 };

@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
 import { Stars } from "../kit";
@@ -12,6 +14,7 @@ export type ItemView = {
   perSide: boolean;
   cues: string[];
   back: string | null;
+  demo: Demo;
   weighted: boolean;
   /** Bodyweight moves: the weight box is extra weight on a belt, empty for none. */
   added: boolean;
@@ -185,7 +188,11 @@ function Exercise({ item, logged, onSave }: { item: ItemView; logged: Logged; on
         <p className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-neutral-400"}`}>{item.why}</p>
         {item.swappedFrom && <p className="text-xs text-neutral-500">In place of {item.swappedFrom}, which your gym lacks.</p>}
         {open && (
-          <div className="space-y-1 pt-1 text-sm text-neutral-300">
+          <div className="space-y-2 pt-1 text-sm text-neutral-300">
+            {item.demo.frames && <Movement frames={item.demo.frames} name={item.name} />}
+            <a href={item.demo.video} target="_blank" rel="noreferrer noopener" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white/5 px-4 text-sm text-mint ring-1 ring-mint/25 hover:bg-white/10">
+              <span aria-hidden>▶</span> Watch a short demo
+            </a>
             <ul className="list-disc space-y-0.5 pl-5">
               {item.cues.map((c) => (
                 <li key={c}>{c}</li>
@@ -228,6 +235,55 @@ function suggestKg(item: ItemView, position: number, logged: Logged): number | n
     return prev;
   }
   return null;
+}
+
+/**
+ * The movement as a two-frame loop: start, then end, then start. With reduced
+ * motion turned on, both frames sit side by side instead. The line drawings are
+ * inverted to white so they suit the dark page.
+ */
+function Movement({ frames, name }: { frames: [string, string]; name: string }) {
+  const [frame, setFrame] = useState(0);
+  const [still, setStill] = useState(false);
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setStill(reduce.matches);
+    if (reduce.matches) return;
+    const id = window.setInterval(() => setFrame((f) => 1 - f), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const picture = (src: string, label: string, shown: boolean) => (
+    <Image key={src} src={src} alt={label} fill unoptimized sizes="20rem" className={`object-contain p-2 invert transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`} />
+  );
+  return (
+    <figure className="space-y-1">
+      {still ? (
+        <div className="grid grid-cols-2 gap-2">
+          {frames.map((src, i) => (
+            <div key={src} className="relative aspect-square overflow-hidden rounded-xl bg-black">
+              {picture(src, `${name}, ${i === 0 ? "start" : "end"}`, true)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="relative mx-auto aspect-square w-full max-w-[16rem] overflow-hidden rounded-xl bg-black" role="img" aria-label={`${name}: the movement from start to end`}>
+          {picture(frames[0], "", frame === 0)}
+          {picture(frames[1], "", frame === 1)}
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-neutral-300">{frame === 0 ? "Start" : "End"}</span>
+        </div>
+      )}
+      <figcaption className="text-center text-[10px] text-neutral-500">
+        Drawing:{" "}
+        <a href={DRAWING_CREDIT.source} target="_blank" rel="noreferrer noopener" className="underline">
+          {DRAWING_CREDIT.by}
+        </a>
+        ,{" "}
+        <a href={DRAWING_CREDIT.licenseUrl} target="_blank" rel="noreferrer noopener" className="underline">
+          {DRAWING_CREDIT.license}
+        </a>
+      </figcaption>
+    </figure>
+  );
 }
 
 function SetRow({ item, position, target, suggest, logged, onSave }: { item: ItemView; position: number; target: { kg: number | null; reps: number }; suggest: number | null; logged?: Logged[string]; onSave: (item: ItemView, position: number, value: Logged[string] | null) => void }) {

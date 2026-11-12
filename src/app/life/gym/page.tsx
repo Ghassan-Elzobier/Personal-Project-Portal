@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/auth/access";
 import { addDays, weekdayIndex } from "@/lib/dates/week";
 import { BENCH_LIFTS, EXERCISE_MAP, PROGRAM, resolve, workout } from "@/lib/life/gym/program";
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target } from "@/lib/life/gym/progress";
+import { demoFor } from "@/lib/life/gym/media";
 import { loadLife } from "@/lib/life/load";
 import { isReturning } from "@/lib/life/state";
 import { ErrorNote } from "@/components/ui";
@@ -52,6 +53,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         perSide: Boolean(ex.perSide),
         cues: ex.cues,
         back: ex.back ?? null,
+        demo: demoFor(ex),
         weighted: ex.load !== "time" && ex.load !== "distance" && ex.load !== "ball" && !(ex.load === "bodyweight" && ex.step === 0),
         added: ex.load === "bodyweight",
         unit: p.scheme === "timed" ? (ex.load === "distance" || ex.key === "farmer-carry" ? "m" : "s") : "reps",

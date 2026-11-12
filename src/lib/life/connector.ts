@@ -1,6 +1,7 @@
 import "server-only";
 import { clock } from "../dates/week";
 import { resolve, workout } from "./gym/program";
+import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
 import { lifeToday, loadLife } from "./load";
 import type { Slot } from "./nutrition";
@@ -68,7 +69,7 @@ export const LIFE_TOOLS: Tool[] = [
                 b.items.map((p) => {
                   const ex = resolve(p.exercise, s.profile.gym.missing)!;
                   const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date));
-                  return { exercise: ex.key, name: ex.name, sets: t.sets, reps_in_reserve: t.rir, note: p.note, why: t.why };
+                  return { exercise: ex.key, name: ex.name, sets: t.sets, reps_in_reserve: t.rir, note: p.note, why: t.why, demo_video: demoFor(ex).video };
                 }),
               ),
             }
