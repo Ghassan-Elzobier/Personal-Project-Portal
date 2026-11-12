@@ -329,7 +329,7 @@ export function SettingsForm({ profile, recipes, allRecipes }: { profile: LifePr
       </Section>
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 md:bottom-4">
-        <button type="submit" disabled={pending} className="btn-life w-full shadow-2xl sm:w-auto">
+        <button type="submit" disabled={pending} aria-busy={pending} className="btn-life w-full shadow-2xl sm:w-auto">
           {pending ? "Saving…" : "Save settings"}
         </button>
       </div>

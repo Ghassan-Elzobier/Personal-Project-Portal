@@ -195,7 +195,7 @@ export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[];
         </p>
       )}
 
-      <button className="btn-primary w-full" disabled={pending || !taskGid}>
+      <button className="btn-primary w-full" disabled={pending || !taskGid} aria-busy={pending}>
         {pending ? "Saving…" : `Log ${hours || 0} h`}
       </button>
     </form>

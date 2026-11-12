@@ -102,7 +102,7 @@ export function BenchmarkForm({
         <input id="bench-notes" className={input} value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
       </div>
       <div className="sm:col-span-2 lg:col-span-4">
-        <button disabled={pending || !value} className="btn-primary px-4 py-1.5">{pending ? "Saving…" : "Save result"}</button>
+        <button disabled={pending || !value} aria-busy={pending} className="btn-primary px-4 py-1.5">{pending ? "Saving…" : "Save result"}</button>
       </div>
     </form>
   );
@@ -122,7 +122,7 @@ export function BenchmarkHistory({ rows }: { rows: BenchmarkRow[] }) {
               {r.notes && <span className="text-neutral-400"> ({r.notes})</span>}
             </span>
             <button
-              disabled={pending}
+              disabled={pending} aria-busy={pending}
               aria-label={`Delete result from ${r.created_at.slice(0, 10)}: ${r.metric}`}
               className="cursor-pointer text-xs text-neutral-400 hover:text-white"
               onClick={() =>

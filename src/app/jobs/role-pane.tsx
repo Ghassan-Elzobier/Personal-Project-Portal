@@ -149,7 +149,7 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
                 <button
                   key={option.value}
                   type="button"
-                  disabled={pending}
+                  disabled={pending} aria-busy={pending}
                   aria-pressed={interest === option.value}
                   onClick={() => {
                     const next = interest === option.value ? null : option.value;

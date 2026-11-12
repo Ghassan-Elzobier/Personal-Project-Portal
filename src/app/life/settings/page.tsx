@@ -10,8 +10,7 @@ export const metadata: Metadata = { title: "Life settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  await requireOwner();
-  const loaded = await loadLife();
+  const [, loaded] = await Promise.all([requireOwner(), loadLife()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">

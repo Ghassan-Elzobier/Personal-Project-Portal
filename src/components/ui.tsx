@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LinkPending } from "./link-pending";
 import { formatHours } from "@/lib/tasks/session-log";
 import { shortDate } from "@/lib/dates/week";
 
@@ -95,7 +94,7 @@ export function TaskLink({ href, className, children }: { href: string; classNam
   return href.startsWith("/") ? (
     <Link href={href} scroll={false} className={className}>
       {children}
-      <LinkPending />
+      
     </Link>
   ) : (
     <a href={href} target="_blank" rel="noreferrer" className={className}>

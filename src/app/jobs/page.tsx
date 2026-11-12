@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { requireOwner } from "@/lib/auth/access";
 import { usesAsana } from "@/lib/config/env";
 import { attempt } from "@/lib/portal/data";
-import { LinkPending } from "@/components/link-pending";
 import { Empty, ErrorNote, PageHeader } from "@/components/ui";
 import { loadJobBoard, mentorSummary } from "@/lib/jobs/load";
 import { postingDetail } from "@/lib/jobs/store";
@@ -63,7 +62,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             aria-current={view === tab.key ? "page" : undefined}
             className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${view === tab.key ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
           >
-            <LinkPending />
+            
             <span className="block text-sm font-semibold">{tab.title}</span>
             <span className="block text-xs text-neutral-300">{tab.blurb}</span>
           </Link>

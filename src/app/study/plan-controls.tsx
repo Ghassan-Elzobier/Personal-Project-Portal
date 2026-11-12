@@ -11,7 +11,7 @@ export function LoadPlanButton({ project, label, className = "btn-primary" }: { 
   const [pending, start] = useTransition();
   return (
     <button
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       className={className}
       onClick={() =>
         start(async () => {
@@ -29,7 +29,7 @@ export function LoadAllButton({ label, className = "btn-primary" }: { label: str
   const [pending, start] = useTransition();
   return (
     <button
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       className={className}
       onClick={() =>
         start(async () => {
@@ -93,7 +93,7 @@ export function RoadmapPaceForm({ hoursLeft, today, dated, remaining, defaultHou
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button disabled={pending || !valid} className="btn-ghost px-4 py-1.5">Set dates across all three</button>
+        <button disabled={pending || !valid} aria-busy={pending} className="btn-ghost px-4 py-1.5">Set dates across all three</button>
         {finish && <span className="text-neutral-300">About {weeks} weeks, to around {shortDate(finish)}.</span>}
       </div>
     </form>
@@ -126,7 +126,7 @@ export function PaceForm({ project, remaining, label, defaultPerWeek, today, dat
       <span className="text-neutral-300">{label} a week, from</span>
       <label htmlFor="pace-start" className="sr-only">Start date</label>
       <input id="pace-start" type="date" value={startOn} onChange={(e) => setStartOn(e.target.value)} className="min-h-9 rounded-md border border-white/10 bg-white/5 px-2" />
-      <button disabled={pending || !finish} className="btn-ghost px-4 py-1.5">Set dates</button>
+      <button disabled={pending || !finish} aria-busy={pending} className="btn-ghost px-4 py-1.5">Set dates</button>
       {finish && <span className="text-neutral-300">Finishes around {shortDate(finish)}.</span>}
     </form>
   );

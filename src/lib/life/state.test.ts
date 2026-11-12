@@ -68,3 +68,13 @@ test("effort counts the week so far", () => {
   assert.equal(e.eat.eaten, 1);
   assert.ok(e.eat.planned >= 3);
 });
+
+test("across the changeover, tomorrow's routine comes from next week's plan", () => {
+  const next: WeekPlan = { ...plan0, start: "2026-11-22", createdOn: "2026-11-20", cooks: [{ id: "n1", recipe: "lasagne", date: "2026-11-22", start: 990, portions: 0, scale: 1 }] };
+  const s = buildState(raw({ plans: [...raw().plans, { start: "2026-11-22", data: { ...next, cooks: sizeCooks(next, profile.routine as never, 2700) } }] }), "2026-11-21");
+  assert.equal(s.next.start, "2026-11-22");
+  assert.ok(s.next.plan);
+  const sunday = routineFor(s, "2026-11-22");
+  assert.ok(sunday.some((i) => i.kind === "cook" && i.title.includes("Beef lasagne")));
+  assert.ok(remainingNeeds(s, s.next).some((n) => n.uses.includes("Beef lasagne")));
+});

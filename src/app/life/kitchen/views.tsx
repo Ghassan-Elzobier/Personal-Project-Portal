@@ -239,7 +239,7 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
       </div>
       <button
         type="button"
-        disabled={pending || have.size === 0}
+        disabled={pending || have.size === 0} aria-busy={pending}
         onClick={() => void run(() => setStock([...have].map((item) => ({ item, status: "have" as const })), "set"), "Taken off the list.")}
         className="btn-life"
       >
@@ -280,7 +280,7 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
       </ul>
       <button
         type="button"
-        disabled={busy}
+        disabled={busy} aria-busy={busy}
         onClick={async () => {
           setBusy(true);
           await onConfirm([...got]);
@@ -403,7 +403,7 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
         </fieldset>
       )}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={pending} className="btn-life">
+        <button type="submit" disabled={pending} aria-busy={pending} className="btn-life">
           Save product
         </button>
         {p && (
@@ -541,7 +541,7 @@ export function FridgeView({
               <span className="field-label">Portions</span>
               <input className="field-input" inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} />
             </label>
-            <button type="submit" disabled={pending} className="btn-life">
+            <button type="submit" disabled={pending} aria-busy={pending} className="btn-life">
               Add
             </button>
           </form>
@@ -617,7 +617,7 @@ function StapleToggle({ item, status }: { item: string; status: "have" | "low" |
         <button
           key={s}
           type="button"
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           aria-pressed={status === s}
           onClick={() => void run(() => setStock([{ item, status: s }], "set"))}
           className={`min-h-9 rounded-lg px-2.5 text-xs ${status === s ? (s === "have" ? "bg-mint text-primary" : s === "low" ? "bg-sand text-primary" : "bg-coral text-white") : "bg-white/5 text-neutral-400"}`}
@@ -646,10 +646,10 @@ function StockForm({ row, onDone }: { row: { item: string; unit: Unit; qty: numb
         <input className="field-input text-lg" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
       </label>
       <div className="flex gap-2">
-        <button type="submit" disabled={pending} className="btn-life">
+        <button type="submit" disabled={pending} aria-busy={pending} className="btn-life">
           Save
         </button>
-        <button type="button" disabled={pending} onClick={async () => (await run(() => setStock([{ item: row.item, qty: 0, good_until: null }], "set"), "Marked as used up.")) && onDone()} className="btn-soft">
+        <button type="button" disabled={pending} aria-busy={pending} onClick={async () => (await run(() => setStock([{ item: row.item, qty: 0, good_until: null }], "set"), "Marked as used up.")) && onDone()} className="btn-soft">
           Used it up
         </button>
       </div>

@@ -11,7 +11,6 @@ import { loadStudy, panelFor, type PlanProgress, type StudyOverview, type UnitRo
 import { listComments } from "@/lib/tasks/native";
 import { bookHref } from "@/lib/library/links";
 import { formatHours } from "@/lib/tasks/session-log";
-import { LinkPending } from "@/components/link-pending";
 import { StartSessionButton } from "@/components/session-timer";
 import { DueDate, Empty, PageHeader, SectionTitle, StagePill } from "@/components/ui";
 import { TaskPane } from "../tasks/task-pane";
@@ -102,7 +101,7 @@ function PlanTab({ progress, active }: { progress: PlanProgress; active: boolean
       aria-current={active ? "page" : undefined}
       className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
     >
-      <LinkPending />
+      
       <span className="block text-sm font-semibold">{projectDef(plan.project).title}</span>
       {loaded ? (
         <>
@@ -256,7 +255,7 @@ function NextUp({ row, href, today, plan, market }: { row: UnitRow; href: (next:
         <p className="eyebrow">Next up</p>
         <Link href={href({ task: task.gid })} scroll={false} className="text-lg font-semibold hover:underline">
           {task.name}
-          <LinkPending />
+          
         </Link>
       </div>
       {task.notes && <p className="line-clamp-3 max-w-3xl text-sm text-neutral-300">{task.notes}</p>}
@@ -302,7 +301,7 @@ function UnitRowView({ row, href, today, plan }: { row: UnitRow; href: (next: Se
           {task.milestone && <span className="mr-1 text-lavender" title="Milestone">◆</span>}
           {task.name}
           {task.completed && <span className="sr-only"> (done)</span>}
-          <LinkPending />
+          
         </Link>
         {unit.optional && <span className="ml-2 text-xs text-neutral-400">optional</span>}
         {unfinished.length > 0 && !task.completed && (

@@ -23,7 +23,7 @@ export function RateRecipe({ recipe, stars, note, favourite, hidden }: { recipe:
         <button
           type="button"
           aria-pressed={fav}
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           onClick={() => {
             const on = !fav;
             setFav(on);
@@ -37,7 +37,7 @@ export function RateRecipe({ recipe, stars, note, favourite, hidden }: { recipe:
         <button
           type="button"
           aria-pressed={off}
-          disabled={pending}
+          disabled={pending} aria-busy={pending}
           onClick={() => {
             const on = !off;
             setOff(on);

@@ -43,7 +43,7 @@ export function GrantForm() {
       </fieldset>
       {state.error && <p className="text-sm text-coral">{state.error}</p>}
       {state.ok && <p className="text-sm text-mint">{state.ok}</p>}
-      <button className="btn-primary" disabled={pending}>
+      <button className="btn-primary" disabled={pending} aria-busy={pending}>
         {pending ? "Saving…" : "Save mentor"}
       </button>
     </form>

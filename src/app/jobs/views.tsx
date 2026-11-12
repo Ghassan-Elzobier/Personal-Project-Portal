@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LinkPending } from "@/components/link-pending";
 import { Empty, SectionTitle } from "@/components/ui";
 import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
@@ -43,7 +42,7 @@ function RoleRow({ role, filters }: { role: RoleView; filters: Filters }) {
       <div className="min-w-56 flex-1">
         <Link href={query(filters, { role: role.gid })} prefetch={false} scroll={false} className="font-medium hover:underline">
           {role.title}
-          <LinkPending />
+          
         </Link>
         {role.fresh && <span className="ml-2 text-xs text-aqua">New to you</span>}
         <p className="text-xs text-neutral-400">
@@ -71,7 +70,7 @@ function Pick({ href, active, children }: { href: string; active: boolean; child
   return (
     <Link href={href} scroll={false} aria-current={active ? "true" : undefined} className={`rounded-full px-3 py-1 text-xs ring-1 transition hover:ring-white/30 ${active ? "bg-lavender/20 text-white ring-lavender/50" : "bg-white/5 text-neutral-300 ring-white/10"}`}>
       {children}
-      <LinkPending />
+      
     </Link>
   );
 }
@@ -339,7 +338,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
           <ul className="divide-y divide-white/5 text-sm">
             {actions.map((r) => (
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
-                <Link href={link(r)} scroll={false} className="hover:underline">{r.next_action}<span className="text-neutral-400"> for {r.title}, {r.company}</span><LinkPending /></Link>
+                <Link href={link(r)} scroll={false} className="hover:underline">{r.next_action}<span className="text-neutral-400"> for {r.title}, {r.company}</span></Link>
                 {r.next_action_on && <span className={r.next_action_on < board.today ? "text-coral" : r.next_action_on === board.today ? "text-sand" : "text-neutral-400"}>{shortDate(r.next_action_on)}</span>}
               </li>
             ))}
@@ -359,7 +358,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
                     <li key={r.gid}>
                       <Link href={link(r)} scroll={false} className="block hover:underline">
                         {r.title}
-                        <LinkPending />
+                        
                       </Link>
                       <span className="text-xs text-neutral-400">{r.company}{r.closed_at ? ", no longer listed" : ""}</span>
                     </li>
@@ -389,7 +388,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                 <span className="min-w-56 flex-1">
                   <span className="mr-2 inline-block w-5 text-right text-neutral-400 tabular-nums">{r.legacy_rating}</span>
-                  <Link href={link(r)} scroll={false} className="hover:underline">{r.title}<LinkPending /></Link>
+                  <Link href={link(r)} scroll={false} className="hover:underline">{r.title}</Link>
                   <span className="text-neutral-400">, {r.company}</span>
                 </span>
                 <span className="text-xs text-neutral-400">{r.closed_at ? "No longer listed" : r.has_body ? BANDS[r.fit.band].name : "No advert on file"}</span>

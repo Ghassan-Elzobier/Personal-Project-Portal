@@ -135,3 +135,55 @@ dialog.sheet::backdrop {
   background: rgb(3 4 18 / 0.7);
   backdrop-filter: blur(4px);
 }
+
+/* The navigation bar creeps towards the end while a page loads. */
+@keyframes nav-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 88%;
+  }
+}
+.nav-progress {
+  animation: nav-progress 6s cubic-bezier(0.08, 0.82, 0.17, 1) forwards;
+}
+
+/* Every button answers a tap straight away, and a busy one says so. */
+@layer base {
+  button:not(:disabled):active,
+  a.btn:active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.97);
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  [aria-busy="true"] {
+    cursor: progress;
+  }
+  button[aria-busy="true"]::after {
+    content: "";
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-left: 0.5em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    vertical-align: -0.12em;
+    animation: busy-spin 0.6s linear infinite;
+  }
+}
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress {
+    width: 88%;
+    animation: none;
+  }
+}

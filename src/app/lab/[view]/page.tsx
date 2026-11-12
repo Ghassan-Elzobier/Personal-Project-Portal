@@ -7,7 +7,6 @@ import { bookHref } from "@/lib/library/links";
 import { attempt } from "@/lib/portal/data";
 import { findUnit } from "@/lib/study/plans";
 import { loadStudy } from "@/lib/study/load";
-import { LinkPending } from "@/components/link-pending";
 import { PageHeader } from "@/components/ui";
 import { Legend } from "../kit";
 import { BookLinks, CodeLinks, DriftBanner, FindingCard, SourceChip } from "../shared";
@@ -171,7 +170,7 @@ if (subgroupElect()) {
               <ul className="space-y-1 text-sm">
                 {units.map((u) => (
                   <li key={u.ref}>
-                    <Link href={u.href} className="hover:underline">{u.name}{u.done ? " ✓" : ""}<LinkPending /></Link>
+                    <Link href={u.href} className="hover:underline">{u.name}{u.done ? " ✓" : ""}</Link>
                   </li>
                 ))}
               </ul>
@@ -216,8 +215,8 @@ if (subgroupElect()) {
       </section>
 
       <nav aria-label="Views" className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-4 text-sm">
-        {prev ? <Link href={`/lab/${prev.id}`} className="hover:text-white text-neutral-300">← {prev.title}<LinkPending /></Link> : <Link href="/lab" className="text-neutral-300 hover:text-white">← All views</Link>}
-        {next ? <Link href={`/lab/${next.id}`} className="text-neutral-300 hover:text-white">{next.title} →<LinkPending /></Link> : <Link href={bookHref.search("warp divergence")} className="text-neutral-300 hover:text-white">Search the book →</Link>}
+        {prev ? <Link href={`/lab/${prev.id}`} className="hover:text-white text-neutral-300">← {prev.title}</Link> : <Link href="/lab" className="text-neutral-300 hover:text-white">← All views</Link>}
+        {next ? <Link href={`/lab/${next.id}`} className="text-neutral-300 hover:text-white">{next.title} →</Link> : <Link href={bookHref.search("warp divergence")} className="text-neutral-300 hover:text-white">Search the book →</Link>}
       </nav>
     </div>
   );

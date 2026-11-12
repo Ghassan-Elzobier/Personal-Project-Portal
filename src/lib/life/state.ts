@@ -52,6 +52,9 @@ export type LifeRaw = {
 
 export type { Tag, Unit };
 
+/** One meal week: its plan (if made), every meal placed, and the reminders. */
+export type WeekView = { start: string; plan: WeekPlan | null; placements: Placement[]; reminders: Reminder[] };
+
 export type LifeState = LifeRaw & {
   today: string;
   profile: LifeProfile;
@@ -69,6 +72,8 @@ export type LifeState = LifeRaw & {
   reminders: Reminder[];
   /** Batches with portions left. */
   open: Batch[];
+  /** The meal week after this one, so it can be planned and shopped for ahead. */
+  next: WeekView;
 };
 
 /** Batches the planner can draw on besides the plan's own cooks. */
@@ -91,7 +96,11 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   const weekStart = mealWeekStart(today, profile.routine.cooks[0]?.weekday ?? 6);
   const plan = raw.plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
-  const placements = plan ? withCooked(assign(plan, plannerRoutine(profile), openForPlan(raw.batches, plan).map(toStock), kcal), raw.batches, plan) : [];
+  const place = (p: WeekPlan | null) => (p ? withCooked(assign(p, plannerRoutine(profile), openForPlan(raw.batches, p).map(toStock), kcal), raw.batches, p) : []);
+  const placements = place(plan);
+  const nextStart = addDays(weekStart, 7);
+  const nextPlan = raw.plans.find((p) => p.start === nextStart)?.data ?? null;
+  const nextPlacements = place(nextPlan);
   const eaten = eatenShare(raw.meals, today);
   const adjustment = setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
   return {
@@ -109,7 +118,18 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
     placements,
     reminders: plan ? reminders(plan, placements) : [],
     open,
+    next: { start: nextStart, plan: nextPlan, placements: nextPlacements, reminders: nextPlan ? reminders(nextPlan, nextPlacements) : [] },
   };
+}
+
+/** This meal week, or the next one. */
+export function weekView(s: LifeState, which: "this" | "next"): WeekView {
+  return which === "next" ? s.next : { start: s.weekStart, plan: s.plan, placements: s.placements, reminders: s.reminders };
+}
+
+/** The meal week a date belongs to, for Today and the Schedule across the changeover. */
+export function viewOn(s: LifeState, date: string): WeekView {
+  return weekView(s, date >= s.next.start ? "next" : "this");
 }
 
 const toStock = (b: Batch) => ({ gid: b.gid, recipe: b.recipe, cookedOn: b.cookedOn, left: b.remaining, location: b.location, scale: b.scale });
@@ -158,9 +178,10 @@ export type RoutineItem = {
 
 export function routineFor(s: LifeState, date: string): RoutineItem[] {
   const items: RoutineItem[] = [];
+  const v = viewOn(s, date);
   const weighed = s.weights.some((w) => w.day === date);
   items.push({ key: "weigh", time: s.profile.routine.breakfast - 10, kind: "weigh", title: "Weigh in", detail: weighed ? `${s.weights.find((w) => w.day === date)!.kg} kg` : "After the loo, before food", done: weighed, href: "/life/body" });
-  for (const p of s.placements.filter((x) => x.date === date)) {
+  for (const p of v.placements.filter((x) => x.date === date)) {
     const r = p.recipe ? recipe(p.recipe) : undefined;
     const log = s.meals.find((m) => m.day === date && m.slot === p.slot);
     const label = p.slot === "shake" ? "Shake" : p.slot.charAt(0).toUpperCase() + p.slot.slice(1);
@@ -174,13 +195,13 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
     const w = workout(key);
     items.push({ key: "gym", time: s.profile.gym.start, kind: "gym", title: `Gym: ${w ? `${w.key}, ${w.name}` : key}`, detail: session?.finished ? "Done" : `${s.profile.gym.minutes} minutes`, done: Boolean(session?.finished), href: "/life/gym", workout: key });
   }
-  for (const c of s.plan?.cooks.filter((x) => x.date === date) ?? []) {
+  for (const c of v.plan?.cooks.filter((x) => x.date === date) ?? []) {
     const r = recipe(c.recipe);
     if (!r) continue;
-    const done = s.batches.some((b) => b.planStart === s.plan!.start && b.cookId === c.id);
+    const done = s.batches.some((b) => b.planStart === v.start && b.cookId === c.id);
     items.push({ key: `cook-${c.id}`, time: c.start, kind: "cook", title: `Cook ${r.name}`, detail: `${c.portions} portions · ${r.totalMin} min`, done, href: "/life/kitchen?tab=fridge", cookId: c.id });
   }
-  for (const r of s.reminders.filter((x) => x.date === date && (x.kind === "defrost" || x.kind === "freeze"))) {
+  for (const r of v.reminders.filter((x) => x.date === date && (x.kind === "defrost" || x.kind === "freeze"))) {
     items.push({ key: `${r.kind}-${r.time}-${r.text}`, time: r.time, kind: r.kind, title: r.kind === "defrost" ? "Defrost" : "Freeze", detail: r.text, done: false, href: "/life/kitchen?tab=fridge" });
   }
   return items.sort((a, b) => a.time - b.time || order(a.kind) - order(b.kind));
@@ -235,12 +256,12 @@ export function unlogged(s: LifeState, before: string): Placement[] {
   return s.placements.filter((p) => p.date >= from && p.date < before && p.recipe && p.source !== "out" && !s.meals.some((m) => m.day === p.date && m.slot === p.slot));
 }
 
-/** What this week's food still needs: cooks not done yet and meals still to come. */
-export function remainingNeeds(s: LifeState): Need[] {
-  if (!s.plan) return [];
-  const cooked = new Set(s.batches.filter((b) => b.planStart === s.plan!.start && b.cookId).map((b) => b.cookId!));
+/** What a week's food still needs: cooks not done yet and meals still to come. */
+export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")): Need[] {
+  if (!v.plan) return [];
+  const cooked = new Set(s.batches.filter((b) => b.planStart === v.start && b.cookId).map((b) => b.cookId!));
   const eaten = new Set(s.meals.filter((m) => m.status !== "skipped").map((m) => `${m.day}:${m.slot}`));
-  return weekNeeds(s.plan, s.placements, { cooked, eaten, from: s.today });
+  return weekNeeds(v.plan, v.placements, { cooked, eaten, from: s.today });
 }
 
 /** kcal and protein of one placed portion. */
@@ -261,7 +282,7 @@ const portionCache = new Map<string, { kcal: number; protein: number }>();
 export function dayTotals(s: LifeState, date: string): { kcal: number; protein: number; target: number } {
   let kcal = 0;
   let protein = 0;
-  for (const p of s.placements.filter((x) => x.date === date)) {
+  for (const p of viewOn(s, date).placements.filter((x) => x.date === date)) {
     const m = placedMacros(p);
     if (m) {
       kcal += m.kcal;
