@@ -198,7 +198,7 @@ function Contents({ outline }: { outline: Outline }) {
                 <span className="tabular-nums">p. {c.first_page}</span>
               </span>
             </summary>
-            <ul className="mt-2 grid gap-x-6 gap-y-1 pl-4 text-sm sm:grid-cols-2">
+            <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 pl-4 text-sm sm:grid-cols-2">
               {c.sections.map((s) => (
                 <li key={s.number}>
                   <Link href={bookHref.page(s.first_page)} className="text-neutral-300 hover:text-white">

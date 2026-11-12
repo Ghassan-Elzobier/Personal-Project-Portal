@@ -83,7 +83,7 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
             <p className="subtext">The model predicts how many lanes are still working on each trip. The divergence milestone measures it on the GPU. Where they differ is the interesting part.</p>
           </div>
           <MeasuredVsModel results={results} />
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-3 text-sm text-neutral-300">
               <h3 className="font-semibold text-white">How to measure it</h3>
               <p>Count, at the top of each trip through the bounce loop, how many lanes are still in it. After the timed frames, print one line:</p>
@@ -116,7 +116,7 @@ if (subgroupElect()) {
         </section>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-labelledby="steps-title" className="space-y-3">
           <h2 id="steps-title" className="text-xl font-semibold">What happens</h2>
           <ol className="space-y-3">
@@ -196,7 +196,7 @@ if (subgroupElect()) {
       {view.findings && view.findings.length > 0 && (
         <section aria-labelledby="findings-title" className="space-y-3">
           <h2 id="findings-title" className="text-xl font-semibold">Found in this part</h2>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {view.findings.map((f) => <FindingCard key={f.title} finding={f} />)}
           </div>
         </section>

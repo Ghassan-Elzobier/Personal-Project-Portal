@@ -124,7 +124,7 @@ function PhaseCard({ phase: p, count, market }: { phase: RoadmapPhase; count: nu
       <div className="mt-3 space-y-4">
         <p className="max-w-3xl text-sm text-neutral-300">{p.phase.why}</p>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {p.tracks.map((t) => (
             <div key={t.project}>
               <h4 className="mb-1 text-sm font-semibold">{t.title}</h4>

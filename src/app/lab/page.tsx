@@ -47,7 +47,7 @@ export default async function LabPage() {
             <h2 id={`title-${part.id}`} className="text-xl font-semibold">{part.title}</h2>
             <p className="subtext">{part.blurb}</p>
           </div>
-          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {VIEWS.filter((v) => v.part === part.id).map((v) => {
               const bugs = (v.findings ?? []).filter((f) => f.kind === "bug").length;
               const checks = (v.findings ?? []).filter((f) => f.kind === "check").length;
@@ -79,7 +79,7 @@ export default async function LabPage() {
         <p className="max-w-3xl text-sm text-neutral-400">
           Drawing each part meant reading it closely. These are what turned up, worst first. The bug was confirmed with the validation layer; the rest come from the code and the model.
         </p>
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {findings.filter((f) => f.kind !== "note").map((f) => (
             <FindingCard key={f.title} finding={f} view={{ id: f.view, title: f.viewTitle }} />
           ))}

@@ -1,0 +1,404 @@
+import "server-only";
+import { revalidatePath } from "next/cache";
+import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
+import { loadLife } from "./load";
+import type { Slot } from "./nutrition";
+import { parseProfile, type LifeProfile } from "./profile";
+import { cookScale, sizeCooks, type WeekPlan } from "./planner";
+import { recipe } from "./recipes";
+import { buildList, cookUse, delivery, weekNeeds, type Product } from "./shopping";
+import { placedMacros, remainingNeeds, unlogged, type LifeState } from "./state";
+import * as store from "./store";
+import { suggestWeek } from "./suggest";
+import type { Tag } from "./allergens";
+import { addDays, weekdayIndex } from "../dates/week";
+import { addLifeBlock } from "../portal/operations";
+import { loadScheduleWeek, resolveWeek, type Block } from "../portal/schedule";
+import { workout } from "./gym/program";
+import { nextWorkout } from "./gym/progress";
+
+// Every change Life makes, shared by the pages' actions and the Claude connector.
+// Each returns { error } with a message for people instead of throwing.
+
+export type Result<T = object> = ({ error?: undefined } & T) | { error: string };
+
+function refresh() {
+  for (const p of ["/", "/life", "/life/gym", "/life/kitchen", "/life/body", "/life/recipes", "/life/settings", "/schedule"]) revalidatePath(p);
+}
+
+async function run<T extends object>(fn: () => Promise<T>): Promise<Result<T>> {
+  try {
+    const out = await fn();
+    refresh();
+    return out;
+  } catch (e) {
+    return { error: e instanceof store.LifeError ? e.message : e instanceof Error && e.message.startsWith("Life: ") ? e.message.slice(6) : "That didn't save. Try again." };
+  }
+}
+
+async function state(): Promise<LifeState> {
+  const loaded = await loadLife();
+  if (loaded.error !== undefined) throw new Error(`Life: ${loaded.error}`);
+  return loaded.state;
+}
+
+const fail = (message: string): never => {
+  throw new Error(`Life: ${message}`);
+};
+
+// ---------------------------------------------------------------- profile
+
+export function saveProfile(profile: LifeProfile): Promise<Result> {
+  return run(async () => {
+    await store.saveProfile(parseProfile(profile));
+    return {};
+  });
+}
+
+export function logWeight(day: string, kg: number | null): Promise<Result> {
+  return run(async () => {
+    if (kg !== null && !(kg >= 30 && kg <= 250)) fail("Enter a weight in kg.");
+    await store.logWeight(day, kg);
+    // The first weigh-in starts the clock on the adaptive target.
+    const s = await state();
+    if (kg !== null && !s.profile.goal.startedOn) await store.saveProfile({ ...s.profile, goal: { ...s.profile.goal, startedOn: day } });
+    return {};
+  });
+}
+
+/** Takes the weekly suggestion: the new target is today's plus the change. */
+export function applyAdjustment(): Promise<Result<{ kcal: number }>> {
+  return run(async () => {
+    const s = await state();
+    const change = s.adjustment?.change ?? 0;
+    if (!change) fail("There is no change to apply this week.");
+    const kcal = s.kcal + change;
+    await store.saveProfile({ ...s.profile, goal: { ...s.profile.goal, kcalOverride: kcal } });
+    return { kcal };
+  });
+}
+
+// ---------------------------------------------------------------- plans
+
+async function savePlan(s: LifeState, plan: WeekPlan) {
+  const sized = { ...plan, cooks: sizeCooks(plan, s.profile.routine, s.kcal) };
+  await store.savePlan(plan.start, sized);
+  return sized;
+}
+
+/** Fills the week from the menu in one go. Replaces any plan not yet cooked from. */
+export function planWeek(start?: string): Promise<Result<{ start: string }>> {
+  return run(async () => {
+    const s = await state();
+    const week = start ?? s.weekStart;
+    const existing = s.plans.find((p) => p.start === week)?.data;
+    if (existing && s.batches.some((b) => b.planStart === week)) fail("You've cooked from this week already. Swap recipes one at a time instead.");
+    const spare = Object.fromEntries(s.stock.filter((x) => x.qty > 0).map((x) => [x.item, x.qty]));
+    const plan = suggestWeek(s.profile, week, s.ratings, s.lastHad, spare, s.today);
+    if (!plan.cooks.length) fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
+    await savePlan(s, { ...plan, shop: existing?.shop, createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today });
+    return { start: week };
+  });
+}
+
+async function editPlan(start: string, edit: (plan: WeekPlan, s: LifeState) => WeekPlan | void): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    if (!plan) fail("Plan the week first.");
+    const next = edit(structuredClone(plan!), s) ?? plan!;
+    await savePlan(s, next);
+    return {};
+  });
+}
+
+export function swapCook(start: string, cookId: string, recipeKey: string): Promise<Result> {
+  return editPlan(start, (plan, s) => {
+    const c = plan.cooks.find((x) => x.id === cookId);
+    const r = recipe(recipeKey);
+    if (!c || !r) fail("That recipe or cook is not in the plan.");
+    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId)) fail("That one is cooked already.");
+    if (recipe(c!.recipe)?.meal !== r!.meal) fail("Swap a main for a main and a breakfast for a breakfast.");
+    c!.recipe = recipeKey;
+    c!.portions = 0;
+  });
+}
+
+export function addCook(start: string, recipeKey: string, date: string, minutes: number): Promise<Result> {
+  return editPlan(start, (plan) => {
+    const r = recipe(recipeKey);
+    if (!r) fail("Unknown recipe.");
+    plan.cooks.push({ id: `${date}-${recipeKey}-${Date.now() % 100000}`, recipe: recipeKey, date, start: minutes, portions: 0, scale: 1 });
+  });
+}
+
+export function removeCook(start: string, cookId: string): Promise<Result> {
+  return editPlan(start, (plan, s) => {
+    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId)) fail("That one is cooked already: undo the cook in the Kitchen first.");
+    plan.cooks = plan.cooks.filter((c) => c.id !== cookId);
+  });
+}
+
+export function setDaily(start: string, slot: "breakfast" | "shake", recipeKey: string): Promise<Result> {
+  return editPlan(start, (plan) => {
+    if (!recipe(recipeKey)) fail("Unknown recipe.");
+    plan[slot] = recipeKey;
+  });
+}
+
+export function setOut(start: string, id: string, out: boolean): Promise<Result> {
+  return editPlan(start, (plan) => {
+    plan.out = out ? [...new Set([...plan.out, id])] : plan.out.filter((x) => x !== id);
+    plan.fresh = plan.fresh.filter((f) => `${f.date}:${f.slot}` !== id);
+  });
+}
+
+export function setFresh(start: string, date: string, slot: Slot, recipeKey: string | null): Promise<Result> {
+  return editPlan(start, (plan) => {
+    plan.fresh = plan.fresh.filter((f) => !(f.date === date && f.slot === slot));
+    plan.out = plan.out.filter((x) => x !== `${date}:${slot}`);
+    if (recipeKey) {
+      if (!recipe(recipeKey)) fail("Unknown recipe.");
+      plan.fresh.push({ date, slot, recipe: recipeKey });
+    }
+  });
+}
+
+// ---------------------------------------------------------------- eating
+
+/** Logs a planned meal as eaten or skipped, taking the portion from its batch. */
+export function logMeal(day: string, slot: Slot, status: "eaten" | "skipped" | null): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const p = s.placements.find((x) => x.date === day && x.slot === slot);
+    const m = p ? placedMacros(p) : null;
+    // Meals made on the spot (breakfasts, shakes, fresh dinners) use the cupboard as they are eaten.
+    const before = s.meals.find((x) => x.day === day && x.slot === slot)?.status;
+    const r = p?.recipe ? recipe(p.recipe) : undefined;
+    if (r && p && (p.source === "daily" || p.source === "fresh")) {
+      const was = before === "eaten";
+      const now = status === "eaten";
+      if (was !== now) await store.changeStock(cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })), "add");
+    }
+    await store.logMeal({
+      day,
+      slot,
+      status,
+      recipe: p?.recipe ?? null,
+      batch: status === "eaten" ? (p?.batchGid ?? null) : null,
+      kcal: status === "eaten" ? (m?.kcal ?? null) : null,
+      protein: status === "eaten" ? (m?.protein ?? null) : null,
+    });
+    return {};
+  });
+}
+
+/** Every planned meal before today with nothing logged, as eaten. */
+export function logPastAsEaten(): Promise<Result<{ count: number }>> {
+  return run(async () => {
+    const s = await state();
+    const todo = unlogged(s, s.today);
+    for (const p of todo) {
+      const m = placedMacros(p);
+      await store.logMeal({ day: p.date, slot: p.slot, status: "eaten", recipe: p.recipe, batch: p.batchGid ?? null, kcal: m?.kcal ?? null, protein: m?.protein ?? null });
+    }
+    return { count: todo.length };
+  });
+}
+
+export function rate(recipeKey: string, stars: number | null, note?: string): Promise<Result> {
+  return run(async () => {
+    if (!recipe(recipeKey)) fail("Unknown recipe.");
+    if (stars !== null && !(stars >= 1 && stars <= 5)) fail("Stars go from 1 to 5.");
+    await store.rate(recipeKey, stars, note);
+    return {};
+  });
+}
+
+// ---------------------------------------------------------------- kitchen
+
+/** Logs a planned cook: portions into the fridge (the later ones into the freezer), ingredients out of stock. */
+export function cookPlanned(start: string, cookId: string): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    const c = plan?.cooks.find((x) => x.id === cookId);
+    const r = c ? recipe(c.recipe) : undefined;
+    if (!plan || !c || !r) fail("That cook is not in the plan.");
+    const placed = s.plan?.start === start ? s.placements.filter((p) => p.cookId === cookId) : [];
+    const frozen = placed.filter((p) => p.storage === "freezer").length;
+    // Portions nobody is down to eat this week go in the freezer if they can.
+    const spare = Math.max(0, c!.portions - placed.length);
+    const freeze = frozen + (r!.keeps.freezes ? spare : 0);
+    await store.cook({ recipe: r!.key, day: s.today < c!.date ? s.today : c!.date, portions: c!.portions, scale: c!.scale, freeze, used: cookUse(r!, c!.portions, c!.scale), planStart: start, cookId });
+    return {};
+  });
+}
+
+/** Cooks something off-plan, for food made on a whim. */
+export function cookExtra(recipeKey: string, portions: number): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const r = recipe(recipeKey);
+    if (!r) fail("Unknown recipe.");
+    if (!(portions >= 1 && portions <= 20)) fail("Between 1 and 20 portions.");
+    const scale = cookScale(r!, s.kcal);
+    await store.cook({ recipe: r!.key, day: s.today, portions, scale, freeze: 0, used: cookUse(r!, portions, scale) });
+    return {};
+  });
+}
+
+export function uncook(batch: string): Promise<Result> {
+  return run(async () => {
+    await store.uncook(batch);
+    return {};
+  });
+}
+
+export function setBatch(batch: string, remaining: number | null, location: "fridge" | "freezer" | null): Promise<Result> {
+  return run(async () => {
+    await store.setBatch(batch, remaining, location);
+    return {};
+  });
+}
+
+export function setStock(changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[], mode: "add" | "set"): Promise<Result> {
+  return run(async () => {
+    for (const c of changes) if (!INGREDIENTS.has(c.item)) fail(`Unknown ingredient ${c.item}.`);
+    await store.changeStock(changes, mode);
+    return {};
+  });
+}
+
+export function markOrdered(start: string, ordered: boolean): Promise<Result> {
+  return editPlan(start, (plan, s) => {
+    plan.shop = { ...plan.shop, orderedOn: ordered ? s.today : undefined };
+  });
+}
+
+/** The delivery came: what arrived goes into stock, fresh food with its use-by. */
+export function confirmDelivery(start: string, got: string[]): Promise<Result<{ added: number }>> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    if (!plan) fail("Plan the week first.");
+    if (plan!.shop?.deliveredOn) fail("This week's delivery is already in.");
+    const needs = s.plan?.start === start ? remainingNeeds(s) : weekNeeds(plan!, []);
+    const lines = buildList(needs, s.stock, s.products, s.profile.food, s.today);
+    const changes = delivery(lines, got, s.today);
+    if (changes.length) await store.changeStock(changes.map((c) => ({ item: c.item, qty: c.add, ...(c.status ? { status: c.status } : {}), ...(c.goodUntil ? { good_until: c.goodUntil } : {}) })), "add");
+    const added = changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add }));
+    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: s.today, got, added } });
+    return { added: changes.length };
+  });
+}
+
+export function undoDelivery(start: string): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    if (!plan?.shop?.deliveredOn) fail("No delivery to undo.");
+    const back = plan!.shop!.added ?? [];
+    if (back.length) await store.changeStock(back.map((c) => ({ item: c.item, qty: -c.qty })), "add");
+    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined } });
+    return {};
+  });
+}
+
+export function saveProduct(input: { item: string; url: string; name: string; packQty: number; packUnit: Unit; pence: number | null; checked: Tag[] }): Promise<Result> {
+  return run(async () => {
+    if (!INGREDIENTS.has(input.item)) fail("Unknown ingredient.");
+    const url = input.url.trim().split("?")[0];
+    if (!isSainsburysProduct(url)) fail("Paste a Sainsbury's product link (sainsburys.co.uk/gol-ui/product/…).");
+    if (!(input.packQty > 0)) fail("Give the pack size.");
+    const product: Product = { item: input.item, url, name: input.name.trim() || INGREDIENTS.get(input.item)!.name, packQty: input.packQty, packUnit: input.packUnit, pence: input.pence, checked: input.checked };
+    await store.saveProduct(product);
+    return {};
+  });
+}
+
+export function removeProduct(item: string): Promise<Result> {
+  return run(async () => {
+    await store.removeProduct(item);
+    return {};
+  });
+}
+
+// ---------------------------------------------------------------- gym
+
+export function logSet(input: { day: string; workout: string; exercise: string; position: number; kg: number | null; reps: number | null; rir: number | null }): Promise<Result> {
+  return run(async () => {
+    if (input.reps !== null && !(input.reps >= 0 && input.reps <= 500)) fail("Reps look wrong.");
+    if (input.kg !== null && !(input.kg >= 0 && input.kg <= 500)) fail("Weight looks wrong.");
+    await store.logSet(input);
+    return {};
+  });
+}
+
+export function gymSession(input: { day: string; workout: string; finished?: boolean; feel?: number | null; notes?: string | null; remove?: boolean }): Promise<Result> {
+  return run(async () => {
+    await store.gymSession(input);
+    return {};
+  });
+}
+
+
+// ---------------------------------------------------------------- calendar
+
+/**
+ * Puts the meal week's cook sessions and gym sessions into Google Calendar as
+ * life blocks, so the Schedule shows them beside study. Anything already there
+ * at that time is left alone, so pressing it twice adds nothing.
+ */
+export function syncLifeCalendar(): Promise<Result<{ added: number; skipped: number }>> {
+  return run(async () => {
+    const s = await state();
+    const days = Array.from({ length: 7 }, (_, i) => addDays(s.weekStart, i)).filter((d) => d >= s.today);
+    const weeks = [...new Set(days.map((d) => resolveWeek(d).start))];
+    const loaded = await Promise.all(weeks.map((w) => loadScheduleWeek(resolveWeek(w))));
+    const google = loaded[0]?.google;
+    if (google === "not-configured") fail("Google Calendar is not set up for the portal.");
+    if (google === "not-connected") fail("Connect Google Calendar on the Schedule page first.");
+    if (google && typeof google === "object" && "error" in google) fail(`${google.error} Reconnect it on the Schedule page.`);
+    const blocks: Block[] = loaded.flatMap((w) => w.blocks);
+    const clash = (date: string, start: number, end: number, kind: string) => blocks.some((b) => b.date === date && b.kind === kind && b.start < end && start < b.end);
+    let added = 0;
+    let skipped = 0;
+    const put = async (kind: string, title: string, date: string, start: number, duration: number) => {
+      if (clash(date, start, start + duration, kind)) {
+        skipped++;
+        return;
+      }
+      const r = await addLifeBlock({ kind, title, date, start, duration: Math.min(duration, 12 * 60), repeat: "none" });
+      if (r.error) fail(r.error);
+      blocks.push({ id: `new-${added}`, source: "google", title, date, start, end: start + duration, url: "", editable: true, kind });
+      added++;
+    };
+    // Cook sessions: one block per session, as long as its longest recipe plus clearing up.
+    const sessions = new Map<string, { date: string; start: number; names: string[]; minutes: number }>();
+    for (const c of s.plan?.cooks ?? []) {
+      if (!days.includes(c.date)) continue;
+      const r = recipe(c.recipe);
+      if (!r) continue;
+      const key = `${c.date}-${c.start}`;
+      const x = sessions.get(key) ?? { date: c.date, start: c.start, names: [], minutes: 0 };
+      x.names.push(r.name);
+      x.minutes = Math.max(x.minutes, r.totalMin);
+      sessions.set(key, x);
+    }
+    for (const x of sessions.values()) {
+      const duration = Math.ceil((x.minutes + 20) / 15) * 15;
+      await put("cooking", `Cook: ${x.names.join(", ")}`.slice(0, 120), x.date, x.start, duration);
+    }
+    // Gym: the rotation carries on from the last session.
+    let next = nextWorkout(s.sessions);
+    for (const d of days) {
+      if (!s.profile.gym.days.includes(weekdayIndex(d))) continue;
+      if (s.sessions.some((x) => x.day === d && x.finished)) continue;
+      const w = workout(next);
+      await put("gym", `Gym: ${w ? `${w.key}, ${w.name}` : "session"}`, d, s.profile.gym.start, s.profile.gym.minutes);
+      next = nextWorkout([{ day: d, workout: next, finished: true, feel: null, notes: "" }]);
+    }
+    return { added, skipped };
+  });
+}

@@ -124,7 +124,7 @@ export function WeekPlanner({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_17rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
         {/* Week grid, tablet and up */}
         <div className="card hidden overflow-hidden p-0 md:block">
           <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-white/5">

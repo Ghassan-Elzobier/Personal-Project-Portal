@@ -1,15 +1,59 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { LinkPending } from "./link-pending";
 import { QuickAddButton, openQuickAdd } from "./quick-add";
 
 type NavLink = { href: string; title: string };
+type SpaceLinks = { primary: NavLink[]; more: NavLink[] };
+export type NavSpaces = { shared: NavLink[]; work: SpaceLinks; life: SpaceLinks };
+type SpaceKey = "work" | "life";
 
-function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+const COOKIE = "portal-space";
+const EVENT = "portal:space";
+// Pages that belong to both spaces keep whichever space you were last in.
+const SHARED = ["/", "/schedule"];
+
+/** The space a page belongs to, or null for the shared ones. */
+function spaceOf(pathname: string): SpaceKey | null {
+  if (pathname === "/life" || pathname.startsWith("/life/")) return "life";
+  return SHARED.includes(pathname) ? null : "work";
+}
+
+function remember(space: SpaceKey) {
+  document.cookie = `${COOKIE}=${space}; path=/; max-age=31536000; samesite=lax`;
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: space }));
+}
+
+/** The current space: from the page when it has one, otherwise the last one you used. */
+function useSpace(initial: SpaceKey): SpaceKey {
+  const pathname = usePathname();
+  const own = spaceOf(pathname);
+  const [last, setLast] = useState<SpaceKey>(initial);
+  useEffect(() => {
+    if (own && own !== last) {
+      setLast(own);
+      remember(own);
+    }
+  }, [own, last]);
+  useEffect(() => {
+    const on = (e: Event) => setLast((e as CustomEvent<SpaceKey>).detail);
+    window.addEventListener(EVENT, on);
+    return () => window.removeEventListener(EVENT, on);
+  }, []);
+  return own ?? last;
+}
+
+/** The most specific link a path is under, so /life/gym lights Gym and not Meals. */
+function activeHref(pathname: string, links: NavLink[]): string | null {
+  let best: string | null = null;
+  for (const l of links) {
+    const hit = l.href === "/" ? pathname === "/" : pathname === l.href || pathname.startsWith(`${l.href}/`);
+    if (hit && (!best || l.href.length > best.length)) best = l.href;
+  }
+  return best;
 }
 
 /** Closes a details menu when you navigate or click elsewhere. */
@@ -29,84 +73,131 @@ function useMenu() {
   return menu;
 }
 
-/** The nav on tablets and up: main places, with the rest under More. */
-export function NavLinks({ primary, more, canAdd }: { primary: NavLink[]; more: NavLink[]; canAdd: boolean }) {
+/** Work or Life. Switching goes to that space's home and keeps the choice. */
+export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
+  const space = useSpace(initial);
+  const router = useRouter();
+  const go = (to: SpaceKey) => {
+    remember(to);
+    router.push(to === "life" ? "/life" : "/");
+  };
+  return (
+    <div role="group" aria-label="Space" className="flex shrink-0 rounded-full bg-white/5 p-0.5 text-sm ring-1 ring-white/10">
+      {(["work", "life"] as const).map((s) => (
+        <button
+          key={s}
+          type="button"
+          aria-pressed={space === s}
+          onClick={() => go(s)}
+          className={`min-h-9 cursor-pointer rounded-full px-3.5 font-medium transition ${space === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-neutral-400 hover:text-white"}`}
+        >
+          {s === "work" ? "Work" : "Life"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The nav on tablets and up: shared places, then this space's, with the rest under More. */
+export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initial: SpaceKey; canAdd: boolean }) {
   const pathname = usePathname();
+  const space = useSpace(initial);
   const menu = useMenu();
-  const moreActive = more.some((l) => isActive(pathname, l.href));
+  const own = spaces[space];
+  const all = [...spaces.shared, ...own.primary, ...own.more];
+  const active = activeHref(pathname, all);
+  const moreActive = own.more.some((l) => l.href === active);
+  const accent = space === "life" ? "text-mint" : "text-white";
   return (
     <nav aria-label="Main" className="hidden items-center gap-x-5 md:flex">
-      {primary.map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          aria-current={isActive(pathname, l.href) ? "page" : undefined}
-          className={`text-sm transition-colors hover:text-white ${isActive(pathname, l.href) ? "font-medium text-white" : "text-neutral-400"}`}
-        >
-          {l.title}
-        <LinkPending />
-        </Link>
+      {[...spaces.shared, ...own.primary].map((l, i) => (
+        <span key={l.href} className="flex items-center gap-x-5">
+          {i === spaces.shared.length && spaces.shared.length > 0 && <span className="h-4 w-px bg-white/15" aria-hidden />}
+          <Link
+            href={l.href}
+            aria-current={active === l.href ? "page" : undefined}
+            className={`text-sm whitespace-nowrap transition-colors hover:text-white ${active === l.href ? `font-medium ${accent}` : "text-neutral-400"}`}
+          >
+            {l.title}
+            <LinkPending />
+          </Link>
+        </span>
       ))}
-      {more.length > 0 && (
+      {own.more.length > 0 && (
         <details ref={menu} className="relative">
-          <summary className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? "font-medium text-white" : "text-neutral-400"}`}>
+          <summary className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-neutral-400"}`}>
             More <span aria-hidden>▾</span>
           </summary>
-          <MenuItems links={more} className="absolute top-8 right-0 w-48" />
+          <MenuItems links={own.more} active={active} className="absolute top-8 right-0 w-52" />
         </details>
       )}
-      {canAdd && <QuickAddButton className="btn-primary px-4 py-1.5" />}
+      {canAdd && space === "work" && <QuickAddButton className="btn-primary px-4 py-1.5" />}
     </nav>
   );
 }
 
-function MenuItems({ links, className = "" }: { links: NavLink[]; className?: string }) {
-  const pathname = usePathname();
+function MenuItems({ links, active, className = "" }: { links: NavLink[]; active: string | null; className?: string }) {
   return (
     <div className={`z-40 space-y-1 rounded-xl bg-navy p-2 shadow-2xl ring-1 ring-white/15 ${className}`}>
       {links.map((l) => (
         <Link
           key={l.href}
           href={l.href}
-          aria-current={isActive(pathname, l.href) ? "page" : undefined}
-          className={`block rounded-lg px-3 py-2 text-sm hover:bg-white/10 ${isActive(pathname, l.href) ? "text-white" : "text-neutral-300"}`}
+          aria-current={active === l.href ? "page" : undefined}
+          className={`block rounded-lg px-3 py-2.5 text-sm hover:bg-white/10 ${active === l.href ? "text-white" : "text-neutral-300"}`}
         >
           {l.title}
-        <LinkPending />
+          <LinkPending />
         </Link>
       ))}
       <form action="/auth/signout" method="post">
-        <button className="w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-white">Sign out</button>
+        <button className="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-white">Sign out</button>
       </form>
     </div>
   );
 }
 
-/** The nav on phones: a thumb-reach bar at the bottom. */
-export function TabBar({ primary, more, canAdd }: { primary: NavLink[]; more: NavLink[]; canAdd: boolean }) {
+/**
+ * The nav on phones: a thumb-reach bar at the bottom with Today and this space's
+ * main places. Work keeps the add button in the middle; Life has one more place
+ * instead. Everything else is under More.
+ */
+export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial: SpaceKey; canAdd: boolean }) {
   const pathname = usePathname();
+  const space = useSpace(initial);
   const menu = useMenu();
-  const tabs = primary.slice(0, canAdd ? 3 : 4);
+  const own = spaces[space];
+  const today = spaces.shared.find((l) => l.href === "/");
+  const rest = spaces.shared.filter((l) => l.href !== "/");
+  const add = canAdd && space === "work";
+  const slots = add ? 3 : 4;
+  const candidates = [...(today ? [today] : []), ...own.primary, ...rest];
+  const tabs = candidates.slice(0, slots);
   // Whatever does not fit on the bar stays reachable under More.
-  const overflow = [...primary.slice(tabs.length), ...more];
-  const moreActive = overflow.some((l) => isActive(pathname, l.href));
-  const item = (active: boolean) => `flex min-h-12 flex-1 flex-col items-center justify-center text-xs ${active ? "font-semibold text-white" : "text-neutral-400"}`;
+  const overflow = [...candidates.slice(slots), ...own.more];
+  const active = activeHref(pathname, [...candidates, ...own.more]);
+  const moreActive = overflow.some((l) => l.href === active);
+  const accent = space === "life" ? "text-mint" : "text-white";
+  const item = (on: boolean) => `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center px-1 text-xs ${on ? `font-semibold ${accent}` : "text-neutral-400"}`;
+  const tab = (l: NavLink) => (
+    <Link key={l.href} href={l.href} aria-current={active === l.href ? "page" : undefined} className={item(active === l.href)}>
+      {active === l.href && <span className={`absolute top-0 h-0.5 w-8 rounded-full ${space === "life" ? "bg-mint" : "bg-lavender"}`} aria-hidden />}
+      <span className="max-w-full truncate">{l.title}</span>
+      <LinkPending />
+    </Link>
+  );
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-white/10 bg-primary/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
-      {tabs.slice(0, 2).map((l) => (
-        <Link key={l.href} href={l.href} aria-current={isActive(pathname, l.href) ? "page" : undefined} className={item(isActive(pathname, l.href))}>{l.title}<LinkPending /></Link>
-      ))}
-      {canAdd && (
-        <button type="button" onClick={openQuickAdd} aria-label="Add a task" className="my-1 flex min-h-11 w-14 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-royal to-lavender text-2xl leading-none">
+      {tabs.slice(0, 2).map(tab)}
+      {add && (
+        <button type="button" onClick={openQuickAdd} aria-label="Add a task" className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-royal to-lavender text-2xl leading-none">
           +
         </button>
       )}
-      {tabs.slice(2).map((l) => (
-        <Link key={l.href} href={l.href} aria-current={isActive(pathname, l.href) ? "page" : undefined} className={item(isActive(pathname, l.href))}>{l.title}<LinkPending /></Link>
-      ))}
-      <details ref={menu} className="flex flex-1">
+      {tabs.slice(2).map(tab)}
+      <details ref={menu} className="flex min-w-0 flex-1">
         <summary className={`${item(moreActive)} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>More</summary>
-        <MenuItems links={overflow} className="absolute right-2 bottom-16 w-56" />
+        <MenuItems links={overflow} active={active} className="absolute right-2 bottom-[calc(4rem+env(safe-area-inset-bottom))] max-h-[70dvh] w-60 overflow-y-auto" />
       </details>
     </nav>
   );

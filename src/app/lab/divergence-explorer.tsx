@@ -151,7 +151,7 @@ export function DivergenceExplorer() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
         <div className="space-y-2">
           <div className="relative">
             <canvas

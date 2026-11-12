@@ -19,6 +19,9 @@ import { projectStats } from "@/lib/tasks/model";
 import { Empty, ErrorNote, Hours, PageHeader, SectionTitle, StatusPill, TaskLink } from "@/components/ui";
 import { QuickAddButton } from "@/components/quick-add";
 import { FocusList, type FocusGroup, type FocusTask } from "./focus-list";
+import { loadLife } from "@/lib/life/load";
+import { nextUp, placedMacros, routineFor, type LifeState } from "@/lib/life/state";
+import { YourDay, type DayItem } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +43,7 @@ async function OwnerHome() {
   const tz = timeZone();
   const configured = PROJECTS.filter((p) => projectGid(p.key));
 
-  const [perProject, comments, schedule, study, overview] = await Promise.all([
+  const [perProject, comments, schedule, study, overview, life] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -59,6 +62,7 @@ async function OwnerHome() {
     attempt(() => loadScheduleWeek(week)),
     usesAsana() ? null : attempt(() => studySnapshot()),
     usesAsana() ? null : attempt(() => loadStudy()),
+    loadLife(),
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -144,6 +148,8 @@ async function OwnerHome() {
     <div className="space-y-8">
       <PageHeader eyebrow={heading} title="Today" />
 
+      {life.state && <LifeDay s={life.state} date={date} />}
+
       {totals && !firstRun && (
         <dl className="card grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
           <Stat label="Today" value={`${formatHours(totals.today)} h`} />
@@ -169,7 +175,7 @@ async function OwnerHome() {
       {hub && overview?.ok && !firstRun && <HubCard hub={hub} roadmap={overview.value.roadmap} today={date} />}
 
       {!firstRun && (
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section aria-labelledby="focus-title" className="min-w-0">
             <SectionTitle action={<Link href="/log" className="text-sm text-neutral-400 hover:text-white">Log a session</Link>}>
               <span id="focus-title">Focus</span>
@@ -211,6 +217,34 @@ async function OwnerHome() {
       )}
     </div>
   );
+}
+
+/** Meals, gym, cooking and weigh-in, in time order, from the Life space. */
+function LifeDay({ s, date }: { s: LifeState; date: string }) {
+  const routine = routineFor(s, date);
+  if (!s.plan && !s.profile.gym.days.length) return null;
+  const now = zonedParts(new Date(), timeZone()).minutes;
+  const next = nextUp(routine, now);
+  const meals = routine.filter((i) => i.kind === "meal" && i.placement);
+  const kcal = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.kcal ?? 0), 0);
+  const protein = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.protein ?? 0), 0);
+  const items: DayItem[] = routine.map((i) => ({
+    key: i.key,
+    time: clock(Math.max(0, i.time)),
+    minutes: i.time,
+    kind: i.kind,
+    title: i.title,
+    detail: i.detail,
+    done: i.done,
+    skipped: Boolean(i.skipped),
+    href: i.href,
+    slot: i.kind === "meal" && i.placement?.recipe ? i.slot : undefined,
+    cookId: i.cookId,
+  }));
+  if (!s.plan) {
+    items.push({ key: "plan", time: "", minutes: 0, kind: "shop", title: "Plan this week's meals", detail: "One tap picks the recipes and builds the shopping list", done: false, skipped: false, href: "/life" });
+  }
+  return <YourDay date={date} items={items} nextKey={next?.key ?? null} planStart={s.plan?.start ?? null} summary={meals.length ? `${kcal.toLocaleString("en-GB")} of ${s.kcal.toLocaleString("en-GB")} kcal · ${protein} g protein planned` : null} />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -329,7 +363,7 @@ async function MentorHome({ access }: { access: Access }) {
       </PageHeader>
       {keys.length === 0 && <Empty>No projects are shared with you yet.</Empty>}
       {(roadmap?.ok || jobs?.ok) && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {roadmap?.ok && (
             <Link href="/roadmap" className="card-link space-y-2">
               <p className="eyebrow">Study roadmap</p>
@@ -353,7 +387,7 @@ async function MentorHome({ access }: { access: Access }) {
           )}
         </div>
       )}
-      <ul className="grid gap-4 md:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {statuses.map(({ key, status, tasks }) => (
           <li key={key}>
             <MentorProjectCard

@@ -55,7 +55,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <RefreshButton stale={stale} hasSources={feeds.length > 0} />
       </div>
 
-      <nav aria-label="Job tracker" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <nav aria-label="Job tracker" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TABS.map((tab) => (
           <Link
             key={tab.key}

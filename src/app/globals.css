@@ -16,6 +16,10 @@
   --color-orange: #cc6033;
   --color-sand: #d6995c;
   --color-coral: #ea4884;
+  /* Life: deep greens with mint and sand, so it never looks like work. */
+  --color-moss: #0c1915;
+  --color-pine: #13271f;
+  --color-fern: #1b3a2d;
 }
 
 html {
@@ -44,6 +48,8 @@ html {
 body {
   @apply bg-primary text-white antialiased;
   font-family: var(--font-sans);
+  /* A long unbroken word (a link, a code name) wraps instead of pushing a phone screen sideways. */
+  overflow-wrap: break-word;
 }
 
 @utility c-space {
@@ -102,4 +108,30 @@ select optgroup {
 
 @utility chip {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1;
+}
+
+/* Life pages */
+@utility card-life {
+  @apply rounded-2xl bg-gradient-to-b from-pine to-moss p-4 ring-1 ring-mint/10 sm:p-5;
+}
+
+@utility btn-life {
+  @apply btn bg-gradient-to-r from-mint to-aqua font-semibold text-primary hover:brightness-110;
+}
+
+@utility btn-soft {
+  @apply btn bg-white/8 px-4 py-2 text-neutral-100 ring-1 ring-white/10 hover:bg-white/15;
+}
+
+@utility tap {
+  @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl transition active:scale-95;
+}
+
+/* Native dialogs as bottom sheets on phones, centred on wider screens. */
+dialog.sheet {
+  @apply m-0 mt-auto max-h-[85dvh] w-full max-w-none overflow-y-auto rounded-t-3xl bg-pine p-5 text-white shadow-2xl ring-1 ring-white/10 sm:m-auto sm:max-w-lg sm:rounded-3xl;
+}
+dialog.sheet::backdrop {
+  background: rgb(3 4 18 / 0.7);
+  backdrop-filter: blur(4px);
 }

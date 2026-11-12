@@ -48,7 +48,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       <PageHeader title="Study" />
 
-      <nav aria-label="Plans" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <nav aria-label="Plans" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <RoadmapTab roadmap={overview.roadmap} active={!current} />
         {overview.plans.map((p) => (
           <PlanTab key={p.plan.project} progress={p} active={p === current} />

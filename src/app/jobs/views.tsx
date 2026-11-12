@@ -246,7 +246,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
           <section aria-labelledby="branch-title">
             <SectionTitle><span id="branch-title">Which way after phase 3</span></SectionTitle>
             <p className="mb-3 max-w-3xl text-sm text-neutral-300">The first three phases of your plan are fundamentals every route needs. After them you choose where to go deeper, and these numbers are the case to take to your mentor.</p>
-            <ul className="grid gap-3 md:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {branches.map((b) => (
                 <li key={b.key} className="card space-y-2">
                   <h3 className="font-semibold">{b.name}</h3>
@@ -347,7 +347,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
         )}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="By stage">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="By stage">
         {STAGE_NAMES.map(([stage, name]) => {
           const here = board.roles.filter((r) => r.stage === stage && !(stage === "saved" && r.closed_at));
           return (

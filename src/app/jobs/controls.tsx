@@ -63,7 +63,7 @@ export function AddSourceForm() {
   const [pending, start] = useTransition();
   return (
     <form
-      className="grid gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-[1fr_14rem_auto]"
+      className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto]"
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
@@ -96,7 +96,7 @@ export function AddRoleForm() {
   const set = (key: keyof typeof empty) => (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value });
   return (
     <form
-      className="grid gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2"
+      className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
@@ -128,7 +128,7 @@ export function EvidenceForm({ skills, levels }: { skills: { key: string; name: 
   const groups = [...new Set(skills.map((s) => s.group))];
   return (
     <form
-      className="grid gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2 lg:grid-cols-[14rem_11rem_1fr_1fr_auto]"
+      className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2 lg:grid-cols-[14rem_11rem_minmax(0,1fr)_1fr_auto]"
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
