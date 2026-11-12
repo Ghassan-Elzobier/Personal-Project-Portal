@@ -13,6 +13,7 @@ import * as store from "./store";
 import { suggestWeek } from "./suggest";
 import type { Tag } from "./allergens";
 import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
+import { addDays } from "../dates/week";
 
 // Every change Life makes, shared by the pages' actions and the Claude connector.
 // Each returns { error } with a message for people instead of throwing.
@@ -117,7 +118,9 @@ async function editPlan(start: string, edit: (plan: WeekPlan, s: LifeState) => W
     const s = await state();
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan) fail("Plan the week first.");
-    const next = edit(structuredClone(plan!), s) ?? plan!;
+    // The edit works on a copy, and the copy is what is saved.
+    const draft = structuredClone(plan!);
+    const next = edit(draft, s) ?? draft;
     await savePlan(s, next);
     return {};
   }, true);
@@ -147,6 +150,26 @@ export function removeCook(start: string, cookId: string): Promise<Result> {
   return editPlan(start, (plan, s) => {
     if (s.batches.some((b) => b.planStart === start && b.cookId === cookId)) fail("That one is cooked already: undo the cook in the Kitchen first.");
     plan.cooks = plan.cooks.filter((c) => c.id !== cookId);
+  });
+}
+
+/**
+ * Moves a cook session (every recipe in it not cooked yet) to another day or
+ * time in the same meal week. Portions are sized again for the days it now feeds.
+ */
+export function moveCookSession(start: string, from: { date: string; at: number }, to: { date: string; at: number }): Promise<Result> {
+  return editPlan(start, (plan, s) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(to.date) || to.date < start || to.date > addDays(start, 6)) fail("Pick a day in this meal week.");
+    if (to.date < s.today) fail("Pick today or a day still to come.");
+    if (!Number.isInteger(to.at) || to.at < 6 * 60 || to.at > 22 * 60) fail("Pick a time between 06:00 and 22:00.");
+    const cooked = new Set(s.batches.filter((b) => b.planStart === start && b.cookId).map((b) => b.cookId!));
+    const moving = plan.cooks.filter((c) => c.date === from.date && c.start === from.at && !cooked.has(c.id));
+    if (!moving.length) fail("Nothing left to cook in that session.");
+    for (const c of moving) {
+      c.date = to.date;
+      c.start = to.at;
+      c.portions = 0;
+    }
   });
 }
 

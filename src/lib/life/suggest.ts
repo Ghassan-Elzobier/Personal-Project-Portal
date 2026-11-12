@@ -132,6 +132,8 @@ export function weekendFresh(profile: LifeProfile, start: string, sessions: { da
 }
 
 /** Cook sessions of a meal week starting on `start`, from the routine. */
+const daysUntil = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+
 export function sessionDates(start: string, cooks: CookSession[]): { date: string; start: number }[] {
   const startWeekday = (new Date(`${start}T00:00:00Z`).getUTCDay() + 6) % 7;
   return cooks
@@ -159,14 +161,21 @@ export function catchUp(sessions: { date: string; start: number }[], today: stri
 export function suggestWeek(profile: LifeProfile, start: string, ratings: Rating[], lastHad: LastHad, spare: Record<string, number>, today: string): WeekPlan {
   const mains = rank(profile, "main", ratings, lastHad, spare, today).filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
-  const picks = pickSpread(mains, sessions.length * 2);
+  // Each session cooks for the days until the next one. Two mains for that, but
+  // one when it only covers a day or two (a week planned late), so a catch-up
+  // cook is one pan, not the whole week's cooking on one evening.
+  const mainsFor = sessions.map((x, i) => (daysUntil(x.date, sessions[i + 1]?.date ?? addDays(start, 7)) <= 2 ? 1 : 2));
+  const picks = pickSpread(mains, mainsFor.reduce((a, b) => a + b, 0));
   const breakfasts = rank(profile, "breakfast", ratings, lastHad, spare, today);
-  const batchBreakfast = breakfasts.find((r) => !r.recipe.daily)?.recipe;
+  // A breakfast batch is worth it for three mornings or more; fewer, and the daily breakfast covers them.
+  const batchBreakfast = sessions[0] && daysUntil(sessions[0].date, addDays(start, 7)) >= 3 ? breakfasts.find((r) => !r.recipe.daily)?.recipe : undefined;
   const dailyBreakfast = breakfasts.find((r) => r.recipe.daily)?.recipe;
   const shakes = rank(profile, "shake", ratings, lastHad, spare, today).slice(0, 3).map((r) => r.recipe.key);
   const cooks: Cook[] = [];
+  let used = 0;
   sessions.forEach((s, i) => {
-    for (const r of picks.slice(i * 2, i * 2 + 2)) cooks.push({ id: `${s.date}-${r.key}`, recipe: r.key, date: s.date, start: s.start, portions: 0, scale: 1 });
+    for (const r of picks.slice(used, used + mainsFor[i])) cooks.push({ id: `${s.date}-${r.key}`, recipe: r.key, date: s.date, start: s.start, portions: 0, scale: 1 });
+    used += mainsFor[i];
   });
   if (batchBreakfast && sessions[0]) cooks.push({ id: `${sessions[0].date}-${batchBreakfast.key}`, recipe: batchBreakfast.key, date: sessions[0].date, start: sessions[0].start, portions: 0, scale: 1 });
   return {

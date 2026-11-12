@@ -230,7 +230,7 @@ export async function loadScheduleWeek(
   const loaded = await lifeLoad;
   let life: AgendaItem[] = [];
   if (loaded?.state) {
-    const planned = lifeBlocks(loaded.state, days, blocks);
+    const planned = lifeBlocks(loaded.state, days, blocks, zonedParts(new Date(), tz));
     blocks.push(...planned.blocks);
     life = planned.items;
   } else if (loaded?.error) {

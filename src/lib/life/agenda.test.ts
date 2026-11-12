@@ -97,3 +97,21 @@ test("the rotation carries on from today: a missed day is not counted as trained
   assert.match(at(items, "2026-11-21:gym").title, /^Gym: C,/);
   assert.match(at(items, "2026-11-24:gym").title, /^Gym: A,/, "next week follows on");
 });
+
+test("a meal cooked that day never goes before its cook, and today nothing moves into time already gone", () => {
+  const s = buildState(raw, "2026-11-14");
+  // Saturday: the 17:00 cook makes dinner. An event 16:00-21:00 pushes the cook out of the evening.
+  const items = lifeAgenda(s, ["2026-11-14"]);
+  const dinner = at(items, "2026-11-14:meal:dinner");
+  assert.ok(dinner.after, "dinner comes from today's cook");
+  const out = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, { date: "2026-11-14", minutes: 9 * 60 });
+  const cook = at(out, "2026-11-14:cook:1020");
+  const moved = at(out, "2026-11-14:meal:dinner");
+  assert.ok(cook.start >= 9 * 60, `cook at ${cook.start} is not in the past`);
+  if (!moved.clash) assert.ok(moved.start >= cook.start + 30, `dinner ${moved.start} after cook ${cook.start}`);
+  // Later the same day, with the morning gone, the cook has nowhere to go and says so.
+  const late = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, { date: "2026-11-14", minutes: 15 * 60 + 50 });
+  const lateCook = at(late, "2026-11-14:cook:1020");
+  assert.match(lateCook.clash ?? "", /Send-off/);
+  assert.equal(lateCook.start, 1020);
+});

@@ -2,9 +2,9 @@ import Link from "next/link";
 import { requireAccess, type Access } from "@/lib/auth/access";
 import { configProblems, projectGid, timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { PROJECTS, projectDef, type ProjectKey } from "@/lib/config/projects";
-import { addDays, clock, shortDate, weekdayIndex, zonedParts } from "@/lib/dates/week";
-import { allTasks, attempt, bucketForToday, latestStatus, openTasks, thisWeek, today, type Result } from "@/lib/portal/data";
-import { loadScheduleWeek, type Block, type ScheduleWeek } from "@/lib/portal/schedule";
+import { addDays, shortDate, weekdayIndex, zonedParts } from "@/lib/dates/week";
+import { allTasks, attempt, bucketForToday, latestStatus, openTasks, thisWeek, today } from "@/lib/portal/data";
+import { loadScheduleWeek } from "@/lib/portal/schedule";
 import { studyTotals } from "@/lib/portal/stats";
 import { formatHours } from "@/lib/tasks/session-log";
 import { studySnapshot } from "@/lib/tasks/native";
@@ -20,9 +20,8 @@ import { Empty, ErrorNote, Hours, PageHeader, SectionTitle, StatusPill, TaskLink
 import { QuickAddButton } from "@/components/quick-add";
 import { FocusList, type FocusGroup, type FocusTask } from "./focus-list";
 import { loadLife } from "@/lib/life/load";
-import { nextUp, placedMacros, routineFor, viewOn, type LifeState } from "@/lib/life/state";
-import type { AgendaItem } from "@/lib/life/agenda";
-import { YourDay, type DayItem } from "./your-day";
+import { yourDay } from "@/lib/portal/day";
+import { YourDay } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +41,7 @@ async function OwnerHome() {
   const date = today();
   const week = thisWeek();
   const tz = timeZone();
+  const now = zonedParts(new Date(), tz).minutes;
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
@@ -151,7 +151,12 @@ async function OwnerHome() {
     <div className="space-y-8">
       <PageHeader eyebrow={heading} title="Today" />
 
-      {life.state && <LifeDay s={life.state} date={date} agenda={schedule.ok ? schedule.value.life : []} />}
+      <YourDay
+        date={date}
+        now={now}
+        day={yourDay(date, schedule.ok ? schedule.value.blocks : null, life.state ?? null, now)}
+        error={schedule.ok ? undefined : `The schedule could not be read: ${schedule.error}`}
+      />
 
       {totals && !firstRun && (
         <dl className="card grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
@@ -196,13 +201,6 @@ async function OwnerHome() {
           </section>
 
           <div className="space-y-8">
-            <section aria-labelledby="plan-title">
-              <SectionTitle action={<Link href="/schedule" className="text-sm text-neutral-400 hover:text-white">Open schedule</Link>}>
-                <span id="plan-title">Today&apos;s plan</span>
-              </SectionTitle>
-              <TodayPlan schedule={schedule} date={date} />
-            </section>
-
             {attention.length > 0 && (
               <section aria-labelledby="attention-title">
                 <SectionTitle><span id="attention-title">Needs attention</span></SectionTitle>
@@ -220,54 +218,6 @@ async function OwnerHome() {
       )}
     </div>
   );
-}
-
-/** The Schedule's key for a routine item, to find where it was arranged to. */
-function agendaKey(i: ReturnType<typeof routineFor>[number], date: string, cookStart: (id: string) => number | undefined): string | null {
-  if (i.kind === "weigh") return `${date}:weigh`;
-  if (i.kind === "gym") return `${date}:gym`;
-  if (i.kind === "meal" && i.slot) return `${date}:meal:${i.slot}`;
-  if (i.kind === "cook" && i.cookId) return `${date}:cook:${cookStart(i.cookId)}`;
-  return null;
-}
-
-/**
- * Meals, gym, cooking and weigh-in, in time order, from the Life space. Times are
- * the Schedule's, so a lunch moved for a meeting shows at its new time here too.
- */
-function LifeDay({ s, date, agenda }: { s: LifeState; date: string; agenda: AgendaItem[] }) {
-  const placed = new Map(agenda.filter((a) => a.date === date).map((a) => [a.key, a]));
-  const cooks = viewOn(s, date).plan?.cooks ?? [];
-  const routine = routineFor(s, date)
-    .map((i) => {
-      const key = agendaKey(i, date, (id) => cooks.find((c) => c.id === id)?.start);
-      const a = key ? placed.get(key) : undefined;
-      return a ? { ...i, time: a.start, detail: a.moved ? `${i.detail} · moved, ${a.moved.slice(a.moved.indexOf(": ") + 2)}` : a.clash ? `${i.detail} · ${a.clash.toLowerCase()}` : i.detail } : i;
-    })
-    .sort((a, b) => a.time - b.time);
-  if (!s.plan && !s.profile.gym.days.length) return null;
-  const now = zonedParts(new Date(), timeZone()).minutes;
-  const next = nextUp(routine, now);
-  const meals = routine.filter((i) => i.kind === "meal" && i.placement);
-  const kcal = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.kcal ?? 0), 0);
-  const protein = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.protein ?? 0), 0);
-  const items: DayItem[] = routine.map((i) => ({
-    key: i.key,
-    time: clock(Math.max(0, i.time)),
-    minutes: i.time,
-    kind: i.kind,
-    title: i.title,
-    detail: i.detail,
-    done: i.done,
-    skipped: Boolean(i.skipped),
-    href: i.href,
-    slot: i.kind === "meal" && i.placement?.recipe ? i.slot : undefined,
-    cookId: i.cookId,
-  }));
-  if (!s.plan) {
-    items.push({ key: "plan", time: "", minutes: 0, kind: "shop", title: "Plan this week's meals", detail: "One tap picks the recipes and builds the shopping list", done: false, skipped: false, href: "/life" });
-  }
-  return <YourDay date={date} items={items} nextKey={next?.key ?? null} planStart={s.plan?.start ?? null} summary={meals.length ? `${kcal.toLocaleString("en-GB")} of ${s.kcal.toLocaleString("en-GB")} kcal · ${protein} g protein planned` : null} />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -295,42 +245,6 @@ function FirstRun({ native }: { native: boolean }) {
         </div>
       )}
     </section>
-  );
-}
-
-function TodayPlan({ schedule, date }: { schedule: Result<ScheduleWeek>; date: string }) {
-  if (!schedule.ok) return <ErrorNote message={schedule.error} />;
-  const blocks = schedule.value.blocks.filter((b) => b.date === date);
-  if (!blocks.length) {
-    return <Empty>Nothing planned yet. Drag a task onto a time on the Schedule.</Empty>;
-  }
-  return <Agenda blocks={blocks} nowMinutes={zonedParts(new Date(), timeZone()).minutes} />;
-}
-
-function Agenda({ blocks, nowMinutes }: { blocks: Block[]; nowMinutes: number }) {
-  return (
-    <ol className="card divide-y divide-white/5 p-0">
-      {blocks.map((b) => {
-        const past = b.end <= nowMinutes;
-        const current = b.start <= nowMinutes && nowMinutes < b.end;
-        const gid = b.taskGid ?? b.id.split(":")[0];
-        const study = b.source === "asana" || b.source === "session";
-        return (
-          <li key={b.id} className={`flex items-center gap-3 px-4 py-3 ${current ? "bg-lavender/10" : ""}`}>
-            <span className={`w-11 shrink-0 text-sm tabular-nums ${past ? "text-neutral-400" : "text-neutral-200"}`}>{clock(b.start)}</span>
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${study ? "bg-lavender" : b.kind ? "bg-mint" : "bg-neutral-400"}`} aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className={`block truncate text-sm ${past ? "text-neutral-400" : ""} ${b.completed ? "line-through" : ""}`}>{b.title}</span>
-              {b.project && <span className="text-xs text-neutral-400">{b.project}</span>}
-            </span>
-            {current && <span className="chip bg-lavender/20 text-white ring-lavender/40">Now</span>}
-            {study && !b.completed && past && (
-              <Link href={`/log?task=${gid}`} className="btn-ghost shrink-0 px-3 py-1 text-xs">Log</Link>
-            )}
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
