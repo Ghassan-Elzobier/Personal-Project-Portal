@@ -204,7 +204,7 @@ function Planned({ s }: { s: LifeState }) {
         groups={groups}
         days={days}
         nothing={nothing}
-        daily={{ breakfast: plan.breakfast, shake: plan.shake }}
+        daily={{ breakfast: plan.breakfast, shake: plan.shake, shakes: plan.shakes ?? [] }}
         options={{ main: alts(s, "main"), breakfast: alts(s, "breakfast"), shake: alts(s, "shake"), fresh: alts(s, "main", true) }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
       />

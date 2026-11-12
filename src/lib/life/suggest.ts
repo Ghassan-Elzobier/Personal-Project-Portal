@@ -40,6 +40,7 @@ export function mainProtein(r: Recipe): string {
 export function eligible(profile: LifeProfile, meal: Recipe["meal"]): Recipe[] {
   return RECIPES.filter((r) => {
     if (r.meal !== meal) return false;
+    if (profile.hidden.includes(r.key)) return false;
     if (r.spice > profile.spiceMax) return false;
     if (r.kit.some((k) => !profile.kit.includes(k))) return false;
     const v = verdict(r, profile.food);
@@ -116,6 +117,20 @@ export function pickSpread(ranked: Ranked[], n: number, avoid: string[] = []): R
   return chosen;
 }
 
+/**
+ * Weekend dinners cooked fresh, like a Sunday roast or a Saturday steak: Saturday
+ * first, then Sunday, skipping days that are cook days or already gone.
+ */
+export function weekendFresh(profile: LifeProfile, start: string, sessions: { date: string }[], ranked: Ranked[], today: string): WeekPlan["fresh"] {
+  const n = profile.routine.weekendFresh;
+  if (!n) return [];
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const weekday = (d: string) => (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const weekend = [...days.filter((d) => weekday(d) === 5), ...days.filter((d) => weekday(d) === 6)].filter((d) => d >= today && !sessions.some((s) => s.date === d));
+  const picks = pickSpread(ranked.filter((r) => r.recipe.tags.includes("weekend")), n);
+  return weekend.slice(0, n).map((date, i) => ({ date, slot: "dinner" as const, recipe: picks[i % Math.max(1, picks.length)]?.key ?? "" })).filter((f) => f.recipe);
+}
+
 /** Cook sessions of a meal week starting on `start`, from the routine. */
 export function sessionDates(start: string, cooks: CookSession[]): { date: string; start: number }[] {
   const startWeekday = (new Date(`${start}T00:00:00Z`).getUTCDay() + 6) % 7;
@@ -148,7 +163,7 @@ export function suggestWeek(profile: LifeProfile, start: string, ratings: Rating
   const breakfasts = rank(profile, "breakfast", ratings, lastHad, spare, today);
   const batchBreakfast = breakfasts.find((r) => !r.recipe.daily)?.recipe;
   const dailyBreakfast = breakfasts.find((r) => r.recipe.daily)?.recipe;
-  const shake = rank(profile, "shake", ratings, lastHad, spare, today)[0]?.recipe;
+  const shakes = rank(profile, "shake", ratings, lastHad, spare, today).slice(0, 3).map((r) => r.recipe.key);
   const cooks: Cook[] = [];
   sessions.forEach((s, i) => {
     for (const r of picks.slice(i * 2, i * 2 + 2)) cooks.push({ id: `${s.date}-${r.key}`, recipe: r.key, date: s.date, start: s.start, portions: 0, scale: 1 });
@@ -158,8 +173,9 @@ export function suggestWeek(profile: LifeProfile, start: string, ratings: Rating
     start,
     cooks,
     breakfast: dailyBreakfast?.key ?? batchBreakfast?.key ?? "",
-    shake: shake?.key ?? "",
-    fresh: [],
+    shake: shakes[0] ?? "",
+    shakes,
+    fresh: weekendFresh(profile, start, sessions, rank(profile, "main", ratings, lastHad, spare, today), today),
     out: [],
   };
 }

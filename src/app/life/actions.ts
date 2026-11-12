@@ -69,6 +69,11 @@ export async function logPastAsEaten() {
   return ops.logPastAsEaten();
 }
 
+export async function setRecipePref(recipe: string, kind: "hidden" | "favourites", on: boolean) {
+  await requireOwner();
+  return ops.setRecipePref(recipe, kind, on);
+}
+
 export async function rate(recipe: string, stars: number | null, note?: string) {
   await requireOwner();
   return ops.rate(recipe, stars, note);

@@ -4,6 +4,7 @@ import { assign, mealWeekStart, reminders, sizeCooks, spare, type Routine, type 
 import { recipe } from "./recipes.ts";
 import { catchUp, suggestWeek } from "./suggest.ts";
 import { DEFAULT_PROFILE } from "./profile.ts";
+import type { Kit } from "./recipes.ts";
 
 const routine: Routine = { breakfast: 360, lunch: 750, shake: 960, dinner: 1140, maxRepeat: 3, lunchAtWork: true };
 // Sunday 15 Nov 2026 starts the meal week. Cook on Sunday and Wednesday.
@@ -14,7 +15,7 @@ const base: WeekPlan = {
     { id: "b", recipe: "butter-chicken", date: "2026-11-15", start: 990, portions: 0, scale: 1 },
     { id: "c", recipe: "cottage-pie", date: "2026-11-18", start: 1110, portions: 0, scale: 1 },
     { id: "d", recipe: "shawarma-bowls", date: "2026-11-18", start: 1110, portions: 0, scale: 1 },
-    { id: "e", recipe: "overnight-oats", date: "2026-11-15", start: 990, portions: 0, scale: 1 },
+    { id: "e", recipe: "blueberry-muffins", date: "2026-11-15", start: 990, portions: 0, scale: 1 },
   ],
   breakfast: "bagel-ham",
   shake: "raspberry-shake",
@@ -67,12 +68,23 @@ test("food eaten past its fridge days is frozen and defrosted the evening before
   assert.ok(notes.some((r) => r.kind === "freeze"));
 });
 
-test("breakfast batches run out after their fridge days, then the daily breakfast fills in", () => {
+test("a breakfast batch covers the mornings after it is made, frozen past its fridge days", () => {
   const plan = { ...base, cooks: sizeCooks(base, routine, 2900) };
   const placed = assign(plan, routine, [], 2900).filter((p) => p.slot === "breakfast");
+  // Sunday breakfast comes before the Sunday cook, so it is the quick one.
   assert.equal(placed[0].recipe, "bagel-ham");
-  assert.deepEqual(placed.slice(1, 4).map((p) => p.recipe), ["overnight-oats", "overnight-oats", "overnight-oats"]);
-  assert.equal(placed[4].recipe, "bagel-ham");
+  assert.ok(placed.slice(1).every((p) => p.recipe === "blueberry-muffins"));
+  assert.deepEqual(placed.slice(1).map((p) => p.storage), ["fridge", "fridge", "fridge", "freezer", "freezer", "freezer"]);
+});
+
+test("on gym days the shake comes straight after training, and shakes take turns", () => {
+  const r: Routine = { ...routine, gymDays: [0, 2, 4], gymEnd: 480 };
+  const plan = { ...base, shakes: ["raspberry-shake", "vanilla-shake", "chocolate-shake"], cooks: sizeCooks(base, r, 2900) };
+  const shakes = assign(plan, r, [], 2900).filter((p) => p.slot === "shake");
+  // Monday 16 Nov is a gym day, Sunday 15 is not.
+  assert.equal(shakes.find((p) => p.date === "2026-11-16")?.time, 490);
+  assert.equal(shakes.find((p) => p.date === "2026-11-15")?.time, routine.shake);
+  assert.deepEqual(shakes.slice(0, 4).map((p) => p.recipe), ["raspberry-shake", "vanilla-shake", "chocolate-shake", "raspberry-shake"]);
 });
 
 test("stock in the freezer feeds the gap before the first cook", () => {
@@ -99,4 +111,15 @@ test("planning late moves the cook sessions already gone to one today", () => {
   assert.deepEqual(catchUp(sessions, "2026-11-08"), sessions);
   const plan = suggestWeek(DEFAULT_PROFILE, "2026-11-08", [], {}, {}, "2026-11-12");
   assert.ok(plan.cooks.every((c) => c.date >= "2026-11-12"));
+});
+
+test("a suggested week rotates three shakes, skips hidden recipes and cooks one weekend dinner fresh", () => {
+  const profile = { ...DEFAULT_PROFILE, kit: ["oven", "hob", "air fryer", "blender"] as Kit[], hidden: ["bolognese", "protein-pancakes", "blueberry-muffins"], routine: { ...DEFAULT_PROFILE.routine, weekendFresh: 1 } };
+  const plan = suggestWeek(profile, "2026-11-15", [], {}, {}, "2026-11-14");
+  assert.equal(plan.shakes?.length, 3);
+  assert.ok(!plan.cooks.some((c) => profile.hidden.includes(c.recipe)));
+  assert.equal(plan.fresh.length, 1);
+  // Sunday 15 is a cook day, so the fresh dinner is Saturday 21.
+  assert.equal(plan.fresh[0].date, "2026-11-21");
+  assert.ok(recipe(plan.fresh[0].recipe)?.tags.includes("weekend"));
 });

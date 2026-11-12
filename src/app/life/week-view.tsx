@@ -53,7 +53,7 @@ export function WeekView({
   groups: CookGroup[];
   days: DayView[];
   nothing: number;
-  daily: { breakfast: string; shake: string };
+  daily: { breakfast: string; shake: string; shakes: string[] };
   options: { main: Alt[]; breakfast: Alt[]; shake: Alt[]; fresh: Alt[] };
   canReplan: boolean;
 }) {
@@ -127,8 +127,8 @@ export function WeekView({
             <span className="block truncate font-medium">{nameOf(daily.breakfast)}</span>
           </button>
           <button type="button" onClick={() => setPicker({ kind: "daily", slot: "shake", current: daily.shake })} className="min-w-0 rounded-xl bg-white/5 p-3 text-left hover:bg-white/10">
-            <span className="block text-xs text-neutral-400">Daily shake</span>
-            <span className="block truncate font-medium">{nameOf(daily.shake)}</span>
+            <span className="block text-xs text-neutral-400">{daily.shakes.length > 1 ? "Shakes, one a day in turn" : "Daily shake"}</span>
+            <span className="line-clamp-2 block font-medium">{daily.shakes.length > 1 ? daily.shakes.map((k) => nameOf(k).replace(/ oat shake$/i, "")).join(", ") : nameOf(daily.shake)}</span>
           </button>
         </div>
         {nothing > 0 && <p className="text-xs text-sand">{nothing === 1 ? "One meal has" : `${nothing} meals have`} nothing planned. Tap it below to cook something fresh or mark it as eating out.</p>}

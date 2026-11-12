@@ -140,7 +140,7 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
         </section>
       </div>
 
-      <RateRecipe recipe={r.key} stars={rating?.stars ?? null} note={rating?.note ?? ""} />
+      <RateRecipe recipe={r.key} stars={rating?.stars ?? null} note={rating?.note ?? ""} favourite={s.profile.favourites.includes(r.key)} hidden={s.profile.hidden.includes(r.key)} />
     </article>
   );
 }

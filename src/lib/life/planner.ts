@@ -8,7 +8,7 @@
 // fridge and rice 1, so a portion eaten later is frozen once cool and moved to the
 // fridge the evening before. Pure, so it is tested.
 
-import { addDays } from "../dates/week.ts";
+import { addDays, weekdayIndex } from "../dates/week.ts";
 import { portionScale, SPLIT, type Slot } from "./nutrition.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
@@ -30,6 +30,8 @@ export type WeekPlan = {
   /** Made fresh each morning when no breakfast batch is ready. */
   breakfast: string;
   shake: string;
+  /** Shakes taken in turn, one a day, so they don't get boring. Falls back to `shake`. */
+  shakes?: string[];
   /** Cooked and eaten at the meal, like a Saturday steak. */
   fresh: { date: string; slot: Slot; recipe: string }[];
   /** Slots you won't eat at home: "2026-11-15:dinner". */
@@ -60,7 +62,23 @@ export type Placement = {
   scale: number;
 };
 
-export type Routine = { breakfast: number; lunch: number; shake: number; dinner: number; maxRepeat: number; lunchAtWork: boolean };
+export type Routine = {
+  breakfast: number;
+  lunch: number;
+  shake: number;
+  dinner: number;
+  maxRepeat: number;
+  lunchAtWork: boolean;
+  /** On these weekdays (0 = Monday) the shake comes straight after training, which ends at gymEnd. */
+  gymDays?: number[];
+  gymEnd?: number;
+};
+
+/** When a slot is eaten on a date. */
+export function slotTime(routine: Routine, date: string, slot: Slot): number {
+  if (slot === "shake" && routine.gymEnd !== undefined && routine.gymDays?.includes(weekdayIndex(date))) return Math.min(23 * 60, routine.gymEnd + 10);
+  return routine[slot];
+}
 
 export const slotId = (date: string, slot: Slot) => `${date}:${slot}`;
 
@@ -120,9 +138,9 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
   const placements: Placement[] = [];
   const history: Record<Slot, string[]> = { breakfast: [], lunch: [], shake: [], dinner: [] };
 
-  for (const date of days) {
+  for (const [dayIndex, date] of days.entries()) {
     for (const slot of ["breakfast", "lunch", "shake", "dinner"] as Slot[]) {
-      const time = routine[slot];
+      const time = slotTime(routine, date, slot);
       const id = slotId(date, slot);
       const base = { id, date, slot, time };
       const target = kcal * SPLIT[slot];
@@ -138,7 +156,8 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
         continue;
       }
       if (slot === "shake") {
-        placements.push({ ...base, recipe: plan.shake, source: "daily", scale: scaleOf(plan.shake, target) });
+        const key = plan.shakes?.length ? plan.shakes[dayIndex % plan.shakes.length] : plan.shake;
+        placements.push({ ...base, recipe: key, source: "daily", scale: scaleOf(key, target) });
         continue;
       }
       const at = minuteOf(plan.start, date, time);
@@ -266,9 +285,12 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
   });
 }
 
-/** A breakfast batch covers mornings until it runs out of fridge (or, if it freezes, the week). */
+/**
+ * A breakfast batch covers the mornings after it is made (cooking happens later
+ * in the day than breakfast) until it runs out of fridge, or the week if it freezes.
+ */
 function breakfastPortions(plan: WeekPlan, c: Cook, r: Recipe): number {
-  const left = 7 - daysBetween(plan.start, c.date);
+  const left = 6 - daysBetween(plan.start, c.date);
   return r.keeps.freezes ? Math.max(1, left) : Math.max(1, Math.min(left, r.keeps.fridgeDays));
 }
 
