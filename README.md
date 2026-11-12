@@ -97,6 +97,7 @@ The aim is a stable routine with no admin: plan once a week, then tap through th
 - **The basket is exact, the ordering is yours.** Sainsbury's has no public API and its terms don't allow bots, so the list links each ingredient to the product you picked once, with the number of packs. Delivery, cooking and eating move stock automatically; staples are have, low or out.
 - **The gym is a programme, not a log.** `gym/program.ts` is three full-body sessions for athletic strength built around the bench (heavy, paused, close-grip), with jumps and throws first, back-friendly lower-body lifts and a short finisher. `gym/progress.ts` sets each target from the last session by double progression and forecasts the bench from estimated maxes.
 - **Claude can log for you.** The connector has `get_life_day`, `log_weight`, `log_meal`, `log_gym_set` and `plan_meal_week`.
+- **Every exercise shows how.** The "How" panel loops a two-frame drawing of the movement and links to short demonstration videos. The drawings are [Everkinetic](https://github.com/everkinetic/data)'s, licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), copied unchanged into `public/exercises` and credited under each one. Exercises Everkinetic never drew (jumps, throws, carries, the trap bar) have the video link only, since no openly licensed drawing of them exists.
 
 ## How job tracking works
 
