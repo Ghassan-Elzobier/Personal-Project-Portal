@@ -7,8 +7,11 @@ import { loadLife } from "@/lib/life/load";
 import { recipe, RECIPES } from "@/lib/life/recipes";
 import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse } from "@/lib/life/shopping";
 import { remainingNeeds, weekView, type WeekView } from "@/lib/life/state";
+import type { AgendaItem } from "@/lib/life/agenda";
+import { attempt } from "@/lib/portal/data";
+import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import Link from "next/link";
-import { eligible } from "@/lib/life/suggest";
+import { eligible, sessionDates } from "@/lib/life/suggest";
 import { ErrorNote } from "@/components/ui";
 import { dayLabel, LifeHeader, Tabs, weekRange } from "../parts";
 import { CupboardView, FridgeView, ShopView, type ShopLine } from "./views";
@@ -135,25 +138,56 @@ function nextWeekday(today: string, weekday: number, start: string): string {
   return today;
 }
 
-function Fridge({ s, v }: { s: S; v: WeekView }) {
+/**
+ * What is left to cook, by session, at the time the Schedule gives it: the same
+ * time, and the same clash, as on the Schedule and in Google Calendar.
+ */
+async function Fridge({ s, v }: { s: S; v: WeekView }) {
   const plan = v.plan;
   const cooked = new Set(s.batches.filter((b) => plan && b.planStart === plan.start && b.cookId).map((b) => b.cookId!));
-  const cooks = (plan?.cooks ?? [])
-    .filter((c) => !cooked.has(c.id))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)
-    .map((c) => {
-      const placed = v.placements.filter((p) => p.cookId === c.id);
-      const freeze = placed.filter((p) => p.storage === "freezer").length;
-      return {
-        id: c.id,
-        name: recipe(c.recipe)?.name ?? c.recipe,
-        recipe: c.recipe,
-        when: dayLabel(c.date, s.today),
-        due: c.date <= s.today,
-        portions: c.portions,
-        freeze: freeze + Math.max(0, c.portions - placed.length) * (recipe(c.recipe)?.keeps.freezes ? 1 : 0),
-      };
-    });
+  const left = (plan?.cooks ?? []).filter((c) => !cooked.has(c.id));
+  // The Schedule's weeks these cooks fall in, arranged around study and events.
+  const weeks = [...new Set(left.map((c) => resolveWeek(c.date).start))];
+  const arranged = new Map<string, AgendaItem>();
+  for (const w of await Promise.all(weeks.map((start) => attempt(() => loadScheduleWeek(resolveWeek(start), { life: { state: s } }))))) {
+    if (w.ok) for (const i of w.value.life) if (i.kind === "cook") arranged.set(i.key, i);
+  }
+  // The sessions the routine has this week; one that isn't is a catch-up for days planned too late.
+  const routineSessions = plan ? sessionDates(plan.start, s.profile.routine.cooks).map((x) => `${x.date}:${x.start}`) : [];
+  const groups = new Map<string, typeof left>();
+  for (const c of [...left].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)) {
+    const key = `${c.date}:${c.start}`;
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const lastDay = plan ? addDays(plan.start, 6) : s.today;
+  const days: { date: string; label: string }[] = [];
+  for (let d = s.today > (plan?.start ?? s.today) ? s.today : (plan?.start ?? s.today); d <= lastDay; d = addDays(d, 1)) days.push({ date: d, label: dayLabel(d, s.today) });
+  const sessions = [...groups.entries()].map(([key, cooks]) => {
+    const { date, start } = cooks[0];
+    const a = arranged.get(`${date}:cook:${start}`);
+    return {
+      key,
+      date,
+      start,
+      when: dayLabel(date, s.today),
+      time: a?.start ?? start,
+      due: date <= s.today,
+      note: a?.moved ?? a?.clash,
+      clash: Boolean(a?.clash),
+      catchUp: !routineSessions.includes(key) && date === plan?.createdOn,
+      cooks: cooks.map((c) => {
+        const placed = v.placements.filter((p) => p.cookId === c.id);
+        const freeze = placed.filter((p) => p.storage === "freezer").length;
+        return {
+          id: c.id,
+          name: recipe(c.recipe)?.name ?? c.recipe,
+          recipe: c.recipe,
+          portions: c.portions,
+          freeze: freeze + Math.max(0, c.portions - placed.length) * (recipe(c.recipe)?.keeps.freezes ? 1 : 0),
+        };
+      }),
+    };
+  });
   const batches = s.open
     .map((b) => {
       const r = recipe(b.recipe);
@@ -178,7 +212,7 @@ function Fridge({ s, v }: { s: S; v: WeekView }) {
   const recipes = eligible(s.profile, "main")
     .concat(eligible(s.profile, "breakfast").filter((r) => !r.daily))
     .map((r) => ({ key: r.key, name: r.name }));
-  return <FridgeView start={plan?.start ?? null} cooks={cooks} batches={batches} recipes={recipes.length ? recipes : RECIPES.map((r) => ({ key: r.key, name: r.name }))} />;
+  return <FridgeView start={plan?.start ?? null} sessions={sessions} days={days} batches={batches} recipes={recipes.length ? recipes : RECIPES.map((r) => ({ key: r.key, name: r.name }))} />;
 }
 
 function Cupboard({ s, soon }: { s: S; soon: string[] }) {

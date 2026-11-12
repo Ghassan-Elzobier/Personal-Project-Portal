@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
-import { confirmDelivery, cookExtra, cookPlanned, markOrdered, removeProduct, saveProduct, setBatch, setStock, uncook, undoDelivery } from "../actions";
+import { confirmDelivery, cookExtra, cookPlanned, markOrdered, moveCookSession, removeProduct, saveProduct, setBatch, setStock, uncook, undoDelivery } from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
 
 // ---------------------------------------------------------------------------
@@ -427,14 +427,31 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
 // Fridge and freezer
 // ---------------------------------------------------------------------------
 
+export type CookSessionRow = {
+  key: string;
+  date: string;
+  start: number;
+  when: string;
+  /** Where the Schedule has it. */
+  time: number;
+  due: boolean;
+  note?: string;
+  clash: boolean;
+  /** Made from cook days already gone when the week was planned. */
+  catchUp: boolean;
+  cooks: { id: string; name: string; recipe: string; portions: number; freeze: number }[];
+};
+
 export function FridgeView({
   start,
-  cooks,
+  sessions,
+  days,
   batches,
   recipes,
 }: {
   start: string | null;
-  cooks: { id: string; name: string; recipe: string; when: string; due: boolean; portions: number; freeze: number }[];
+  sessions: CookSessionRow[];
+  days: { date: string; label: string }[];
   batches: { gid: string; name: string; recipe: string; cooked: string; remaining: number; portions: number; location: "fridge" | "freezer"; eatBy: string; late: boolean; soon: boolean; canFreeze: boolean; rice: boolean }[];
   recipes: { key: string; name: string }[];
 }) {
@@ -444,24 +461,12 @@ export function FridgeView({
   const { pending, run } = useAction();
   return (
     <div className="space-y-4">
-      {cooks.length > 0 && start && (
+      {sessions.length > 0 && start && (
         <section className="space-y-2" aria-label="To cook">
           <h2 className="eyebrow px-1">To cook this week</h2>
-          <ul className="card-life divide-y divide-white/5 p-0">
-            {cooks.map((c) => (
-              <li key={c.id} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{c.name}</p>
-                  <p className="text-xs text-neutral-400">
-                    {c.when} · {c.portions} portions{c.freeze ? `, ${c.freeze} to freeze` : ""}
-                  </p>
-                </div>
-                <ActionButton action={() => cookPlanned(start, c.id)} className={c.due ? "btn-life px-4 py-2" : "btn-soft"} done={c.freeze ? `In the fridge. Freeze ${c.freeze} once cool.` : "In the fridge."}>
-                  Cooked it
-                </ActionButton>
-              </li>
-            ))}
-          </ul>
+          {sessions.map((x) => (
+            <CookSession key={x.key} start={start} session={x} days={days} />
+          ))}
           <p className="px-1 text-xs text-neutral-500">Cooked it takes the ingredients out of the cupboard and puts the portions in the fridge, the later ones in the freezer.</p>
         </section>
       )}
@@ -655,4 +660,79 @@ function StockForm({ row, onDone }: { row: { item: string; unit: Unit; qty: numb
       </div>
     </form>
   );
+}
+
+/** One cook session: when the Schedule has it, why, what it makes, and a way to move it. */
+function CookSession({ start, session: x, days }: { start: string; session: CookSessionRow; days: { date: string; label: string }[] }) {
+  const [moving, setMoving] = useState(false);
+  const [date, setDate] = useState(x.date);
+  const [time, setTime] = useState(clockOf(x.start));
+  const { pending, run } = useAction();
+  return (
+    <div className="card-life space-y-2 p-0">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">
+            {x.when} · {clockOf(x.time)}
+          </p>
+          {x.note && <p className={`text-xs ${x.clash ? "text-coral" : "text-neutral-400"}`}>{x.note}</p>}
+          {x.catchUp && (
+            <p className="text-xs text-neutral-400">
+              Catch-up: this week was planned after its cook days had gone, so they became this one. Move it if the time doesn&apos;t work.
+            </p>
+          )}
+        </div>
+        <button type="button" className="btn-soft px-3 py-1.5 text-xs" onClick={() => setMoving((m) => !m)} aria-expanded={moving}>
+          {moving ? "Cancel" : "Move"}
+        </button>
+      </div>
+      {moving && (
+        <form
+          className="flex flex-wrap items-end gap-2 px-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const [h, m] = time.split(":").map(Number);
+            void run(() => moveCookSession(start, { date: x.date, at: x.start }, { date, at: h * 60 + m }), "Moved. The Schedule and your calendar follow.").then((ok) => ok && setMoving(false));
+          }}
+        >
+          <label className="text-xs text-neutral-400">
+            Day
+            <select value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10">
+              {days.map((d) => (
+                <option key={d.date} value={d.date}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs text-neutral-400">
+            Time
+            <input type="time" value={time} min="06:00" max="22:00" step={900} onChange={(e) => setTime(e.target.value)} className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10" />
+          </label>
+          <button className="btn-life px-4 py-2" disabled={pending} aria-busy={pending}>
+            Move
+          </button>
+        </form>
+      )}
+      <ul className="divide-y divide-white/5">
+        {x.cooks.map((c) => (
+          <li key={c.id} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{c.name}</p>
+              <p className="text-xs text-neutral-400">
+                {c.portions} portions{c.freeze ? `, ${c.freeze} to freeze` : ""}
+              </p>
+            </div>
+            <ActionButton action={() => cookPlanned(start, c.id)} className={x.due ? "btn-life px-4 py-2" : "btn-soft"} done={c.freeze ? `In the fridge. Freeze ${c.freeze} once cool.` : "In the fridge."}>
+              Cooked it
+            </ActionButton>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function clockOf(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }

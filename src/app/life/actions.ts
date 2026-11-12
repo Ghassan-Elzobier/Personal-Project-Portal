@@ -44,6 +44,11 @@ export async function removeCook(start: string, cookId: string) {
   return ops.removeCook(start, cookId);
 }
 
+export async function moveCookSession(start: string, from: { date: string; at: number }, to: { date: string; at: number }) {
+  await requireOwner();
+  return ops.moveCookSession(start, from, to);
+}
+
 export async function setDaily(start: string, slot: "breakfast" | "shake", recipe: string) {
   await requireOwner();
   return ops.setDaily(start, slot, recipe);

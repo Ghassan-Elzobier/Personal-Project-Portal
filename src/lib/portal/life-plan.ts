@@ -15,7 +15,7 @@ const firstWord = (t: string) => t.trim().split(/[\s:,]+/)[0]?.toLowerCase() ?? 
  * block over the planned gym) stands in for the plan's item, so it shows once.
  * Only from this meal week on: earlier weeks' plans are not kept in view.
  */
-export function lifeBlocks(s: LifeState, days: string[], others: Block[]): { blocks: Block[]; items: AgendaItem[] } {
+export function lifeBlocks(s: LifeState, days: string[], others: Block[], now?: { date: string; minutes: number }): { blocks: Block[]; items: AgendaItem[] } {
   const shown = days.filter((d) => d >= s.weekStart);
   if (!shown.length || !s.setUp) return { blocks: [], items: [] };
   const own = others.filter((b) => b.source === "google" && b.kind);
@@ -30,7 +30,7 @@ export function lifeBlocks(s: LifeState, days: string[], others: Block[]): { blo
   const wanted = lifeAgenda(s, shown).filter((i) => !standIn(i));
   // Everything that is not part of the plan holds its time. Invites still unanswered are already left out.
   const busy: Busy[] = others.map((b) => ({ date: b.date, start: b.start, end: b.end, title: b.title }));
-  const items = arrange(wanted, busy);
+  const items = arrange(wanted, busy, 15, now);
   const blocks = items.map(
     (i): Block => ({
       id: `plan-${i.key}`,

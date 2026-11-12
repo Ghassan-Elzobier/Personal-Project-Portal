@@ -113,6 +113,20 @@ test("planning late moves the cook sessions already gone to one today", () => {
   assert.ok(plan.cooks.every((c) => c.date >= "2026-11-12"));
 });
 
+test("a week planned with two days left cooks one main and no breakfast batch", () => {
+  // Saturday-to-Friday week, cooks Saturday and Wednesday, planned on Thursday.
+  const profile = { ...DEFAULT_PROFILE, routine: { ...DEFAULT_PROFILE.routine, cooks: [{ weekday: 5, start: 1020 }, { weekday: 2, start: 1110 }] } };
+  const late = suggestWeek(profile, "2026-11-07", [], {}, {}, "2026-11-12");
+  assert.equal(late.cooks.length, 1);
+  assert.equal(recipe(late.cooks[0].recipe)?.meal, "main");
+  assert.equal(late.cooks[0].date, "2026-11-12");
+  assert.ok(recipe(late.breakfast)?.daily, "the daily breakfast covers the mornings left");
+  // Planned on time, the same week has two mains a session and a breakfast batch.
+  const onTime = suggestWeek(profile, "2026-11-07", [], {}, {}, "2026-11-06");
+  assert.equal(onTime.cooks.filter((c) => recipe(c.recipe)?.meal === "main").length, 4);
+  assert.equal(onTime.cooks.filter((c) => recipe(c.recipe)?.meal === "breakfast").length, 1);
+});
+
 test("a suggested week rotates three shakes, skips hidden recipes and cooks one weekend dinner fresh", () => {
   const profile = { ...DEFAULT_PROFILE, kit: ["oven", "hob", "air fryer", "blender"] as Kit[], hidden: ["bolognese", "protein-pancakes", "blueberry-muffins"], routine: { ...DEFAULT_PROFILE.routine, weekendFresh: 1 } };
   const plan = suggestWeek(profile, "2026-11-15", [], {}, {}, "2026-11-14");
