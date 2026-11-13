@@ -495,6 +495,8 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
     { name: "Swapchain image", y: 310, tone: "display" as const },
   ];
   const X = SYNC_X;
+  // Where the lanes start: room for the longest lane name at the title size.
+  const LANE_START = 142;
   const seg = (
     y: number,
     from: number,
@@ -553,12 +555,12 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
           {l.name}
         </Text>
       ))}
-      {seg(150, 130, X.b1, "TRANSFER_SRC", "memory", true)}
+      {seg(150, LANE_START, X.b1, "TRANSFER_SRC", "memory", true)}
       {seg(150, X.b1, X.b3, "GENERAL", "memory")}
       {seg(150, X.b3, 990, "TRANSFER_SRC", "memory")}
-      {seg(230, 130, X.b2, "GENERAL", "memory", true)}
+      {seg(230, LANE_START, X.b2, "GENERAL", "memory", true)}
       {seg(230, X.b2, 990, "GENERAL", "memory")}
-      {seg(310, 130, X.b4, "the display's, UNDEFINED to you", "display", true)}
+      {seg(310, LANE_START, X.b4, "the display's, UNDEFINED to you", "display", true)}
       {seg(310, X.b4, X.b5, "TRANSFER_DST", "display")}
       {seg(310, X.b5, 990, "PRESENT_SRC", "display")}
 
