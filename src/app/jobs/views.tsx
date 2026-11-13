@@ -13,8 +13,8 @@ const BAND_STYLES: Record<Band, string> = {
   ready: "bg-mint/10 text-mint ring-mint/30",
   by_date: "bg-aqua/10 text-aqua ring-aqua/30",
   one_gap: "bg-sand/10 text-sand ring-sand/30",
-  stretch: "bg-white/5 text-neutral-300 ring-white/10",
-  unread: "bg-white/5 text-neutral-400 ring-white/10",
+  stretch: "bg-white/5 text-body ring-white/10",
+  unread: "bg-white/5 text-muted ring-white/10",
 };
 
 export function BandChip({ band }: { band: Band }) {
@@ -61,7 +61,7 @@ function RoleRow({ role, filters }: { role: RoleView; filters: Filters }) {
           {role.title}
         </Link>
         {role.fresh && <span className="ml-2 text-xs text-aqua">New to you</span>}
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-muted">
           {role.company}, {placeLabel(role)}
           {role.source_kind === "arbeitnow" && (
             <>
@@ -77,14 +77,14 @@ function RoleRow({ role, filters }: { role: RoleView; filters: Filters }) {
             </>
           )}
         </p>
-        <p className="mt-1 max-w-3xl text-sm text-neutral-300">{role.fit.reason}</p>
+        <p className="mt-1 max-w-3xl text-sm text-body">{role.fit.reason}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {role.interest !== null && role.interest >= 2 && (
           <span className="text-lavender">{role.interest === 3 ? "Really want" : "Want"}</span>
         )}
         {SENIOR.has(role.seniority) && (
-          <span className="chip bg-white/5 text-neutral-300 ring-white/10">
+          <span className="chip bg-white/5 text-body ring-white/10">
             {role.seniority === "lead" ? "Lead level" : "Senior"}
           </span>
         )}
@@ -101,7 +101,7 @@ function Pick({ href, active, children }: { href: string; active: boolean; child
       href={href}
       scroll={false}
       aria-current={active ? "true" : undefined}
-      className={`rounded-full px-3 py-1 text-xs ring-1 transition hover:ring-white/30 ${active ? "bg-lavender/20 text-white ring-lavender/50" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+      className={`rounded-full px-3 py-1 text-xs ring-1 transition hover:ring-white/30 ${active ? "bg-lavender/20 text-white ring-lavender/50" : "bg-white/5 text-body ring-white/10"}`}
     >
       {children}
     </Link>
@@ -129,16 +129,16 @@ function RoleSection({
     <details open={open} className="group/section">
       <summary className="flex cursor-pointer items-baseline justify-between gap-4 border-b border-white/10 pb-2">
         <h3 className="font-semibold">{title}</h3>
-        <span className="shrink-0 text-xs text-neutral-400 tabular-nums">{roles.length}</span>
+        <span className="shrink-0 text-xs text-muted tabular-nums">{roles.length}</span>
       </summary>
-      {note && <p className="mt-2 text-sm text-neutral-400">{note}</p>}
+      {note && <p className="mt-2 text-sm text-muted">{note}</p>}
       <ul className="divide-y divide-white/5">
         {shown.map((role) => (
           <RoleRow key={role.gid} role={role} filters={filters} />
         ))}
       </ul>
       {roles.length > shown.length && (
-        <p className="py-3 text-sm text-neutral-400">
+        <p className="py-3 text-sm text-muted">
           Showing the first {shown.length}. Narrow the filters above to see the other {roles.length - shown.length}.
         </p>
       )}
@@ -313,7 +313,7 @@ export function SkillTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-lg text-left text-sm">
-        <thead className="text-xs text-neutral-400">
+        <thead className="text-xs text-muted">
           <tr>
             <th className="py-1 pr-4 font-normal">Skill</th>
             <th className="py-1 pr-4 text-right font-normal">Required by</th>
@@ -332,8 +332,8 @@ export function SkillTable({
                 {row.skill.name}
               </td>
               <td className="py-2 pr-4 text-right tabular-nums">{row.must}</td>
-              <td className="py-2 pr-4 text-right text-neutral-400 tabular-nums">{row.soft}</td>
-              <td className="py-2 text-neutral-300">
+              <td className="py-2 pr-4 text-right text-muted tabular-nums">{row.soft}</td>
+              <td className="py-2 text-body">
                 <StandingNote standing={row.standing} about={about} />
               </td>
             </tr>
@@ -361,13 +361,13 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
             <SectionTitle>
               <span id="closest-title">Where you are closest</span>
             </SectionTitle>
-            <p className="mb-3 max-w-3xl text-sm text-neutral-300">
+            <p className="mb-3 max-w-3xl text-sm text-body">
               {targetCount} open roles are in scope. This is how they split by field, and how many you could go for now
               or once your plan reaches them.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-lg text-left text-sm">
-                <thead className="text-xs text-neutral-400">
+                <thead className="text-xs text-muted">
                   <tr>
                     <th className="py-1 pr-4 font-normal">Field</th>
                     <th className="py-1 pr-4 text-right font-normal">Roles</th>
@@ -386,7 +386,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
                             {f.name}
                           </Link>
                         </td>
-                        <td className="py-2 pr-4 text-right text-neutral-300">{f.roles}</td>
+                        <td className="py-2 pr-4 text-right text-body">{f.roles}</td>
                         <td className="py-2 pr-4 text-right text-mint">{f.ready}</td>
                         <td className="py-2 pr-4 text-right text-aqua">{f.onPlan}</td>
                         <td className="py-2 text-right text-sand">{f.oneGap}</td>
@@ -401,7 +401,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
             <SectionTitle>
               <span id="branch-title">Which way after phase 3</span>
             </SectionTitle>
-            <p className="mb-3 max-w-3xl text-sm text-neutral-300">
+            <p className="mb-3 max-w-3xl text-sm text-body">
               The first three phases of your plan are fundamentals every route needs. After them you choose where to go
               deeper, and these numbers are the case to take to your mentor.
             </p>
@@ -409,18 +409,18 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               {branches.map((b) => (
                 <li key={b.key} className="space-y-2 card">
                   <h3 className="font-semibold">{b.name}</h3>
-                  <p className="text-sm text-neutral-300">{b.why}</p>
+                  <p className="text-sm text-body">{b.why}</p>
                   <dl className="space-y-1 text-sm tabular-nums">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-neutral-400">Roles asking for it</dt>
+                      <dt className="text-muted">Roles asking for it</dt>
                       <dd>{b.asking}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-neutral-400">Of those you want</dt>
+                      <dt className="text-muted">Of those you want</dt>
                       <dd>{b.askingWanted}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-neutral-400">Would move up a band</dt>
+                      <dt className="text-muted">Would move up a band</dt>
                       <dd>{b.unlocks}</dd>
                     </div>
                   </dl>
@@ -433,7 +433,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
             <SectionTitle>
               <span id="gaps-title">Asked for, and not in your plan</span>
             </SectionTitle>
-            <p className="max-w-3xl text-sm text-neutral-300">
+            <p className="max-w-3xl text-sm text-body">
               Ranked by how many roles require it and how much you want those roles. A candidate for your plan, not an
               instruction.
             </p>
@@ -462,13 +462,13 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               <SectionTitle>
                 <span id="unknown-title">Terms not on your skill list</span>
               </SectionTitle>
-              <p className="max-w-3xl text-sm text-neutral-300">
+              <p className="max-w-3xl text-sm text-body">
                 The tracker only sees skills it has been told about. These keep appearing in requirements, so any that
                 matter should be added to <code className="text-xs">src/lib/jobs/skills.ts</code>. Some will be noise.
               </p>
               <ul className="flex flex-wrap gap-2 text-xs">
                 {unknown.map((u) => (
-                  <li key={u.term} className="chip bg-white/5 text-neutral-300 ring-white/10">
+                  <li key={u.term} className="chip bg-white/5 text-body ring-white/10">
                     {u.term} {u.roles}
                   </li>
                 ))}
@@ -482,7 +482,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
         <SectionTitle>
           <span id="evidence-title">Evidence the plans cannot see</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           Finished units and recorded results count automatically. Add what you did before this plan, or at work, so
           your closest matches show up.
         </p>
@@ -496,7 +496,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               <li key={e.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                 <span>
                   <span className="font-medium">{SKILLS.find((s) => s.key === e.skill)?.name ?? e.skill}</span>
-                  <span className="text-neutral-400"> ({LEVELS[e.level]?.name}): </span>
+                  <span className="text-muted"> ({LEVELS[e.level]?.name}): </span>
                   {e.url ? (
                     <a
                       href={e.url}
@@ -521,7 +521,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
         <SectionTitle>
           <span id="mentor-title">For your mentor</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           A summary to paste into a message or your Sunday update. It leaves out your notes and contacts.
         </p>
         <CopySummary text={summary} />
@@ -567,7 +567,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                 <Link href={link(r)} scroll={false} className="hover:underline">
                   {r.next_action}
-                  <span className="text-neutral-400">
+                  <span className="text-muted">
                     {" "}
                     for {r.title}, {r.company}
                   </span>
@@ -579,7 +579,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
                         ? "text-coral"
                         : r.next_action_on === board.today
                           ? "text-sand"
-                          : "text-neutral-400"
+                          : "text-muted"
                     }
                   >
                     {shortDate(r.next_action_on)}
@@ -598,10 +598,10 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
             <div key={stage} className="rounded-xl bg-white/5 p-3 ring-1 ring-white/5">
               <h3 className="mb-2 flex items-baseline justify-between text-sm font-semibold">
                 {name}
-                <span className="text-xs font-normal text-neutral-400 tabular-nums">{here.length}</span>
+                <span className="text-xs font-normal text-muted tabular-nums">{here.length}</span>
               </h3>
               {here.length === 0 ? (
-                <p className="text-xs text-neutral-400">None.</p>
+                <p className="text-xs text-muted">None.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
                   {here.map((r) => (
@@ -609,7 +609,7 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
                       <Link href={link(r)} scroll={false} className="block hover:underline">
                         {r.title}
                       </Link>
-                      <span className="text-xs text-neutral-400">
+                      <span className="text-xs text-muted">
                         {r.company}
                         {r.closed_at ? ", no longer listed" : ""}
                       </span>
@@ -624,10 +624,10 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
 
       {ended.length > 0 && (
         <details>
-          <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">
+          <summary className="cursor-pointer text-sm text-body hover:text-white">
             Ended or passed on, {ended.length}
           </summary>
-          <ul className="mt-2 space-y-1 text-sm text-neutral-400">
+          <ul className="mt-2 space-y-1 text-sm text-muted">
             {ended.map((r) => (
               <li key={r.gid}>
                 <Link href={link(r)} scroll={false} className="hover:underline">
@@ -642,10 +642,10 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
 
       {oldSheet.length > 0 && (
         <details>
-          <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">
+          <summary className="cursor-pointer text-sm text-body hover:text-white">
             From your old sheet, {oldSheet.length}, highest rated first
           </summary>
-          <p className="mt-2 max-w-3xl text-sm text-neutral-400">
+          <p className="mt-2 max-w-3xl text-sm text-muted">
             These keep your old rating for reference. It never said what it measured, so it does not count as interest.
             Mark the ones you still want. Roles with no advert on file are on sites that cannot be read automatically,
             so paste the text if you want them compared.
@@ -654,15 +654,13 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
             {oldSheet.map((r) => (
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                 <span className="min-w-56 flex-1">
-                  <span className="mr-2 inline-block w-5 text-right text-neutral-400 tabular-nums">
-                    {r.legacy_rating}
-                  </span>
+                  <span className="mr-2 inline-block w-5 text-right text-muted tabular-nums">{r.legacy_rating}</span>
                   <Link href={link(r)} scroll={false} className="hover:underline">
                     {r.title}
                   </Link>
-                  <span className="text-neutral-400">, {r.company}</span>
+                  <span className="text-muted">, {r.company}</span>
                 </span>
-                <span className="text-xs text-neutral-400">
+                <span className="text-xs text-muted">
                   {r.closed_at ? "No longer listed" : r.has_body ? BANDS[r.fit.band].name : "No advert on file"}
                 </span>
               </li>
@@ -699,7 +697,7 @@ export function SourcesView({ board }: { board: JobBoard }) {
         <SectionTitle>
           <span id="add-title">Follow an employer</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           Paste any job link or careers page. If they use Greenhouse, Ashby, Lever, Workable or Teamtailor, their roles
           arrive by themselves. Anything else goes on the list to check by hand, because reading those sites
           automatically is against their terms or unsupported.
@@ -718,11 +716,11 @@ export function SourcesView({ board }: { board: JobBoard }) {
             {feeds.map((s) => (
               <li key={s.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                 <div className="min-w-48">
-                  <span className={s.active ? "" : "text-neutral-400"}>{s.name}</span>
-                  <span className="text-xs text-neutral-400"> {KIND_NAMES[s.kind] ?? s.kind}</span>
+                  <span className={s.active ? "" : "text-muted"}>{s.name}</span>
+                  <span className="text-xs text-muted"> {KIND_NAMES[s.kind] ?? s.kind}</span>
                   {s.last_error && <p className="text-xs text-coral">{s.last_error}</p>}
                 </div>
-                <span className="flex items-center gap-3 text-xs text-neutral-400 tabular-nums">
+                <span className="flex items-center gap-3 text-xs text-muted tabular-nums">
                   {s.last_count !== null && <span>{s.last_count} listed</span>}
                   <span>{ago(s.last_ok_at, board.today)}</span>
                   <SourceButtons gid={s.gid} active={s.active} />
@@ -757,7 +755,7 @@ export function SourcesView({ board }: { board: JobBoard }) {
                   ) : (
                     s.name
                   )}
-                  <span className="flex items-center gap-3 text-xs text-neutral-400">
+                  <span className="flex items-center gap-3 text-xs text-muted">
                     <span>{s.last_checked_on ? `Checked ${shortDate(s.last_checked_on)}` : "Not checked yet"}</span>
                     <SourceButtons gid={s.gid} active={s.active} canCheck />
                   </span>
@@ -771,7 +769,7 @@ export function SourcesView({ board }: { board: JobBoard }) {
         <SectionTitle>
           <span id="hand-title">Add a role by hand</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           For a role from LinkedIn, a recruiter or a site with no feed. Paste the advert and it gets the same comparison
           as any other role.
         </p>

@@ -46,7 +46,7 @@ export function UploadPdf() {
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
       <div className="max-w-2xl space-y-1">
         <h2 className="font-semibold">Add the PDF, for the figures</h2>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           Search works without it. With it, every page number here, in Study and in the Lab opens the real book at that
           page. It stays private to you.
         </p>

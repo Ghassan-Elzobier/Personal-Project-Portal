@@ -172,12 +172,12 @@ function ProjectTab({
     >
       <span className="block text-sm font-semibold">{title}</span>
       {!stats ? (
-        <span className="text-xs text-neutral-400">Could not load</span>
+        <span className="text-xs text-muted">Could not load</span>
       ) : stats.total === 0 ? (
-        <span className="text-xs text-neutral-400">No tasks yet</span>
+        <span className="text-xs text-muted">No tasks yet</span>
       ) : (
         <>
-          <span className="block text-xs text-neutral-300 tabular-nums">
+          <span className="block text-xs text-body tabular-nums">
             {stats.open} open{stats.overdue > 0 && `, ${stats.overdue} overdue`} · {formatHours(stats.hours)} h
           </span>
           <span
@@ -211,14 +211,14 @@ function StageBar({ stats }: { stats: ProjectStats }) {
           />
         ))}
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-body">
         {stats.stages.map((s) => (
           <li key={s.stage} className="flex items-center gap-1.5">
             <span className={`size-2 rounded-full ${STAGE_MARKS[s.stage]}`} aria-hidden />
-            {s.stage} <span className="text-neutral-400 tabular-nums">{s.count}</span>
+            {s.stage} <span className="text-muted tabular-nums">{s.count}</span>
           </li>
         ))}
-        <li className="text-neutral-400">{stats.percent}% done</li>
+        <li className="text-muted">{stats.percent}% done</li>
       </ul>
     </div>
   );

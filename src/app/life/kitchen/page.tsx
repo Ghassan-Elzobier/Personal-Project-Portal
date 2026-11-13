@@ -78,7 +78,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
   const plan = v.plan;
   if (!plan)
     return (
-      <p className="card-life text-sm text-neutral-300">
+      <p className="card-life text-sm text-body">
         Plan {v.start === s.weekStart ? "this" : "next"} week on{" "}
         <Link href={v.start === s.weekStart ? "/life" : "/life?week=next"} className="text-mint underline">
           Meals

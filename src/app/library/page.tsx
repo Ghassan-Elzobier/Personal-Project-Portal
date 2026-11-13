@@ -95,13 +95,13 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             </select>
             <button className="btn-primary shrink-0">Search</button>
           </div>
-          <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+          <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
             Try
             {TRY.map((t) => (
               <Link
                 key={t}
                 href={bookHref.search(t)}
-                className="chip bg-white/5 text-neutral-300 ring-white/10 hover:bg-white/10"
+                className="chip bg-white/5 text-body ring-white/10 hover:bg-white/10"
               >
                 {t}
               </Link>
@@ -159,13 +159,13 @@ async function Results({ q, chapter, hasPdf }: { q: string; chapter: string | nu
           {results.length ? `${results.length} ${results.length === 1 ? "page" : "pages"}` : "Nothing found"}
         </h2>
         {translated.length > 0 && (
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-muted">
             Also searched the book&apos;s words:{" "}
             {translated.map((t) => `${t.to.join(" or ")} for ${t.from}`).join("; ")}.
           </p>
         )}
         {results.length > 0 && matchedEvery < results.length && (
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-muted">
             {matchedEvery
               ? `The first ${matchedEvery} match every term. The rest match some of them.`
               : "No page matches every term, so these match some of them."}
@@ -180,14 +180,14 @@ async function Results({ q, chapter, hasPdf }: { q: string; chapter: string | nu
               <Link href={bookHref.page(r.page)} className="font-semibold hover:underline">
                 {r.heading.split(" › ").at(-1)}
               </Link>
-              <span className="text-sm text-neutral-400 tabular-nums">p. {r.page}</span>
+              <span className="text-sm text-muted tabular-nums">p. {r.page}</span>
             </p>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted">
               {r.heading.split(" › ")[0]}
               {r.kind === "figure" && " · describes a figure"}
               {!r.matched_every_term && " · matches some terms"}
             </p>
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-body">
               {splitExcerpt(r.excerpt).map((run, i) =>
                 run.mark ? (
                   <mark key={i} className="rounded-sm bg-aqua/20 px-0.5 text-white">
@@ -247,7 +247,7 @@ async function Reader({ page, back, hasPdf }: { page: number; back: string | nul
           Open the PDF at p. {page}
         </a>
       )}
-      <Link href="/library" className="text-neutral-400 hover:text-white">
+      <Link href="/library" className="text-muted hover:text-white">
         Contents
       </Link>
     </nav>
@@ -255,19 +255,19 @@ async function Reader({ page, back, hasPdf }: { page: number; back: string | nul
   return (
     <section aria-label={`Pages ${pages[0].page} to ${pages.at(-1)!.page}`} className="space-y-4">
       {nav}
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         The figures are in the PDF. Pages marked as figure descriptions say in words what a figure shows.
       </p>
       {pages.map((p) => (
         <article key={p.page} id={`p${p.page}`} className="scroll-mt-24 space-y-3 card">
           <header className="flex flex-wrap items-baseline justify-between gap-x-4">
             <h2 className="font-semibold">{p.heading}</h2>
-            <span className="text-sm text-neutral-400 tabular-nums">
+            <span className="text-sm text-muted tabular-nums">
               p. {p.page}
               {p.kind === "figure" ? " · figure description" : ""}
             </span>
           </header>
-          <div className="max-w-3xl text-[15px] leading-relaxed whitespace-pre-wrap text-neutral-200">{p.text}</div>
+          <div className="max-w-3xl text-[15px] leading-relaxed whitespace-pre-wrap text-bright">{p.text}</div>
         </article>
       ))}
       {nav}
@@ -292,7 +292,7 @@ function Contents({ outline }: { outline: Outline }) {
       <h2 id="contents-title" className="text-xl font-semibold">
         Contents
       </h2>
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         {outline.pages.toLocaleString("en-GB")} pages loaded. Page numbers are the PDF&apos;s own, the same ones the
         study plan uses.
       </p>
@@ -303,7 +303,7 @@ function Contents({ outline }: { outline: Outline }) {
               <span className="font-semibold">
                 {/^\d+$/.test(c.chapter) ? `Ch ${c.chapter}` : `Appendix ${c.chapter}`} {c.title}
               </span>
-              <span className="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+              <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 {(lab.get(c.chapter) ?? []).map((v) => (
                   <Link
                     key={v.id}
@@ -319,9 +319,9 @@ function Contents({ outline }: { outline: Outline }) {
             <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 pl-4 text-sm sm:grid-cols-2">
               {c.sections.map((s) => (
                 <li key={s.number}>
-                  <Link href={bookHref.page(s.first_page)} className="text-neutral-300 hover:text-white">
-                    <span className="text-neutral-400 tabular-nums">{s.number}</span> {s.title}{" "}
-                    <span className="text-xs text-neutral-500 tabular-nums">p. {s.first_page}</span>
+                  <Link href={bookHref.page(s.first_page)} className="text-body hover:text-white">
+                    <span className="text-muted tabular-nums">{s.number}</span> {s.title}{" "}
+                    <span className="text-xs text-faint tabular-nums">p. {s.first_page}</span>
                   </Link>
                 </li>
               ))}

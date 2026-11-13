@@ -13,7 +13,7 @@ export const SPACE_COOKIE = "portal-space";
 
 function Brand() {
   return (
-    <Link href="/" className="shrink-0 text-xl font-bold text-neutral-400 transition-colors hover:text-white">
+    <Link href="/" className="shrink-0 text-xl font-bold text-muted transition-colors hover:text-white">
       Ghassan<span className="text-lavender">.</span>portal
     </Link>
   );

@@ -84,7 +84,7 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
   return (
     <section>
       <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-      {note && <p className="mb-2 text-xs text-neutral-400">{note}</p>}
+      {note && <p className="mb-2 text-xs text-muted">{note}</p>}
       <ul className="space-y-3 text-sm">
         {items.map((item) => (
           <li key={item.skill} className="flex gap-2">
@@ -92,12 +92,12 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
             <div className="min-w-0">
               <p>
                 <span className="font-medium">{item.name}</span>
-                {item.orElse.length > 0 && <span className="text-neutral-400"> or {item.orElse.join(", ")}</span>}
+                {item.orElse.length > 0 && <span className="text-muted"> or {item.orElse.join(", ")}</span>}
               </p>
-              <p className="text-xs text-neutral-300">
+              <p className="text-xs text-body">
                 <Standing view={item} />
               </p>
-              <p className="mt-0.5 text-xs text-neutral-400 italic">“{item.quote}”</p>
+              <p className="mt-0.5 text-xs text-muted italic">“{item.quote}”</p>
             </div>
           </li>
         ))}
@@ -169,13 +169,11 @@ export function RolePane({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{role.title}</h2>
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-body">
               {role.company}, {role.location || "place not stated"}
-              {role.alsoIn.length > 0 && (
-                <span className="text-neutral-400">, also listed for {role.alsoIn.join("; ")}</span>
-              )}
+              {role.alsoIn.length > 0 && <span className="text-muted">, also listed for {role.alsoIn.join("; ")}</span>}
             </p>
-            {role.salary && <p className="text-sm text-neutral-300">{role.salary}</p>}
+            {role.salary && <p className="text-sm text-body">{role.salary}</p>}
           </div>
           <Link href={closeHref} scroll={false} className="btn-ghost shrink-0 px-3 py-1 text-sm">
             Close
@@ -192,19 +190,19 @@ export function RolePane({
             <span className="text-coral">No longer listed since {shortDate(role.closed_at.slice(0, 10))}</span>
           )}
           {role.legacy_rating !== null && (
-            <span className="text-neutral-400">Rated {role.legacy_rating} in your old sheet</span>
+            <span className="text-muted">Rated {role.legacy_rating} in your old sheet</span>
           )}
         </div>
 
         <section className="rounded-xl bg-white/5 p-3">
           <p className="text-sm font-semibold">{BANDS[role.fit.band].name}</p>
-          <p className="text-sm text-neutral-300">{role.fit.reason}</p>
+          <p className="text-sm text-body">{role.fit.reason}</p>
           {role.fit.readyBy && (
             <p className="mt-1 text-sm text-aqua">
               Your plan reaches everything it needs by {shortDate(role.fit.readyBy)}.
             </p>
           )}
-          {flags.length > 0 && <p className="mt-1 text-xs text-neutral-400">{flags.join(". ")}.</p>}
+          {flags.length > 0 && <p className="mt-1 text-xs text-muted">{flags.join(". ")}.</p>}
         </section>
 
         <section className="space-y-3">
@@ -223,7 +221,7 @@ export function RolePane({
                     setInterest(next);
                     save({ interest: next });
                   }}
-                  className={`rounded-full px-3 py-1 text-xs ring-1 transition ${interest === option.value ? "bg-lavender/30 text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10 hover:ring-white/30"}`}
+                  className={`rounded-full px-3 py-1 text-xs ring-1 transition ${interest === option.value ? "bg-lavender/30 text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:ring-white/30"}`}
                 >
                   {option.label}
                 </button>
@@ -299,7 +297,7 @@ export function RolePane({
         />
         <Requirements title="Also wanted, or part of the job" items={role.fit.soft} />
         {!role.has_body && (
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             The advert text is not on file. Open the advert, or add it again by hand with its text, to compare it.
           </p>
         )}
@@ -307,7 +305,7 @@ export function RolePane({
         {events.length > 0 && (
           <section>
             <h3 className="mb-1 text-sm font-semibold">History</h3>
-            <ul className="space-y-1 text-xs text-neutral-300">
+            <ul className="space-y-1 text-xs text-body">
               {events.map((e, i) => (
                 <li key={i}>
                   {shortDate(e.created_at.slice(0, 10))}: {STAGES.find((s) => s.value === e.stage)?.label ?? e.stage}
@@ -320,8 +318,8 @@ export function RolePane({
         {body && (
           <details>
             <summary className="cursor-pointer text-sm font-semibold">The advert</summary>
-            <p className="mt-2 text-xs text-neutral-400">Kept as plain text, including after the role closes.</p>
-            <p className="mt-2 text-sm whitespace-pre-wrap text-neutral-300">{body}</p>
+            <p className="mt-2 text-xs text-muted">Kept as plain text, including after the role closes.</p>
+            <p className="mt-2 text-sm whitespace-pre-wrap text-body">{body}</p>
           </details>
         )}
       </aside>

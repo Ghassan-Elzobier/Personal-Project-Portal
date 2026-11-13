@@ -45,15 +45,15 @@ export function MeasuredVsModel({ results }: { results: Results }) {
       {[0, 0.25, 0.5, 0.75, 1].map((v) => (
         <g key={v}>
           <line x1={X(1)} y1={Y(v)} x2={X(8)} y2={Y(v)} className="stroke-white/5" />
-          <Text x={X(1) - 10} y={Y(v) + 4} anchor="end" className="fill-neutral-400 text-[11px]">{`${v * 100}%`}</Text>
+          <Text x={X(1) - 10} y={Y(v) + 4} anchor="end" className="fill-muted text-[11px]">{`${v * 100}%`}</Text>
         </g>
       ))}
       {Array.from({ length: 8 }, (_, k) => (
-        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-neutral-400 text-[11px]">
+        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-muted text-[11px]">
           {String(k + 1)}
         </Text>
       ))}
-      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-neutral-400 text-[11.5px]">
+      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-muted text-[11.5px]">
         trip through the bounce loop
       </Text>
       <Text x={20} y={24} className="fill-white text-[14px] font-semibold">
@@ -119,11 +119,11 @@ export function MeasuredVsModel({ results }: { results: Results }) {
           >{`${GPU_STYLE[g].name} measured: ${Math.round(d.overall * 100)}% at ${d.subgroup}`}</Text>
         ))
       ) : (
-        <Text x={776} y={156} className="fill-neutral-400 text-[12px]">
+        <Text x={776} y={156} className="fill-muted text-[12px]">
           Nothing measured yet
         </Text>
       )}
-      <Text x={776} y={measured.length ? 204 : 180} className="fill-neutral-400 text-[11px]">
+      <Text x={776} y={measured.length ? 204 : 180} className="fill-muted text-[11px]">
         Dashed: model. Solid with dots: yours.
       </Text>
     </Figure>
@@ -145,7 +145,7 @@ export function GpuTable({ results }: { results: Results }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="text-xs text-neutral-400">
+        <thead className="text-xs text-muted">
           <tr>
             <th scope="col" className="py-1.5 pr-4 font-normal" />
             <th scope="col" className="py-1.5 pr-4 font-normal">
@@ -161,14 +161,14 @@ export function GpuTable({ results }: { results: Results }) {
         </thead>
         <tbody className="divide-y divide-white/5">
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+            <th scope="row" className={`${cell} font-normal text-muted`}>
               Dispatch, 800 × 600
             </th>
             {rows.map(({ g, r }) => (
               <td key={g} className={`${cell} tabular-nums`}>
                 {r.dispatch ? `${r.dispatch.ms} ms` : "not recorded"}
                 {r.dispatch?.commit && (
-                  <span className="block text-xs text-neutral-500">
+                  <span className="block text-xs text-faint">
                     at {r.dispatch.commit}, {r.dispatch.date}
                   </span>
                 )}
@@ -179,7 +179,7 @@ export function GpuTable({ results }: { results: Results }) {
             </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+            <th scope="row" className={`${cell} font-normal text-muted`}>
               Paths a second
             </th>
             {rows.map(({ g, a }) => (
@@ -192,14 +192,14 @@ export function GpuTable({ results }: { results: Results }) {
             </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+            <th scope="row" className={`${cell} font-normal text-muted`}>
               Achieved
             </th>
             {rows.map(({ g, a }) => (
               <td key={g} className={`${cell} tabular-nums`}>
                 {a ? `${Math.round(a.gflops).toLocaleString("en-GB")} GFLOP/s, ${Math.round(a.gbs)} GB/s` : "—"}
                 {g === "rx" && a && (
-                  <span className="block text-xs text-neutral-500">
+                  <span className="block text-xs text-faint">
                     {Math.round(a.ofRxRoof * 100)}% of its paper roof at 9 FLOP/B
                   </span>
                 )}
@@ -210,7 +210,7 @@ export function GpuTable({ results }: { results: Results }) {
             </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+            <th scope="row" className={`${cell} font-normal text-muted`}>
               Compiled as
             </th>
             {rows.map(({ g }) => (
@@ -223,13 +223,13 @@ export function GpuTable({ results }: { results: Results }) {
             </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+            <th scope="row" className={`${cell} font-normal text-muted`}>
               Bounce-loop efficiency
             </th>
             {rows.map(({ g, r }) => (
               <td key={g} className={`${cell} tabular-nums`}>
                 {`model ${Math.round(MODEL.efficiency[g === "iris" ? 16 : 64] * 100)}% at ${g === "iris" ? 16 : 64} wide`}
-                <span className="block text-xs text-neutral-500">
+                <span className="block text-xs text-faint">
                   {r.divergence
                     ? `measured ${Math.round(r.divergence.overall * 100)}% at ${r.divergence.subgroup}`
                     : "not measured yet"}

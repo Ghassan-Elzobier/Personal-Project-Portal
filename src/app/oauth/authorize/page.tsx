@@ -43,7 +43,7 @@ export default async function AuthorizePage({
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted">
               Claude asks you before each change. You can disconnect it any time from the Claude page.
             </p>
             <form action={decide} className="flex gap-3">

@@ -145,13 +145,13 @@ export function Objects() {
       h={600}
       label="Setup builds three groups of objects: the device chain, the display chain and the shader's bindings, plus per-frame tools. Each box gives its CUDA counterpart."
     >
-      <Text x={col[0]} y={28} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[0]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         Talk to the GPU
       </Text>
-      <Text x={col[1]} y={28} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[1]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         Show pixels
       </Text>
-      <Text x={col[2]} y={28} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[2]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         Tell the shader where its data is
       </Text>
 
@@ -332,7 +332,7 @@ export function Objects() {
       />
       <Box x={col[1]} y={row(4)} w={140} h={64} tone="gpu" title="Query pool" sub="2 timestamps" />
       <Box x={col[1] + 150} y={row(4)} w={140} h={64} tone="cpu" title="Fence" sub="starts signalled" />
-      <Text x={20} y={584} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={584} className="fill-muted text-[12px]">
         Everything below the logical device is created from it. Arrows show what each object is made from or points at.
       </Text>
     </Figure>
@@ -360,7 +360,7 @@ export function Timeline() {
           x={x + w / 2}
           y={y + 27}
           anchor="middle"
-          className={faint ? "fill-neutral-400 text-[12px]" : "fill-white text-[12px]"}
+          className={faint ? "fill-muted text-[12px]" : "fill-white text-[12px]"}
         >
           {text}
         </Text>
@@ -408,19 +408,19 @@ export function Timeline() {
       <Badge n={4} x={245} y={lane.cpu - 14} tone="cpu" />
       <Badge n={5} x={408} y={lane.gpu - 14} tone="shader" />
       <Badge n={6} x={298} y={lane.cpu - 14} tone="cpu" />
-      <Text x={165} y={lane.cpu + 60} anchor="end" className="fill-neutral-400 text-[11px]">
+      <Text x={165} y={lane.cpu + 60} anchor="end" className="fill-muted text-[11px]">
         read
       </Text>
-      <Text x={182} y={lane.cpu + 74} anchor="start" className="fill-neutral-400 text-[11px]">
+      <Text x={182} y={lane.cpu + 74} anchor="start" className="fill-muted text-[11px]">
         acquire
       </Text>
-      <Text x={316} y={lane.cpu + 60} anchor="end" className="fill-neutral-400 text-[11px]">
+      <Text x={316} y={lane.cpu + 60} anchor="end" className="fill-muted text-[11px]">
         present
       </Text>
-      <Text x={284} y={lane.gpu + 27} anchor="end" className="fill-neutral-400 text-[11px]">
+      <Text x={284} y={lane.gpu + 27} anchor="end" className="fill-muted text-[11px]">
         barriers
       </Text>
-      <Text x={521} y={lane.gpu + 62} anchor="middle" className="fill-neutral-400 text-[11px]">
+      <Text x={521} y={lane.gpu + 62} anchor="middle" className="fill-muted text-[11px]">
         copy
       </Text>
 
@@ -457,7 +457,7 @@ export function Timeline() {
         at={[318, 246]}
         labelAnchor="start"
       />
-      <Text x={20} y={348} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={348} className="fill-muted text-[12px]">
         Not to scale, except that the dispatch is most of the GPU&apos;s time. The CPU&apos;s own work takes
         microseconds.
       </Text>
@@ -518,7 +518,7 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
         className={faint ? "fill-white/5 stroke-white/15" : TONES[tone].box}
         strokeWidth={1}
       />
-      <Text x={from + 10} y={y + 4} className={faint ? "fill-neutral-400 text-[11px]" : "fill-white text-[11px]"}>
+      <Text x={from + 10} y={y + 4} className={faint ? "fill-muted text-[11px]" : "fill-white text-[11px]"}>
         {text}
       </Text>
     </g>
@@ -646,7 +646,7 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
       <Text x={X.b4 + 20} y={393} anchor="middle" className="fill-coral text-[12.5px] font-semibold">
         Not on the chain: can start before the display lets go
       </Text>
-      <Text x={X.b4 + 20} y={412} anchor="middle" className="fill-neutral-200 text-[12px]">
+      <Text x={X.b4 + 20} y={412} anchor="middle" className="fill-bright text-[12px]">
         Fix: source stage COMPUTE_SHADER at line 804
       </Text>
       <circle cx={X.signal} cy={60} r={9} className="fill-fuchsia/20 stroke-fuchsia" strokeWidth={1.5} />

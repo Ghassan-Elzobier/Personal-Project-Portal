@@ -60,7 +60,7 @@ export function Ring({
         />
       </svg>
       <span className="text-sm font-medium">{label}</span>
-      <span className="text-xs text-neutral-400 tabular-nums">{sub}</span>
+      <span className="text-xs text-muted tabular-nums">{sub}</span>
     </div>
   );
 }
@@ -73,7 +73,7 @@ export function Chip({
   tone?: "neutral" | "mint" | "sand" | "aqua" | "coral" | "ice";
 }) {
   const tones = {
-    neutral: "bg-white/5 text-neutral-300 ring-white/10",
+    neutral: "bg-white/5 text-body ring-white/10",
     mint: "bg-mint/10 text-mint ring-mint/25",
     sand: "bg-sand/10 text-sand ring-sand/25",
     aqua: "bg-aqua/10 text-aqua ring-aqua/25",
@@ -109,7 +109,7 @@ export function SetupCard() {
   return (
     <section className="space-y-3 card-life">
       <h2 className="text-lg font-semibold">Set up your profile first</h2>
-      <p className="text-sm text-neutral-300">
+      <p className="text-sm text-body">
         Your height, age and food rules decide portion sizes, targets and which recipes you see. It takes two minutes,
         and none of it leaves your private database.
       </p>
@@ -136,7 +136,7 @@ export function Tabs({
           href={t.href}
           scroll={false}
           aria-current={t.key === current ? "page" : undefined}
-          className={`flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-center text-sm ${t.key === current ? "bg-fern font-semibold text-white" : "text-neutral-400 hover:text-white"}`}
+          className={`flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-center text-sm ${t.key === current ? "bg-fern font-semibold text-white" : "text-muted hover:text-white"}`}
         >
           <span className="truncate">{t.label}</span>
           {t.count ? <span className="text-xs text-mint tabular-nums">{t.count}</span> : null}

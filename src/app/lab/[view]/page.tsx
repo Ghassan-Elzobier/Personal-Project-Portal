@@ -57,7 +57,7 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
 
   return (
     <div className="space-y-8">
-      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-400">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
         <Link href="/lab" className="hover:text-white">
           Lab
         </Link>
@@ -85,9 +85,7 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
           <h2 id="gpus-title" className="text-xl font-semibold">
             Your two GPUs
           </h2>
-          <p className="text-sm text-neutral-400">
-            From the results you recorded in Study, and what each driver compiled.
-          </p>
+          <p className="text-sm text-muted">From the results you recorded in Study, and what each driver compiled.</p>
           <GpuTable results={results} />
         </section>
       )}
@@ -105,7 +103,7 @@ export default async function LabView({ params }: { params: Promise<Params> }) {
           </div>
           <MeasuredVsModel results={results} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-3 text-sm text-neutral-300">
+            <div className="space-y-3 text-sm text-body">
               <h3 className="font-semibold text-white">How to measure it</h3>
               <p>
                 Count, at the top of each trip through the bounce loop, how many lanes are still in it. After the timed
@@ -179,13 +177,13 @@ if (subgroupElect()) {
                 </span>
                 <div className="space-y-1">
                   <p className="font-semibold">{s.title}</p>
-                  <p className="text-sm text-neutral-300">{s.text}</p>
+                  <p className="text-sm text-body">{s.text}</p>
                   {s.code && <CodeLinks refs={s.code} />}
                 </div>
               </li>
             ))}
           </ol>
-          <p className="text-xs text-neutral-400">Code links open the lines at commit {RENDERER.short}.</p>
+          <p className="text-xs text-muted">Code links open the lines at commit {RENDERER.short}.</p>
           <div className="space-y-1 pt-2">
             <h3 className="text-sm font-semibold">All the code this view explains</h3>
             <ul className="space-y-1 text-sm">
@@ -200,7 +198,7 @@ if (subgroupElect()) {
                     {c.file === "main" ? "main.cpp" : c.file === "shader" ? "raytrace.comp" : "CMakeLists.txt"}:{c.from}
                     –{c.to}
                   </a>{" "}
-                  <span className="text-neutral-300">{c.what}</span>
+                  <span className="text-body">{c.what}</span>
                 </li>
               ))}
             </ul>
@@ -212,15 +210,15 @@ if (subgroupElect()) {
             <h2 id="book-title" className="font-semibold">
               In PMPP
             </h2>
-            {view.bookNote && <p className="text-sm text-neutral-300">{view.bookNote}</p>}
+            {view.bookNote && <p className="text-sm text-body">{view.bookNote}</p>}
             <ul className="space-y-3">
               {view.book.map((b) => (
                 <li key={b.section} className="space-y-1 text-sm">
                   <p>
                     <span className="font-semibold tabular-nums">{b.section}</span> {b.title}{" "}
-                    <span className="text-neutral-400">· p. {b.page}</span>
+                    <span className="text-muted">· p. {b.page}</span>
                   </p>
-                  <p className="text-neutral-300">{b.why}</p>
+                  <p className="text-body">{b.why}</p>
                   <BookLinks page={b.page} />
                 </li>
               ))}
@@ -264,11 +262,11 @@ if (subgroupElect()) {
             <dl className="space-y-2 text-sm">
               {view.facts.map((f) => (
                 <div key={f.label}>
-                  <dt className="flex flex-wrap items-center gap-2 text-neutral-400">
+                  <dt className="flex flex-wrap items-center gap-2 text-muted">
                     {f.label} <SourceChip source={f.source} />
                   </dt>
                   <dd className="tabular-nums">{f.value}</dd>
-                  {f.note && <dd className="text-xs text-neutral-400">{f.note}</dd>}
+                  {f.note && <dd className="text-xs text-muted">{f.note}</dd>}
                 </div>
               ))}
             </dl>
@@ -293,12 +291,12 @@ if (subgroupElect()) {
         <h2 id="checks-title" className="text-xl font-semibold">
           Check yourself
         </h2>
-        <p className="text-sm text-neutral-400">Answer from memory first, then open the answer.</p>
+        <p className="text-sm text-muted">Answer from memory first, then open the answer.</p>
         <div className="space-y-2">
           {view.checks.map((c) => (
             <details key={c.q} className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
               <summary className="cursor-pointer font-medium">{c.q}</summary>
-              <p className="mt-2 text-sm text-neutral-300">{c.a}</p>
+              <p className="mt-2 text-sm text-body">{c.a}</p>
             </details>
           ))}
         </div>
@@ -306,20 +304,20 @@ if (subgroupElect()) {
 
       <nav aria-label="Views" className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-4 text-sm">
         {prev ? (
-          <Link href={`/lab/${prev.id}`} className="text-neutral-300 hover:text-white">
+          <Link href={`/lab/${prev.id}`} className="text-body hover:text-white">
             ← {prev.title}
           </Link>
         ) : (
-          <Link href="/lab" className="text-neutral-300 hover:text-white">
+          <Link href="/lab" className="text-body hover:text-white">
             ← All views
           </Link>
         )}
         {next ? (
-          <Link href={`/lab/${next.id}`} className="text-neutral-300 hover:text-white">
+          <Link href={`/lab/${next.id}`} className="text-body hover:text-white">
             {next.title} →
           </Link>
         ) : (
-          <Link href={bookHref.search("warp divergence")} className="text-neutral-300 hover:text-white">
+          <Link href={bookHref.search("warp divergence")} className="text-body hover:text-white">
             Search the book →
           </Link>
         )}

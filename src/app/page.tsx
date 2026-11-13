@@ -181,10 +181,10 @@ async function OwnerHome() {
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 card sm:grid-cols-4">
           <Stat label="Today" value={`${formatHours(totals.today)} h`} />
           <div className="space-y-1">
-            <dt className="text-xs text-neutral-400">This week</dt>
+            <dt className="text-xs text-muted">This week</dt>
             <dd className="text-2xl font-bold tabular-nums">
               {formatHours(totals.week)}
-              {target ? <span className="text-base font-normal text-neutral-400"> of {target} h</span> : " h"}
+              {target ? <span className="text-base font-normal text-muted"> of {target} h</span> : " h"}
             </dd>
             {target && (
               <dd
@@ -213,7 +213,7 @@ async function OwnerHome() {
           <section aria-labelledby="focus-title" className="min-w-0">
             <SectionTitle
               action={
-                <Link href="/log" className="text-sm text-neutral-400 hover:text-white">
+                <Link href="/log" className="text-sm text-muted hover:text-white">
                   Log a session
                 </Link>
               }
@@ -262,7 +262,7 @@ async function OwnerHome() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
-      <dt className="text-xs text-neutral-400">{label}</dt>
+      <dt className="text-xs text-muted">{label}</dt>
       <dd className="text-2xl font-bold tabular-nums">{value}</dd>
     </div>
   );
@@ -359,7 +359,7 @@ async function MentorHome({ access }: { access: Access }) {
                   ? `Phase ${roadmap.value.current.index + 1} of 8: ${roadmap.value.current.name}`
                   : "Every phase done"}
               </p>
-              <p className="text-sm text-neutral-300">
+              <p className="text-sm text-body">
                 {roadmap.value.done} of {roadmap.value.total} units done.
                 {roadmap.value.finishOn ? ` Finish planned for ${shortDate(roadmap.value.finishOn)}.` : ""}
                 {roadmap.value.overdue.length ? ` ${roadmap.value.overdue.length} overdue.` : ""}
@@ -372,7 +372,7 @@ async function MentorHome({ access }: { access: Access }) {
               <p className="text-xl font-semibold">
                 {jobs.value.inScope} {jobs.value.inScope === 1 ? "role" : "roles"} in scope
               </p>
-              <p className="text-sm text-neutral-300">
+              <p className="text-sm text-body">
                 {jobs.value.pipeline.applied} applied, {jobs.value.pipeline.interview} interviewing.
                 {jobs.value.gaps[0]
                   ? ` Biggest gap: ${jobs.value.gaps[0].skill.name}, required by ${jobs.value.gaps[0].must}.`
@@ -420,7 +420,7 @@ function MentorProjectCard({
         {status && <StatusPill status={status.status_type} />}
       </div>
       {stats && stats.total > 0 && (
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           {stats.percent}% done, {stats.done} of {stats.total} tasks, <Hours value={stats.hours} /> logged
         </p>
       )}
@@ -428,13 +428,13 @@ function MentorProjectCard({
         <ErrorNote message={error} />
       ) : status ? (
         <>
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-muted">
             Latest update, {new Date(status.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
           </p>
-          <p className="line-clamp-5 text-sm whitespace-pre-line text-neutral-300">{status.text}</p>
+          <p className="line-clamp-5 text-sm whitespace-pre-line text-body">{status.text}</p>
         </>
       ) : (
-        <p className="text-sm text-neutral-400">{def.blurb} No status update yet.</p>
+        <p className="text-sm text-muted">{def.blurb} No status update yet.</p>
       )}
     </Link>
   );

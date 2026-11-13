@@ -116,7 +116,7 @@ function PlanTab({ progress, active }: { progress: PlanProgress; active: boolean
       <span className="block text-sm font-semibold">{projectDef(plan.project).title}</span>
       {loaded ? (
         <>
-          <span className="block text-xs text-neutral-300 tabular-nums">
+          <span className="block text-xs text-body tabular-nums">
             {core.done} of {core.total} {plan.unitLabel}
           </span>
           <span
@@ -128,7 +128,7 @@ function PlanTab({ progress, active }: { progress: PlanProgress; active: boolean
           </span>
         </>
       ) : (
-        <span className="text-xs text-neutral-400">Not loaded yet</span>
+        <span className="text-xs text-muted">Not loaded yet</span>
       )}
     </Link>
   );
@@ -181,7 +181,7 @@ function PlanView({
       <div className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-semibold">
-            {plan.title} <span className="text-sm font-normal text-neutral-400">{plan.subtitle}</span>
+            {plan.title} <span className="text-sm font-normal text-muted">{plan.subtitle}</span>
           </h2>
           <p className="flex flex-wrap gap-x-4 text-sm">
             {plan.sourceUrl && (
@@ -206,7 +206,7 @@ function PlanView({
             ))}
           </p>
         </div>
-        <p className="text-sm text-neutral-300 tabular-nums">
+        <p className="text-sm text-body tabular-nums">
           {core.done} of {core.total} {plan.unitLabel}
           {exercises.total > 0 && `, ${exercises.solved} of ${exercises.total} exercises solved`}
           {exercises.stuck > 0 && `, ${exercises.stuck} stuck`}
@@ -227,7 +227,7 @@ function PlanView({
             <button className="btn-ghost shrink-0 px-4 py-1.5">Search</button>
           </form>
         )}
-        <details className="text-sm text-neutral-300">
+        <details className="text-sm text-body">
           <summary className="cursor-pointer hover:text-white">How to work through this</summary>
           <p className="mt-2 max-w-3xl">{plan.guidance}</p>
         </details>
@@ -247,7 +247,7 @@ function PlanView({
 
       {remaining.length > 0 && (
         <details open={undated === remaining.length}>
-          <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">
+          <summary className="cursor-pointer text-sm text-body hover:text-white">
             {undated === remaining.length ? "Set a pace" : "Change the pace"}
           </summary>
           <div className="mt-3">
@@ -276,7 +276,7 @@ function PlanView({
           )}
           <BenchmarkTable rows={benchmarks} />
           <details open={benchmarks.length === 0}>
-            <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">Record a result</summary>
+            <summary className="cursor-pointer text-sm text-body hover:text-white">Record a result</summary>
             <div className="mt-3">
               <BenchmarkForm
                 project={plan.project}
@@ -300,7 +300,7 @@ function PlanView({
             <details key={section.name} open={done < inSection.length} className="group/section">
               <summary className="flex cursor-pointer items-baseline justify-between gap-4 border-b border-white/10 pb-2">
                 <h3 className="font-semibold">{section.name}</h3>
-                <span className="shrink-0 text-xs text-neutral-400 tabular-nums">
+                <span className="shrink-0 text-xs text-muted tabular-nums">
                   {done} of {inSection.length}
                 </span>
               </summary>
@@ -314,7 +314,7 @@ function PlanView({
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-400">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
         {others > 0 && (
           <Link href={`/tasks?project=${plan.project}`} className="hover:text-white">
             {others} more {others === 1 ? "task" : "tasks"} in this project, outside the plan
@@ -355,9 +355,9 @@ function NextUp({
           {task.name}
         </Link>
       </div>
-      {task.notes && <p className="line-clamp-3 max-w-3xl text-sm text-neutral-300">{task.notes}</p>}
+      {task.notes && <p className="line-clamp-3 max-w-3xl text-sm text-body">{task.notes}</p>}
       {market.length > 0 && (
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           Why it matters: teaches{" "}
           {market
             .slice(0, 3)
@@ -426,7 +426,7 @@ function UnitRowView({
         <Link
           href={href({ task: task.gid })}
           scroll={false}
-          className={`hover:underline ${task.completed ? "text-neutral-400" : ""}`}
+          className={`hover:underline ${task.completed ? "text-muted" : ""}`}
         >
           {task.milestone && (
             <span className="mr-1 text-lavender" title="Milestone">
@@ -436,12 +436,12 @@ function UnitRowView({
           {task.name}
           {task.completed && <span className="sr-only"> (done)</span>}
         </Link>
-        {unit.optional && <span className="ml-2 text-xs text-neutral-400">optional</span>}
+        {unit.optional && <span className="ml-2 text-xs text-muted">optional</span>}
         {unfinished.length > 0 && !task.completed && (
-          <p className="text-xs text-neutral-400">After {unfinished.map((n) => n.short).join(", ")}</p>
+          <p className="text-xs text-muted">After {unfinished.map((n) => n.short).join(", ")}</p>
         )}
       </div>
-      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-300 tabular-nums">
+      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-body tabular-nums">
         {!task.completed && task.stage && task.stage !== "Not started" && <StagePill stage={task.stage} />}
         {!task.completed && <DueDate dueOn={task.dueOn} today={today} />}
         {stepsTotal > 0 && !task.completed && stepsDone > 0 && (

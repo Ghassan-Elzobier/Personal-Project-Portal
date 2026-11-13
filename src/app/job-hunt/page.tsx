@@ -84,14 +84,14 @@ export default async function SharedJobHuntPage() {
               <li key={r.gid} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
                 <div className="min-w-56 flex-1">
                   <p className="font-medium">{r.title}</p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     {r.company}, {TIER_NAMES[r.location_tier] ?? r.location_tier}, {familyName(r.family)}
                   </p>
-                  <p className="mt-1 max-w-3xl text-sm text-neutral-300">{r.fit.reason}</p>
+                  <p className="mt-1 max-w-3xl text-sm text-body">{r.fit.reason}</p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {(r.seniority === "senior" || r.seniority === "lead") && (
-                    <span className="chip bg-white/5 text-neutral-300 ring-white/10">
+                    <span className="chip bg-white/5 text-body ring-white/10">
                       {r.seniority === "lead" ? "Lead level" : "Senior"}
                     </span>
                   )}
@@ -107,7 +107,7 @@ export default async function SharedJobHuntPage() {
         <SectionTitle>
           <span id="gap-title">Skills gap</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           What the roles in scope require, ranked by how many require it and how far the plan is from it.
         </p>
         <h3 className="text-sm font-semibold">Not in the plan</h3>
@@ -122,7 +122,7 @@ export default async function SharedJobHuntPage() {
         <SectionTitle>
           <span id="branch-title">Which way after phase 3</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           The first three phases are fundamentals every route needs. These are the options after them, and what each
           would do for the roles in scope.
         </p>
@@ -130,14 +130,14 @@ export default async function SharedJobHuntPage() {
           {view.branches.map((b) => (
             <li key={b.key} className="space-y-2 card">
               <h3 className="font-semibold">{b.name}</h3>
-              <p className="text-sm text-neutral-300">{b.why}</p>
+              <p className="text-sm text-body">{b.why}</p>
               <dl className="space-y-1 text-sm tabular-nums">
                 <div className="flex justify-between gap-4">
-                  <dt className="text-neutral-400">Roles asking for it</dt>
+                  <dt className="text-muted">Roles asking for it</dt>
                   <dd>{b.asking}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-neutral-400">Would move up a band</dt>
+                  <dt className="text-muted">Would move up a band</dt>
                   <dd>{b.unlocks}</dd>
                 </div>
               </dl>
@@ -152,7 +152,7 @@ export default async function SharedJobHuntPage() {
         </SectionTitle>
         <div className="overflow-x-auto">
           <table className="w-full min-w-lg text-left text-sm">
-            <thead className="text-xs text-neutral-400">
+            <thead className="text-xs text-muted">
               <tr>
                 <th className="py-1 pr-4 font-normal">Field</th>
                 <th className="py-1 pr-4 text-right font-normal">Roles</th>
@@ -167,7 +167,7 @@ export default async function SharedJobHuntPage() {
                 .map((f) => (
                   <tr key={f.key}>
                     <td className="py-2 pr-4">{f.name}</td>
-                    <td className="py-2 pr-4 text-right text-neutral-300">{f.roles}</td>
+                    <td className="py-2 pr-4 text-right text-body">{f.roles}</td>
                     <td className="py-2 pr-4 text-right text-mint">{f.ready}</td>
                     <td className="py-2 pr-4 text-right text-aqua">{f.onPlan}</td>
                     <td className="py-2 text-right text-sand">{f.oneGap}</td>
@@ -188,12 +188,12 @@ export default async function SharedJobHuntPage() {
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 py-2">
                 <span>
                   {r.title}
-                  <span className="text-neutral-400">
+                  <span className="text-muted">
                     , {r.company}
                     {r.closed_at ? ", no longer listed" : ""}
                   </span>
                 </span>
-                <span className="text-neutral-300">{STAGE_NAMES[r.stage] ?? r.stage}</span>
+                <span className="text-body">{STAGE_NAMES[r.stage] ?? r.stage}</span>
               </li>
             ))}
           </ul>
@@ -206,9 +206,9 @@ export default async function SharedJobHuntPage() {
 function Stat({ label, value, detail }: { label: string; value: number; detail?: string }) {
   return (
     <div className="space-y-1">
-      <dt className="text-xs text-neutral-400">{label}</dt>
+      <dt className="text-xs text-muted">{label}</dt>
       <dd className="text-2xl font-bold tabular-nums">{value}</dd>
-      {detail && <dd className="text-xs text-neutral-400">{detail}</dd>}
+      {detail && <dd className="text-xs text-muted">{detail}</dd>}
     </div>
   );
 }

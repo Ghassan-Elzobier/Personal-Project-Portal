@@ -65,9 +65,9 @@ export default async function BodyPage() {
             label="Daily weigh-ins and the smoothed trend, last 60 days"
           />
         ) : (
-          <p className="text-sm text-neutral-400">The chart starts with your second weigh-in.</p>
+          <p className="text-sm text-muted">The chart starts with your second weigh-in.</p>
         )}
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           {rate !== null && wanted !== null ? (
             <>
               {rate >= 0 ? "Gaining" : "Losing"}{" "}
@@ -94,9 +94,9 @@ export default async function BodyPage() {
               ["Carbs", `${s.targets.carbs}`, "g"],
             ].map(([k, v, u]) => (
               <div key={k} className="rounded-xl bg-white/5 p-3">
-                <dt className="text-xs text-neutral-400">{k}</dt>
+                <dt className="text-xs text-muted">{k}</dt>
                 <dd className="text-xl font-bold tabular-nums">
-                  {v} <span className="text-sm font-normal text-neutral-400">{u}</span>
+                  {v} <span className="text-sm font-normal text-muted">{u}</span>
                 </dd>
               </div>
             ))}
@@ -116,7 +116,7 @@ export default async function BodyPage() {
               )}
             </div>
           )}
-          <details className="text-sm text-neutral-300">
+          <details className="text-sm text-body">
             <summary className="cursor-pointer text-mint">Where these come from</summary>
             <div className="mt-2 space-y-2">
               <p>
@@ -149,9 +149,7 @@ export default async function BodyPage() {
           <h2 id="effort-title" className="text-lg font-semibold">
             This week&apos;s effort
           </h2>
-          <p className="text-sm text-neutral-400">
-            Monday to today. Consistency builds muscle; one bad day doesn&apos;t.
-          </p>
+          <p className="text-sm text-muted">Monday to today. Consistency builds muscle; one bad day doesn&apos;t.</p>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Ring

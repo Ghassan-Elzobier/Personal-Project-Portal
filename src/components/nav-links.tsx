@@ -142,7 +142,7 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
             const href = e.currentTarget.getAttribute("href");
             setTapped(href === window.location.pathname + window.location.search ? null : s);
           }}
-          className={`flex min-h-9 items-center rounded-full px-3.5 font-medium transition ${shown === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-neutral-400 hover:text-white"}`}
+          className={`flex min-h-9 items-center rounded-full px-3.5 font-medium transition ${shown === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-muted hover:text-white"}`}
         >
           {s === "work" ? "Work" : "Life"}
         </Link>
@@ -171,7 +171,7 @@ export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initi
           <Link
             href={l.href}
             aria-current={active === l.href ? "page" : undefined}
-            className={`text-sm whitespace-nowrap transition-colors hover:text-white ${active === l.href ? `font-medium ${accent}` : "text-neutral-400"}`}
+            className={`text-sm whitespace-nowrap transition-colors hover:text-white ${active === l.href ? `font-medium ${accent}` : "text-muted"}`}
           >
             {l.title}
           </Link>
@@ -180,7 +180,7 @@ export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initi
       {own.more.length > 0 && (
         <details ref={menu} className="relative">
           <summary
-            className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-neutral-400"}`}
+            className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-muted"}`}
           >
             More <span aria-hidden>▾</span>
           </summary>
@@ -200,13 +200,13 @@ function MenuItems({ links, active, className = "" }: { links: NavLink[]; active
           key={l.href}
           href={l.href}
           aria-current={active === l.href ? "page" : undefined}
-          className={`block rounded-lg px-3 py-2.5 text-sm hover:bg-white/10 ${active === l.href ? "text-white" : "text-neutral-300"}`}
+          className={`block rounded-lg px-3 py-2.5 text-sm hover:bg-white/10 ${active === l.href ? "text-white" : "text-body"}`}
         >
           {l.title}
         </Link>
       ))}
       <form action="/auth/signout" method="post">
-        <button className="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-white">
+        <button className="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm text-muted hover:bg-white/10 hover:text-white">
           Sign out
         </button>
       </form>
@@ -236,7 +236,7 @@ export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial
   const moreActive = overflow.some((l) => l.href === active);
   const accent = space === "life" ? "text-mint" : "text-white";
   const item = (on: boolean) =>
-    `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center px-1 text-xs ${on ? `font-semibold ${accent}` : "text-neutral-400"}`;
+    `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center px-1 text-xs ${on ? `font-semibold ${accent}` : "text-muted"}`;
   const tab = (l: NavLink) => (
     <Link
       key={l.href}

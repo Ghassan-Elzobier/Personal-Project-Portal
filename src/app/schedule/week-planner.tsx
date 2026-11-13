@@ -136,12 +136,12 @@ export function WeekPlanner({
     <div className="relative">
       {(pending || error) && (
         <div
-          className={`fixed right-4 bottom-4 z-40 rounded-xl px-4 py-3 text-sm shadow-lg ring-1 ${error ? "bg-coral/15 text-coral ring-coral/40" : "bg-navy text-neutral-200 ring-white/10"}`}
+          className={`fixed right-4 bottom-4 z-40 rounded-xl px-4 py-3 text-sm shadow-lg ring-1 ${error ? "bg-coral/15 text-coral ring-coral/40" : "bg-navy text-bright ring-white/10"}`}
           role="status"
         >
           {pending ? "Saving…" : error}
           {error && (
-            <button className="ml-3 cursor-pointer text-neutral-400 hover:text-white" onClick={() => setError(null)}>
+            <button className="ml-3 cursor-pointer text-muted hover:text-white" onClick={() => setError(null)}>
               Dismiss
             </button>
           )}
@@ -154,17 +154,14 @@ export function WeekPlanner({
           <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-white/5">
             <div />
             {days.map((d, i) => (
-              <div
-                key={d}
-                className={`px-2 py-3 text-center text-sm ${d === today ? "text-white" : "text-neutral-400"}`}
-              >
+              <div key={d} className={`px-2 py-3 text-center text-sm ${d === today ? "text-white" : "text-muted"}`}>
                 <span className="block text-xs tracking-wider uppercase">{WEEKDAY[i]}</span>
                 <span
                   className={`mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-semibold ${d === today ? "bg-lavender" : ""}`}
                 >
                   {Number(d.slice(8))}
                 </span>
-                <span className="mt-1 block h-4 text-[11px] text-neutral-400 tabular-nums" title="Planned study time">
+                <span className="mt-1 block h-4 text-[11px] text-muted tabular-nums" title="Planned study time">
                   {plannedHours(byDay.get(d) ?? [])}
                 </span>
               </div>
@@ -176,7 +173,7 @@ export function WeekPlanner({
                 {hours.map((h) => (
                   <span
                     key={h}
-                    className="absolute right-2 -translate-y-1/2 text-[11px] text-neutral-400 tabular-nums"
+                    className="absolute right-2 -translate-y-1/2 text-[11px] text-muted tabular-nums"
                     style={{ top: (h - DAY_START) * PX_PER_MIN }}
                   >
                     {h === DAY_START ? "" : clock(h)}
@@ -209,7 +206,7 @@ export function WeekPlanner({
               <button
                 key={d}
                 onClick={() => setMobileDay(d)}
-                className={`btn shrink-0 flex-col gap-0 px-3 py-1.5 ring-1 ${d === mobileDay ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+                className={`btn shrink-0 flex-col gap-0 px-3 py-1.5 ring-1 ${d === mobileDay ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10"}`}
               >
                 <span className="text-[10px] uppercase">{WEEKDAY[i]}</span>
                 <span>{Number(d.slice(8))}</span>
@@ -225,7 +222,7 @@ export function WeekPlanner({
               </li>
             ))}
             {(byDay.get(mobileDay) ?? []).length === 0 && (
-              <li className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">Nothing planned.</li>
+              <li className="rounded-xl bg-white/5 p-4 text-sm text-muted">Nothing planned.</li>
             )}
           </ul>
           <button
@@ -242,17 +239,17 @@ export function WeekPlanner({
         <aside className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold">To plan</h2>
-            <p className="text-xs text-neutral-400">Drag a task onto a time, or tap Plan.</p>
+            <p className="text-xs text-muted">Drag a task onto a time, or tap Plan.</p>
           </div>
           {unscheduled.length === 0 && (
-            <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-400">Every open task has a time.</p>
+            <p className="rounded-xl bg-white/5 p-3 text-sm text-muted">Every open task has a time.</p>
           )}
           <ul className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
             {planGroups(unscheduled, days[6]).map((g) => (
               <li key={g.title}>
                 <details open={g.title !== "No date"}>
-                  <summary className="mb-1 cursor-pointer text-xs font-semibold text-neutral-300">
-                    {g.title} <span className="font-normal text-neutral-400">{g.tasks.length}</span>
+                  <summary className="mb-1 cursor-pointer text-xs font-semibold text-body">
+                    {g.title} <span className="font-normal text-muted">{g.tasks.length}</span>
                   </summary>
                   <ul className="space-y-2">
                     {g.tasks.map((t) => (
@@ -268,9 +265,9 @@ export function WeekPlanner({
                         }}
                         className="group cursor-grab rounded-xl bg-white/5 p-3 text-sm ring-1 ring-white/5 transition hover:ring-lavender/40 active:cursor-grabbing"
                       >
-                        <p className="text-[11px] tracking-wider text-neutral-400 uppercase">{t.project}</p>
+                        <p className="text-[11px] tracking-wider text-muted uppercase">{t.project}</p>
                         <p className="font-medium">{t.title}</p>
-                        <div className="mt-1 flex items-center justify-between text-xs text-neutral-400">
+                        <div className="mt-1 flex items-center justify-between text-xs text-muted">
                           <span>{t.dueOn ? `Due ${shortDate(t.dueOn)}` : "No date"}</span>
                           <button
                             className="cursor-pointer text-aqua hover:text-white"
@@ -433,18 +430,18 @@ function DayColumn({
 function blockStyle(block: Block): string {
   if (block.source === "asana") {
     return block.completed
-      ? "bg-royal/30 ring-royal/40 text-neutral-300"
+      ? "bg-royal/30 ring-royal/40 text-body"
       : "bg-gradient-to-b from-royal to-lavender ring-lavender/60 text-white";
   }
   if (block.source === "session") {
     return block.completed
-      ? "bg-royal/20 ring-royal/30 text-neutral-300"
+      ? "bg-royal/20 ring-royal/30 text-body"
       : "bg-gradient-to-b from-royal/60 to-lavender/50 ring-lavender/40 text-white";
   }
   if (block.source === "plan" && block.clash)
     return `${LIFE_KINDS[(block.kind ?? "other") as LifeKind]?.className ?? LIFE_KINDS.other.className} !ring-2 !ring-coral`;
   if (block.kind && block.kind in LIFE_KINDS) return LIFE_KINDS[block.kind as LifeKind].className;
-  return "bg-white/5 ring-white/15 text-neutral-400 [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
+  return "bg-white/5 ring-white/15 text-muted [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
 }
 
 function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
@@ -473,7 +470,7 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
 
 function Legend() {
   return (
-    <div className="space-y-1 pt-4 text-xs text-neutral-400">
+    <div className="space-y-1 pt-4 text-xs text-muted">
       <p className="flex items-center gap-2">
         <span className="size-3 rounded-sm bg-linear-to-b from-royal to-lavender" /> Study: when a task is due
       </p>
@@ -505,11 +502,7 @@ function Modal({ children, onClose }: { children: ReactNode; onClose: () => void
     >
       <div className="w-full max-w-md card p-6">
         <div className="mb-2 flex justify-end">
-          <button
-            className="cursor-pointer text-sm text-neutral-400 hover:text-white"
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button className="cursor-pointer text-sm text-muted hover:text-white" onClick={onClose} aria-label="Close">
             Close
           </button>
         </div>
@@ -615,7 +608,7 @@ function NewBlockForm({
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`btn px-4 py-1.5 ring-1 ${tab === t ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+            className={`btn px-4 py-1.5 ring-1 ${tab === t ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10"}`}
           >
             {t === "work" ? "Task" : "Life block"}
           </button>
@@ -623,7 +616,7 @@ function NewBlockForm({
       </div>
 
       {tab === "life" && !googleReady ? (
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           Life blocks are saved in Google Calendar.{" "}
           <a href="/api/google/connect" className="text-aqua hover:underline">
             Connect Google Calendar
@@ -644,7 +637,7 @@ function NewBlockForm({
                 type="button"
                 key={k}
                 onClick={() => setKind(k)}
-                className={`chip px-3 py-1 text-sm ${kind === k ? LIFE_KINDS[k].className : "bg-white/5 text-neutral-400 ring-white/10"}`}
+                className={`chip px-3 py-1 text-sm ${kind === k ? LIFE_KINDS[k].className : "bg-white/5 text-muted ring-white/10"}`}
               >
                 {LIFE_KINDS[k].label}
               </button>
@@ -676,7 +669,7 @@ function NewBlockForm({
           </button>
         </form>
       ) : unscheduled.length === 0 ? (
-        <p className="text-sm text-neutral-400">Every open task already has a time. Drag a block to move it.</p>
+        <p className="text-sm text-muted">Every open task already has a time. Drag a block to move it.</p>
       ) : (
         <form
           className="space-y-4"
@@ -696,7 +689,7 @@ function NewBlockForm({
             </select>
           </label>
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-          <p className="text-xs text-neutral-400">Sets the task&apos;s start and due time.</p>
+          <p className="text-xs text-muted">Sets the task&apos;s start and due time.</p>
           <button className="btn-primary w-full" disabled={pending || !gid} aria-busy={pending}>
             Plan it
           </button>
@@ -745,7 +738,7 @@ function EditBlockForm({
                 : "Google Calendar"}
         </p>
         <h2 className="text-xl font-semibold">{block.title}</h2>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           {clock(block.start)}–{clock(block.end)}
           {block.stage ? ` · ${block.stage}` : ""}
         </p>
@@ -760,13 +753,13 @@ function EditBlockForm({
           }}
         >
           <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-          {block.seriesId && <p className="text-xs text-neutral-400">Changes this occurrence only.</p>}
+          {block.seriesId && <p className="text-xs text-muted">Changes this occurrence only.</p>}
           <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
             Save
           </button>
         </form>
       ) : (
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           {isWork ? "This task is finished." : "This event wasn't made in the portal, so edit it in Google Calendar."}
         </p>
       )}
@@ -833,18 +826,16 @@ function PlanBlockInfo({ block }: { block: Block }) {
       <div>
         <p className="eyebrow">From your Life plan</p>
         <h2 className="text-xl font-semibold">{block.title}</h2>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           {shortDate(block.date)} · {clock(block.start)}–{clock(block.end)}
         </p>
       </div>
       {block.note && (
-        <p
-          className={`rounded-xl p-3 text-sm ${block.clash ? "bg-coral/10 text-coral" : "bg-white/5 text-neutral-300"}`}
-        >
+        <p className={`rounded-xl p-3 text-sm ${block.clash ? "bg-coral/10 text-coral" : "bg-white/5 text-body"}`}>
           {block.note}.{block.clash ? " Move the other event, or change the plan in Life." : ""}
         </p>
       )}
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         This follows your meal plan and gym days. When study or an event takes its time, it moves to the nearest free
         time that still works (lunch stays at lunchtime, the shake after the gym). Change the plan in Life and it moves
         here and in Google Calendar.
@@ -897,9 +888,7 @@ function AddSessionForm({
     >
       <p className="text-sm font-semibold">Another session</p>
       <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-      <p className="text-xs text-neutral-400">
-        Sessions go to Google Calendar. The task stays due when its own block ends.
-      </p>
+      <p className="text-xs text-muted">Sessions go to Google Calendar. The task stays due when its own block ends.</p>
       <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
         Add session
       </button>

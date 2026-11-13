@@ -70,9 +70,7 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
             <span className="block font-semibold">
               Next week starts {dayLabel(s.next.start, s.today).toLowerCase()}
             </span>
-            <span className="text-sm text-neutral-300">
-              Plan it now so the shopping can arrive before the first cook.
-            </span>
+            <span className="text-sm text-body">Plan it now so the shopping can arrive before the first cook.</span>
           </span>
           <span className="text-sm text-mint">Plan next week →</span>
         </Link>
@@ -109,7 +107,7 @@ function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
     <section className="space-y-5 card-life">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Plan this week in one tap</h2>
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           Picks two recipes for each cook session from what you like, sizes every portion to your target, and works out
           what goes in the freezer. Swap anything afterwards.
         </p>
@@ -126,7 +124,7 @@ function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
                 <Link href={`/life/recipes/${m.key}`} className="block font-medium hover:underline">
                   {m.name}
                 </Link>
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-muted">
                   {m.cuisine} · {m.kcal} kcal · {m.protein} g protein
                 </p>
                 {m.reasons[0] && <p className="text-xs text-mint">{m.reasons[0]}</p>}
@@ -238,7 +236,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
                 ? "Order placed"
                 : "Shopping list"}
           </span>
-          <span className="text-sm text-neutral-300">
+          <span className="text-sm text-body">
             {plan.shop?.deliveredOn && !total.packs
               ? "Everything for the week is in the kitchen."
               : plan.shop?.deliveredOn
@@ -263,11 +261,11 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
       />
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         Your meals, cooking and gym are on the{" "}
         <Link
           href="/schedule"
-          className="text-neutral-200 underline decoration-white/30 underline-offset-2 hover:text-white"
+          className="text-bright underline decoration-white/30 underline-offset-2 hover:text-white"
         >
           Schedule
         </Link>{" "}

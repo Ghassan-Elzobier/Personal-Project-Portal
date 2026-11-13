@@ -19,11 +19,11 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
             <p className="font-semibold">
               Phase {phase.index + 1} of {roadmap.phases.length}: {phase.phase.name}
             </p>
-            <p className="text-sm text-neutral-300 tabular-nums">
+            <p className="text-sm text-body tabular-nums">
               {phase.done} of {phase.total} done, about {Math.round(phase.hoursLeft)} h left
             </p>
             {hub.nextUnit && (
-              <p className="text-sm text-neutral-300">
+              <p className="text-sm text-body">
                 Next:{" "}
                 {hub.nextUnit.href ? (
                   <Link href={hub.nextUnit.href} className="text-aqua underline-offset-2 hover:underline">
@@ -33,7 +33,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
                   hub.nextUnit.name
                 )}
                 {hub.nextUnit.skills.length > 0 && (
-                  <span className="text-neutral-400">
+                  <span className="text-muted">
                     . It teaches{" "}
                     {hub.nextUnit.skills
                       .map((s) => `${s.name} (${s.must + s.soft} ${s.must + s.soft === 1 ? "role" : "roles"})`)
@@ -45,9 +45,9 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
             )}
           </>
         ) : (
-          <p className="text-sm text-neutral-300">Every phase is done.</p>
+          <p className="text-sm text-body">Every phase is done.</p>
         )}
-        <Link href="/study" className="block text-sm text-neutral-400 hover:text-white">
+        <Link href="/study" className="block text-sm text-muted hover:text-white">
           Open the roadmap
         </Link>
       </div>
@@ -55,7 +55,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
       <div className="space-y-2 card">
         <p className="eyebrow">The market</p>
         {hub.closest ? (
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             Closest role:{" "}
             <Link
               href={`/jobs?role=${hub.closest.gid}`}
@@ -63,34 +63,34 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
             >
               {hub.closest.title}
             </Link>
-            <span className="text-neutral-400">, {hub.closest.company} </span>
+            <span className="text-muted">, {hub.closest.company} </span>
             <BandChip band={hub.closest.fit.band} />
           </p>
         ) : (
-          <p className="text-sm text-neutral-300">No close match yet.</p>
+          <p className="text-sm text-body">No close match yet.</p>
         )}
         {hub.biggestGap && (
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             Biggest gap: <span className="font-medium text-white">{hub.biggestGap.skill.name}</span>
-            <span className="text-neutral-400">
+            <span className="text-muted">
               , required by {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.
             </span>
           </p>
         )}
         {hub.nextSkill && (
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             Most-asked skill on its way: <span className="font-medium text-white">{hub.nextSkill.skill.name}</span>
-            <span className="text-neutral-400">, required by {plural(hub.nextSkill.must, "role", "roles")}.</span>
+            <span className="text-muted">, required by {plural(hub.nextSkill.must, "role", "roles")}.</span>
           </p>
         )}
-        <Link href="/jobs?view=skills" className="block text-sm text-neutral-400 hover:text-white">
+        <Link href="/jobs?view=skills" className="block text-sm text-muted hover:text-white">
           See skills against the market
         </Link>
       </div>
 
       <div className="space-y-2 card">
         <p className="eyebrow">Job hunt</p>
-        <p className="text-sm text-neutral-300 tabular-nums">
+        <p className="text-sm text-body tabular-nums">
           {hub.fresh > 0 ? (
             <Link href="/jobs" className="text-white underline-offset-2 hover:underline">
               {plural(hub.fresh, "role", "roles")} new to you
@@ -98,7 +98,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
           ) : (
             "No new roles to look at"
           )}
-          {hub.fresh > 0 && <span className="text-neutral-400">, {hub.freshNear} in London or remote</span>}
+          {hub.fresh > 0 && <span className="text-muted">, {hub.freshNear} in London or remote</span>}
           {`. ${hub.active} in progress.`}
         </p>
         {due.length > 0 ? (
@@ -111,21 +111,21 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
                 >
                   {a.next_action}
                 </Link>
-                <span className="text-neutral-400">, {a.company}</span>
+                <span className="text-muted">, {a.company}</span>
               </li>
             ))}
           </ul>
         ) : hub.actions[0] ? (
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             Next action: {hub.actions[0].next_action}, {shortDate(hub.actions[0].next_action_on as string)}
           </p>
         ) : (
-          <p className="text-sm text-neutral-400">Nothing due. Choose up to two things to do this week.</p>
+          <p className="text-sm text-muted">Nothing due. Choose up to two things to do this week.</p>
         )}
         {hub.failing > 0 && (
           <p className="text-sm text-coral">{plural(hub.failing, "feed", "feeds")} could not be read last time.</p>
         )}
-        <Link href="/jobs?view=applications" className="block text-sm text-neutral-400 hover:text-white">
+        <Link href="/jobs?view=applications" className="block text-sm text-muted hover:text-white">
           Open applications
         </Link>
       </div>

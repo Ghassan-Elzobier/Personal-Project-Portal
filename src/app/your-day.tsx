@@ -52,14 +52,14 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
         <h2 id="day-title" className="text-lg font-semibold">
           Your day
         </h2>
-        <Link href="/schedule" className="text-sm text-neutral-400 hover:text-white">
+        <Link href="/schedule" className="text-sm text-muted hover:text-white">
           Open schedule
         </Link>
-        {day.summary && <p className="w-full text-xs text-neutral-400 tabular-nums">{day.summary}</p>}
+        {day.summary && <p className="w-full text-xs text-muted tabular-nums">{day.summary}</p>}
       </div>
       {error && <p className="rounded-xl bg-coral/10 p-3 text-sm text-coral">{error}</p>}
       {day.items.length === 0 ? (
-        <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">
+        <p className="rounded-xl bg-white/5 p-4 text-sm text-muted">
           Nothing planned today. Drag a task onto a time on the Schedule.
         </p>
       ) : (
@@ -72,15 +72,13 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
             const body = (
               <>
                 <span
-                  className={`block truncate text-sm font-medium ${isDone ? "text-neutral-500 line-through" : i.skipped ? "text-neutral-500" : ""}`}
+                  className={`block truncate text-sm font-medium ${isDone ? "text-faint line-through" : i.skipped ? "text-faint" : ""}`}
                 >
                   {i.title}
                 </span>
-                {i.detail && <span className="block truncate text-xs text-neutral-400">{i.detail}</span>}
+                {i.detail && <span className="block truncate text-xs text-muted">{i.detail}</span>}
                 {i.note && (
-                  <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-neutral-500"}`}>
-                    {i.note}
-                  </span>
+                  <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-faint"}`}>{i.note}</span>
                 )}
               </>
             );
@@ -89,9 +87,7 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
                 key={i.key}
                 className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-1.5 ${next ? "bg-lavender/10 ring-1 ring-lavender/40" : ""}`}
               >
-                <span
-                  className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-neutral-500" : "text-neutral-300"}`}
-                >
+                <span className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-faint" : "text-body"}`}>
                   {i.start >= 0 ? clock(i.start) : ""}
                 </span>
                 <span
@@ -142,7 +138,7 @@ function Action({
   const pill = (href: string, label: string) => (
     <Link
       href={href}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${next ? "bg-lavender text-white" : "bg-white/5 text-neutral-200"}`}
+      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${next ? "bg-lavender text-white" : "bg-white/5 text-bright"}`}
     >
       {label}
     </Link>
@@ -154,7 +150,7 @@ function Action({
         onClick={onTick}
         aria-pressed={isDone}
         aria-label={isDone ? `Undo ${i.title}` : `Done: ${i.title}`}
-        className={`tap size-10 shrink-0 rounded-full ring-1 ${isDone ? "bg-mint text-primary ring-mint" : next ? "text-mint ring-mint/60" : "text-neutral-500 ring-white/15 hover:text-mint"}`}
+        className={`tap size-10 shrink-0 rounded-full ring-1 ${isDone ? "bg-mint text-primary ring-mint" : next ? "text-mint ring-mint/60" : "text-faint ring-white/15 hover:text-mint"}`}
       >
         ✓
       </button>

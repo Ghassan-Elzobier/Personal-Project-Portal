@@ -102,7 +102,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
                 href={session ? "#" : `/life/gym?w=${x.key}`}
                 aria-current={x.key === key ? "true" : undefined}
                 aria-disabled={Boolean(session) && x.key !== key}
-                className={`tap min-w-12 px-3 text-sm font-semibold ${x.key === key ? "bg-fern text-white" : session ? "pointer-events-none text-neutral-600" : "text-neutral-400 hover:text-white"}`}
+                className={`tap min-w-12 px-3 text-sm font-semibold ${x.key === key ? "bg-fern text-white" : session ? "pointer-events-none text-neutral-600" : "text-muted hover:text-white"}`}
               >
                 {x.key}
               </Link>
@@ -121,19 +121,19 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         <div>
           <p className="text-2xl font-bold tabular-nums">
             {week.done}
-            <span className="text-base font-normal text-neutral-400">/{week.planned}</span>
+            <span className="text-base font-normal text-muted">/{week.planned}</span>
           </p>
-          <p className="text-xs text-neutral-400">sessions this week</p>
+          <p className="text-xs text-muted">sessions this week</p>
         </div>
         <div>
           <p className="text-2xl font-bold tabular-nums">{week.streak}</p>
-          <p className="text-xs text-neutral-400">{week.streak === 1 ? "full week" : "full weeks"} in a row</p>
+          <p className="text-xs text-muted">{week.streak === 1 ? "full week" : "full weeks"} in a row</p>
         </div>
         <div>
           <p className="text-2xl font-bold tabular-nums">
             {series.length ? `${Math.round(series[series.length - 1].e1rm)}` : "–"}
           </p>
-          <p className="text-xs text-neutral-400">bench estimate, kg</p>
+          <p className="text-xs text-muted">bench estimate, kg</p>
         </div>
       </section>
 
@@ -178,16 +178,14 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
             label="Estimated one-rep max, best set of each heavy bench day"
           />
         ) : (
-          <p className="text-sm text-neutral-400">
-            Your estimated max appears after the first heavy bench day (session A).
-          </p>
+          <p className="text-sm text-muted">Your estimated max appears after the first heavy bench day (session A).</p>
         )}
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           {forecast?.note ??
             "Estimated from your best set each day, with reps in reserve counted (Epley). A forecast, not a promise: it moves every session."}
           {forecast?.eta ? " Reaching it also needs the body weight: eat the plan." : ""}
         </p>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-faint">
           Paused and close-grip days count too, but only the full bench is on the chart.
         </p>
       </section>
@@ -209,7 +207,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
                     </span>{" "}
                     · {r.workout}, {workout(r.workout)?.name}
                   </span>
-                  <span className="text-xs text-neutral-400 tabular-nums">
+                  <span className="text-xs text-muted tabular-nums">
                     {sets} sets
                     {lift?.best
                       ? ` · ${EXERCISE_MAP.get(lift.b)?.name.toLowerCase()} ${lift.best.kg} × ${lift.best.reps}`
@@ -222,7 +220,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
             })}
           </ul>
         ) : (
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-muted">
             Nothing logged yet. Your first session starts with the first set you tick.
           </p>
         )}
@@ -232,8 +230,8 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         <h2 id="program-title" className="text-lg font-semibold">
           The programme
         </h2>
-        <p className="text-sm text-neutral-300">{PROGRAM.summary}</p>
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">{PROGRAM.summary}</p>
+        <p className="text-sm text-body">
           Days: {s.profile.gym.days.map((d) => DAYS[d]).join(", ")} at{" "}
           {String(Math.floor(s.profile.gym.start / 60)).padStart(2, "0")}:
           {String(s.profile.gym.start % 60).padStart(2, "0")}.{" "}
@@ -247,7 +245,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
               <p className="font-semibold">
                 {x.key} · {x.name}
               </p>
-              <ul className="mt-1 space-y-0.5 text-xs text-neutral-400">
+              <ul className="mt-1 space-y-0.5 text-xs text-muted">
                 {x.blocks
                   .flatMap((b) => b.items)
                   .map((p) => {
@@ -263,11 +261,11 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
             </div>
           ))}
         </div>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-faint">
           Missing a piece of kit? Tell Settings what your gym lacks, and every exercise that needs it swaps for its
           alternative.
         </p>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-faint">
           Sessions are on the{" "}
           <Link href="/schedule" className="underline decoration-white/30 underline-offset-2 hover:text-white">
             Schedule

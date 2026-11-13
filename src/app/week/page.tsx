@@ -33,7 +33,7 @@ export default async function WeekPage() {
         questions&quot; line, since that is the one mentors read most, then post it.
       </PageHeader>
 
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         <span className="text-white">
           {summaries.filter(({ s }) => s.ok && s.value.posted).length} of {summaries.length}
         </span>{" "}
@@ -63,17 +63,17 @@ export default async function WeekPage() {
               <>
                 <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                   <div className="rounded-xl bg-white/5 p-3">
-                    <dt className="text-neutral-400">Hours</dt>
+                    <dt className="text-muted">Hours</dt>
                     <dd className="text-xl font-semibold">
                       <Hours value={s.value.hours} />
                     </dd>
                   </div>
                   <div className="rounded-xl bg-white/5 p-3">
-                    <dt className="text-neutral-400">Finished</dt>
+                    <dt className="text-muted">Finished</dt>
                     <dd className="text-xl font-semibold">{s.value.done.length}</dd>
                   </div>
                   <div className="rounded-xl bg-white/5 p-3">
-                    <dt className="text-neutral-400">Blocked or in review</dt>
+                    <dt className="text-muted">Blocked or in review</dt>
                     <dd className="text-xl font-semibold">{s.value.blocked.length}</dd>
                   </div>
                 </dl>

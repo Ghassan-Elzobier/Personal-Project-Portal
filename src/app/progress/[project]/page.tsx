@@ -108,7 +108,7 @@ export default async function ProjectProgress({ params }: Params) {
       {progress?.loaded && (
         <section className="space-y-3">
           <SectionTitle>{progress.plan.title}</SectionTitle>
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-body">
             {progress.core.done} of {progress.core.total} {progress.plan.unitLabel} finished
             {progress.exercises.total > 0 &&
               `, and ${progress.exercises.solved} of ${progress.exercises.total} exercises solved`}
@@ -129,7 +129,7 @@ export default async function ProjectProgress({ params }: Params) {
             <div className="flex flex-wrap items-center gap-3">
               <StatusPill status={status.value.status_type} />
               <span className="font-semibold">{status.value.title}</span>
-              <span className="text-xs text-neutral-400">
+              <span className="text-xs text-muted">
                 {new Date(status.value.created_at).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "short",
@@ -137,7 +137,7 @@ export default async function ProjectProgress({ params }: Params) {
                 })}
               </span>
             </div>
-            <p className="text-sm whitespace-pre-line text-neutral-300">{status.value.text}</p>
+            <p className="text-sm whitespace-pre-line text-body">{status.value.text}</p>
           </div>
         ) : (
           <Empty>No status update yet. They are posted every Sunday.</Empty>
@@ -154,7 +154,7 @@ export default async function ProjectProgress({ params }: Params) {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm"
               >
                 <span>{t.name}</span>
-                <span className="flex items-center gap-4 text-neutral-400">
+                <span className="flex items-center gap-4 text-muted">
                   {t.hours > 0 && <Hours value={t.hours} />}
                   <EvidenceLink href={t.evidence} />
                   <span>
@@ -174,7 +174,7 @@ export default async function ProjectProgress({ params }: Params) {
           <div key={section} className="card p-0">
             <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
               <h3 className="font-semibold">{section}</h3>
-              <span className="text-xs text-neutral-400">
+              <span className="text-xs text-muted">
                 {items.filter((t) => t.completed).length} of {items.length} done
               </span>
             </div>
@@ -184,7 +184,7 @@ export default async function ProjectProgress({ params }: Params) {
                   key={t.gid}
                   className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm"
                 >
-                  <span className={t.completed ? "text-neutral-400 line-through decoration-neutral-600" : ""}>
+                  <span className={t.completed ? "text-muted line-through decoration-neutral-600" : ""}>
                     {isOwner ? (
                       <TaskLink href={t.url} className="hover:underline">
                         {t.name}
@@ -193,7 +193,7 @@ export default async function ProjectProgress({ params }: Params) {
                       t.name
                     )}
                   </span>
-                  <span className="flex flex-wrap items-center gap-3 text-neutral-400">
+                  <span className="flex flex-wrap items-center gap-3 text-muted">
                     {!t.completed && <DueDate dueOn={t.dueOn} today={date} />}
                     {t.hours > 0 && <Hours value={t.hours} />}
                     <EvidenceLink href={t.evidence} />
@@ -231,7 +231,7 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
               title={`Week of ${shortDate(w.start)}: ${formatHours(w.hours)} h`}
             >
               {(i === latest || i === peakIndex) && w.hours > 0 && (
-                <span className="mb-1 text-xs text-neutral-200 tabular-nums">{formatHours(w.hours)}</span>
+                <span className="mb-1 text-xs text-bright tabular-nums">{formatHours(w.hours)}</span>
               )}
               <div
                 className={`w-full max-w-6 rounded-t ${i === latest ? "bg-aqua" : "bg-aqua/50"} group-hover:bg-aqua`}
@@ -242,7 +242,7 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
         </div>
         <div className="mt-2 flex gap-1 border-t border-white/10 pt-2">
           {weeks.map((w, i) => (
-            <span key={w.start} className="flex-1 text-center text-[11px] text-neutral-400">
+            <span key={w.start} className="flex-1 text-center text-[11px] text-muted">
               {i % 2 === (weeks.length - 1) % 2 ? shortDate(w.start) : ""}
             </span>
           ))}
@@ -266,9 +266,9 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
 function Stat({ label, value, detail, bar }: { label: string; value: string; detail: string; bar?: number }) {
   return (
     <div className="space-y-1 card">
-      <dt className="text-sm text-neutral-400">{label}</dt>
+      <dt className="text-sm text-muted">{label}</dt>
       <dd className="text-3xl font-bold tabular-nums">{value}</dd>
-      <dd className="text-xs text-neutral-400">{detail}</dd>
+      <dd className="text-xs text-muted">{detail}</dd>
       {bar !== undefined && (
         <dd className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
           <div className="h-full rounded-full bg-linear-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />

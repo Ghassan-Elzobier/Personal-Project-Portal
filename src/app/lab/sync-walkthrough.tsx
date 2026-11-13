@@ -119,7 +119,7 @@ export function SyncWalkthrough() {
                     }}
                     aria-current={step === i + 1 ? "step" : undefined}
                     aria-label={`Step ${i + 1}: ${s.title}`}
-                    className={`size-7 cursor-pointer rounded-full text-xs tabular-nums ring-1 ${step === i + 1 ? (CHAIN[i].on === false ? "bg-coral/20 text-coral ring-coral" : "bg-white/15 text-white ring-white/50") : "text-neutral-400 ring-white/15 hover:text-white"}`}
+                    className={`size-7 cursor-pointer rounded-full text-xs tabular-nums ring-1 ${step === i + 1 ? (CHAIN[i].on === false ? "bg-coral/20 text-coral ring-coral" : "bg-white/15 text-white ring-white/50") : "text-muted ring-white/15 hover:text-white"}`}
                   >
                     {i + 1}
                   </button>
@@ -141,7 +141,7 @@ export function SyncWalkthrough() {
                 className="space-y-1.5"
               >
                 <p className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-neutral-400 tabular-nums">
+                  <span className="text-sm text-muted tabular-nums">
                     Step {step} of {steps.length}
                   </span>
                   <span className="font-semibold">{current.title}</span>
@@ -150,11 +150,11 @@ export function SyncWalkthrough() {
                     <span className="chip bg-coral/10 text-coral ring-coral/30">off the chain</span>
                   )}
                 </p>
-                <p className="text-sm text-neutral-300">{current.text}</p>
-                <p className="text-sm text-neutral-400">{chain.note}</p>
+                <p className="text-sm text-body">{current.text}</p>
+                <p className="text-sm text-muted">{chain.note}</p>
               </m.div>
             ) : (
-              <p className="text-sm text-neutral-300">
+              <p className="text-sm text-body">
                 The aqua line is the chain the acquire semaphore starts: anything on it waits until the display has let
                 go of the image. Walk through the eight commands to see which barriers join it, and the one that does
                 not.

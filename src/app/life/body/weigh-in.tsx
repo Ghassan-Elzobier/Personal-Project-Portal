@@ -43,7 +43,7 @@ export function WeighIn({ today, todays, last }: { today: string; todays: number
             className="h-14 w-28 rounded-xl bg-white/10 text-center text-3xl font-bold tabular-nums"
             aria-invalid={kg !== "" && !valid}
           />
-          <span className="text-neutral-400">kg</span>
+          <span className="text-muted">kg</span>
         </label>
         <button
           type="button"

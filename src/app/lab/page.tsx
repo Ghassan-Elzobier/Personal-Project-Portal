@@ -47,7 +47,7 @@ export default async function LabPage() {
           <Legend />
         </div>
         <FrameMap links />
-        <p className="max-w-3xl text-sm text-neutral-400">
+        <p className="max-w-3xl text-sm text-muted">
           Each box opens the view that explains it. The same colours mean the same thing in every figure.
         </p>
       </section>
@@ -74,10 +74,10 @@ export default async function LabPage() {
                   <Link href={`/lab/${v.id}`} className="card-link h-full space-y-2">
                     <span className="block eyebrow">View {VIEWS.indexOf(v) + 1}</span>
                     <span className="block text-lg font-semibold">{v.title}</span>
-                    <span className="line-clamp-3 block text-sm text-neutral-300">{v.claim}</span>
+                    <span className="line-clamp-3 block text-sm text-body">{v.claim}</span>
                     <span className="flex flex-wrap gap-1.5 pt-1">
                       {v.book.slice(0, 3).map((b) => (
-                        <span key={b.section} className="chip bg-white/5 text-neutral-300 ring-white/10">
+                        <span key={b.section} className="chip bg-white/5 text-body ring-white/10">
                           PMPP {b.section}
                         </span>
                       ))}
@@ -99,7 +99,7 @@ export default async function LabPage() {
         <SectionTitle>
           <span id="found-title">Found while drawing</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-400">
+        <p className="max-w-3xl text-sm text-muted">
           Drawing each part meant reading it closely. These are what turned up, worst first. The bug was confirmed with
           the validation layer; the rest come from the code and the model.
         </p>
@@ -116,13 +116,13 @@ export default async function LabPage() {
         <SectionTitle>
           <span id="map-code-title">Your code, line by line</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-400">
+        <p className="max-w-3xl text-sm text-muted">
           Every line of main.cpp, raytrace.comp and CMakeLists.txt, and the view that explains it. A test checks that no
           line is left out.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="text-xs text-neutral-400">
+            <thead className="text-xs text-muted">
               <tr>
                 <th scope="col" className="py-1.5 pr-4 font-normal">
                   Lines
@@ -149,7 +149,7 @@ export default async function LabPage() {
                       {c.from}–{c.to}
                     </a>
                   </td>
-                  <td className="py-1.5 pr-4 text-neutral-300">{c.what}</td>
+                  <td className="py-1.5 pr-4 text-body">{c.what}</td>
                   <td className="py-1.5">
                     <span className="flex flex-wrap gap-x-3">
                       {c.views.map((id) => (
@@ -170,13 +170,13 @@ export default async function LabPage() {
         <SectionTitle>
           <span id="numbers-title">Your two GPUs</span>
         </SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-400">
+        <p className="max-w-3xl text-sm text-muted">
           Dispatch times come from the results you recorded in Study. The rest: Mesa compiled the shader for the Iris Xe
           on this laptop, and RADV, the RX 5700 XT&apos;s Linux driver, compiled it for that card&apos;s chip without
           the card. Efficiency is counted by lane time, as a GPU counter would.
         </p>
         <GpuTable results={results} />
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-muted">
           Model, frame 0 at 800 × 600: {MODEL.meanTrips} trips per path, {pct(MODEL.escapeFirstTrip)} leaving on the
           first, about {MODEL.flopPerPath} FLOP over {MODEL.bytesPerPixel} bytes. If the desktop runs Windows,
           AMD&apos;s own driver compiles differently from RADV; Radeon GPU Profiler shows what it does.{" "}
@@ -187,7 +187,7 @@ export default async function LabPage() {
         </p>
       </section>
 
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-muted">
         The lines linked here are the ones at {RENDERER.short}. When main.cpp is split into modules, the figures still
         hold but the line links need moving. The{" "}
         <Link href="/study?project=rendering" className="text-aqua hover:underline">

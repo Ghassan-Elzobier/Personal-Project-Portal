@@ -35,10 +35,9 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
     <section aria-labelledby="reviews-title" className="space-y-4 card">
       <div>
         <h2 id="reviews-title" className="text-lg font-semibold">
-          Recall from memory{" "}
-          <span className="text-sm font-normal text-neutral-300 tabular-nums">{shown.length} due</span>
+          Recall from memory <span className="text-sm font-normal text-body tabular-nums">{shown.length} due</span>
         </h2>
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           Write it on blank paper before looking anything up, then check it and rate yourself honestly.
         </p>
       </div>
@@ -47,7 +46,7 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
           <li key={r.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
             <div className="min-w-56 flex-1">
               <p className="text-sm">{r.prompt}</p>
-              <p className="flex flex-wrap gap-x-3 text-xs text-neutral-300">
+              <p className="flex flex-wrap gap-x-3 text-xs text-body">
                 <Link href={r.sourceHref} scroll={false} className="underline-offset-4 hover:underline">
                   {r.source}
                 </Link>
@@ -75,7 +74,7 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
           </li>
         ))}
       </ul>
-      {shown.length > SHOWN && <p className="text-xs text-neutral-300">{shown.length - SHOWN} more after these.</p>}
+      {shown.length > SHOWN && <p className="text-xs text-body">{shown.length - SHOWN} more after these.</p>}
     </section>
   );
 }

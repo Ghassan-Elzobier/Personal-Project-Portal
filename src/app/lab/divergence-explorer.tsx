@@ -145,29 +145,29 @@ export function DivergenceExplorer() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
             <div role="group" aria-label="Subgroup size" className="flex items-center gap-1">
-              <span className="mr-1 text-neutral-400">Subgroup</span>
+              <span className="mr-1 text-muted">Subgroup</span>
               {SIZES.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setSize(s)}
                   aria-pressed={size === s}
-                  className={`chip cursor-pointer px-3 py-1 ${size === s ? "bg-aqua/15 text-aqua ring-aqua/50" : "bg-white/5 text-neutral-300 ring-white/10 hover:bg-white/10"}`}
+                  className={`chip cursor-pointer px-3 py-1 ${size === s ? "bg-aqua/15 text-aqua ring-aqua/50" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
                 >
                   {s}
                 </button>
               ))}
-              <span className="ml-1 text-xs text-neutral-400">16: the Iris Xe. 64: the RX 5700 XT on Linux</span>
+              <span className="ml-1 text-xs text-muted">16: the Iris Xe. 64: the RX 5700 XT on Linux</span>
             </div>
             <div role="group" aria-label="Preview" className="flex items-center gap-1">
-              <span className="mr-1 text-neutral-400">Show</span>
+              <span className="mr-1 text-muted">Show</span>
               {(["trips", "picture"] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setMode(option)}
                   aria-pressed={mode === option}
-                  className={`chip cursor-pointer px-3 py-1 ${mode === option ? "bg-lavender/20 text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10 hover:bg-white/10"}`}
+                  className={`chip cursor-pointer px-3 py-1 ${mode === option ? "bg-lavender/20 text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
                 >
                   {option === "trips" ? "Trips per path" : "The picture"}
                 </button>
@@ -226,14 +226,14 @@ export function DivergenceExplorer() {
                   </svg>
                 </span>
                 {progress < 1 && (
-                  <span className="absolute right-2 bottom-2 rounded-sm bg-primary/80 px-2 py-0.5 text-xs text-neutral-300">
+                  <span className="absolute right-2 bottom-2 rounded-sm bg-primary/80 px-2 py-0.5 text-xs text-body">
                     Tracing {Math.round(progress * 100)}%
                   </span>
                 )}
               </div>
               {mode === "trips" ? (
                 <div
-                  className="flex flex-wrap items-center gap-1 text-xs text-neutral-400"
+                  className="flex flex-wrap items-center gap-1 text-xs text-muted"
                   aria-label="Trips per path, 1 to 8"
                 >
                   <span className="mr-1">Trips:</span>
@@ -245,11 +245,9 @@ export function DivergenceExplorer() {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-neutral-400">
-                  One sample per pixel, as frame 0 shows it before any averaging.
-                </p>
+                <p className="text-xs text-muted">One sample per pixel, as frame 0 shows it before any averaging.</p>
               )}
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted">
                 Pixel ({pick.x}, {pick.y}), workgroup ({Math.floor(pick.x / 8)}, {Math.floor(pick.y / 8)}). Arrow keys
                 move one tile.
               </p>
@@ -264,7 +262,7 @@ export function DivergenceExplorer() {
                   role="img"
                   aria-label={`The subgroup ran ${run.trips} trips. Lanes did work on ${work} of ${size * run.trips} lane-trips, ${Math.round(run.efficiency * 100)}% SIMD efficiency.`}
                 >
-                  <text x={0} y={14} className="fill-neutral-400 text-[11px]">
+                  <text x={0} y={14} className="fill-muted text-[11px]">
                     lanes →
                   </text>
                   {size <= 16 &&
@@ -274,7 +272,7 @@ export function DivergenceExplorer() {
                         x={l.lane * cell + cell / 2}
                         y={28}
                         textAnchor="middle"
-                        className="fill-neutral-500 text-[10px] tabular-nums"
+                        className="fill-faint text-[10px] tabular-nums"
                       >
                         {l.lane}
                       </text>
@@ -320,7 +318,7 @@ export function DivergenceExplorer() {
                           x={gridW + 8}
                           y={y + 17}
                           opacity={k < shown ? 1 : 0.35}
-                          className={`text-[11px] tabular-nums ${t ? "fill-neutral-300" : "fill-neutral-600"}`}
+                          className={`text-[11px] tabular-nums ${t ? "fill-body" : "fill-neutral-600"}`}
                         >
                           {t ? `trip ${k + 1}: ${t.active}/${size}` : `trip ${k + 1}`}
                         </text>
@@ -347,7 +345,7 @@ export function DivergenceExplorer() {
                       strokeDasharray="4 3"
                     />
                   </m.g>
-                  <text x={0} y={top + MAX_BOUNCES * rowH + 20} className="fill-neutral-400 text-[11px]">
+                  <text x={0} y={top + MAX_BOUNCES * rowH + 20} className="fill-muted text-[11px]">
                     Dashed line: where the subgroup leaves the loop, with its slowest lane.
                   </text>
                   {walking && shown < run.trips && (
@@ -375,7 +373,7 @@ export function DivergenceExplorer() {
                   )}
                 </svg>
               </div>
-              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300" aria-label="Cell key">
+              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-body" aria-label="Cell key">
                 <li className="flex items-center gap-1.5">
                   <span className="size-3 rounded-sm bg-aqua/70" />
                   hit diffuse
@@ -404,20 +402,20 @@ export function DivergenceExplorer() {
                   <span className="text-3xl font-bold tabular-nums" style={{ color: TONES.shader.hex }}>
                     {Math.round(run.efficiency * 100)}%
                   </span>
-                  <span className="text-sm text-neutral-300">SIMD efficiency for this subgroup</span>
+                  <span className="text-sm text-body">SIMD efficiency for this subgroup</span>
                 </p>
-                <p className="text-sm text-neutral-400 tabular-nums">
+                <p className="text-sm text-muted tabular-nums">
                   {work} of {size * run.trips} lane-trips did work, over {run.trips}{" "}
                   {run.trips === 1 ? "trip" : "trips"}
                 </p>
               </div>
               {walking && upTo > 0 && (
-                <p aria-live="polite" className="text-sm text-neutral-300 tabular-nums">
+                <p aria-live="polite" className="text-sm text-body tabular-nums">
                   After trip {upTo}: {run.perTrip[upTo - 1].active} of {size} lanes still working; {workSoFar} of{" "}
                   {size * upTo} lane-trips so far did work ({Math.round((workSoFar / (size * upTo)) * 100)}%).
                 </p>
               )}
-              <p className="flex items-start gap-2 text-xs text-neutral-400">
+              <p className="flex items-start gap-2 text-xs text-muted">
                 <svg width="22" height="22" className="shrink-0" aria-hidden>
                   <Badge n={5} x={11} y={11} tone="shader" />
                 </svg>

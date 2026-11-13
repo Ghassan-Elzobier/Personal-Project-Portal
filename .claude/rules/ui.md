@@ -9,8 +9,9 @@ paths:
 
 - Build from the design system: tokens in `src/app/globals.css`, components in
   `src/components/ui.tsx` and `src/app/life/parts.tsx`, all shown at `/design`.
-  For anything new, follow the `/design` skill. Never a raw hex colour or a
-  one-off pixel font size: the linter rejects them.
+  For anything new, follow the `/design` skill. Never a raw hex colour, a
+  one-off pixel font size or a raw grey for text (use the text roles `bright`,
+  `body`, `muted`, `faint`): the linter rejects them.
 - Phone first. The owner uses a Pixel 7 (412 px); every page must also hold at
   360 px. A responsive grid needs `grid-cols-1` before `md:grid-cols-*`, and
   columns use `minmax(0,1fr)`: a grid with only responsive columns grows its

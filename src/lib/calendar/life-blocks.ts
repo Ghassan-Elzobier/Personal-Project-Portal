@@ -7,7 +7,7 @@ export const LIFE_KINDS = {
   cleaning: { label: "Cleaning", googleColor: "7", className: "bg-aqua/20 ring-aqua/50 text-cyan-100" },
   gym: { label: "Gym", googleColor: "10", className: "bg-mint/20 ring-mint/50 text-emerald-100" },
   rest: { label: "Rest", googleColor: "3", className: "bg-fuchsia/20 ring-fuchsia/50 text-pink-100" },
-  other: { label: "Other", googleColor: "8", className: "bg-white/10 ring-white/25 text-neutral-200" },
+  other: { label: "Other", googleColor: "8", className: "bg-white/10 ring-white/25 text-bright" },
 } as const;
 export type LifeKind = keyof typeof LIFE_KINDS;
 

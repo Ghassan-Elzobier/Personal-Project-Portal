@@ -25,7 +25,7 @@ export function GrantForm() {
             <label key={p.key} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
               <input type="checkbox" name="projects" value={p.key} className="accent-lavender" />
               <span>
-                {p.title} <span className="text-neutral-400">· {p.area}</span>
+                {p.title} <span className="text-muted">· {p.area}</span>
               </span>
             </label>
           ))}
@@ -37,13 +37,13 @@ export function GrantForm() {
           <input type="checkbox" name="share_job_hunt" className="mt-1 accent-lavender" />
           <span>
             Job hunt{" "}
-            <span className="text-neutral-400">
+            <span className="text-muted">
               · closest roles, the skills gap and application counts. Never your notes, next actions, ratings or
               contacts.
             </span>
           </span>
         </label>
-        <p className="mt-2 text-xs text-neutral-400">
+        <p className="mt-2 text-xs text-muted">
           The study roadmap follows the projects above: a mentor sees the plans they can see.
         </p>
       </fieldset>

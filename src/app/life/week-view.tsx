@@ -117,7 +117,7 @@ export function WeekView({
           {canReplan && (
             <ActionButton
               action={() => planWeek(start)}
-              className="text-sm text-neutral-400 hover:text-white"
+              className="text-sm text-muted hover:text-white"
               confirm="Pick a fresh set of recipes for this week?"
               done="Re-planned."
             >
@@ -135,7 +135,7 @@ export function WeekView({
                     <Link href={`/life/recipes/${c.recipe}`} className="line-clamp-2 block font-medium hover:underline">
                       {c.name}
                     </Link>
-                    <p className="text-xs text-neutral-400 tabular-nums">
+                    <p className="text-xs text-muted tabular-nums">
                       {c.portions}{" "}
                       {c.meal === "breakfast"
                         ? c.portions === 1
@@ -168,7 +168,7 @@ export function WeekView({
                       </button>
                       <ActionButton
                         action={() => removeCook(start, c.id)}
-                        className="tap text-lg text-neutral-500 hover:text-coral"
+                        className="tap text-lg text-faint hover:text-coral"
                         label={`Remove ${c.name}`}
                         confirm={`Take ${c.name} off this week?`}
                       >
@@ -187,7 +187,7 @@ export function WeekView({
             onClick={() => setPicker({ kind: "daily", slot: "breakfast", current: daily.breakfast })}
             className="min-w-0 rounded-xl bg-white/5 p-3 text-left hover:bg-white/10"
           >
-            <span className="block text-xs text-neutral-400">Quick breakfast when no batch is ready</span>
+            <span className="block text-xs text-muted">Quick breakfast when no batch is ready</span>
             <span className="block truncate font-medium">{nameOf(daily.breakfast)}</span>
           </button>
           <button
@@ -195,7 +195,7 @@ export function WeekView({
             onClick={() => setPicker({ kind: "daily", slot: "shake", current: daily.shake })}
             className="min-w-0 rounded-xl bg-white/5 p-3 text-left hover:bg-white/10"
           >
-            <span className="block text-xs text-neutral-400">
+            <span className="block text-xs text-muted">
               {daily.shakes.length > 1 ? "Shakes, one a day in turn" : "Daily shake"}
             </span>
             <span className="line-clamp-2 block font-medium">
@@ -221,7 +221,7 @@ export function WeekView({
           >
             <header className="flex flex-wrap items-baseline justify-between gap-x-3">
               <h3 className="font-semibold">{d.label}</h3>
-              <span className="text-xs text-neutral-400 tabular-nums">
+              <span className="text-xs text-muted tabular-nums">
                 {d.kcal.toLocaleString("en-GB")} kcal · {d.protein} g protein
               </span>
             </header>
@@ -237,7 +237,7 @@ export function WeekView({
                       onClick={() => tick(d, m, eaten ? null : "eaten")}
                       aria-pressed={eaten}
                       aria-label={eaten ? `Untick ${SLOT_LABEL[m.slot]}` : `Ate ${SLOT_LABEL[m.slot]}`}
-                      className={`tap size-11 shrink-0 rounded-full text-lg ring-1 ${eaten ? "bg-mint text-primary ring-mint" : status === "skipped" ? "bg-white/5 text-neutral-500 ring-white/10" : "bg-white/5 text-transparent ring-white/20 hover:text-mint/60"} disabled:opacity-30`}
+                      className={`tap size-11 shrink-0 rounded-full text-lg ring-1 ${eaten ? "bg-mint text-primary ring-mint" : status === "skipped" ? "bg-white/5 text-faint ring-white/10" : "bg-white/5 text-transparent ring-white/20 hover:text-mint/60"} disabled:opacity-30`}
                     >
                       {status === "skipped" ? "–" : "✓"}
                     </button>
@@ -247,8 +247,8 @@ export function WeekView({
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="flex items-baseline gap-2">
-                        <span className="text-xs text-neutral-400 tabular-nums">{m.time}</span>
-                        <span className="text-xs font-medium tracking-wide text-neutral-300 uppercase">
+                        <span className="text-xs text-muted tabular-nums">{m.time}</span>
+                        <span className="text-xs font-medium tracking-wide text-body uppercase">
                           {SLOT_LABEL[m.slot]}
                         </span>
                       </span>
@@ -262,9 +262,7 @@ export function WeekView({
                       )}
                       {m.source === "fresh" && <span className="block text-xs text-sand">Cook fresh</span>}
                     </button>
-                    {m.recipe && (
-                      <span className="shrink-0 text-right text-xs text-neutral-500 tabular-nums">{m.kcal}</span>
-                    )}
+                    {m.recipe && <span className="shrink-0 text-right text-xs text-faint tabular-nums">{m.kcal}</span>}
                   </li>
                 );
               })}
@@ -405,7 +403,7 @@ function AltList({
   onPick: (key: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
-  if (!list.length) return <p className="text-sm text-neutral-400">Nothing else fits your food rules and kit.</p>;
+  if (!list.length) return <p className="text-sm text-muted">Nothing else fits your food rules and kit.</p>;
   return (
     <ul className="space-y-2">
       {list.map((a) => (
@@ -428,7 +426,7 @@ function AltList({
                 <span className="chip shrink-0 bg-sand/10 text-sand ring-sand/25">New</span>
               ) : null}
             </span>
-            <span className="block text-xs text-neutral-400 tabular-nums">
+            <span className="block text-xs text-muted tabular-nums">
               {a.cuisine} · {a.kcal} kcal · {a.protein} g · {a.minutes} min
             </span>
             {a.reasons.length > 0 && <span className="block text-xs text-mint">{a.reasons.join(" · ")}</span>}

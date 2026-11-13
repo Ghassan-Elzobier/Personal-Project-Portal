@@ -103,7 +103,7 @@ export function SessionLogger({
               style={{ width: `${total ? (done / total) * 100 : 0}%` }}
             />
           </div>
-          <span className="text-xs text-neutral-300 tabular-nums">
+          <span className="text-xs text-body tabular-nums">
             {done}/{total} sets
           </span>
         </div>
@@ -123,7 +123,7 @@ export function SessionLogger({
                   onChange={() => setWarm((x) => x.map((v, j) => (j === i ? !v : v)))}
                   className="mt-0.5 size-5 shrink-0 accent-mint"
                 />
-                <span className={warm[i] ? "text-neutral-500 line-through" : ""}>{w}</span>
+                <span className={warm[i] ? "text-faint line-through" : ""}>{w}</span>
               </label>
             </li>
           ))}
@@ -147,7 +147,7 @@ export function SessionLogger({
           {finished ? "Session done" : "Finish"}
         </h2>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-neutral-300">How did it feel?</span>
+          <span className="text-sm text-body">How did it feel?</span>
           <Stars value={rating} onChange={setRating} />
         </div>
         <textarea
@@ -221,20 +221,20 @@ function Exercise({
             {open ? "Hide tips" : "How"}
           </button>
         </div>
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           {item.note ?? `${item.target.length} × ${range} ${unitLabel}${item.perSide ? " a side" : ""}`}
           {item.scheme !== "power" && item.scheme !== "timed" ? ` · stop with ${item.rir} in the tank` : ""}
         </p>
         <p
-          className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-neutral-400"}`}
+          className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-muted"}`}
         >
           {item.why}
         </p>
         {item.swappedFrom && (
-          <p className="text-xs text-neutral-500">In place of {item.swappedFrom}, which your gym lacks.</p>
+          <p className="text-xs text-faint">In place of {item.swappedFrom}, which your gym lacks.</p>
         )}
         {open && (
-          <div className="space-y-2 pt-1 text-sm text-neutral-300">
+          <div className="space-y-2 pt-1 text-sm text-body">
             {item.demo.frames && <Movement frames={item.demo.frames} name={item.name} />}
             <a
               href={item.demo.video}
@@ -266,11 +266,7 @@ function Exercise({
           />
         ))}
       </ol>
-      <button
-        type="button"
-        onClick={() => setExtra((n) => n + 1)}
-        className="text-xs text-neutral-400 hover:text-white"
-      >
+      <button type="button" onClick={() => setExtra((n) => n + 1)} className="text-xs text-muted hover:text-white">
         + Add a set
       </button>
     </article>
@@ -349,12 +345,12 @@ function Movement({ frames, name }: { frames: [string, string]; name: string }) 
         >
           {picture(frames[0], "", frame === 0)}
           {picture(frames[1], "", frame === 1)}
-          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-neutral-300">
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-body">
             {frame === 0 ? "Start" : "End"}
           </span>
         </div>
       )}
-      <figcaption className="text-center text-[10px] text-neutral-500">
+      <figcaption className="text-center text-[10px] text-faint">
         Drawing:{" "}
         <a href={DRAWING_CREDIT.source} target="_blank" rel="noreferrer noopener" className="underline">
           {DRAWING_CREDIT.by}
@@ -397,13 +393,13 @@ function SetRow({
     <li
       className={`flex flex-wrap items-center gap-2 rounded-xl p-2 ${done ? "bg-mint/10 ring-1 ring-mint/25" : "bg-white/5"}`}
     >
-      <span className="w-6 text-center text-xs text-neutral-400 tabular-nums">{position}</span>
+      <span className="w-6 text-center text-xs text-muted tabular-nums">{position}</span>
       {item.weighted && (
         <div className="flex items-center">
           <button
             type="button"
             onClick={() => bump(-step)}
-            className="tap h-11 w-9 text-lg text-neutral-400"
+            className="tap h-11 w-9 text-lg text-muted"
             aria-label="Less weight"
           >
             −
@@ -419,12 +415,12 @@ function SetRow({
               placeholder={item.added ? "+0" : "kg"}
               className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums"
             />
-            <span className="text-xs text-neutral-400">{item.added ? "+kg" : "kg"}</span>
+            <span className="text-xs text-muted">{item.added ? "+kg" : "kg"}</span>
           </label>
           <button
             type="button"
             onClick={() => bump(step)}
-            className="tap h-11 w-9 text-lg text-neutral-400"
+            className="tap h-11 w-9 text-lg text-muted"
             aria-label="More weight"
           >
             +
@@ -441,10 +437,10 @@ function SetRow({
           onChange={(e) => setReps(e.target.value)}
           className="h-11 w-14 rounded-lg bg-white/10 text-center text-base tabular-nums"
         />
-        <span className="text-xs text-neutral-400">{item.unit === "reps" ? "reps" : item.unit}</span>
+        <span className="text-xs text-muted">{item.unit === "reps" ? "reps" : item.unit}</span>
       </label>
       {item.scheme !== "power" && item.scheme !== "timed" && (
-        <label className="flex items-center gap-1 text-xs text-neutral-400">
+        <label className="flex items-center gap-1 text-xs text-muted">
           <span className="sr-only">Reps left in the tank</span>
           <select
             value={rir}
@@ -504,7 +500,7 @@ function RestBar({ rest, onDone }: { rest: { until: number; total: number; name:
       aria-live="off"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-neutral-300">{left === 0 ? "Go: next set" : `Rest after ${rest.name}`}</p>
+        <p className="text-xs text-body">{left === 0 ? "Go: next set" : `Rest after ${rest.name}`}</p>
         <p className="text-2xl font-bold tabular-nums">{left === 0 ? "Now" : `${mm}:${ss}`}</p>
         <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
           <div className="h-full bg-mint" style={{ width: `${(1 - left / rest.total) * 100}%` }} />

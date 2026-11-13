@@ -77,7 +77,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
               <span
                 key={w}
-                className="absolute top-2 border-l border-white/10 pl-1 text-[11px] text-neutral-400"
+                className="absolute top-2 border-l border-white/10 pl-1 text-[11px] text-muted"
                 style={{ left: `${pct(w)}%` }}
               >
                 {shortDate(w)}
@@ -88,7 +88,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
           {results.map(({ p, tasks }) => (
             <section key={p.key} className="border-b border-white/5 last:border-0">
               <h2 className="sticky left-0 px-5 pt-4 pb-2 text-sm font-semibold">
-                {p.title} <span className="font-normal text-neutral-400">· {p.area}</span>
+                {p.title} <span className="font-normal text-muted">· {p.area}</span>
               </h2>
               {!tasks.ok ? (
                 <div className="px-5 pb-4">
@@ -102,7 +102,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-xs text-neutral-400">
+      <div className="flex flex-wrap gap-4 text-xs text-muted">
         {Object.entries(BAR).map(([stage, cls]) => (
           <span key={stage} className="flex items-center gap-2">
             <span className={`h-2 w-5 rounded-full ${cls}`} /> {stage}
@@ -139,7 +139,7 @@ function Rows({
 
   if (inRange.length === 0) {
     return (
-      <p className="px-5 pb-4 text-sm text-neutral-400">
+      <p className="px-5 pb-4 text-sm text-muted">
         Nothing dated in this window.{undated ? ` ${undated} tasks have no dates yet.` : ""}
       </p>
     );
@@ -162,7 +162,7 @@ function Rows({
         return (
           <li key={t.gid} className="group flex h-8 items-center">
             <span
-              className={`w-56 shrink-0 truncate px-5 text-xs ${t.completed ? "text-neutral-400 line-through" : "text-neutral-300"}`}
+              className={`w-56 shrink-0 truncate px-5 text-xs ${t.completed ? "text-muted line-through" : "text-body"}`}
               title={t.name}
             >
               {label}

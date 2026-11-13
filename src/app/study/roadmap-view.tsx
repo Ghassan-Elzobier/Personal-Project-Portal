@@ -14,7 +14,7 @@ export function RoadmapTab({ roadmap, active }: { roadmap: Roadmap; active: bool
       className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
     >
       <span className="block text-sm font-semibold">Roadmap</span>
-      <span className="block text-xs text-neutral-300 tabular-nums">
+      <span className="block text-xs text-body tabular-nums">
         {current ? `Phase ${current.index + 1} of ${phases.length}` : `All ${phases.length} phases done`}
       </span>
       <span
@@ -47,7 +47,7 @@ export function RoadmapView({
     <>
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">One path through all three</h2>
-        <p className="max-w-3xl text-sm text-neutral-300">
+        <p className="max-w-3xl text-sm text-body">
           Each phase puts a stretch of PMPP beside the Axler sections and renderer milestones that use it, so that each
           makes the others easier. Work on all three at once, and move on when the phase&apos;s end is true.
         </p>
@@ -70,11 +70,9 @@ export function RoadmapView({
 
       {hoursLeft > 0 && remaining > 0 && (
         <details open={dated === 0}>
-          <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">
+          <summary className="cursor-pointer text-sm text-body hover:text-white">
             {dated === 0 ? "Set a pace" : "Change the pace"}{" "}
-            <span className="text-neutral-400 tabular-nums">
-              about {Math.round(hoursLeft)} hours left, a rough guess
-            </span>
+            <span className="text-muted tabular-nums">about {Math.round(hoursLeft)} hours left, a rough guess</span>
           </summary>
           <div className="mt-3">
             <RoadmapPaceForm
@@ -96,11 +94,11 @@ export function RoadmapView({
 
       <details className="card text-sm">
         <summary className="cursor-pointer font-semibold">Where things run</summary>
-        <dl className="mt-3 space-y-3 text-neutral-300">
+        <dl className="mt-3 space-y-3 text-body">
           {TOOLS.map((t) => (
             <div key={t.name}>
               <dt className="text-white">
-                {t.name} <span className="text-neutral-400">{t.runs}</span>
+                {t.name} <span className="text-muted">{t.runs}</span>
               </dt>
               <dd>{t.use}</dd>
             </div>
@@ -110,12 +108,12 @@ export function RoadmapView({
 
       <details className="card text-sm">
         <summary className="cursor-pointer font-semibold">CUDA to Vulkan</summary>
-        <p className="mt-3 text-neutral-300">
+        <p className="mt-3 text-body">
           What each thing in the book becomes when you port a kernel to a compute shader.
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="text-xs text-neutral-400">
+            <thead className="text-xs text-muted">
               <tr>
                 <th scope="col" className="py-1.5 pr-4 font-normal">
                   In the book
@@ -128,7 +126,7 @@ export function RoadmapView({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-neutral-300">
+            <tbody className="divide-y divide-white/5 text-body">
               {CUDA_TO_VULKAN.map((row) => (
                 <tr key={row.cuda}>
                   <td className="py-1.5 pr-4 font-mono text-xs">{row.cuda}</td>
@@ -162,7 +160,7 @@ function PhaseCard({
       <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span>
           <span
-            className="mr-2 inline-block text-xs text-neutral-400 transition-transform group-open/phase:rotate-90"
+            className="mr-2 inline-block text-xs text-muted transition-transform group-open/phase:rotate-90"
             aria-hidden
           >
             ▸
@@ -170,13 +168,13 @@ function PhaseCard({
           <span className="mr-2 eyebrow">{p.state === "now" ? `Now: ${label}` : label}</span>
           <h3 className="inline font-semibold">{p.phase.name}</h3>
         </span>
-        <span className="text-xs text-neutral-400 tabular-nums">
+        <span className="text-xs text-muted tabular-nums">
           {p.done} of {p.total} done{p.hoursLeft > 0 ? `, about ${Math.round(p.hoursLeft)} h left` : ""}
         </span>
       </summary>
 
       <div className="mt-3 space-y-4">
-        <p className="max-w-3xl text-sm text-neutral-300">{p.phase.why}</p>
+        <p className="max-w-3xl text-sm text-body">{p.phase.why}</p>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {p.tracks.map((t) => (
@@ -193,13 +191,13 @@ function PhaseCard({
 
         <p className="max-w-3xl text-sm">
           <span className="font-semibold">Done when: </span>
-          <span className="text-neutral-300">{p.phase.exit}</span>
+          <span className="text-body">{p.phase.exit}</span>
         </p>
 
         {market && market.length > 0 && (
           <p className="max-w-3xl text-sm">
             <span className="font-semibold">In the job market: </span>
-            <span className="text-neutral-300">
+            <span className="text-body">
               {market
                 .map((m) => `${m.name} (${m.must + m.soft} ${m.must + m.soft === 1 ? "role" : "roles"})`)
                 .join(", ")}
@@ -214,9 +212,9 @@ function PhaseCard({
         {p.links.length > 0 && (
           <details>
             <summary className="cursor-pointer text-sm font-semibold hover:text-white">
-              How they connect <span className="font-normal text-neutral-400 tabular-nums">{p.links.length}</span>
+              How they connect <span className="font-normal text-muted tabular-nums">{p.links.length}</span>
             </summary>
-            <ul className="mt-2 max-w-3xl space-y-2 text-sm text-neutral-300">
+            <ul className="mt-2 max-w-3xl space-y-2 text-sm text-body">
               {p.links.map((l) => (
                 <li key={`${l.a} ${l.b}`}>
                   <span className="text-white">
@@ -245,7 +243,7 @@ function PhaseUnit({ unit }: { unit: RoadmapUnit }) {
       <span className="w-3 shrink-0 text-center text-mint" aria-hidden>
         {unit.done ? "✓" : ""}
       </span>
-      <span className={unit.done ? "text-neutral-400" : unit.optional ? "text-neutral-400" : ""}>
+      <span className={unit.done ? "text-muted" : unit.optional ? "text-muted" : ""}>
         {unit.href ? (
           <Link href={unit.href} scroll={false} className="hover:underline">
             {label}
@@ -253,7 +251,7 @@ function PhaseUnit({ unit }: { unit: RoadmapUnit }) {
         ) : (
           label
         )}
-        {unit.optional && <span className="ml-1.5 text-xs text-neutral-400">optional</span>}
+        {unit.optional && <span className="ml-1.5 text-xs text-muted">optional</span>}
       </span>
     </li>
   );

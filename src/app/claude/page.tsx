@@ -81,7 +81,7 @@ export default async function ClaudePage({ searchParams }: { searchParams: Promi
         <SectionTitle>Things to ask</SectionTitle>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {EXAMPLES.map((e) => (
-            <li key={e} className="card text-sm text-neutral-200">
+            <li key={e} className="card text-sm text-bright">
               &ldquo;{e}&rdquo;
             </li>
           ))}
@@ -98,7 +98,7 @@ export default async function ClaudePage({ searchParams }: { searchParams: Promi
               {connections.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 card text-sm">
                   <span className="font-semibold">{c.client_name ?? "Claude"}</span>
-                  <span className="text-neutral-400">
+                  <span className="text-muted">
                     Connected {when(c.created_at)} · last used {when(c.last_used_at)}
                   </span>
                 </li>

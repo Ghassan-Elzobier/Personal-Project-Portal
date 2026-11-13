@@ -73,7 +73,7 @@ export default async function RecipesPage({
             key={c}
             href={href(c)}
             aria-current={filter === c ? "page" : undefined}
-            className={`chip shrink-0 px-3 py-1.5 text-sm ${filter === c ? "bg-mint/15 text-mint ring-mint/30" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+            className={`chip shrink-0 px-3 py-1.5 text-sm ${filter === c ? "bg-mint/15 text-mint ring-mint/30" : "bg-white/5 text-body ring-white/10"}`}
           >
             {c}
           </Link>
@@ -90,8 +90,8 @@ export default async function RecipesPage({
                 <h2 className="min-w-0 font-semibold">{r.name}</h2>
                 {stars ? <Stars value={stars} size="text-xs" /> : null}
               </div>
-              <p className="text-sm text-neutral-300">{r.blurb}</p>
-              <p className="text-xs text-neutral-400 tabular-nums">
+              <p className="text-sm text-body">{r.blurb}</p>
+              <p className="text-xs text-muted tabular-nums">
                 {r.cuisine} · {Math.round(m.kcal)} kcal · {Math.round(m.protein)} g protein · {r.totalMin} min
               </p>
               <div className="flex flex-wrap gap-1">
@@ -107,7 +107,7 @@ export default async function RecipesPage({
         ))}
       </ul>
       {hidden > 0 && (
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           {hidden} {hidden === 1 ? "recipe is" : "recipes are"} hidden by your food rules or by you.{" "}
           <Link href={href(filter, !showAll)} className="text-mint hover:underline">
             {showAll ? "Hide them" : "Show them anyway"}

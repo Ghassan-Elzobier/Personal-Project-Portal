@@ -39,7 +39,7 @@ export function DraftForm({
   if (!open) {
     return (
       <div className="space-y-3">
-        <p className="rounded-xl bg-white/5 p-4 text-sm whitespace-pre-line text-neutral-300">{postedText}</p>
+        <p className="rounded-xl bg-white/5 p-4 text-sm whitespace-pre-line text-body">{postedText}</p>
         <button className="btn-ghost" onClick={() => setOpen(true)}>
           Post another update
         </button>
@@ -64,7 +64,7 @@ export function DraftForm({
                 setStatus(s);
                 setText((t) => t.replace(/^Status: .*$/m, `Status: ${STATUS_TYPES[s]}`));
               }}
-              className={`btn px-4 py-1.5 ring-1 ${status === s ? STATUS_STYLE[s] : "bg-white/5 text-neutral-400 ring-white/10 hover:bg-white/10"}`}
+              className={`btn px-4 py-1.5 ring-1 ${status === s ? STATUS_STYLE[s] : "bg-white/5 text-muted ring-white/10 hover:bg-white/10"}`}
             >
               {STATUS_TYPES[s]}
             </button>

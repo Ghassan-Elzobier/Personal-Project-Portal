@@ -81,7 +81,7 @@ export default async function SharedRoadmapPage() {
         />
       </dl>
 
-      <p className="text-sm text-neutral-300">
+      <p className="text-sm text-body">
         {recall.reviewed
           ? `Recall practice in the last ${recall.days} days: ${recall.reviewed} ${recall.reviewed === 1 ? "review" : "reviews"}, ${recall.got} remembered, ${recall.shaky} shaky, ${recall.missed} missed.`
           : `No recall practice in the last ${recall.days} days. Reviews start once a unit is finished.`}
@@ -117,9 +117,9 @@ export default async function SharedRoadmapPage() {
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="space-y-1">
-      <dt className="text-xs text-neutral-400">{label}</dt>
+      <dt className="text-xs text-muted">{label}</dt>
       <dd className="text-2xl font-bold tabular-nums">{value}</dd>
-      {detail && <dd className="text-xs text-neutral-400">{detail}</dd>}
+      {detail && <dd className="text-xs text-muted">{detail}</dd>}
     </div>
   );
 }
@@ -134,7 +134,7 @@ function SharedPhaseCard({ phase: p, today }: { phase: SharedPhase; today: strin
       <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span>
           <span
-            className="mr-2 inline-block text-xs text-neutral-400 transition-transform group-open/phase:rotate-90"
+            className="mr-2 inline-block text-xs text-muted transition-transform group-open/phase:rotate-90"
             aria-hidden
           >
             ▸
@@ -144,12 +144,12 @@ function SharedPhaseCard({ phase: p, today }: { phase: SharedPhase; today: strin
           </span>
           <h3 className="inline font-semibold">{p.name}</h3>
         </span>
-        <span className="text-xs text-neutral-400 tabular-nums">
+        <span className="text-xs text-muted tabular-nums">
           {p.done} of {p.total} done{p.hoursLeft > 0 ? `, about ${Math.round(p.hoursLeft)} h left` : ""}
         </span>
       </summary>
       <div className="mt-3 space-y-4">
-        <p className="max-w-3xl text-sm text-neutral-300">{p.why}</p>
+        <p className="max-w-3xl text-sm text-body">{p.why}</p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {p.tracks.map((t) => (
             <div key={t.project}>
@@ -160,13 +160,13 @@ function SharedPhaseCard({ phase: p, today }: { phase: SharedPhase; today: strin
                     <span className="w-3 text-mint" aria-hidden>
                       {u.done ? "✓" : ""}
                     </span>
-                    <span className={u.done ? "text-neutral-400" : ""}>
+                    <span className={u.done ? "text-muted" : ""}>
                       {u.name}
                       {u.done && <span className="sr-only"> (done)</span>}
                     </span>
-                    {u.optional && <span className="text-xs text-neutral-400">optional</span>}
+                    {u.optional && <span className="text-xs text-muted">optional</span>}
                     {!u.done && u.dueOn && (
-                      <span className={`text-xs ${u.dueOn < today ? "text-coral" : "text-neutral-400"}`}>
+                      <span className={`text-xs ${u.dueOn < today ? "text-coral" : "text-muted"}`}>
                         {u.dueOn < today ? `overdue, ${shortDate(u.dueOn)}` : `due ${shortDate(u.dueOn)}`}
                       </span>
                     )}
@@ -178,14 +178,12 @@ function SharedPhaseCard({ phase: p, today }: { phase: SharedPhase; today: strin
         </div>
         <p className="max-w-3xl text-sm">
           <span className="font-semibold">Done when: </span>
-          <span className="text-neutral-300">{p.exit}</span>
+          <span className="text-body">{p.exit}</span>
         </p>
         {p.links.length > 0 && (
           <details>
-            <summary className="cursor-pointer text-sm text-neutral-300 hover:text-white">
-              How the plans connect here
-            </summary>
-            <ul className="mt-2 space-y-1 text-sm text-neutral-300">
+            <summary className="cursor-pointer text-sm text-body hover:text-white">How the plans connect here</summary>
+            <ul className="mt-2 space-y-1 text-sm text-body">
               {p.links.map((l, i) => (
                 <li key={i}>
                   <span className="text-white">

@@ -59,8 +59,8 @@ export const TONES: Record<Tone, { label: string; box: string; line: string; tex
     plain: {
       label: "Other",
       box: "fill-white/5 stroke-white/30",
-      line: "stroke-neutral-400",
-      text: "fill-neutral-300",
+      line: "stroke-muted",
+      text: "fill-body",
       dot: "bg-neutral-400",
       hex: "#a3a3a3",
     },
@@ -109,7 +109,7 @@ export function Figure({
           {children}
         </svg>
       </div>
-      {caption && <figcaption className="max-w-3xl text-sm text-neutral-400">{caption}</figcaption>}
+      {caption && <figcaption className="max-w-3xl text-sm text-muted">{caption}</figcaption>}
     </figure>
   );
 }
@@ -172,7 +172,7 @@ export function Box({
         {title}
       </text>
       {sub && (
-        <text x={tx} y={top + 17} textAnchor={align} className="fill-neutral-300 text-[12px]">
+        <text x={tx} y={top + 17} textAnchor={align} className="fill-body text-[12px]">
           {sub}
         </text>
       )}
@@ -269,7 +269,7 @@ export function Text({
   x,
   y,
   children,
-  className = "fill-neutral-400 text-[12px]",
+  className = "fill-muted text-[12px]",
   anchor = "start",
 }: {
   x: number;
@@ -288,7 +288,7 @@ export function Text({
 /** The colour key, shown once on /lab and above each figure. */
 export function Legend({ tones = ["cpu", "gpu", "shader", "memory", "display", "problem"] }: { tones?: Tone[] }) {
   return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300" aria-label="Colour key">
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-body" aria-label="Colour key">
       {tones.map((t) => (
         <li key={t} className="flex items-center gap-1.5">
           <span className={`inline-block size-2.5 rounded-sm ${TONES[t].dot}`} aria-hidden />
