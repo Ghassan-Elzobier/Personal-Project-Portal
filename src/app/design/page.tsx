@@ -55,7 +55,7 @@ const CHIP_TONES = ["neutral", "quiet", "aqua", "mint", "sand", "coral", "lilac"
 const TEXT_ROLES = [
   ["text-bright", "Bright: emphasised detail, text on buttons"],
   ["text-body", "Body: reading text and labels"],
-  ["text-muted", "Muted: secondary detail, such as a date or a count"],
+  ["text-muted", "Muted: secondary detail, such as a date"],
   ["text-faint", "Faint: the least important, such as a footnote"],
 ] as const;
 
@@ -108,7 +108,6 @@ export default async function DesignPage() {
           <p className="text-xl font-semibold">Section heading</p>
           <p className="text-base">Body text for reading.</p>
           <p className="subtext">Subtext explains what a section is for.</p>
-          <p className="text-sm text-muted">Secondary detail, such as a date or a count.</p>
           <p className="text-xs text-faint tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
           <ul className="space-y-1 border-t border-white/10 pt-3 text-sm">
             {TEXT_ROLES.map(([role, text]) => (
