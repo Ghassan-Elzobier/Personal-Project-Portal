@@ -18,8 +18,8 @@
     "db:start": "supabase start --exclude studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta",
     "db:stop": "supabase stop",
     "test:db": "supabase test db",
-    "test:e2e": "playwright test",
-    "test:e2e:update": "bash scripts/e2e-docker.sh --update-snapshots",
+    "test:e2e": "bash scripts/e2e.sh",
+    "test:e2e:update": "bash scripts/e2e.sh --update-snapshots",
     "load:book": "node --experimental-strip-types --no-warnings scripts/load-book.mjs",
     "lab:anchors": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs write",
     "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check"

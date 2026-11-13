@@ -25,6 +25,7 @@ export type Tool = {
     | "progress"
     | "people"
     | "claude"
+    | "design"
     | "meals"
     | "gym"
     | "kitchen"
@@ -180,6 +181,15 @@ export const TOOLS: readonly Tool[] = [
     title: "Claude",
     href: "/claude",
     description: "Plan, schedule and log by asking Claude, from the Claude app.",
+    roles: ["owner"],
+    space: "work",
+    group: "more",
+  },
+  {
+    key: "design",
+    title: "Design",
+    href: "/design",
+    description: "The colours, type and shared components every page is built from.",
     roles: ["owner"],
     space: "work",
     group: "more",

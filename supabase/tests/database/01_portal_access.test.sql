@@ -10,6 +10,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(16);
 
+-- Start from no members, whatever supabase/seed.sql put in a local stack, so
+-- "a single owner" below is true. The transaction rolls back at the end.
+delete from portal.members;
+
 create function pg_temp.make_user(p_email text)
 returns uuid
 language sql

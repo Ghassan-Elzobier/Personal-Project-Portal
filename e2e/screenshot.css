@@ -1,0 +1,5 @@
+/* Applied only while a screenshot is taken: hides what moves on its own. */
+.nav-progress,
+[role="status"] {
+  visibility: hidden !important;
+}

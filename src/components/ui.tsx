@@ -21,7 +21,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   at_risk: { label: "At risk", className: "bg-sand/10 text-sand ring-sand/30" },
   off_track: { label: "Off track", className: "bg-coral/10 text-coral ring-coral/30" },
   on_hold: { label: "On hold", className: "bg-white/5 text-neutral-300 ring-white/10" },
-  complete: { label: "Complete", className: "bg-lavender/10 text-lavender ring-lavender/30" },
+  complete: { label: "Complete", className: "bg-lavender/10 text-lilac ring-lavender/30" },
 };
 
 export function StatusPill({ status }: { status: string }) {
