@@ -2,7 +2,8 @@
 # write the code: the inferential check that runs after the computational ones
 # (CI). It reviews when a PR is opened or marked ready, not on every push, to
 # spend the subscription's usage once per PR. Ask for another with
-# "@claude review" in a comment. Drafts and PRs it already reviewed are skipped.
+# "@claude review" in a comment. Drafts, PRs it already reviewed and Dependabot
+# updates are skipped.
 name: Claude review
 
 on:
@@ -14,7 +15,12 @@ permissions:
 
 jobs:
   review:
-    if: github.event.pull_request.head.repo.full_name == github.repository && !contains(github.event.pull_request.labels.*.name, 'skip-review')
+    # Not for Dependabot: its runs get no secrets and the action refuses bot authors;
+    # CI, the guard and the screenshots check dependency updates instead.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-review')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
