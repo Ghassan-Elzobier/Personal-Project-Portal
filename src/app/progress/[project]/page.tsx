@@ -271,7 +271,7 @@ function Stat({ label, value, detail, bar }: { label: string; value: string; det
       <dd className="text-xs text-neutral-400">{detail}</dd>
       {bar !== undefined && (
         <dd className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
-          <div className="h-full rounded-full bg-gradient-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />
+          <div className="h-full rounded-full bg-linear-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />
         </dd>
       )}
     </div>

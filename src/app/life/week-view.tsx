@@ -237,7 +237,7 @@ export function WeekView({
                       onClick={() => tick(d, m, eaten ? null : "eaten")}
                       aria-pressed={eaten}
                       aria-label={eaten ? `Untick ${SLOT_LABEL[m.slot]}` : `Ate ${SLOT_LABEL[m.slot]}`}
-                      className={`tap h-11 w-11 shrink-0 rounded-full text-lg ring-1 ${eaten ? "bg-mint text-primary ring-mint" : status === "skipped" ? "bg-white/5 text-neutral-500 ring-white/10" : "bg-white/5 text-transparent ring-white/20 hover:text-mint/60"} disabled:opacity-30`}
+                      className={`tap size-11 shrink-0 rounded-full text-lg ring-1 ${eaten ? "bg-mint text-primary ring-mint" : status === "skipped" ? "bg-white/5 text-neutral-500 ring-white/10" : "bg-white/5 text-transparent ring-white/20 hover:text-mint/60"} disabled:opacity-30`}
                     >
                       {status === "skipped" ? "–" : "✓"}
                     </button>

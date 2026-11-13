@@ -312,7 +312,7 @@ export function SkillTable({
   if (!rows.length) return <Empty>{empty}</Empty>;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[32rem] text-left text-sm">
+      <table className="w-full min-w-lg text-left text-sm">
         <thead className="text-xs text-neutral-400">
           <tr>
             <th className="py-1 pr-4 font-normal">Skill</th>
@@ -326,7 +326,7 @@ export function SkillTable({
             <tr key={row.skill.key}>
               <td className="py-2 pr-4">
                 <span
-                  className={`mr-2 inline-block h-2 w-2 rounded-full ${STATUS_DOT[row.standing.status]}`}
+                  className={`mr-2 inline-block size-2 rounded-full ${STATUS_DOT[row.standing.status]}`}
                   aria-hidden
                 />
                 {row.skill.name}
@@ -366,7 +366,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               or once your plan reaches them.
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
+              <table className="w-full min-w-lg text-left text-sm">
                 <thead className="text-xs text-neutral-400">
                   <tr>
                     <th className="py-1 pr-4 font-normal">Field</th>

@@ -549,12 +549,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Check({ checked, onChange, children }: { checked: boolean; onChange: () => void; children: ReactNode }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="h-5 w-5 shrink-0 accent-[var(--color-mint)]"
-      />
+      <input type="checkbox" checked={checked} onChange={onChange} className="size-5 shrink-0 accent-mint" />
       <span>{children}</span>
     </label>
   );

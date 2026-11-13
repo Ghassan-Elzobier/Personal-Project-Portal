@@ -46,7 +46,7 @@ export function Ring({
   const c = 2 * Math.PI * r;
   return (
     <div className="flex min-w-0 flex-col items-center gap-1.5 text-center">
-      <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90" role="img" aria-label={`${label}: ${sub}`}>
+      <svg viewBox="0 0 64 64" className="size-16 -rotate-90" role="img" aria-label={`${label}: ${sub}`}>
         <circle cx="32" cy="32" r={r} fill="none" stroke="rgb(255 255 255 / 0.08)" strokeWidth="7" />
         <circle
           cx="32"

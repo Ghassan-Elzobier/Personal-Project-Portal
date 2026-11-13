@@ -88,7 +88,7 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
       <ul className="space-y-3 text-sm">
         {items.map((item) => (
           <li key={item.skill} className="flex gap-2">
-            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[item.status]}`} aria-hidden />
+            <span className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[item.status]}`} aria-hidden />
             <div className="min-w-0">
               <p>
                 <span className="font-medium">{item.name}</span>

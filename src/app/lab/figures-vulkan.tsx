@@ -72,7 +72,7 @@ export function ShaderBuild() {
         note={`Iris Xe: SIMD${IRIS_XE.subgroup.compiled}, 2,197 instr.`}
       />
       <Arrow id={id} d="M 750 82 L 786 82" tone="gpu" />
-      <Text x={790} y={162} className="fill-[#a58bf0] text-[11.5px]">
+      <Text x={790} y={162} className="fill-lilac text-[11.5px]">
         vkCreateComputePipelines
       </Text>
 
@@ -422,7 +422,7 @@ export function Swapchain() {
         storageImage: R8G8B8A8
       </Text>
       <Arrow id={id} d="M 724 310 L 788 310" tone="gpu" />
-      <Text x={756} y={300} anchor="middle" className="fill-[#a58bf0] text-[11px]">
+      <Text x={756} y={300} anchor="middle" className="fill-lilac text-[11px]">
         a plain copy
       </Text>
       {["B", "G", "R", "A"].map((ch, i) => (

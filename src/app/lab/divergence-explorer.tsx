@@ -226,7 +226,7 @@ export function DivergenceExplorer() {
                   </svg>
                 </span>
                 {progress < 1 && (
-                  <span className="absolute right-2 bottom-2 rounded bg-primary/80 px-2 py-0.5 text-xs text-neutral-300">
+                  <span className="absolute right-2 bottom-2 rounded-sm bg-primary/80 px-2 py-0.5 text-xs text-neutral-300">
                     Tracing {Math.round(progress * 100)}%
                   </span>
                 )}
@@ -239,7 +239,7 @@ export function DivergenceExplorer() {
                   <span className="mr-1">Trips:</span>
                   {RAMP.map((c, i) => (
                     <span key={c} className="flex items-center gap-1 pr-1">
-                      <span className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
+                      <span className="inline-block size-3 rounded-sm" style={{ background: c }} />
                       {i + 1}
                     </span>
                   ))}
@@ -377,19 +377,19 @@ export function DivergenceExplorer() {
               </div>
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300" aria-label="Cell key">
                 <li className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm bg-aqua/70" />
+                  <span className="size-3 rounded-sm bg-aqua/70" />
                   hit diffuse
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm bg-lavender" />
+                  <span className="size-3 rounded-sm bg-lavender" />
                   hit metal
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm bg-mint/80" />
+                  <span className="size-3 rounded-sm bg-mint/80" />
                   escaped to the sky
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm ring-1 ring-white/20" />
+                  <span className="size-3 rounded-sm ring-1 ring-white/20" />
                   finished, waiting
                 </li>
                 <li className="flex items-center gap-1.5">

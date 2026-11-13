@@ -193,7 +193,7 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
                     return setSubtask(s.gid, next);
                   });
                 }}
-                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-mint"
+                className="mt-0.5 size-5 shrink-0 cursor-pointer accent-mint"
               />
               <span className={s.done ? "text-neutral-400 line-through" : ""}>{s.name}</span>
             </label>

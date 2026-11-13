@@ -264,7 +264,7 @@ export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial
           type="button"
           onClick={openQuickAdd}
           aria-label="Add a task"
-          className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-royal to-lavender text-2xl leading-none"
+          className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-r from-royal to-lavender text-2xl leading-none"
         >
           +
         </button>

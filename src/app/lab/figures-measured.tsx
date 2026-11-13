@@ -15,9 +15,9 @@ const GPU_STYLE = {
   rx: {
     name: "RX 5700 XT",
     width: RX_5700_XT.subgroup.compiled,
-    line: "stroke-[#a58bf0]",
-    dot: "fill-[#a58bf0]",
-    text: "fill-[#a58bf0]",
+    line: "stroke-lilac",
+    dot: "fill-lilac",
+    text: "fill-lilac",
   },
 } as const;
 
@@ -107,7 +107,7 @@ export function MeasuredVsModel({ results }: { results: Results }) {
       <Text
         x={776}
         y={128}
-        className="fill-[#a58bf0] text-[12.5px]"
+        className="fill-lilac text-[12.5px]"
       >{`RX 5700 XT model: ${Math.round(MODEL.efficiency[64] * 100)}%`}</Text>
       {measured.length ? (
         measured.map(({ g, d }, i) => (

@@ -72,7 +72,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
       </div>
 
       <div className="overflow-x-auto card p-0">
-        <div className="min-w-[56rem]">
+        <div className="min-w-4xl">
           <div className="relative ml-56 h-8 border-b border-white/5">
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
               <span
@@ -173,7 +173,7 @@ function Rows({
               )}
               {t.milestone ? (
                 <span
-                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-lavender ring-2 ring-primary"
+                  className="absolute top-1/2 size-3 -translate-1/2 rotate-45 bg-lavender ring-2 ring-primary"
                   style={{ left: `${pct(t.dueOn!) + (right - pct(t.dueOn!)) / 2}%` }}
                   title={`${t.name}, ${shortDate(t.dueOn!)}`}
                 />

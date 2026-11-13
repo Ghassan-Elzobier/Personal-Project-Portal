@@ -86,7 +86,7 @@ export function SessionPill() {
   const elapsed = now ? now - running.startedAt : 0;
   return (
     <span className="flex items-center gap-2 rounded-full bg-mint/10 py-1 pr-1 pl-3 text-sm ring-1 ring-mint/30">
-      <span className="h-2 w-2 rounded-full bg-mint motion-safe:animate-pulse" aria-hidden />
+      <span className="size-2 rounded-full bg-mint motion-safe:animate-pulse" aria-hidden />
       <span className="max-w-32 truncate" title={running.name}>
         {running.name}
       </span>

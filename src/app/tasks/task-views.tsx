@@ -338,7 +338,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
           aria-busy={pending}
           onChange={(e) => complete(e.target.checked)}
           aria-label={`Mark ${task.name} ${completed ? "not done" : "done"}`}
-          className="h-5 w-5 shrink-0 cursor-pointer accent-mint"
+          className="size-5 shrink-0 cursor-pointer accent-mint"
         />
         <Link
           href={href(task.gid)}
@@ -397,7 +397,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
           disabled={pending}
           aria-busy={pending}
           onChange={(e) => changeStage(e.target.value)}
-          className="w-28 rounded-md border border-transparent bg-transparent px-1 py-1 text-xs text-neutral-300 hover:border-white/10 focus:border-white/20"
+          className="w-28 rounded-md border border-transparent bg-transparent p-1 text-xs text-neutral-300 hover:border-white/10 focus:border-white/20"
         >
           {STAGES.map((s) => (
             <option key={s}>{s}</option>

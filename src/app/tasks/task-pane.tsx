@@ -119,7 +119,7 @@ export function TaskPane({
                   return setTaskCompleted(task.gid, done);
                 });
               }}
-              className="h-5 w-5 cursor-pointer accent-mint"
+              className="size-5 cursor-pointer accent-mint"
             />
             {completed ? "Completed" : "Mark complete"}
           </label>

@@ -251,7 +251,7 @@ function ShortcutHelp({ onClose }: { onClose: () => void }) {
             <div key={keys} className="flex items-center justify-between gap-4">
               <dt className="text-neutral-300">{what}</dt>
               <dd>
-                <kbd className="rounded bg-white/10 px-2 py-0.5 text-xs">{keys}</kbd>
+                <kbd className="rounded-sm bg-white/10 px-2 py-0.5 text-xs">{keys}</kbd>
               </dd>
             </div>
           ))}

@@ -174,7 +174,7 @@ if (subgroupElect()) {
                 id={`step-${i + 1}`}
                 className="flex scroll-mt-24 gap-3 rounded-xl p-2 target:bg-white/5 target:ring-1 target:ring-white/20"
               >
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums ring-1 ring-white/30">
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums ring-1 ring-white/30">
                   {i + 1}
                 </span>
                 <div className="space-y-1">

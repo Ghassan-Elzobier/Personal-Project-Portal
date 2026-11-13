@@ -148,7 +148,7 @@ export default async function RecipePage({
           <ol className="space-y-3">
             {r.steps.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
                   {i + 1}
                 </span>
                 <span className="text-neutral-200">{step}</span>

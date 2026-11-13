@@ -301,7 +301,7 @@ const TONES: Record<Attention["tone"], string> = {
 function AttentionRow({ item }: { item: Attention }) {
   const body = (
     <span className="flex items-start gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm ring-1 ring-white/5 transition hover:ring-white/15">
-      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TONES[item.tone]}`} aria-hidden />
+      <span className={`mt-1.5 size-2 shrink-0 rounded-full ${TONES[item.tone]}`} aria-hidden />
       <span>{item.text}</span>
     </span>
   );

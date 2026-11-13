@@ -73,7 +73,7 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
           aria-busy={pending}
           onChange={complete}
           aria-label={`Mark ${task.name} done`}
-          className="h-5 w-5 shrink-0 cursor-pointer accent-mint"
+          className="size-5 shrink-0 cursor-pointer accent-mint"
         />
       )}
       <div className="min-w-44 flex-1">

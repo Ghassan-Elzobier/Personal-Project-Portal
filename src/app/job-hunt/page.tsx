@@ -151,7 +151,7 @@ export default async function SharedJobHuntPage() {
           <span id="fields-title">By field</span>
         </SectionTitle>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
+          <table className="w-full min-w-lg text-left text-sm">
             <thead className="text-xs text-neutral-400">
               <tr>
                 <th className="py-1 pr-4 font-normal">Field</th>

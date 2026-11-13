@@ -542,7 +542,7 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
             cx={X(k)}
             cy={Y(a.gflops)}
             r={5.5}
-            className={g === "rx" ? "fill-[#a58bf0] stroke-primary" : "fill-aqua stroke-primary"}
+            className={g === "rx" ? "fill-lilac stroke-primary" : "fill-aqua stroke-primary"}
             strokeWidth={1.5}
           />
           <Label x={X(k) + 12} y={Y(a.gflops) + 4} tone={g === "rx" ? "gpu" : "shader"} size={11} anchor="start">

@@ -20,7 +20,7 @@ export const TONES: Record<Tone, { label: string; box: string; line: string; tex
       label: "GPU commands and queues",
       box: "fill-lavender/15 stroke-lavender",
       line: "stroke-lavender",
-      text: "fill-[#a58bf0]",
+      text: "fill-lilac",
       dot: "bg-lavender",
       hex: "#a58bf0",
     },
@@ -291,7 +291,7 @@ export function Legend({ tones = ["cpu", "gpu", "shader", "memory", "display", "
     <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300" aria-label="Colour key">
       {tones.map((t) => (
         <li key={t} className="flex items-center gap-1.5">
-          <span className={`inline-block h-2.5 w-2.5 rounded-sm ${TONES[t].dot}`} aria-hidden />
+          <span className={`inline-block size-2.5 rounded-sm ${TONES[t].dot}`} aria-hidden />
           {TONES[t].label}
         </li>
       ))}

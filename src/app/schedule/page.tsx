@@ -130,7 +130,7 @@ function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadSchedu
   return (
     <form action={disconnectGoogle} className="flex items-center gap-3 text-sm text-neutral-400">
       <span className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-mint" aria-hidden />
+        <span className="size-2 rounded-full bg-mint" aria-hidden />
         Google Calendar{google.email ? `: ${google.email}` : ""}
       </span>
       <button className="cursor-pointer text-neutral-400 hover:text-white">Disconnect</button>

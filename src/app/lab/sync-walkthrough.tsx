@@ -119,7 +119,7 @@ export function SyncWalkthrough() {
                     }}
                     aria-current={step === i + 1 ? "step" : undefined}
                     aria-label={`Step ${i + 1}: ${s.title}`}
-                    className={`h-7 w-7 cursor-pointer rounded-full text-xs tabular-nums ring-1 ${step === i + 1 ? (CHAIN[i].on === false ? "bg-coral/20 text-coral ring-coral" : "bg-white/15 text-white ring-white/50") : "text-neutral-400 ring-white/15 hover:text-white"}`}
+                    className={`size-7 cursor-pointer rounded-full text-xs tabular-nums ring-1 ${step === i + 1 ? (CHAIN[i].on === false ? "bg-coral/20 text-coral ring-coral" : "bg-white/15 text-white ring-white/50") : "text-neutral-400 ring-white/15 hover:text-white"}`}
                   >
                     {i + 1}
                   </button>

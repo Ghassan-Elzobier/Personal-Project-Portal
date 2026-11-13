@@ -95,7 +95,7 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
                   {i.start >= 0 ? clock(i.start) : ""}
                 </span>
                 <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
+                  className={`size-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
                   aria-hidden
                 />
                 {i.external ? (
@@ -154,7 +154,7 @@ function Action({
         onClick={onTick}
         aria-pressed={isDone}
         aria-label={isDone ? `Undo ${i.title}` : `Done: ${i.title}`}
-        className={`tap h-10 w-10 shrink-0 rounded-full ring-1 ${isDone ? "bg-mint text-primary ring-mint" : next ? "text-mint ring-mint/60" : "text-neutral-500 ring-white/15 hover:text-mint"}`}
+        className={`tap size-10 shrink-0 rounded-full ring-1 ${isDone ? "bg-mint text-primary ring-mint" : next ? "text-mint ring-mint/60" : "text-neutral-500 ring-white/15 hover:text-mint"}`}
       >
         ✓
       </button>

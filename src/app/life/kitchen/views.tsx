@@ -176,13 +176,13 @@ export function ShopView({
                     target="_blank"
                     rel="noreferrer noopener"
                     onClick={() => setOpened((s) => new Set(s).add(l.item))}
-                    className={`tap h-11 w-11 shrink-0 rounded-full text-sm font-bold ring-1 ${seen ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
+                    className={`tap size-11 shrink-0 rounded-full text-sm font-bold ring-1 ${seen ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
                     aria-label={`Open ${l.name} on Sainsbury's`}
                   >
                     {seen ? "✓" : `×${l.packs}`}
                   </a>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium break-words">
+                    <p className="font-medium wrap-break-word">
                       {l.product?.name ?? l.name} <span className="text-neutral-400">× {l.packs}</span>
                     </p>
                     <p className="text-xs text-neutral-400 tabular-nums">
@@ -334,7 +334,7 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
                     return n;
                   })
                 }
-                className="h-5 w-5 accent-[var(--color-mint)]"
+                className="size-5 accent-mint"
               />
               <span className="min-w-0 flex-1 truncate">{l.product?.name ?? l.name}</span>
               <span className="text-xs text-neutral-400">× {l.packs}</span>
@@ -487,7 +487,7 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
                     return n;
                   })
                 }
-                className="h-5 w-5 accent-[var(--color-mint)]"
+                className="size-5 accent-mint"
               />
               {c.label}
             </label>
@@ -899,7 +899,7 @@ function CookSession({
             <select
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10"
+              className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
             >
               {days.map((d) => (
                 <option key={d.date} value={d.date}>
@@ -917,7 +917,7 @@ function CookSession({
               max="22:00"
               step={900}
               onChange={(e) => setTime(e.target.value)}
-              className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10"
+              className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
             />
           </label>
           <button className="btn-life px-4 py-2" disabled={pending} aria-busy={pending}>

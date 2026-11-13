@@ -36,7 +36,7 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
   if (!series.length) return null;
   return (
     <div className="overflow-x-auto card p-0">
-      <table className="w-full min-w-[42rem] text-sm">
+      <table className="w-full min-w-2xl text-sm">
         <thead>
           <tr className="border-b border-white/10 text-left text-xs text-neutral-300">
             <th scope="col" className="px-4 py-3 font-medium">

@@ -190,7 +190,7 @@ async function Results({ q, chapter, hasPdf }: { q: string; chapter: string | nu
             <p className="text-sm text-neutral-300">
               {splitExcerpt(r.excerpt).map((run, i) =>
                 run.mark ? (
-                  <mark key={i} className="rounded bg-aqua/20 px-0.5 text-white">
+                  <mark key={i} className="rounded-sm bg-aqua/20 px-0.5 text-white">
                     {run.text}
                   </mark>
                 ) : (

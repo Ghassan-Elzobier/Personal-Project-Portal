@@ -88,7 +88,7 @@ export function SessionLogger({
 
   return (
     <>
-      <div className="sticky top-14 z-10 -mx-5 bg-primary/90 px-5 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:px-3">
+      <div className="sticky top-14 z-10 -mx-5 bg-primary/90 px-5 py-2 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:px-3">
         <div className="flex items-center gap-3">
           <div
             className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"
@@ -121,7 +121,7 @@ export function SessionLogger({
                   type="checkbox"
                   checked={warm[i]}
                   onChange={() => setWarm((x) => x.map((v, j) => (j === i ? !v : v)))}
-                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-mint)]"
+                  className="mt-0.5 size-5 shrink-0 accent-mint"
                 />
                 <span className={warm[i] ? "text-neutral-500 line-through" : ""}>{w}</span>
               </label>
@@ -473,7 +473,7 @@ function SetRow({
         }}
         aria-pressed={done}
         aria-label={done ? `Undo set ${position}` : `Done set ${position}`}
-        className={`ml-auto tap h-11 w-11 rounded-full text-lg ring-1 ${done ? "bg-mint text-primary ring-mint" : "text-mint ring-mint/40 hover:bg-mint/10"}`}
+        className={`ml-auto tap size-11 rounded-full text-lg ring-1 ${done ? "bg-mint text-primary ring-mint" : "text-mint ring-mint/40 hover:bg-mint/10"}`}
       >
         ✓
       </button>

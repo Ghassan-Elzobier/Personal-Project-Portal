@@ -214,7 +214,7 @@ function StageBar({ stats }: { stats: ProjectStats }) {
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">
         {stats.stages.map((s) => (
           <li key={s.stage} className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${STAGE_MARKS[s.stage]}`} aria-hidden />
+            <span className={`size-2 rounded-full ${STAGE_MARKS[s.stage]}`} aria-hidden />
             {s.stage} <span className="text-neutral-400 tabular-nums">{s.count}</span>
           </li>
         ))}

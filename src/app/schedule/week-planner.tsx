@@ -365,7 +365,7 @@ function DayColumn({
 
   return (
     <div
-      className={`relative border-l border-white/5 transition-colors ${over ? "bg-lavender/10" : isToday ? "bg-white/[0.02]" : ""}`}
+      className={`relative border-l border-white/5 transition-colors ${over ? "bg-lavender/10" : isToday ? "bg-white/2" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setOver(true);
@@ -394,7 +394,7 @@ function DayColumn({
           className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-coral"
           style={{ top: (nowMinutes - DAY_START) * PX_PER_MIN }}
         >
-          <span className="absolute -top-1.5 -left-1 h-3 w-3 rounded-full bg-coral" />
+          <span className="absolute -top-1.5 -left-1 size-3 rounded-full bg-coral" />
         </div>
       )}
       {visible.map((b) => {
@@ -451,7 +451,7 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
   const short = block.end - block.start < 45;
   return (
     <span
-      className={`flex h-full w-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`flex size-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <span
         className={`font-semibold ${compact ? (short ? "truncate" : "line-clamp-2") : ""} ${block.completed ? "line-through" : ""}`}
@@ -475,20 +475,20 @@ function Legend() {
   return (
     <div className="space-y-1 pt-4 text-xs text-neutral-400">
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-gradient-to-b from-royal to-lavender" /> Study: when a task is due
+        <span className="size-3 rounded-sm bg-linear-to-b from-royal to-lavender" /> Study: when a task is due
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-gradient-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
+        <span className="size-3 rounded-sm bg-linear-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around study
-        when they clash
+        <span className="size-3 rounded-sm bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around
+        study when they clash
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-sand/25 ring-2 ring-coral" /> Life item with nowhere to move to
+        <span className="size-3 rounded-sm bg-sand/25 ring-2 ring-coral" /> Life item with nowhere to move to
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-white/10 ring-1 ring-white/20" /> Other calendar events (read-only)
+        <span className="size-3 rounded-sm bg-white/10 ring-1 ring-white/20" /> Other calendar events (read-only)
       </p>
     </div>
   );
