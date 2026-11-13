@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { runAsConnector } from "@/lib/connector/context";
-import { anonClient, noStore, origin, sha256Hex } from "@/lib/connector/oauth";
+import { noStore, origin, sha256Hex } from "@/lib/connector/oauth";
 import { INSTRUCTIONS, TOOLS } from "@/lib/connector/tools";
+import { anonClient } from "@/lib/supabase/anon";
+import { runAsConnector } from "@/lib/supabase/caller";
 import { supabaseConfigured } from "@/lib/supabase/server";
 
 // The Claude connector: a Model Context Protocol server over Streamable HTTP,

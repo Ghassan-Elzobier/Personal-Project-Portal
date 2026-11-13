@@ -30,7 +30,9 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
 - **Domains hold the logic.** Pure functions (planning, matching, progression,
   nutrition) are tested with node:test; I/O stays at the edges of the module.
 - **Infrastructure knows nothing above it.** The clock (`dates/clock.ts`), settings
-  (`config/`), access (`auth/`) and the Supabase clients.
+  (`config/`), access (`auth/`) and the Supabase clients. Domains call their RPCs
+  through `rpcAsCaller` (`supabase/caller.ts`), which uses the browser session for a
+  page and the token's hash for a Claude connector call.
 
 ## Rules
 
@@ -48,10 +50,6 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
 
 From `npm run health`, the structural items in the queue:
 
-- `tasks/native.ts`, `life/store.ts` and `library/book.ts` import `connectorCaller` and
-  `anonClient` from the connector, to pick the right database client for a page
-  or a Claude call. That choice is infrastructure: it belongs in `src/lib/supabase`,
-  which removes the folder-level cycle between the connector and the domains.
 - `study/load.ts` and `life/calendar-sync.ts` import from `portal`. Move the shared
   pieces down into their domains.
 - Three pages import `tasks/native` directly (`/`, `/study`, `/tasks`), for reads the

@@ -1,6 +1,5 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { createClient as createSupabase } from "@supabase/supabase-js";
 
 // OAuth 2.1 for the Claude connector: public clients, PKCE S256 only, and a
 // fixed list of redirect URIs (Claude's callback), so registering a client
@@ -46,13 +45,6 @@ export function clientLabel(redirectUri: string): string {
   } catch {
     return "Unknown app";
   }
-}
-
-/** A Supabase client with no session, for the RPCs the token and MCP endpoints call. */
-export function anonClient() {
-  return createSupabase(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
 }
 
 export function origin(request: Request): string {

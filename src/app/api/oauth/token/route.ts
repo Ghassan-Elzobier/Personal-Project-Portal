@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { ACCESS_TTL_SECONDS, anonClient, noStore, randomToken, SCOPE, sha256Hex } from "@/lib/connector/oauth";
+import { ACCESS_TTL_SECONDS, noStore, randomToken, SCOPE, sha256Hex } from "@/lib/connector/oauth";
+import { anonClient } from "@/lib/supabase/anon";
 import { supabaseConfigured } from "@/lib/supabase/server";
 
 // Token endpoint for the Claude connector. Public client with PKCE; the

@@ -92,34 +92,14 @@
       "count": 2
     }
   },
-  "src/lib/calendar/google.ts": {
-    "no-restricted-imports": {
-      "count": 1
-    }
-  },
-  "src/lib/library/book.ts": {
-    "no-restricted-imports": {
-      "count": 2
-    }
-  },
   "src/lib/life/calendar-sync.ts": {
     "no-restricted-imports": {
       "count": 1
     }
   },
-  "src/lib/life/store.ts": {
-    "no-restricted-imports": {
-      "count": 2
-    }
-  },
   "src/lib/study/load.ts": {
     "no-restricted-imports": {
       "count": 1
-    }
-  },
-  "src/lib/tasks/native.ts": {
-    "no-restricted-imports": {
-      "count": 2
     }
   }
 }
