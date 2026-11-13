@@ -24,8 +24,8 @@ Claude connector working. The details for each step are in
 ## 0. Prepare
 
 - [ ] On an up-to-date `main` (`git pull`), run `npm install`, then
-      `npm run lint`, `npm run typecheck` and `npm test`. All must pass.
-- [ ] Check the tools: `node -v` (22 or newer), `npx supabase --version`,
+      `npm run check`. It must pass.
+- [ ] Check the tools: `node -v` (24, from .nvmrc), `npx supabase --version`,
       `npx vercel --version`, `openssl version`.
 - [ ] `cp .env.example .env.local`. Fill it in as you go.
 
@@ -35,12 +35,12 @@ Claude connector working. The details for each step are in
 - [ ] Create the project in the **personal** org: dashboard, or
       `npx supabase projects create personal-project-portal`. Ask for the
       region (closest to London) and the plan (Free).
-- [ ] `npx supabase link --project-ref <ref>`, then `npx supabase db push`.
+- [ ] `npx supabase link --project-ref <ref>`, then `npx supabase db push --remote`.
       It should apply nine migrations: portal access, Google Calendar,
       Claude connector, native tasks, bulk reads, study and the PMPP correction, then the job tracker
       and the mentor views.
 - [ ] `npx supabase config push` applies sign-ups off and the auth settings.
-- [ ] If Docker is running, `npx supabase test db`. 152 pgTAP checks should pass.
+- [ ] If Docker is running, `npm run db:start` then `npm run test:db`. 193 pgTAP checks should pass.
 - [ ] Copy the project URL and anon key into `.env.local`
       (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 - [ ] Ghassan invites his own email under Authentication, then Users, then
