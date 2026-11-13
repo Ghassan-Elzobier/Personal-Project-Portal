@@ -48,7 +48,14 @@ export function eligible(profile: LifeProfile, meal: Recipe["meal"]): Recipe[] {
   });
 }
 
-export function rank(profile: LifeProfile, meal: Recipe["meal"], ratings: Rating[], lastHad: LastHad, spare: Record<string, number>, today: string): Ranked[] {
+export function rank(
+  profile: LifeProfile,
+  meal: Recipe["meal"],
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+): Ranked[] {
   const stars = new Map(ratings.map((r) => [r.recipe, r.stars]));
   return eligible(profile, meal)
     .map((r) => {
@@ -121,18 +128,33 @@ export function pickSpread(ranked: Ranked[], n: number, avoid: string[] = []): R
  * Weekend dinners cooked fresh, like a Sunday roast or a Saturday steak: Saturday
  * first, then Sunday, skipping days that are cook days or already gone.
  */
-export function weekendFresh(profile: LifeProfile, start: string, sessions: { date: string }[], ranked: Ranked[], today: string): WeekPlan["fresh"] {
+export function weekendFresh(
+  profile: LifeProfile,
+  start: string,
+  sessions: { date: string }[],
+  ranked: Ranked[],
+  today: string,
+): WeekPlan["fresh"] {
   const n = profile.routine.weekendFresh;
   if (!n) return [];
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const weekday = (d: string) => (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7;
-  const weekend = [...days.filter((d) => weekday(d) === 5), ...days.filter((d) => weekday(d) === 6)].filter((d) => d >= today && !sessions.some((s) => s.date === d));
-  const picks = pickSpread(ranked.filter((r) => r.recipe.tags.includes("weekend")), n);
-  return weekend.slice(0, n).map((date, i) => ({ date, slot: "dinner" as const, recipe: picks[i % Math.max(1, picks.length)]?.key ?? "" })).filter((f) => f.recipe);
+  const weekend = [...days.filter((d) => weekday(d) === 5), ...days.filter((d) => weekday(d) === 6)].filter(
+    (d) => d >= today && !sessions.some((s) => s.date === d),
+  );
+  const picks = pickSpread(
+    ranked.filter((r) => r.recipe.tags.includes("weekend")),
+    n,
+  );
+  return weekend
+    .slice(0, n)
+    .map((date, i) => ({ date, slot: "dinner" as const, recipe: picks[i % Math.max(1, picks.length)]?.key ?? "" }))
+    .filter((f) => f.recipe);
 }
 
 /** Cook sessions of a meal week starting on `start`, from the routine. */
-const daysUntil = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+const daysUntil = (a: string, b: string) =>
+  Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
 export function sessionDates(start: string, cooks: CookSession[]): { date: string; start: number }[] {
   const startWeekday = (new Date(`${start}T00:00:00Z`).getUTCDay() + 6) % 7;
@@ -158,26 +180,50 @@ export function catchUp(sessions: { date: string; start: number }[], today: stri
  * first session, a daily breakfast for the gaps, and the shake. Portions are left
  * at zero for sizeCooks to fill in.
  */
-export function suggestWeek(profile: LifeProfile, start: string, ratings: Rating[], lastHad: LastHad, spare: Record<string, number>, today: string): WeekPlan {
+export function suggestWeek(
+  profile: LifeProfile,
+  start: string,
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+): WeekPlan {
   const mains = rank(profile, "main", ratings, lastHad, spare, today).filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
   // Each session cooks for the days until the next one. Two mains for that, but
   // one when it only covers a day or two (a week planned late), so a catch-up
   // cook is one pan, not the whole week's cooking on one evening.
   const mainsFor = sessions.map((x, i) => (daysUntil(x.date, sessions[i + 1]?.date ?? addDays(start, 7)) <= 2 ? 1 : 2));
-  const picks = pickSpread(mains, mainsFor.reduce((a, b) => a + b, 0));
+  const picks = pickSpread(
+    mains,
+    mainsFor.reduce((a, b) => a + b, 0),
+  );
   const breakfasts = rank(profile, "breakfast", ratings, lastHad, spare, today);
   // A breakfast batch is worth it for three mornings or more; fewer, and the daily breakfast covers them.
-  const batchBreakfast = sessions[0] && daysUntil(sessions[0].date, addDays(start, 7)) >= 3 ? breakfasts.find((r) => !r.recipe.daily)?.recipe : undefined;
+  const batchBreakfast =
+    sessions[0] && daysUntil(sessions[0].date, addDays(start, 7)) >= 3
+      ? breakfasts.find((r) => !r.recipe.daily)?.recipe
+      : undefined;
   const dailyBreakfast = breakfasts.find((r) => r.recipe.daily)?.recipe;
-  const shakes = rank(profile, "shake", ratings, lastHad, spare, today).slice(0, 3).map((r) => r.recipe.key);
+  const shakes = rank(profile, "shake", ratings, lastHad, spare, today)
+    .slice(0, 3)
+    .map((r) => r.recipe.key);
   const cooks: Cook[] = [];
   let used = 0;
   sessions.forEach((s, i) => {
-    for (const r of picks.slice(used, used + mainsFor[i])) cooks.push({ id: `${s.date}-${r.key}`, recipe: r.key, date: s.date, start: s.start, portions: 0, scale: 1 });
+    for (const r of picks.slice(used, used + mainsFor[i]))
+      cooks.push({ id: `${s.date}-${r.key}`, recipe: r.key, date: s.date, start: s.start, portions: 0, scale: 1 });
     used += mainsFor[i];
   });
-  if (batchBreakfast && sessions[0]) cooks.push({ id: `${sessions[0].date}-${batchBreakfast.key}`, recipe: batchBreakfast.key, date: sessions[0].date, start: sessions[0].start, portions: 0, scale: 1 });
+  if (batchBreakfast && sessions[0])
+    cooks.push({
+      id: `${sessions[0].date}-${batchBreakfast.key}`,
+      recipe: batchBreakfast.key,
+      date: sessions[0].date,
+      start: sessions[0].start,
+      portions: 0,
+      scale: 1,
+    });
   return {
     start,
     cooks,

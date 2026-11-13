@@ -47,4 +47,3 @@ export function ViewFigure({ id, results }: { id: ViewId; results?: Record<"iris
       return <RandomNumbers />;
   }
 }
-

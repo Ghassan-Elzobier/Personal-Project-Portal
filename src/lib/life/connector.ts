@@ -24,10 +24,15 @@ type Tool = {
   run: (args: Json, ctx: { base: string }) => Promise<ToolResult>;
 };
 
-const DATE = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$", description: "Day, YYYY-MM-DD. Leave out for today." };
+const DATE = {
+  type: "string",
+  pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+  description: "Day, YYYY-MM-DD. Leave out for today.",
+};
 const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
 const err = (message: string): ToolResult => ({ text: message, isError: true });
-const day = (args: Json) => (typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday());
+const day = (args: Json) =>
+  typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday();
 
 export const LIFE_TOOLS: Tool[] = [
   {
@@ -54,26 +59,38 @@ export const LIFE_TOOLS: Tool[] = [
         protein_g: i.placement ? placedMacros(i.placement)?.protein : undefined,
       }));
       const gym = routine.find((r) => r.kind === "gym");
-      const key = s.sessions.find((x) => x.day === date)?.workout ?? nextWorkout(s.sessions.filter((x) => x.day < date));
+      const key =
+        s.sessions.find((x) => x.day === date)?.workout ?? nextWorkout(s.sessions.filter((x) => x.day < date));
       const w = workout(key);
       const before = s.sets.filter((x) => x.day < date);
       return ok({
         date,
-        targets: s.targets ? { kcal: s.kcal, protein_g: s.targets.protein, fat_g: s.targets.fat, carbs_g: s.targets.carbs } : "Profile not set up yet",
+        targets: s.targets
+          ? { kcal: s.kcal, protein_g: s.targets.protein, fat_g: s.targets.fat, carbs_g: s.targets.carbs }
+          : "Profile not set up yet",
         weight_trend_kg: s.kg,
         routine,
-        gym: gym && w
-          ? {
-              workout: `${w.key}, ${w.name}`,
-              exercises: w.blocks.flatMap((b) =>
-                b.items.map((p) => {
-                  const ex = resolve(p.exercise, s.profile.gym.missing)!;
-                  const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date));
-                  return { exercise: ex.key, name: ex.name, sets: t.sets, reps_in_reserve: t.rir, note: p.note, why: t.why, demo_video: demoFor(ex).video };
-                }),
-              ),
-            }
-          : undefined,
+        gym:
+          gym && w
+            ? {
+                workout: `${w.key}, ${w.name}`,
+                exercises: w.blocks.flatMap((b) =>
+                  b.items.map((p) => {
+                    const ex = resolve(p.exercise, s.profile.gym.missing)!;
+                    const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date));
+                    return {
+                      exercise: ex.key,
+                      name: ex.name,
+                      sets: t.sets,
+                      reps_in_reserve: t.rir,
+                      note: p.note,
+                      why: t.why,
+                      demo_video: demoFor(ex).video,
+                    };
+                  }),
+                ),
+              }
+            : undefined,
         pages: { today: `${base}/`, meals: `${base}/life`, gym: `${base}/life/gym` },
       });
     },
@@ -82,7 +99,12 @@ export const LIFE_TOOLS: Tool[] = [
     name: "log_weight",
     title: "Log a weigh-in",
     description: "Record the morning weigh-in in kg. The trend and the calorie target follow it.",
-    inputSchema: { type: "object", properties: { kg: { type: "number", minimum: 30, maximum: 250 }, date: DATE }, required: ["kg"], additionalProperties: false },
+    inputSchema: {
+      type: "object",
+      properties: { kg: { type: "number", minimum: 30, maximum: 250 }, date: DATE },
+      required: ["kg"],
+      additionalProperties: false,
+    },
     annotations: { readOnlyHint: false, idempotentHint: true },
     async run(args) {
       const r = await ops.logWeight(day(args), Math.round(Number(args.kg) * 10) / 10);
@@ -92,7 +114,8 @@ export const LIFE_TOOLS: Tool[] = [
   {
     name: "log_meal",
     title: "Log a meal",
-    description: "Mark a planned meal as eaten or skipped, or clear it. Eating from a batch takes a portion from the fridge or freezer.",
+    description:
+      "Mark a planned meal as eaten or skipped, or clear it. Eating from a batch takes a portion from the fridge or freezer.",
     inputSchema: {
       type: "object",
       properties: {
@@ -113,7 +136,8 @@ export const LIFE_TOOLS: Tool[] = [
   {
     name: "log_gym_set",
     title: "Log a gym set",
-    description: "Record one set of today's session. Use the exercise key from get_life_day; position is the set number starting at 1. Leave kg out for bodyweight work.",
+    description:
+      "Record one set of today's session. Use the exercise key from get_life_day; position is the set number starting at 1. Leave kg out for bodyweight work.",
     inputSchema: {
       type: "object",
       properties: {
@@ -132,7 +156,9 @@ export const LIFE_TOOLS: Tool[] = [
       const loaded = await loadLife();
       if (loaded.error !== undefined) return err(loaded.error);
       const date = day(args);
-      const key = loaded.state.sessions.find((x) => x.day === date)?.workout ?? nextWorkout(loaded.state.sessions.filter((x) => x.day < date));
+      const key =
+        loaded.state.sessions.find((x) => x.day === date)?.workout ??
+        nextWorkout(loaded.state.sessions.filter((x) => x.day < date));
       const r = await ops.logSet({
         day: date,
         workout: key,
@@ -142,20 +168,32 @@ export const LIFE_TOOLS: Tool[] = [
         reps: Number(args.reps),
         rir: typeof args.reps_in_reserve === "number" ? args.reps_in_reserve : null,
       });
-      return r.error ? err(r.error) : ok({ logged: { exercise: args.exercise, set: args.position, kg: args.kg ?? null, reps: args.reps }, workout: key });
+      return r.error
+        ? err(r.error)
+        : ok({
+            logged: { exercise: args.exercise, set: args.position, kg: args.kg ?? null, reps: args.reps },
+            workout: key,
+          });
     },
   },
   {
     name: "plan_meal_week",
     title: "Plan this week's meals",
-    description: "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. Only when the week has no cooking done yet.",
+    description:
+      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. Only when the week has no cooking done yet.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: false },
     async run(_args, { base }) {
       const r = await ops.planWeek();
       if (r.error) return err(r.error);
       const loaded = await loadLife();
-      const cooks = loaded.state?.plan?.cooks.map((c) => ({ day: c.date, at: clock(c.start), recipe: recipe(c.recipe)?.name, portions: c.portions })) ?? [];
+      const cooks =
+        loaded.state?.plan?.cooks.map((c) => ({
+          day: c.date,
+          at: clock(c.start),
+          recipe: recipe(c.recipe)?.name,
+          portions: c.portions,
+        })) ?? [];
       return ok({ planned: "start" in r ? r.start : null, cooks, page: `${base}/life` });
     },
   },

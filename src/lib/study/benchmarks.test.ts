@@ -32,7 +32,10 @@ test("a lower frame time counts as an improvement", () => {
 });
 
 test("a lower ray rate counts as a regression", () => {
-  const [g] = groupBenchmarks([row({ metric: "Million rays per second", value: 100 }), row({ metric: "Million rays per second", value: 90 })]);
+  const [g] = groupBenchmarks([
+    row({ metric: "Million rays per second", value: 100 }),
+    row({ metric: "Million rays per second", value: 90 }),
+  ]);
   assert.equal(g.improved, false);
 });
 

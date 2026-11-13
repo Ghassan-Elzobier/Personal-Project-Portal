@@ -28,7 +28,13 @@ export async function setTracking(gid: string, patch: jobs.TrackingPatch) {
   return jobs.setTracking(gid, patch);
 }
 
-export async function addRoleByHand(input: { title: string; company: string; location: string; url: string; text: string }) {
+export async function addRoleByHand(input: {
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  text: string;
+}) {
   await requireOwner();
   return jobs.addRoleByHand(input);
 }

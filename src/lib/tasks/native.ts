@@ -5,6 +5,7 @@ import { anonClient } from "../connector/oauth";
 import { PROJECTS, type ProjectKey } from "../config/projects";
 import { createClient } from "../supabase/server";
 import type { BenchmarkRow } from "../study/benchmarks";
+import { now } from "@/lib/dates/clock";
 import {
   AsanaError,
   filterNativeRows,
@@ -26,8 +27,15 @@ import {
 
 export type Section = { gid: string; name: string };
 
-
-const ERROR_STATUS: Record<string, number> = { "42501": 403, P0002: 404, "22023": 400, "22P02": 400, "22007": 400, "22008": 400, "23514": 400 };
+const ERROR_STATUS: Record<string, number> = {
+  "42501": 403,
+  P0002: 404,
+  "22023": 400,
+  "22P02": 400,
+  "22007": 400,
+  "22008": 400,
+  "23514": 400,
+};
 
 /** Browser calls use the session. Connector calls prove themselves with their token's hash. */
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
@@ -39,7 +47,14 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
     if (!status) console.error(name, error.message);
     // Our own raised messages are written for people; constraint failures are not.
     const readable = status === 403 || status === 404 || error.code === "22023";
-    throw new AsanaError(readable ? error.message : status ? "Those values are not valid." : "The task database did not answer. Try again in a minute.", status ?? 500);
+    throw new AsanaError(
+      readable
+        ? error.message
+        : status
+          ? "Those values are not valid."
+          : "The task database did not answer. Try again in a minute.",
+      status ?? 500,
+    );
   }
   return data as T;
 }
@@ -86,7 +101,7 @@ export async function listTasks(
   options: { completedSince?: Date | "now"; modifiedSince?: Date } = {},
 ): Promise<AsanaTask[]> {
   const data = await readable(key);
-  const completedSince = options.completedSince === "now" ? new Date() : options.completedSince;
+  const completedSince = options.completedSince === "now" ? now() : options.completedSince;
   const rows = data.tasks.filter((t) => t.project === key);
   return filterNativeRows(rows, { completedSince, modifiedSince: options.modifiedSince }).map(toTask);
 }
@@ -114,7 +129,10 @@ export async function listStatusUpdates(key: ProjectKey, since?: Date): Promise<
 }
 
 const commentsSince = cache(async (sinceIso: string): Promise<SessionComment[]> => {
-  const rows = await rpc<{ task_gid: string; project: ProjectKey; text: string; created_at: string }[]>("tracker_comments_since", { p_since: sinceIso });
+  const rows = await rpc<{ task_gid: string; project: ProjectKey; text: string; created_at: string }[]>(
+    "tracker_comments_since",
+    { p_since: sinceIso },
+  );
   return rows.map((r) => ({ taskGid: r.task_gid, project: r.project, text: r.text, createdAt: r.created_at }));
 });
 
@@ -228,8 +246,18 @@ export async function addReview(task: string, prompt: string, dueOn: string | nu
   await rpc("tracker_add_review", { p_task: gidNumber(task), p_prompt: prompt, p_due_on: dueOn });
 }
 
-export async function rateReview(gid: string, rating: string, next: { step: number; dueOn: string | null; retire: boolean }): Promise<void> {
-  await rpc("tracker_rate_review", { p_gid: gidNumber(gid), p_rating: rating, p_step: next.step, p_due_on: next.dueOn, p_retire: next.retire });
+export async function rateReview(
+  gid: string,
+  rating: string,
+  next: { step: number; dueOn: string | null; retire: boolean },
+): Promise<void> {
+  await rpc("tracker_rate_review", {
+    p_gid: gidNumber(gid),
+    p_rating: rating,
+    p_step: next.step,
+    p_due_on: next.dueOn,
+    p_retire: next.retire,
+  });
 }
 
 export async function deleteReview(gid: string): Promise<void> {

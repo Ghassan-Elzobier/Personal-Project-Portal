@@ -8,7 +8,9 @@ export type AuthorizeRequest = {
 };
 
 /** Checks an OAuth authorize request. Errors here are shown, never redirected. */
-export function parseAuthorize(raw: Record<string, string | undefined>): { ok: true; value: AuthorizeRequest } | { ok: false; error: string } {
+export function parseAuthorize(
+  raw: Record<string, string | undefined>,
+): { ok: true; value: AuthorizeRequest } | { ok: false; error: string } {
   const redirectUri = raw.redirect_uri ?? "";
   if (!redirectAllowed(redirectUri)) return { ok: false, error: "This sign-in link is not from Claude's connector." };
   if (raw.response_type !== "code") return { ok: false, error: "Unsupported response_type." };

@@ -113,12 +113,23 @@ function buildProgress(plan: StudyPlan, { tasks, study }: Loaded): PlanProgress 
     },
     hours: Math.round(rows.reduce((sum, r) => sum + r.task.hours, 0) * 100) / 100,
     // Keep working on what is under way before starting the next thing.
-    next: core.find((r) => !r.task.completed && r.task.stage === "In progress") ?? core.find((r) => !r.task.completed) ?? null,
+    next:
+      core.find((r) => !r.task.completed && r.task.stage === "In progress") ??
+      core.find((r) => !r.task.completed) ??
+      null,
     others: list.filter((t) => !t.ref).length,
   };
 }
 
-export type RoadmapUnit = { ref: string; name: string; short: string; href: string | null; done: boolean; optional: boolean; hours: number };
+export type RoadmapUnit = {
+  ref: string;
+  name: string;
+  short: string;
+  href: string | null;
+  done: boolean;
+  optional: boolean;
+  hours: number;
+};
 
 export type RoadmapPhase = {
   phase: Phase;
@@ -246,12 +257,22 @@ export async function loadStudy(): Promise<StudyOverview> {
   });
   const upcoming = loaded.study.reviews.filter((r) => r.due_on && r.due_on > date).length;
   const sectionLists = new Map(
-    await Promise.all(PROJECTS.map(async (p) => {
-      const result = await attempt(() => listSections(p.key));
-      return [p.key, result.ok ? result.value : []] as const;
-    })),
+    await Promise.all(
+      PROJECTS.map(async (p) => {
+        const result = await attempt(() => listSections(p.key));
+        return [p.key, result.ok ? result.value : []] as const;
+      }),
+    ),
   );
-  return { today: date, plans, roadmap: buildRoadmap(plans), due, upcoming, study: loaded.study, sections: (project) => sectionLists.get(project) ?? [] };
+  return {
+    today: date,
+    plans,
+    roadmap: buildRoadmap(plans),
+    due,
+    upcoming,
+    study: loaded.study,
+    sections: (project) => sectionLists.get(project) ?? [],
+  };
 }
 
 /** The same thing in a compact form for Claude. */
@@ -264,7 +285,9 @@ export async function studyOverview() {
       phase: `${now.index + 1} of ${roadmap.phases.length}: ${now.phase.name}`,
       why: now.phase.why,
       done_when: now.phase.exit,
-      still_to_do: now.tracks.flatMap((t) => t.units.filter((u) => !u.done && !u.optional).map((u) => ({ plan: t.title, unit: u.name }))),
+      still_to_do: now.tracks.flatMap((t) =>
+        t.units.filter((u) => !u.done && !u.optional).map((u) => ({ plan: t.title, unit: u.name })),
+      ),
       connections: now.links.map((l) => ({ between: [l.aShort, l.bShort], why: l.why })),
       estimated_hours_left_overall: roadmap.hoursLeft,
     },
@@ -294,7 +317,15 @@ export async function studyOverview() {
     })),
     reviews_due: due.map((r) => ({ review_gid: r.gid, prompt: r.prompt, source: r.source })),
     reviews_later: upcoming,
-    benchmarks: groupBenchmarks(study.benchmarks).map((b) => ({ metric: b.metric, scene: b.scene, gpu: b.gpu, unit: b.unit, latest: Number(b.latest.value), change_percent: b.changePercent, commit: b.latest.commit_sha })),
+    benchmarks: groupBenchmarks(study.benchmarks).map((b) => ({
+      metric: b.metric,
+      scene: b.scene,
+      gpu: b.gpu,
+      unit: b.unit,
+      latest: Number(b.latest.value),
+      change_percent: b.changePercent,
+      commit: b.latest.commit_sha,
+    })),
   };
 }
 
@@ -303,13 +334,18 @@ export function panelFor(row: Pick<UnitRow, "task"> & Partial<UnitRow>, study: S
   const { task } = row;
   const found = findUnit(task.ref);
   const links: { label: string; href: string }[] = [];
-  if (found?.plan.sourceUrl && found.unit.page) links.push({ label: `Open at page ${found.unit.page}`, href: found.plan.sourceUrl(found.unit.page) });
-  if (found?.plan.mode === "lab" && found.plan.sourceUrl) links.push({ label: "Open the repo", href: found.plan.sourceUrl() });
+  if (found?.plan.sourceUrl && found.unit.page)
+    links.push({ label: `Open at page ${found.unit.page}`, href: found.plan.sourceUrl(found.unit.page) });
+  if (found?.plan.mode === "lab" && found.plan.sourceUrl)
+    links.push({ label: "Open the repo", href: found.plan.sourceUrl() });
   for (const l of found?.plan.extraLinks ?? []) links.push({ label: l.label, href: l.url });
   for (const l of found?.unit.links ?? []) links.push({ label: l.label, href: l.url });
   // A book kept as a private PDF opens in the portal's own reader.
   if (found && !found.plan.sourceUrl && found.unit.page) {
-    links.unshift({ label: `Read p. ${found.unit.page} here`, href: bookHref.page(found.unit.page) }, { label: "Open the PDF", href: bookHref.pdf(found.unit.page) });
+    links.unshift(
+      { label: `Read p. ${found.unit.page} here`, href: bookHref.page(found.unit.page) },
+      { label: "Open the PDF", href: bookHref.pdf(found.unit.page) },
+    );
   }
   for (const v of viewsForUnit(task.ref ?? "")) links.push({ label: `Lab: ${v.title}`, href: `/lab/${v.id}` });
   return {
@@ -317,9 +353,15 @@ export function panelFor(row: Pick<UnitRow, "task"> & Partial<UnitRow>, study: S
     mode: found?.plan.mode ?? null,
     completed: task.completed,
     exerciseCount: task.exerciseCount,
-    exercises: Object.fromEntries(study.exercises.filter((e) => e.task_gid === task.gid).map((e) => [e.number, e.status])),
-    steps: study.subtasks.filter((s) => s.task_gid === task.gid).map((s) => ({ gid: s.gid, name: s.name, done: s.done })),
-    reviews: study.reviews.filter((r) => r.task_gid === task.gid).map((r) => ({ gid: r.gid, prompt: r.prompt, dueOn: r.due_on })),
+    exercises: Object.fromEntries(
+      study.exercises.filter((e) => e.task_gid === task.gid).map((e) => [e.number, e.status]),
+    ),
+    steps: study.subtasks
+      .filter((s) => s.task_gid === task.gid)
+      .map((s) => ({ gid: s.gid, name: s.name, done: s.done })),
+    reviews: study.reviews
+      .filter((r) => r.task_gid === task.gid)
+      .map((r) => ({ gid: r.gid, prompt: r.prompt, dueOn: r.due_on })),
     links,
     pdfPage: found && !found.plan.sourceUrl ? (found.unit.page ?? null) : null,
     needs: row.needs ?? [],

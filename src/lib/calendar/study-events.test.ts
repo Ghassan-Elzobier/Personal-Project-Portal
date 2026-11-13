@@ -4,7 +4,12 @@ import { isEditable, isUnanswered, readTag, selfResponse, studyTag } from "./stu
 
 test("readTag tells life blocks, study slots and sessions apart", () => {
   assert.deepEqual(readTag({ portalKind: "gym" }), { type: "life", kind: "gym" });
-  assert.deepEqual(readTag(studyTag("92", "session", "pmpp")), { type: "study", task: "92", role: "session", project: "pmpp" });
+  assert.deepEqual(readTag(studyTag("92", "session", "pmpp")), {
+    type: "study",
+    task: "92",
+    role: "session",
+    project: "pmpp",
+  });
   assert.deepEqual(readTag(studyTag("92", "slot", null)), { type: "study", task: "92", role: "slot", project: null });
   assert.equal(readTag(undefined), null);
   assert.equal(readTag({}), null);

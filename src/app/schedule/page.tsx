@@ -9,6 +9,7 @@ import { disconnectGoogle } from "./actions";
 import { SyncStudyButton } from "./sync-button";
 import { CalendarButton } from "../life/calendar-button";
 import { WeekPlanner } from "./week-planner";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const metadata: Metadata = { title: "Schedule" };
 export const dynamic = "force-dynamic";
@@ -39,8 +40,8 @@ export default async function SchedulePage({
   const keep = showInvites ? "&invites=show" : "";
   const googleReady = typeof data.google === "object" && "email" in data.google;
   const tz = timeZone();
-  const now = zonedParts(new Date(), tz);
-  const thisWeek = dateIn(new Date(), tz);
+  const now = zonedParts(clockNow(), tz);
+  const thisWeek = dateIn(clockNow(), tz);
   const note = params.google ? GOOGLE_NOTES[params.google] : null;
 
   return (
@@ -52,13 +53,21 @@ export default async function SchedulePage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={`/schedule?week=${addDays(week.start, -7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Previous week">
+          <Link
+            href={`/schedule?week=${addDays(week.start, -7)}${keep}`}
+            className="btn-ghost px-4 py-1.5"
+            aria-label="Previous week"
+          >
             ←
           </Link>
           <Link href={`/schedule${showInvites ? "?invites=show" : ""}`} className="btn-ghost px-4 py-1.5">
             This week
           </Link>
-          <Link href={`/schedule?week=${addDays(week.start, 7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Next week">
+          <Link
+            href={`/schedule?week=${addDays(week.start, 7)}${keep}`}
+            className="btn-ghost px-4 py-1.5"
+            aria-label="Next week"
+          >
             →
           </Link>
         </div>
@@ -121,7 +130,7 @@ function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadSchedu
   return (
     <form action={disconnectGoogle} className="flex items-center gap-3 text-sm text-neutral-400">
       <span className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-mint" aria-hidden />
+        <span className="size-2 rounded-full bg-mint" aria-hidden />
         Google Calendar{google.email ? `: ${google.email}` : ""}
       </span>
       <button className="cursor-pointer text-neutral-400 hover:text-white">Disconnect</button>

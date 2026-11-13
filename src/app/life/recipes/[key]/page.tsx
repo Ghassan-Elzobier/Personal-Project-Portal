@@ -22,14 +22,23 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 
 const SPICE = ["No heat", "Warm", "Medium", "Hot"];
 
-export default async function RecipePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ portions?: string }> }) {
+export default async function RecipePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ key: string }>;
+  searchParams: Promise<{ portions?: string }>;
+}) {
   const [, { key }, loaded] = await Promise.all([requireOwner(), params, loadLife()]);
   const r = recipe(key);
   if (!r) notFound();
   if (loaded.error !== undefined) return <ErrorNote message={loaded.error} />;
   const s = loaded.state;
   const v = verdict(r, s.profile.food);
-  const scale = r.meal === "main" ? cookScale(r, s.kcal) : portionScale(r, s.kcal * (r.meal === "shake" ? SPLIT.shake : SPLIT.breakfast));
+  const scale =
+    r.meal === "main"
+      ? cookScale(r, s.kcal)
+      : portionScale(r, s.kcal * (r.meal === "shake" ? SPLIT.shake : SPLIT.breakfast));
   const wanted = Number((await searchParams).portions);
   const portions = Number.isInteger(wanted) && wanted >= 1 && wanted <= 20 ? wanted : r.portions;
   const per = portionMacros(r);
@@ -61,11 +70,9 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
         ))}
       </div>
 
-      {!v.ok && (
-        <ErrorNote title="Not for you" message={v.blocked.map((b) => b.why).join(" ")} />
-      )}
+      {!v.ok && <ErrorNote title="Not for you" message={v.blocked.map((b) => b.why).join(" ")} />}
       {(v.notes.length > 0 || (r.swaps?.length ?? 0) > 0) && (
-        <section className="card-life space-y-2" aria-labelledby="allergy-title">
+        <section className="space-y-2 card-life" aria-labelledby="allergy-title">
           <h2 id="allergy-title" className="font-semibold">
             Your food rules
           </h2>
@@ -81,28 +88,41 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
           </ul>
           {v.checks.length > 0 && (
             <p className="text-sm text-sand">
-              Check the label of: {v.checks.map((c) => `${c.item.toLowerCase()} (${c.tags.map((t) => TAG_LABELS[t].split(" (")[0]).join(", ")})`).join("; ")}.
+              Check the label of:{" "}
+              {v.checks
+                .map((c) => `${c.item.toLowerCase()} (${c.tags.map((t) => TAG_LABELS[t].split(" (")[0]).join(", ")})`)
+                .join("; ")}
+              .
             </p>
           )}
         </section>
       )}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <section className="card-life space-y-3" aria-labelledby="ingredients-title">
+        <section className="space-y-3 card-life" aria-labelledby="ingredients-title">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="ingredients-title" className="font-semibold">
               Ingredients
             </h2>
             <span className="flex items-center gap-1 text-sm">
               {[Math.max(1, portions - 1), portions + 1].map((n, i) => (
-                <Link key={i} href={`/life/recipes/${r.key}?portions=${n}`} scroll={false} className="tap h-9 min-w-9 rounded-lg bg-white/5 text-neutral-300" aria-label={i === 0 ? "Fewer portions" : "More portions"}>
+                <Link
+                  key={i}
+                  href={`/life/recipes/${r.key}?portions=${n}`}
+                  scroll={false}
+                  className="tap h-9 min-w-9 rounded-lg bg-white/5 text-neutral-300"
+                  aria-label={i === 0 ? "Fewer portions" : "More portions"}
+                >
                   {i === 0 ? "−" : "+"}
                 </Link>
               ))}
               <span className="ml-1 tabular-nums">{portions} portions</span>
             </span>
           </div>
-          <p className="text-xs text-neutral-400">Sized to your {s.kcal.toLocaleString("en-GB")} kcal target: {Math.round(scale * 100)}% of the written amounts.</p>
+          <p className="text-xs text-neutral-400">
+            Sized to your {s.kcal.toLocaleString("en-GB")} kcal target: {Math.round(scale * 100)}% of the written
+            amounts.
+          </p>
           <ul className="divide-y divide-white/5 text-sm">
             {lines.map((l, i) => {
               const ing = INGREDIENTS.get(l.item)!;
@@ -121,24 +141,38 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
           </ul>
         </section>
 
-        <section className="card-life space-y-3" aria-labelledby="method-title">
+        <section className="space-y-3 card-life" aria-labelledby="method-title">
           <h2 id="method-title" className="font-semibold">
             Method
           </h2>
           <ol className="space-y-3">
             {r.steps.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">{i + 1}</span>
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
+                  {i + 1}
+                </span>
                 <span className="text-neutral-200">{step}</span>
               </li>
             ))}
           </ol>
           {r.reheat && <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-300">Reheat: {r.reheat}</p>}
-          {r.keeps.rice && <p className="text-xs text-sky-300">Rice: cool it within an hour, keep it in the fridge for one day at most, and reheat it once only (Food Standards Agency).</p>}
+          {r.keeps.rice && (
+            <p className="text-xs text-sky-300">
+              Rice: cool it within an hour, keep it in the fridge for one day at most, and reheat it once only (Food
+              Standards Agency).
+            </p>
+          )}
         </section>
       </div>
 
-      <RateRecipe key={r.key} recipe={r.key} stars={rating?.stars ?? null} note={rating?.note ?? ""} favourite={s.profile.favourites.includes(r.key)} hidden={s.profile.hidden.includes(r.key)} />
+      <RateRecipe
+        key={r.key}
+        recipe={r.key}
+        stars={rating?.stars ?? null}
+        note={rating?.note ?? ""}
+        favourite={s.profile.favourites.includes(r.key)}
+        hidden={s.profile.hidden.includes(r.key)}
+      />
     </article>
   );
 }

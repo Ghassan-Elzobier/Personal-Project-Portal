@@ -19,7 +19,15 @@ export type TaskOption = {
 
 const QUICK_HOURS = ["0.5", "1", "1.5", "2", "3"];
 
-export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[]; preselect: string | null; startHours: string | null }) {
+export function LogForm({
+  tasks,
+  preselect,
+  startHours,
+}: {
+  tasks: TaskOption[];
+  preselect: string | null;
+  startHours: string | null;
+}) {
   const [state, action, pending] = useActionState<LogState, FormData>(logSession, {});
   const initial = tasks.find((t) => t.gid === preselect) ?? tasks[0] ?? null;
   const [taskGid, setTaskGid] = useState(initial?.gid ?? "");
@@ -36,7 +44,7 @@ export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[];
 
   if (state.ok && formKey === 0) {
     return (
-      <div className="card-special space-y-4" role="status">
+      <div className="space-y-4 card-special" role="status">
         <p className="text-sm text-white/80">Logged</p>
         <p className="text-2xl font-bold">
           {state.ok.hours} h on {state.ok.task}
@@ -60,7 +68,11 @@ export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[];
   }
 
   if (!tasks.length) {
-    return <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">No open tasks yet. Add some on the Tasks page.</p>;
+    return (
+      <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">
+        No open tasks yet. Add some on the Tasks page.
+      </p>
+    );
   }
 
   return (
@@ -73,7 +85,7 @@ export function LogForm({ tasks, preselect, startHours }: { tasks: TaskOption[];
       onKeyDown={(e) => {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.requestSubmit();
       }}
-      className="card space-y-6 p-6"
+      className="space-y-6 card p-6"
     >
       <label className="block">
         <span className="field-label">Task</span>

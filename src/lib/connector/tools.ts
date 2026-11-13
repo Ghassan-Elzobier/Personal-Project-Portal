@@ -36,16 +36,29 @@ type Tool = {
 };
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const DATE = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$", description: "Day, YYYY-MM-DD, in the portal's time zone." };
-const TIME = { type: "string", pattern: "^\\d{1,2}:\\d{2}$", description: "Start time, 24-hour HH:MM, in the portal's time zone." };
+const DATE = {
+  type: "string",
+  pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+  description: "Day, YYYY-MM-DD, in the portal's time zone.",
+};
+const TIME = {
+  type: "string",
+  pattern: "^\\d{1,2}:\\d{2}$",
+  description: "Start time, 24-hour HH:MM, in the portal's time zone.",
+};
 const MINUTES = { type: "integer", minimum: 15, maximum: 720, description: "Length in minutes, a multiple of 5." };
 const TASK = { type: "string", pattern: "^\\d+$", description: "Task gid, from get_today, list_tasks or get_week." };
 const EVENT = { type: "string", description: "Google Calendar event id of a life block, from get_week." };
 const SESSION = { type: "string", description: "event_id of a study session, from get_week or get_today." };
-const PROJECT = { type: "string", enum: PROJECTS.map((p) => p.key), description: PROJECTS.map((p) => `${p.key} = ${p.title}`).join("; ") };
+const PROJECT = {
+  type: "string",
+  enum: PROJECTS.map((p) => p.key),
+  description: PROJECTS.map((p) => `${p.key} = ${p.title}`).join("; "),
+};
 
 /** Task links are relative inside the portal. Claude needs the whole address. */
-const fullUrl = (url: string) => (url.startsWith("/") ? `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? ""}${url}` : url);
+const fullUrl = (url: string) =>
+  url.startsWith("/") ? `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? ""}${url}` : url;
 
 const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
 const err = (message: string): ToolResult => ({ text: message, isError: true });
@@ -78,13 +91,35 @@ function task(t: TaskView) {
 function block(b: Block) {
   const base = { day: b.date, start: clock(b.start), end: b.end >= 1440 ? "24:00" : clock(b.end), title: b.title };
   if (b.source === "asana") {
-    return { ...base, type: "study", task_gid: b.id.split(":")[0], project: b.project, stage: b.stage, completed: b.completed };
+    return {
+      ...base,
+      type: "study",
+      task_gid: b.id.split(":")[0],
+      project: b.project,
+      stage: b.stage,
+      completed: b.completed,
+    };
   }
   if (b.source === "session") {
-    return { ...base, type: "study_session", task_gid: b.taskGid, event_id: b.id.slice(0, b.id.lastIndexOf(":")), project: b.project, stage: b.stage, completed: b.completed };
+    return {
+      ...base,
+      type: "study_session",
+      task_gid: b.taskGid,
+      event_id: b.id.slice(0, b.id.lastIndexOf(":")),
+      project: b.project,
+      stage: b.stage,
+      completed: b.completed,
+    };
   }
   if (b.source === "plan") {
-    return { ...base, type: "life_plan", kind: b.kind ?? undefined, moved: b.clash ? undefined : b.note, clash: b.clash ? b.note : undefined, note: "From the Life plan: changes with the meal plan, routine and gym days, not here." };
+    return {
+      ...base,
+      type: "life_plan",
+      kind: b.kind ?? undefined,
+      moved: b.clash ? undefined : b.note,
+      clash: b.clash ? b.note : undefined,
+      note: "From the Life plan: changes with the meal plan, routine and gym days, not here.",
+    };
   }
   return {
     ...base,
@@ -147,7 +182,12 @@ export const TOOLS: Tool[] = [
         due_today: b.dueToday.map(task),
         blocked: b.blocked.map(task),
         in_progress: b.inProgress.map(task),
-        google_calendar: typeof schedule.google === "string" ? schedule.google : "error" in schedule.google ? schedule.google.error : "connected",
+        google_calendar:
+          typeof schedule.google === "string"
+            ? schedule.google
+            : "error" in schedule.google
+              ? schedule.google.error
+              : "connected",
         errors: [...new Set([...errors, ...schedule.errors])],
       });
     },
@@ -161,7 +201,10 @@ export const TOOLS: Tool[] = [
       type: "object",
       properties: {
         week_of: { ...DATE, description: "Any day in the week wanted. Leave out for this week." },
-        show_invites: { type: "boolean", description: "True includes invites the owner has not accepted or has declined." },
+        show_invites: {
+          type: "boolean",
+          description: "True includes invites the owner has not accepted or has declined.",
+        },
       },
       additionalProperties: false,
     },
@@ -173,7 +216,13 @@ export const TOOLS: Tool[] = [
         week: { start: s.week.start, end: s.week.end },
         page: `${base}/schedule?week=${s.week.start}`,
         blocks: s.blocks.map(block),
-        unscheduled_tasks: s.unscheduled.map((u) => ({ gid: u.gid, name: u.title, project: u.project, due_on: u.dueOn, stage: u.stage })),
+        unscheduled_tasks: s.unscheduled.map((u) => ({
+          gid: u.gid,
+          name: u.title,
+          project: u.project,
+          due_on: u.dueOn,
+          stage: u.stage,
+        })),
         hidden_invites: s.hiddenInvites || undefined,
         google_calendar: typeof s.google === "string" ? s.google : "error" in s.google ? s.google.error : "connected",
         errors: s.errors,
@@ -207,7 +256,10 @@ export const TOOLS: Tool[] = [
         project: PROJECT,
         name: { type: "string", minLength: 1, maxLength: 500, description: "What the task is." },
         due_on: { ...DATE, description: "Due day, YYYY-MM-DD, in the portal's time zone." },
-        section: { type: "string", description: "Section name within the project. Sections appear on tasks from list_tasks." },
+        section: {
+          type: "string",
+          description: "Section name within the project. Sections appear on tasks from list_tasks.",
+        },
         description: { type: "string", maxLength: 20000, description: "Longer notes on the task." },
         milestone: { type: "boolean", description: "True for a milestone rather than a piece of work." },
       },
@@ -241,13 +293,17 @@ export const TOOLS: Tool[] = [
   {
     name: "mark_exercise",
     title: "Mark an exercise",
-    description: "Record how an exercise went. Marking one stuck or hint brings it back for review later. Use a null status to clear it.",
+    description:
+      "Record how an exercise went. Marking one stuck or hint brings it back for review later. Use a null status to clear it.",
     inputSchema: {
       type: "object",
       properties: {
         task_gid: TASK,
         number: { type: "integer", minimum: 1, description: "The exercise's number in that section or chapter." },
-        status: { enum: ["solved", "hint", "stuck", "skip", null], description: "solved = on your own; hint = needed help; stuck = could not finish; skip = chose not to do it." },
+        status: {
+          enum: ["solved", "hint", "stuck", "skip", null],
+          description: "solved = on your own; hint = needed help; stuck = could not finish; skip = chose not to do it.",
+        },
       },
       required: ["task_gid", "number", "status"],
       additionalProperties: false,
@@ -255,13 +311,16 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async run(args) {
       const status = args.status === null ? null : str(args, "status");
-      return fromOp(await ops.setExercise(str(args, "task_gid"), Number(args.number), status as never), { saved: true });
+      return fromOp(await ops.setExercise(str(args, "task_gid"), Number(args.number), status as never), {
+        saved: true,
+      });
     },
   },
   {
     name: "rate_review",
     title: "Rate a review",
-    description: "Record how recalling something went after the owner tried it from memory. got spaces it further out, shaky repeats the gap, missed starts it again tomorrow. review_gid comes from get_study.",
+    description:
+      "Record how recalling something went after the owner tried it from memory. got spaces it further out, shaky repeats the gap, missed starts it again tomorrow. review_gid comes from get_study.",
     inputSchema: {
       type: "object",
       properties: { review_gid: { type: "string", pattern: "^\\d+$" }, rating: { enum: ["got", "shaky", "missed"] } },
@@ -276,11 +335,15 @@ export const TOOLS: Tool[] = [
   {
     name: "add_benchmark",
     title: "Record a renderer result",
-    description: "Record a measured result for the renderer, tied to a commit and GPU. Only results with the same metric, scene and GPU are compared.",
+    description:
+      "Record a measured result for the renderer, tied to a commit and GPU. Only results with the same metric, scene and GPU are compared.",
     inputSchema: {
       type: "object",
       properties: {
-        metric: { type: "string", description: `What was measured. Known ones: ${METRICS.map((m) => m.name).join(", ")}.` },
+        metric: {
+          type: "string",
+          description: `What was measured. Known ones: ${METRICS.map((m) => m.name).join(", ")}.`,
+        },
         value: { type: "number" },
         unit: { type: "string" },
         scene: { type: "string" },
@@ -293,7 +356,16 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async run(args) {
-      const r = await ops.addBenchmark({ project: "rendering", metric: str(args, "metric"), value: Number(args.value), unit: str(args, "unit"), scene: str(args, "scene"), gpu: str(args, "gpu"), commit: str(args, "commit"), notes: str(args, "notes") });
+      const r = await ops.addBenchmark({
+        project: "rendering",
+        metric: str(args, "metric"),
+        value: Number(args.value),
+        unit: str(args, "unit"),
+        scene: str(args, "scene"),
+        gpu: str(args, "gpu"),
+        commit: str(args, "commit"),
+        notes: str(args, "notes"),
+      });
       return fromOp(r, { saved: true });
     },
   },
@@ -312,8 +384,19 @@ export const TOOLS: Tool[] = [
     async run(args) {
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
-      const r = await ops.scheduleTask({ gid: str(args, "task_gid"), date: str(args, "date"), start, duration: Number(args.minutes) });
-      return fromOp(r, { scheduled: r.task, date: str(args, "date"), start: clock(start), end: clock(start + Number(args.minutes)), warning: r.warning });
+      const r = await ops.scheduleTask({
+        gid: str(args, "task_gid"),
+        date: str(args, "date"),
+        start,
+        duration: Number(args.minutes),
+      });
+      return fromOp(r, {
+        scheduled: r.task,
+        date: str(args, "date"),
+        start: clock(start),
+        end: clock(start + Number(args.minutes)),
+        warning: r.warning,
+      });
     },
   },
   {
@@ -331,8 +414,18 @@ export const TOOLS: Tool[] = [
     async run(args) {
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
-      const r = await ops.addStudySession({ gid: str(args, "task_gid"), date: str(args, "date"), start, duration: Number(args.minutes) });
-      return fromOp(r, { added: r.task, date: str(args, "date"), start: clock(start), end: clock(start + Number(args.minutes)) });
+      const r = await ops.addStudySession({
+        gid: str(args, "task_gid"),
+        date: str(args, "date"),
+        start,
+        duration: Number(args.minutes),
+      });
+      return fromOp(r, {
+        added: r.task,
+        date: str(args, "date"),
+        start: clock(start),
+        end: clock(start + Number(args.minutes)),
+      });
     },
   },
   {
@@ -349,7 +442,12 @@ export const TOOLS: Tool[] = [
     async run(args) {
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
-      const r = await ops.moveLifeBlockTo({ id: str(args, "event_id"), date: str(args, "date"), start, duration: Number(args.minutes) });
+      const r = await ops.moveLifeBlockTo({
+        id: str(args, "event_id"),
+        date: str(args, "date"),
+        start,
+        duration: Number(args.minutes),
+      });
       return fromOp(r, { moved: true, date: str(args, "date"), start: clock(start) });
     },
   },
@@ -371,7 +469,8 @@ export const TOOLS: Tool[] = [
   {
     name: "sync_study_calendar",
     title: "Sync study to Google Calendar",
-    description: "Copy every open task's time slot to Google Calendar. Safe to run again: each task keeps one event. Needed once for slots made before mirroring existed.",
+    description:
+      "Copy every open task's time slot to Google Calendar. Safe to run again: each task keeps one event. Needed once for slots made before mirroring existed.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async run() {
@@ -388,7 +487,9 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async run() {
       const r = await lifeOps.syncLifeCalendar();
-      return r.error !== undefined ? err(r.error) : ok({ written: r.written, removed: r.removed, partial: r.partial || undefined });
+      return r.error !== undefined
+        ? err(r.error)
+        : ok({ written: r.written, removed: r.removed, partial: r.partial || undefined });
     },
   },
   {
@@ -403,7 +504,10 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async run(args) {
-      return fromOp(await ops.unscheduleTask({ gid: str(args, "task_gid"), date: str(args, "due_on") }), { unscheduled: true, due_on: str(args, "due_on") });
+      return fromOp(await ops.unscheduleTask({ gid: str(args, "task_gid"), date: str(args, "due_on") }), {
+        unscheduled: true,
+        due_on: str(args, "due_on"),
+      });
     },
   },
   {
@@ -422,7 +526,9 @@ export const TOOLS: Tool[] = [
         repeat: {
           type: "string",
           enum: Object.keys(REPEATS),
-          description: Object.entries(REPEATS).map(([k, v]) => `${k} = ${v}`).join("; "),
+          description: Object.entries(REPEATS)
+            .map(([k, v]) => `${k} = ${v}`)
+            .join("; "),
         },
       },
       required: ["kind", "date", "start", "minutes", "repeat"],
@@ -432,14 +538,27 @@ export const TOOLS: Tool[] = [
     async run(args) {
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
-      const input = { kind: str(args, "kind"), title: str(args, "title"), date: str(args, "date"), start, duration: Number(args.minutes), repeat: str(args, "repeat") || "none" };
-      return fromOp(await ops.addLifeBlock(input), { added: input.title || input.kind, date: input.date, start: clock(start), repeat: input.repeat });
+      const input = {
+        kind: str(args, "kind"),
+        title: str(args, "title"),
+        date: str(args, "date"),
+        start,
+        duration: Number(args.minutes),
+        repeat: str(args, "repeat") || "none",
+      };
+      return fromOp(await ops.addLifeBlock(input), {
+        added: input.title || input.kind,
+        date: input.date,
+        start: clock(start),
+        repeat: input.repeat,
+      });
     },
   },
   {
     name: "move_life_block",
     title: "Move a life block",
-    description: "Move or resize one occurrence of a life block the portal made. Use schedule_task for a task's slot and move_study_session for study sessions.",
+    description:
+      "Move or resize one occurrence of a life block the portal made. Use schedule_task for a task's slot and move_study_session for study sessions.",
     inputSchema: {
       type: "object",
       properties: { event_id: EVENT, date: DATE, start: TIME, minutes: MINUTES },
@@ -450,7 +569,12 @@ export const TOOLS: Tool[] = [
     async run(args) {
       const start = startMinutes(args);
       if (start === null) return err("start must be HH:MM.");
-      const r = await ops.moveLifeBlockTo({ id: str(args, "event_id"), date: str(args, "date"), start, duration: Number(args.minutes) });
+      const r = await ops.moveLifeBlockTo({
+        id: str(args, "event_id"),
+        date: str(args, "date"),
+        start,
+        duration: Number(args.minutes),
+      });
       return fromOp(r, { moved: true, date: str(args, "date"), start: clock(start) });
     },
   },
@@ -466,7 +590,9 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async run(args) {
-      return fromOp(await ops.removeLifeBlock({ id: str(args, "event_id"), wholeSeries: args.whole_series === true }), { deleted: true });
+      return fromOp(await ops.removeLifeBlock({ id: str(args, "event_id"), wholeSeries: args.whole_series === true }), {
+        deleted: true,
+      });
     },
   },
   {
@@ -488,7 +614,12 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
     async run(args) {
-      const r = await ops.logSession(str(args, "task_gid"), { hours: args.hours, stage: args.stage, evidence: args.evidence, notes: args.notes });
+      const r = await ops.logSession(str(args, "task_gid"), {
+        hours: args.hours,
+        stage: args.stage,
+        evidence: args.evidence,
+        notes: args.notes,
+      });
       return r.error ? err(r.error) : ok({ logged: r.ok && { ...r.ok, url: fullUrl(r.ok.url) } });
     },
   },
@@ -497,7 +628,12 @@ export const TOOLS: Tool[] = [
     title: "Draft a Sunday update",
     description:
       "This week's numbers for one project (hours, finished, next, blocked), a draft status update in the template mentors expect, and whether one is already posted. Show the draft to the owner before posting.",
-    inputSchema: { type: "object", properties: { project: PROJECT }, required: ["project"], additionalProperties: false },
+    inputSchema: {
+      type: "object",
+      properties: { project: PROJECT },
+      required: ["project"],
+      additionalProperties: false,
+    },
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
       const key = str(args, "project");
@@ -505,7 +641,11 @@ export const TOOLS: Tool[] = [
       const week = thisWeek();
       let studyHours: number | undefined;
       if (key === "weekly-log") {
-        const others = await Promise.all(configured().filter((k) => k !== "weekly-log").map((k) => attempt(() => weekSummary(k, week))));
+        const others = await Promise.all(
+          configured()
+            .filter((k) => k !== "weekly-log")
+            .map((k) => attempt(() => weekSummary(k, week))),
+        );
         studyHours = Math.round(others.reduce((sum, s) => sum + (s.ok ? s.value.hours : 0), 0) * 100) / 100;
       }
       const s = await attempt(() => weekSummary(key, week, { studyHours }));
@@ -542,7 +682,12 @@ export const TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async run(args) {
-      const r = await ops.postStatusUpdate({ project: str(args, "project"), status: str(args, "status"), text: String(args.text ?? ""), force: args.post_another === true });
+      const r = await ops.postStatusUpdate({
+        project: str(args, "project"),
+        status: str(args, "status"),
+        text: String(args.text ?? ""),
+        force: args.post_another === true,
+      });
       return fromOp(r, { posted: true });
     },
   },
@@ -554,8 +699,18 @@ export const TOOLS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", minLength: 2, maxLength: 300, description: "Key words or a short question, e.g. \"warp divergence loop\" or \"subgroup ballot\". Quote a phrase to search it exactly." },
-        chapter: { type: "string", pattern: "^([0-9]{1,2}|[A-C])$", description: "Only this chapter: a number such as 4, or an appendix letter A, B or C." },
+        query: {
+          type: "string",
+          minLength: 2,
+          maxLength: 300,
+          description:
+            'Key words or a short question, e.g. "warp divergence loop" or "subgroup ballot". Quote a phrase to search it exactly.',
+        },
+        chapter: {
+          type: "string",
+          pattern: "^([0-9]{1,2}|[A-C])$",
+          description: "Only this chapter: a number such as 4, or an appendix letter A, B or C.",
+        },
         limit: { type: "integer", minimum: 1, maximum: 10, description: "How many pages. Default 6." },
       },
       required: ["query"],
@@ -564,12 +719,21 @@ export const TOOLS: Tool[] = [
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
       try {
-        const r = await searchBook(str(args, "query"), { chapter: str(args, "chapter") || null, limit: Number(args.limit ?? 6) });
-        if (!r.groups.length) return err("Every word in that query is too common to search. Use the idea itself, such as \"coalescing\" or \"occupancy\".");
+        const r = await searchBook(str(args, "query"), {
+          chapter: str(args, "chapter") || null,
+          limit: Number(args.limit ?? 6),
+        });
+        if (!r.groups.length)
+          return err(
+            'Every word in that query is too common to search. Use the idea itself, such as "coalescing" or "occupancy".',
+          );
         return ok({
           query: r.query,
           also_searched: r.translated.map((t) => ({ for: t.from, book_words: t.to })),
-          note: r.results.length && r.matchedEvery < r.results.length ? `${r.matchedEvery} of ${r.results.length} pages match every term; the rest match some.` : undefined,
+          note:
+            r.results.length && r.matchedEvery < r.results.length
+              ? `${r.matchedEvery} of ${r.results.length} pages match every term; the rest match some.`
+              : undefined,
           results: r.results.map((h) => ({
             cite: cite(h),
             page: h.page,
@@ -595,8 +759,17 @@ export const TOOLS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        page: { type: "integer", minimum: 1, maximum: 5000, description: "First page to read, the PDF's own number, from search_pmpp or get_study." },
-        section: { type: "string", pattern: "^([0-9]{1,2}|[A-C])(\\.[0-9]{1,2})?$", description: "A section such as 4.5, or a chapter such as 4. Reads from its first page." },
+        page: {
+          type: "integer",
+          minimum: 1,
+          maximum: 5000,
+          description: "First page to read, the PDF's own number, from search_pmpp or get_study.",
+        },
+        section: {
+          type: "string",
+          pattern: "^([0-9]{1,2}|[A-C])(\\.[0-9]{1,2})?$",
+          description: "A section such as 4.5, or a chapter such as 4. Reads from its first page.",
+        },
         pages: { type: "integer", minimum: 1, maximum: 6, description: "How many pages. Default 3." },
       },
       additionalProperties: false,
@@ -608,22 +781,41 @@ export const TOOLS: Tool[] = [
       try {
         if (!page && !section) {
           const outline = await bookOutline();
-          if (!outline.pages) return err("The book is not loaded yet. The owner loads it once with npm run load:book from the portal's folder.");
+          if (!outline.pages)
+            return err(
+              "The book is not loaded yet. The owner loads it once with npm run load:book from the portal's folder.",
+            );
           return ok({
             pages: outline.pages,
-            chapters: chaptersOf(outline).map((c) => ({ chapter: c.chapter, title: c.title, first_page: c.first_page, sections: c.sections.map((s) => `${s.number} ${s.title}, p. ${s.first_page}`) })),
+            chapters: chaptersOf(outline).map((c) => ({
+              chapter: c.chapter,
+              title: c.title,
+              first_page: c.first_page,
+              sections: c.sections.map((s) => `${s.number} ${s.title}, p. ${s.first_page}`),
+            })),
           });
         }
         const r = await readBook({ page, section, count: Number(args.pages ?? 3) });
-        if (!r.pages.length) return err(`There is no page ${page ?? ""} in the loaded book.${r.last_page ? ` It ends at page ${r.last_page}.` : ""}`);
+        if (!r.pages.length)
+          return err(
+            `There is no page ${page ?? ""} in the loaded book.${r.last_page ? ` It ends at page ${r.last_page}.` : ""}`,
+          );
         return ok({
-          section: r.section ? `${r.section.number} ${r.section.title}, pages ${r.section.first_page} to ${r.section.last_page}` : undefined,
-          pages: r.pages.map((p) => ({ cite: cite(p), page: p.page, kind: p.kind === "figure" ? "describes a figure in words" : undefined, text: p.text })),
+          section: r.section
+            ? `${r.section.number} ${r.section.title}, pages ${r.section.first_page} to ${r.section.last_page}`
+            : undefined,
+          pages: r.pages.map((p) => ({
+            cite: cite(p),
+            page: p.page,
+            kind: p.kind === "figure" ? "describes a figure in words" : undefined,
+            text: p.text,
+          })),
           next_page: r.next_page,
           pdf: `${base}${bookHref.pdf(r.pages[0].page)}`,
         });
       } catch (e) {
-        if (e instanceof BookError && (e.status === 404 || e.status === 400)) return err(`${e.message} Call read_pmpp with no arguments for the contents.`);
+        if (e instanceof BookError && (e.status === 404 || e.status === 400))
+          return err(`${e.message} Call read_pmpp with no arguments for the contents.`);
         if (e instanceof BookError && e.status === 403) return err("Only the owner can read the book.");
         throw e;
       }
@@ -636,7 +828,13 @@ export const TOOLS: Tool[] = [
       "How the owner's Vulkan path tracer works, from the Lab's diagrams at /lab: what each part of main.cpp and shaders/raytrace.comp does, with links to the lines at a pinned commit, the maths worked through with real pixels' numbers, the PMPP sections that explain it, numbers measured on the owner's Iris Xe or computed from a model of the shader (each labelled), problems found in the code (two bugs confirmed: a synchronization hazard and a red/blue swap through X11), and check-yourself questions with answers. With no view, lists every view by part, every finding, and a map from each range of lines to the views that explain it. Read this before explaining the renderer, so you describe it the way the owner's diagrams draw it.",
     inputSchema: {
       type: "object",
-      properties: { view: { type: "string", enum: VIEWS.map((v) => v.id), description: VIEWS.map((v) => `${v.id} = ${v.title}`).join("; ") } },
+      properties: {
+        view: {
+          type: "string",
+          enum: VIEWS.map((v) => v.id),
+          description: VIEWS.map((v) => `${v.id} = ${v.title}`).join("; "),
+        },
+      },
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true },
@@ -644,7 +842,9 @@ export const TOOLS: Tool[] = [
       const id = str(args, "view");
       // The owner's recorded results on each GPU, so explanations use real numbers.
       const study = await attempt(() => loadStudy());
-      const latest = latestResults(study.ok ? study.value.study.benchmarks.filter((b) => b.project === "rendering") : []);
+      const latest = latestResults(
+        study.ok ? study.value.study.benchmarks.filter((b) => b.project === "rendering") : [],
+      );
       const recorded = (["iris", "rx"] as const).map((g) => {
         const r = latest[g];
         const a = r.dispatch ? achieved(r.dispatch.ms) : null;
@@ -653,19 +853,35 @@ export const TOOLS: Tool[] = [
           dispatch_ms: r.dispatch?.ms ?? null,
           commit: r.dispatch?.commit ?? null,
           achieved: a ? { gflops: Math.round(a.gflops), gbs: Math.round(a.gbs), mpaths: Math.round(a.mpaths) } : null,
-          measured_simd_efficiency: r.divergence ? { subgroup: r.divergence.subgroup, overall_percent: Math.round(r.divergence.overall * 1000) / 10, per_trip_percent: r.divergence.perTrip.map((x) => Math.round(x * 1000) / 10) } : "not measured yet",
+          measured_simd_efficiency: r.divergence
+            ? {
+                subgroup: r.divergence.subgroup,
+                overall_percent: Math.round(r.divergence.overall * 1000) / 10,
+                per_trip_percent: r.divergence.perTrip.map((x) => Math.round(x * 1000) / 10),
+              }
+            : "not measured yet",
         };
       });
       if (id) {
         const v = viewById(id);
-        return v ? ok({ ...viewForClaude(v, base), recorded_results: ["memory", "timing", "divergence", "dispatch"].includes(v.id) ? recorded : undefined }) : err(`Unknown view. Use one of: ${VIEWS.map((x) => x.id).join(", ")}.`);
+        return v
+          ? ok({
+              ...viewForClaude(v, base),
+              recorded_results: ["memory", "timing", "divergence", "dispatch"].includes(v.id) ? recorded : undefined,
+            })
+          : err(`Unknown view. Use one of: ${VIEWS.map((x) => x.id).join(", ")}.`);
       }
       return ok({
         commit: RENDERER.short,
         page: `${base}/lab`,
         parts: PARTS.map((p) => ({
           part: p.title,
-          views: VIEWS.filter((v) => v.part === p.id).map((v) => ({ view: v.id, title: v.title, claim: v.claim, pmpp: v.book.map((b) => `${b.section} ${b.title}, p. ${b.page}`) })),
+          views: VIEWS.filter((v) => v.part === p.id).map((v) => ({
+            view: v.id,
+            title: v.title,
+            claim: v.claim,
+            pmpp: v.book.map((b) => `${b.section} ${b.title}, p. ${b.page}`),
+          })),
         })),
         findings: allFindings().map((f) => ({ kind: f.kind, title: f.title, view: f.view })),
         code_map: CODE_MAP.map((c) => `${codeLabel([c.file, c.from, c.to])} ${c.what} → ${c.views.join(", ")}`),

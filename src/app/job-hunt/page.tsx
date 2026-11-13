@@ -12,7 +12,12 @@ import { BandChip, SkillTable, TIER_NAMES } from "../jobs/views";
 export const metadata: Metadata = { title: "Job hunt" };
 export const dynamic = "force-dynamic";
 
-const STAGE_NAMES: Record<string, string> = { saved: "Saved", applied: "Applied", interview: "Interviewing", offer: "Offer" };
+const STAGE_NAMES: Record<string, string> = {
+  saved: "Saved",
+  applied: "Applied",
+  interview: "Interviewing",
+  offer: "Offer",
+};
 
 /**
  * The job hunt, read-only, for a mentor it is shared with. It is built from a read
@@ -55,16 +60,22 @@ export default async function SharedJobHuntPage() {
     <div className="space-y-10">
       {header}
 
-      <dl className="card grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 card sm:grid-cols-5">
         <Stat label="Roles in scope" value={view.inScope} detail={`${view.nearby} in London or remote`} />
         <Stat label="Saved" value={view.pipeline.saved} />
         <Stat label="Applied" value={view.pipeline.applied} />
         <Stat label="Interviewing" value={view.pipeline.interview} />
-        <Stat label="Offers" value={view.pipeline.offer} detail={view.lastRead ? `Roles checked ${shortDate(view.lastRead.slice(0, 10))}` : undefined} />
+        <Stat
+          label="Offers"
+          value={view.pipeline.offer}
+          detail={view.lastRead ? `Roles checked ${shortDate(view.lastRead.slice(0, 10))}` : undefined}
+        />
       </dl>
 
       <section aria-labelledby="closest-title" className="space-y-3">
-        <SectionTitle><span id="closest-title">Closest roles</span></SectionTitle>
+        <SectionTitle>
+          <span id="closest-title">Closest roles</span>
+        </SectionTitle>
         {view.closest.length === 0 ? (
           <Empty>No role is close yet.</Empty>
         ) : (
@@ -73,11 +84,17 @@ export default async function SharedJobHuntPage() {
               <li key={r.gid} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
                 <div className="min-w-56 flex-1">
                   <p className="font-medium">{r.title}</p>
-                  <p className="text-xs text-neutral-400">{r.company}, {TIER_NAMES[r.location_tier] ?? r.location_tier}, {familyName(r.family)}</p>
+                  <p className="text-xs text-neutral-400">
+                    {r.company}, {TIER_NAMES[r.location_tier] ?? r.location_tier}, {familyName(r.family)}
+                  </p>
                   <p className="mt-1 max-w-3xl text-sm text-neutral-300">{r.fit.reason}</p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  {(r.seniority === "senior" || r.seniority === "lead") && <span className="chip bg-white/5 text-neutral-300 ring-white/10">{r.seniority === "lead" ? "Lead level" : "Senior"}</span>}
+                  {(r.seniority === "senior" || r.seniority === "lead") && (
+                    <span className="chip bg-white/5 text-neutral-300 ring-white/10">
+                      {r.seniority === "lead" ? "Lead level" : "Senior"}
+                    </span>
+                  )}
                   <BandChip band={r.fit.band} />
                 </div>
               </li>
@@ -87,8 +104,12 @@ export default async function SharedJobHuntPage() {
       </section>
 
       <section aria-labelledby="gap-title" className="space-y-3">
-        <SectionTitle><span id="gap-title">Skills gap</span></SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">What the roles in scope require, ranked by how many require it and how far the plan is from it.</p>
+        <SectionTitle>
+          <span id="gap-title">Skills gap</span>
+        </SectionTitle>
+        <p className="max-w-3xl text-sm text-neutral-300">
+          What the roles in scope require, ranked by how many require it and how far the plan is from it.
+        </p>
         <h3 className="text-sm font-semibold">Not in the plan</h3>
         <SkillTable about="him" rows={view.gaps} empty="Nothing the roles ask for is missing from the plan." />
         <h3 className="pt-2 text-sm font-semibold">Coming in the plan</h3>
@@ -98,16 +119,27 @@ export default async function SharedJobHuntPage() {
       </section>
 
       <section aria-labelledby="branch-title" className="space-y-3">
-        <SectionTitle><span id="branch-title">Which way after phase 3</span></SectionTitle>
-        <p className="max-w-3xl text-sm text-neutral-300">The first three phases are fundamentals every route needs. These are the options after them, and what each would do for the roles in scope.</p>
+        <SectionTitle>
+          <span id="branch-title">Which way after phase 3</span>
+        </SectionTitle>
+        <p className="max-w-3xl text-sm text-neutral-300">
+          The first three phases are fundamentals every route needs. These are the options after them, and what each
+          would do for the roles in scope.
+        </p>
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {view.branches.map((b) => (
-            <li key={b.key} className="card space-y-2">
+            <li key={b.key} className="space-y-2 card">
               <h3 className="font-semibold">{b.name}</h3>
               <p className="text-sm text-neutral-300">{b.why}</p>
               <dl className="space-y-1 text-sm tabular-nums">
-                <div className="flex justify-between gap-4"><dt className="text-neutral-400">Roles asking for it</dt><dd>{b.asking}</dd></div>
-                <div className="flex justify-between gap-4"><dt className="text-neutral-400">Would move up a band</dt><dd>{b.unlocks}</dd></div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-neutral-400">Roles asking for it</dt>
+                  <dd>{b.asking}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-neutral-400">Would move up a band</dt>
+                  <dd>{b.unlocks}</dd>
+                </div>
               </dl>
             </li>
           ))}
@@ -115,9 +147,11 @@ export default async function SharedJobHuntPage() {
       </section>
 
       <section aria-labelledby="fields-title" className="space-y-3">
-        <SectionTitle><span id="fields-title">By field</span></SectionTitle>
+        <SectionTitle>
+          <span id="fields-title">By field</span>
+        </SectionTitle>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
+          <table className="w-full min-w-lg text-left text-sm">
             <thead className="text-xs text-neutral-400">
               <tr>
                 <th className="py-1 pr-4 font-normal">Field</th>
@@ -128,15 +162,17 @@ export default async function SharedJobHuntPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 tabular-nums">
-              {[...view.families].sort((a, b) => b.ready + b.onPlan - (a.ready + a.onPlan) || b.roles - a.roles).map((f) => (
-                <tr key={f.key}>
-                  <td className="py-2 pr-4">{f.name}</td>
-                  <td className="py-2 pr-4 text-right text-neutral-300">{f.roles}</td>
-                  <td className="py-2 pr-4 text-right text-mint">{f.ready}</td>
-                  <td className="py-2 pr-4 text-right text-aqua">{f.onPlan}</td>
-                  <td className="py-2 text-right text-sand">{f.oneGap}</td>
-                </tr>
-              ))}
+              {[...view.families]
+                .sort((a, b) => b.ready + b.onPlan - (a.ready + a.onPlan) || b.roles - a.roles)
+                .map((f) => (
+                  <tr key={f.key}>
+                    <td className="py-2 pr-4">{f.name}</td>
+                    <td className="py-2 pr-4 text-right text-neutral-300">{f.roles}</td>
+                    <td className="py-2 pr-4 text-right text-mint">{f.ready}</td>
+                    <td className="py-2 pr-4 text-right text-aqua">{f.onPlan}</td>
+                    <td className="py-2 text-right text-sand">{f.oneGap}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -144,11 +180,19 @@ export default async function SharedJobHuntPage() {
 
       {view.applications.length > 0 && (
         <section aria-labelledby="apps-title" className="space-y-2">
-          <SectionTitle><span id="apps-title">Applications</span></SectionTitle>
+          <SectionTitle>
+            <span id="apps-title">Applications</span>
+          </SectionTitle>
           <ul className="divide-y divide-white/5 text-sm">
             {view.applications.map((r) => (
               <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 py-2">
-                <span>{r.title}<span className="text-neutral-400">, {r.company}{r.closed_at ? ", no longer listed" : ""}</span></span>
+                <span>
+                  {r.title}
+                  <span className="text-neutral-400">
+                    , {r.company}
+                    {r.closed_at ? ", no longer listed" : ""}
+                  </span>
+                </span>
                 <span className="text-neutral-300">{STAGE_NAMES[r.stage] ?? r.stage}</span>
               </li>
             ))}

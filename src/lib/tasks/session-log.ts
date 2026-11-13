@@ -2,7 +2,6 @@
 // status draft. Pure, so it is tested with node's test runner.
 
 export const STAGES = ["Not started", "In progress", "Blocked", "Needs review", "Done"] as const;
-export type Stage = (typeof STAGES)[number];
 
 export const STATUS_TYPES = {
   on_track: "On track",
@@ -55,8 +54,7 @@ export function parseSessionForm(raw: {
     if (evidence.length > 1000) return { ok: false, error: "That evidence link is too long." };
   }
 
-  const notes =
-    typeof raw.notes === "string" && raw.notes.trim() ? raw.notes.replace(/\r\n?/g, "\n").trim() : null;
+  const notes = typeof raw.notes === "string" && raw.notes.trim() ? raw.notes.replace(/\r\n?/g, "\n").trim() : null;
   if (notes && notes.length > 4000) return { ok: false, error: "Notes must be under 4000 characters." };
 
   return { ok: true, value: { hours, stage, evidence, notes } };

@@ -6,15 +6,41 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run knip",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
+    "lint:fix": "eslint . --fix --cache --cache-location node_modules/.cache/eslint/",
+    "lint:prune": "eslint . --prune-suppressions",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types \"src/lib/**/*.test.ts\"",
+    "test": "node --test \"src/lib/**/*.test.ts\"",
+    "knip": "knip",
+    "db:start": "supabase start --exclude studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta",
+    "db:stop": "supabase stop",
+    "test:db": "supabase test db",
+    "test:e2e": "bash scripts/e2e.sh",
+    "test:e2e:update": "bash scripts/e2e.sh --update-snapshots",
     "load:book": "node --experimental-strip-types --no-warnings scripts/load-book.mjs",
     "lab:anchors": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs write",
-    "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check"
+    "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check",
+    "guard": "node scripts/guard.mjs",
+    "health": "node scripts/health.mjs",
+    "factory:metrics": "node scripts/factory-metrics.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": "24.x"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.x",
+      "onFail": "warn"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11.19.0",
+      "onFail": "warn"
+    }
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -22,21 +48,27 @@
     "d3-scale": "^4.0.3",
     "d3-shape": "^3.2.1",
     "motion": "^14.12.0",
-    "next": "^15.5.29",
+    "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.7",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "^4.3.4",
     "@types/d3-scale": "^4.0.9",
     "@types/d3-shape": "^3.2.0",
-    "@types/node": "^22.20.5",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "^15.5.29",
+    "eslint": "^10.14.0",
+    "eslint-config-next": "^16.4.6",
+    "eslint-plugin-better-tailwindcss": "^4.11.0",
+    "knip": "^6.45.1",
+    "prettier": "^3.10.1",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "supabase": "3.1.0",
     "tailwindcss": "^4.3.4",
     "typescript": "5.9"
   }

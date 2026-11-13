@@ -12,7 +12,13 @@ type Results = Record<"iris" | "rx", GpuResult>;
 
 const GPU_STYLE = {
   iris: { name: "Iris Xe", width: IRIS_XE.subgroup.compiled, line: "stroke-aqua", dot: "fill-aqua", text: "fill-aqua" },
-  rx: { name: "RX 5700 XT", width: RX_5700_XT.subgroup.compiled, line: "stroke-[#a58bf0]", dot: "fill-[#a58bf0]", text: "fill-[#a58bf0]" },
+  rx: {
+    name: "RX 5700 XT",
+    width: RX_5700_XT.subgroup.compiled,
+    line: "stroke-lilac",
+    dot: "fill-lilac",
+    text: "fill-lilac",
+  },
 } as const;
 
 /** The share of lanes working on each trip: model lines, measured dots. */
@@ -20,8 +26,13 @@ export function MeasuredVsModel({ results }: { results: Results }) {
   const id = "fig-measured";
   const X = scaleLinear().domain([1, 8]).range([90, 700]);
   const Y = scaleLinear().domain([0, 1]).range([330, 40]);
-  const curve = (values: readonly number[]) => line<number>().x((_, k) => X(k + 1)).y((v) => Y(v))([...values]) ?? "";
-  const measured = (["iris", "rx"] as const).flatMap((g) => (results[g].divergence ? [{ g, d: results[g].divergence! }] : []));
+  const curve = (values: readonly number[]) =>
+    line<number>()
+      .x((_, k) => X(k + 1))
+      .y((v) => Y(v))([...values]) ?? "";
+  const measured = (["iris", "rx"] as const).flatMap((g) =>
+    results[g].divergence ? [{ g, d: results[g].divergence! }] : [],
+  );
   return (
     <Figure
       id={id}
@@ -38,10 +49,16 @@ export function MeasuredVsModel({ results }: { results: Results }) {
         </g>
       ))}
       {Array.from({ length: 8 }, (_, k) => (
-        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-neutral-400 text-[11px]">{String(k + 1)}</Text>
+        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-neutral-400 text-[11px]">
+          {String(k + 1)}
+        </Text>
       ))}
-      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-neutral-400 text-[11.5px]">trip through the bounce loop</Text>
-      <Text x={20} y={24} className="fill-white text-[14px] font-semibold">Lanes still working, trip by trip</Text>
+      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-neutral-400 text-[11.5px]">
+        trip through the bounce loop
+      </Text>
+      <Text x={20} y={24} className="fill-white text-[14px] font-semibold">
+        Lanes still working, trip by trip
+      </Text>
 
       {(["iris", "rx"] as const).map((g) => {
         const s = GPU_STYLE[g];
@@ -49,7 +66,13 @@ export function MeasuredVsModel({ results }: { results: Results }) {
         return (
           <g key={g}>
             <path d={curve(values)} fill="none" className={s.line} strokeWidth={2} strokeDasharray="6 4" />
-            <Label x={X(8) + 10} y={Y(values[7]) + (g === "iris" ? -2 : 14)} anchor="start" size={11} tone={g === "iris" ? "shader" : "gpu"}>{`${s.name} model, ${s.width} wide`}</Label>
+            <Label
+              x={X(8) + 10}
+              y={Y(values[7]) + (g === "iris" ? -2 : 14)}
+              anchor="start"
+              size={11}
+              tone={g === "iris" ? "shader" : "gpu"}
+            >{`${s.name} model, ${s.width} wide`}</Label>
           </g>
         );
       })}
@@ -65,18 +88,44 @@ export function MeasuredVsModel({ results }: { results: Results }) {
         );
       })}
 
-      <rect x={760} y={60} width={220} height={measured.length ? 160 : 120} rx={10} className="fill-white/5 stroke-white/15" />
-      <Text x={776} y={84} className="fill-white text-[13px] font-semibold">Over the whole loop</Text>
-      <Text x={776} y={108} className="fill-aqua text-[12.5px]">{`Iris Xe model: ${Math.round(MODEL.efficiency[16] * 100)}%`}</Text>
-      <Text x={776} y={128} className="fill-[#a58bf0] text-[12.5px]">{`RX 5700 XT model: ${Math.round(MODEL.efficiency[64] * 100)}%`}</Text>
+      <rect
+        x={760}
+        y={60}
+        width={220}
+        height={measured.length ? 160 : 120}
+        rx={10}
+        className="fill-white/5 stroke-white/15"
+      />
+      <Text x={776} y={84} className="fill-white text-[13px] font-semibold">
+        Over the whole loop
+      </Text>
+      <Text
+        x={776}
+        y={108}
+        className="fill-aqua text-[12.5px]"
+      >{`Iris Xe model: ${Math.round(MODEL.efficiency[16] * 100)}%`}</Text>
+      <Text
+        x={776}
+        y={128}
+        className="fill-lilac text-[12.5px]"
+      >{`RX 5700 XT model: ${Math.round(MODEL.efficiency[64] * 100)}%`}</Text>
       {measured.length ? (
         measured.map(({ g, d }, i) => (
-          <Text key={g} x={776} y={156 + i * 20} className={`${GPU_STYLE[g].text} text-[12.5px] font-semibold`}>{`${GPU_STYLE[g].name} measured: ${Math.round(d.overall * 100)}% at ${d.subgroup}`}</Text>
+          <Text
+            key={g}
+            x={776}
+            y={156 + i * 20}
+            className={`${GPU_STYLE[g].text} text-[12.5px] font-semibold`}
+          >{`${GPU_STYLE[g].name} measured: ${Math.round(d.overall * 100)}% at ${d.subgroup}`}</Text>
         ))
       ) : (
-        <Text x={776} y={156} className="fill-neutral-400 text-[12px]">Nothing measured yet</Text>
+        <Text x={776} y={156} className="fill-neutral-400 text-[12px]">
+          Nothing measured yet
+        </Text>
       )}
-      <Text x={776} y={measured.length ? 204 : 180} className="fill-neutral-400 text-[11px]">Dashed: model. Solid with dots: yours.</Text>
+      <Text x={776} y={measured.length ? 204 : 180} className="fill-neutral-400 text-[11px]">
+        Dashed: model. Solid with dots: yours.
+      </Text>
     </Figure>
   );
 }
@@ -89,50 +138,107 @@ export function GpuTable({ results }: { results: Results }) {
     return { g, r, a };
   });
   const cell = "py-2 pr-4 align-top";
-  const compiled = { iris: `SIMD${IRIS_XE.subgroup.compiled}, 2,197 instructions, no spills`, rx: `wave${RX_5700_XT.subgroup.compiled}, ${RX_5700_XT.wave64.vgprs} vector registers, 1,951 instructions, no spills` };
+  const compiled = {
+    iris: `SIMD${IRIS_XE.subgroup.compiled}, 2,197 instructions, no spills`,
+    rx: `wave${RX_5700_XT.subgroup.compiled}, ${RX_5700_XT.wave64.vgprs} vector registers, 1,951 instructions, no spills`,
+  };
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="text-xs text-neutral-400">
           <tr>
             <th scope="col" className="py-1.5 pr-4 font-normal" />
-            <th scope="col" className="py-1.5 pr-4 font-normal">Iris Xe (laptop)</th>
-            <th scope="col" className="py-1.5 pr-4 font-normal">RX 5700 XT (desktop)</th>
-            <th scope="col" className="py-1.5 font-normal">From</th>
+            <th scope="col" className="py-1.5 pr-4 font-normal">
+              Iris Xe (laptop)
+            </th>
+            <th scope="col" className="py-1.5 pr-4 font-normal">
+              RX 5700 XT (desktop)
+            </th>
+            <th scope="col" className="py-1.5 font-normal">
+              From
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>Dispatch, 800 × 600</th>
+            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+              Dispatch, 800 × 600
+            </th>
             {rows.map(({ g, r }) => (
-              <td key={g} className={`${cell} tabular-nums`}>{r.dispatch ? `${r.dispatch.ms} ms` : "not recorded"}{r.dispatch?.commit && <span className="block text-xs text-neutral-500">at {r.dispatch.commit}, {r.dispatch.date}</span>}</td>
+              <td key={g} className={`${cell} tabular-nums`}>
+                {r.dispatch ? `${r.dispatch.ms} ms` : "not recorded"}
+                {r.dispatch?.commit && (
+                  <span className="block text-xs text-neutral-500">
+                    at {r.dispatch.commit}, {r.dispatch.date}
+                  </span>
+                )}
+              </td>
             ))}
-            <td className={cell}><SourceChip source="measured" /></td>
+            <td className={cell}>
+              <SourceChip source="measured" />
+            </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>Paths a second</th>
-            {rows.map(({ g, a }) => <td key={g} className={`${cell} tabular-nums`}>{a ? `${Math.round(a.mpaths).toLocaleString("en-GB")} million` : "—"}</td>)}
-            <td className={cell}><SourceChip source="measured" /></td>
+            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+              Paths a second
+            </th>
+            {rows.map(({ g, a }) => (
+              <td key={g} className={`${cell} tabular-nums`}>
+                {a ? `${Math.round(a.mpaths).toLocaleString("en-GB")} million` : "—"}
+              </td>
+            ))}
+            <td className={cell}>
+              <SourceChip source="measured" />
+            </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>Achieved</th>
-            {rows.map(({ g, a }) => <td key={g} className={`${cell} tabular-nums`}>{a ? `${Math.round(a.gflops).toLocaleString("en-GB")} GFLOP/s, ${Math.round(a.gbs)} GB/s` : "—"}{g === "rx" && a && <span className="block text-xs text-neutral-500">{Math.round(a.ofRxRoof * 100)}% of its paper roof at 9 FLOP/B</span>}</td>)}
-            <td className={cell}><SourceChip source="model" /></td>
+            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+              Achieved
+            </th>
+            {rows.map(({ g, a }) => (
+              <td key={g} className={`${cell} tabular-nums`}>
+                {a ? `${Math.round(a.gflops).toLocaleString("en-GB")} GFLOP/s, ${Math.round(a.gbs)} GB/s` : "—"}
+                {g === "rx" && a && (
+                  <span className="block text-xs text-neutral-500">
+                    {Math.round(a.ofRxRoof * 100)}% of its paper roof at 9 FLOP/B
+                  </span>
+                )}
+              </td>
+            ))}
+            <td className={cell}>
+              <SourceChip source="model" />
+            </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>Compiled as</th>
-            {rows.map(({ g }) => <td key={g} className={cell}>{compiled[g]}</td>)}
-            <td className={cell}><SourceChip source="measured" /></td>
+            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+              Compiled as
+            </th>
+            {rows.map(({ g }) => (
+              <td key={g} className={cell}>
+                {compiled[g]}
+              </td>
+            ))}
+            <td className={cell}>
+              <SourceChip source="measured" />
+            </td>
           </tr>
           <tr>
-            <th scope="row" className={`${cell} font-normal text-neutral-400`}>Bounce-loop efficiency</th>
+            <th scope="row" className={`${cell} font-normal text-neutral-400`}>
+              Bounce-loop efficiency
+            </th>
             {rows.map(({ g, r }) => (
               <td key={g} className={`${cell} tabular-nums`}>
                 {`model ${Math.round(MODEL.efficiency[g === "iris" ? 16 : 64] * 100)}% at ${g === "iris" ? 16 : 64} wide`}
-                <span className="block text-xs text-neutral-500">{r.divergence ? `measured ${Math.round(r.divergence.overall * 100)}% at ${r.divergence.subgroup}` : "not measured yet"}</span>
+                <span className="block text-xs text-neutral-500">
+                  {r.divergence
+                    ? `measured ${Math.round(r.divergence.overall * 100)}% at ${r.divergence.subgroup}`
+                    : "not measured yet"}
+                </span>
               </td>
             ))}
-            <td className={cell}><SourceChip source="model" /></td>
+            <td className={cell}>
+              <SourceChip source="model" />
+            </td>
           </tr>
         </tbody>
       </table>

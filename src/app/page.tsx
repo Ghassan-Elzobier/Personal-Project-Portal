@@ -23,6 +23,7 @@ import { loadLife } from "@/lib/life/load";
 import { yourDay } from "@/lib/portal/day";
 import { YourDay } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ async function OwnerHome() {
   const date = today();
   const week = thisWeek();
   const tz = timeZone();
-  const now = zonedParts(new Date(), tz).minutes;
+  const now = zonedParts(clockNow(), tz).minutes;
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
@@ -95,22 +96,40 @@ async function OwnerHome() {
   }
   const reviewsDue = study?.ok ? study.value.reviews.filter((r) => r.due_on && r.due_on <= date).length : 0;
   if (reviewsDue > 0) {
-    attention.push({ text: `${reviewsDue} ${reviewsDue === 1 ? "thing" : "things"} to recall today. Short and worth doing first.`, href: "/study", tone: "aqua" });
+    attention.push({
+      text: `${reviewsDue} ${reviewsDue === 1 ? "thing" : "things"} to recall today. Short and worth doing first.`,
+      href: "/study",
+      tone: "aqua",
+    });
   }
   for (const a of hub?.actions ?? []) {
     if (a.next_action_on && a.next_action_on <= date) {
-      attention.push({ text: `Job hunt: ${a.next_action}, ${a.company}.`, href: `/jobs?view=applications&role=${a.gid}`, tone: a.next_action_on < date ? "coral" : "sand" });
+      attention.push({
+        text: `Job hunt: ${a.next_action}, ${a.company}.`,
+        href: `/jobs?view=applications&role=${a.gid}`,
+        tone: a.next_action_on < date ? "coral" : "sand",
+      });
     }
   }
   const noEvidence = perProject.flatMap((p) =>
     p.finished.ok
-      ? p.finished.value.filter((t) => !t.custom_fields.find((f) => f.name === "Evidence")?.text_value).map((t) => t.gid)
+      ? p.finished.value
+          .filter((t) => !t.custom_fields.find((f) => f.name === "Evidence")?.text_value)
+          .map((t) => t.gid)
       : [],
   );
   if (noEvidence.length === 1) {
-    attention.push({ text: "A task you finished this week has no evidence link. Mentors click Evidence to check the work.", href: `/log?task=${noEvidence[0]}`, tone: "aqua" });
+    attention.push({
+      text: "A task you finished this week has no evidence link. Mentors click Evidence to check the work.",
+      href: `/log?task=${noEvidence[0]}`,
+      tone: "aqua",
+    });
   } else if (noEvidence.length > 1) {
-    attention.push({ text: `${noEvidence.length} tasks you finished this week have no evidence link. Mentors click Evidence to check the work.`, href: `/log?task=${noEvidence[0]}`, tone: "aqua" });
+    attention.push({
+      text: `${noEvidence.length} tasks you finished this week have no evidence link. Mentors click Evidence to check the work.`,
+      href: `/log?task=${noEvidence[0]}`,
+      tone: "aqua",
+    });
   }
 
   const row = (t: (typeof open)[number]): FocusTask => ({
@@ -159,7 +178,7 @@ async function OwnerHome() {
       />
 
       {totals && !firstRun && (
-        <dl className="card grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 card sm:grid-cols-4">
           <Stat label="Today" value={`${formatHours(totals.today)} h`} />
           <div className="space-y-1">
             <dt className="text-xs text-neutral-400">This week</dt>
@@ -168,8 +187,15 @@ async function OwnerHome() {
               {target ? <span className="text-base font-normal text-neutral-400"> of {target} h</span> : " h"}
             </dd>
             {target && (
-              <dd className="h-1.5 overflow-hidden rounded-full bg-white/10" role="img" aria-label={`${Math.round((totals.week / target) * 100)}% of this week's target`}>
-                <div className="h-full rounded-full bg-aqua" style={{ width: `${Math.min(100, (totals.week / target) * 100)}%` }} />
+              <dd
+                className="h-1.5 overflow-hidden rounded-full bg-white/10"
+                role="img"
+                aria-label={`${Math.round((totals.week / target) * 100)}% of this week's target`}
+              >
+                <div
+                  className="h-full rounded-full bg-aqua"
+                  style={{ width: `${Math.min(100, (totals.week / target) * 100)}%` }}
+                />
               </dd>
             )}
           </div>
@@ -185,7 +211,13 @@ async function OwnerHome() {
       {!firstRun && (
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section aria-labelledby="focus-title" className="min-w-0">
-            <SectionTitle action={<Link href="/log" className="text-sm text-neutral-400 hover:text-white">Log a session</Link>}>
+            <SectionTitle
+              action={
+                <Link href="/log" className="text-sm text-neutral-400 hover:text-white">
+                  Log a session
+                </Link>
+              }
+            >
               <span id="focus-title">Focus</span>
             </SectionTitle>
             {hasFocus ? (
@@ -193,7 +225,12 @@ async function OwnerHome() {
             ) : nextUp.length ? (
               <div className="space-y-3">
                 <Empty>Nothing is due or in progress. Here is what comes next.</Empty>
-                <FocusList groups={[{ title: "Coming up", tasks: nextUp }]} today={date} tomorrow={addDays(date, 1)} canComplete={native} />
+                <FocusList
+                  groups={[{ title: "Coming up", tasks: nextUp }]}
+                  today={date}
+                  tomorrow={addDays(date, 1)}
+                  canComplete={native}
+                />
               </div>
             ) : (
               <Empty>Everything is done. Add what comes next, or take the rest of the day off.</Empty>
@@ -203,7 +240,9 @@ async function OwnerHome() {
           <div className="space-y-8">
             {attention.length > 0 && (
               <section aria-labelledby="attention-title">
-                <SectionTitle><span id="attention-title">Needs attention</span></SectionTitle>
+                <SectionTitle>
+                  <span id="attention-title">Needs attention</span>
+                </SectionTitle>
                 <ul className="space-y-2">
                   {attention.map((a, i) => (
                     <li key={i}>
@@ -231,16 +270,21 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function FirstRun({ native }: { native: boolean }) {
   return (
-    <section className="card-special space-y-4" aria-label="Getting started">
+    <section className="space-y-4 card-special" aria-label="Getting started">
       <h2 className="text-xl font-semibold">Start with your study plan</h2>
       <ol className="list-decimal space-y-2 pl-5 text-sm text-white/90">
-        <li>Open Study and load your plans. Each section, chapter and milestone becomes a task, with its steps and exercises.</li>
+        <li>
+          Open Study and load your plans. Each section, chapter and milestone becomes a task, with its steps and
+          exercises.
+        </li>
         <li>Set a pace on the roadmap, then drag the next few onto a time on the Schedule.</li>
         <li>Press Start when you sit down, then Stop and log when you finish.</li>
       </ol>
       {native && (
         <div className="flex flex-wrap gap-2">
-          <Link href="/study" className="btn bg-white/15 hover:bg-white/25">Open Study</Link>
+          <Link href="/study" className="btn bg-white/15 hover:bg-white/25">
+            Open Study
+          </Link>
           <QuickAddButton className="btn bg-white/15 hover:bg-white/25" />
         </div>
       )}
@@ -257,7 +301,7 @@ const TONES: Record<Attention["tone"], string> = {
 function AttentionRow({ item }: { item: Attention }) {
   const body = (
     <span className="flex items-start gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm ring-1 ring-white/5 transition hover:ring-white/15">
-      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TONES[item.tone]}`} aria-hidden />
+      <span className={`mt-1.5 size-2 shrink-0 rounded-full ${TONES[item.tone]}`} aria-hidden />
       <span>{item.text}</span>
     </span>
   );
@@ -274,7 +318,13 @@ async function MentorHome({ access }: { access: Access }) {
   const keys = access.projects.filter((k) => projectGid(k));
   const studyKeys = PLANS.map((p) => p.project).filter((k) => keys.includes(k));
   const [statuses, roadmap, jobs] = await Promise.all([
-    Promise.all(keys.map(async (k) => ({ key: k, status: await attempt(() => latestStatus(k)), tasks: await attempt(() => allTasks(k)) }))),
+    Promise.all(
+      keys.map(async (k) => ({
+        key: k,
+        status: await attempt(() => latestStatus(k)),
+        tasks: await attempt(() => allTasks(k)),
+      })),
+    ),
     studyKeys.length && !usesAsana()
       ? attempt(async () => {
           const overview = await loadStudy();
@@ -304,7 +354,11 @@ async function MentorHome({ access }: { access: Access }) {
           {roadmap?.ok && (
             <Link href="/roadmap" className="card-link space-y-2">
               <p className="eyebrow">Study roadmap</p>
-              <p className="text-xl font-semibold">{roadmap.value.current ? `Phase ${roadmap.value.current.index + 1} of 8: ${roadmap.value.current.name}` : "Every phase done"}</p>
+              <p className="text-xl font-semibold">
+                {roadmap.value.current
+                  ? `Phase ${roadmap.value.current.index + 1} of 8: ${roadmap.value.current.name}`
+                  : "Every phase done"}
+              </p>
               <p className="text-sm text-neutral-300">
                 {roadmap.value.done} of {roadmap.value.total} units done.
                 {roadmap.value.finishOn ? ` Finish planned for ${shortDate(roadmap.value.finishOn)}.` : ""}
@@ -315,10 +369,14 @@ async function MentorHome({ access }: { access: Access }) {
           {jobs?.ok && (
             <Link href="/job-hunt" className="card-link space-y-2">
               <p className="eyebrow">Job hunt</p>
-              <p className="text-xl font-semibold">{jobs.value.inScope} {jobs.value.inScope === 1 ? "role" : "roles"} in scope</p>
+              <p className="text-xl font-semibold">
+                {jobs.value.inScope} {jobs.value.inScope === 1 ? "role" : "roles"} in scope
+              </p>
               <p className="text-sm text-neutral-300">
                 {jobs.value.pipeline.applied} applied, {jobs.value.pipeline.interview} interviewing.
-                {jobs.value.gaps[0] ? ` Biggest gap: ${jobs.value.gaps[0].skill.name}, required by ${jobs.value.gaps[0].must}.` : ""}
+                {jobs.value.gaps[0]
+                  ? ` Biggest gap: ${jobs.value.gaps[0].skill.name}, required by ${jobs.value.gaps[0].must}.`
+                  : ""}
               </p>
             </Link>
           )}

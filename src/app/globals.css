@@ -12,6 +12,8 @@
   --color-mint: #57db96;
   --color-royal: #5c33cc;
   --color-lavender: #7a57db;
+  /* Lavender light enough for text on dark surfaces (WCAG AA). */
+  --color-lilac: #a58bf0;
   --color-fuchsia: #ca2f8c;
   --color-orange: #cc6033;
   --color-sand: #d6995c;
@@ -65,7 +67,7 @@ body {
 }
 
 @utility card-link {
-  @apply card block transition duration-200 hover:-translate-y-1 hover:ring-white/15;
+  @apply block card transition duration-200 hover:-translate-y-1 hover:ring-white/15;
 }
 
 @utility text-heading {

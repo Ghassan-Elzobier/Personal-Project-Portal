@@ -34,17 +34,16 @@ export async function swapCook(start: string, cookId: string, recipe: string) {
   return ops.swapCook(start, cookId, recipe);
 }
 
-export async function addCook(start: string, recipe: string, date: string, minutes: number) {
-  await requireOwner();
-  return ops.addCook(start, recipe, date, minutes);
-}
-
 export async function removeCook(start: string, cookId: string) {
   await requireOwner();
   return ops.removeCook(start, cookId);
 }
 
-export async function moveCookSession(start: string, from: { date: string; at: number }, to: { date: string; at: number }) {
+export async function moveCookSession(
+  start: string,
+  from: { date: string; at: number },
+  to: { date: string; at: number },
+) {
   await requireOwner();
   return ops.moveCookSession(start, from, to);
 }
@@ -104,7 +103,10 @@ export async function setBatch(batch: string, remaining: number | null, location
   return ops.setBatch(batch, remaining, location);
 }
 
-export async function setStock(changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[], mode: "add" | "set") {
+export async function setStock(
+  changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[],
+  mode: "add" | "set",
+) {
   await requireOwner();
   return ops.setStock(changes, mode);
 }
@@ -124,7 +126,15 @@ export async function undoDelivery(start: string) {
   return ops.undoDelivery(start);
 }
 
-export async function saveProduct(input: { item: string; url: string; name: string; packQty: number; packUnit: Unit; pence: number | null; checked: Tag[] }) {
+export async function saveProduct(input: {
+  item: string;
+  url: string;
+  name: string;
+  packQty: number;
+  packUnit: Unit;
+  pence: number | null;
+  checked: Tag[];
+}) {
   await requireOwner();
   return ops.saveProduct(input);
 }
@@ -134,12 +144,27 @@ export async function removeProduct(item: string) {
   return ops.removeProduct(item);
 }
 
-export async function logSet(input: { day: string; workout: string; exercise: string; position: number; kg: number | null; reps: number | null; rir: number | null }) {
+export async function logSet(input: {
+  day: string;
+  workout: string;
+  exercise: string;
+  position: number;
+  kg: number | null;
+  reps: number | null;
+  rir: number | null;
+}) {
   await requireOwner();
   return ops.logSet(input);
 }
 
-export async function gymSession(input: { day: string; workout: string; finished?: boolean; feel?: number | null; notes?: string | null; remove?: boolean }) {
+export async function gymSession(input: {
+  day: string;
+  workout: string;
+  finished?: boolean;
+  feel?: number | null;
+  notes?: string | null;
+  remove?: boolean;
+}) {
   await requireOwner();
   return ops.gymSession(input);
 }

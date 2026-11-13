@@ -59,7 +59,12 @@ export type AsanaStatusUpdate = {
 };
 
 export type SubtaskRow = { gid: string; task_gid: string; name: string; done: boolean };
-export type ExerciseRow = { task_gid: string; number: number; status: "solved" | "hint" | "stuck" | "skip"; updated_at: string };
+export type ExerciseRow = {
+  task_gid: string;
+  number: number;
+  status: "solved" | "hint" | "stuck" | "skip";
+  updated_at: string;
+};
 export type ReviewRow = {
   gid: string;
   task_gid: string;
@@ -134,7 +139,12 @@ export function nativeToAsanaTask(row: NativeTaskRow, url: string): AsanaTask {
     resource_subtype: row.resource_subtype,
     modified_at: row.modified_at,
     permalink_url: url,
-    memberships: [{ project: { gid: row.project }, section: row.section_name ? { gid: row.section_gid ?? undefined, name: row.section_name } : null }],
+    memberships: [
+      {
+        project: { gid: row.project },
+        section: row.section_name ? { gid: row.section_gid ?? undefined, name: row.section_name } : null,
+      },
+    ],
     notes: row.notes,
     ref: row.ref ?? null,
     exerciseCount: row.exercise_count ?? null,
@@ -148,7 +158,13 @@ export function nativeToAsanaTask(row: NativeTaskRow, url: string): AsanaTask {
         enum_options: NATIVE_STAGES.map((name) => ({ gid: name, name, enabled: true })),
       },
       { gid: "hours", name: "Hours", resource_subtype: "number", display_value: String(hours), number_value: hours },
-      { gid: "evidence", name: "Evidence", resource_subtype: "text", display_value: row.evidence, text_value: row.evidence },
+      {
+        gid: "evidence",
+        name: "Evidence",
+        resource_subtype: "text",
+        display_value: row.evidence,
+        text_value: row.evidence,
+      },
     ],
   };
 }
@@ -163,7 +179,10 @@ export function nativeChanges(changes: {
 }
 
 /** Asana's task list filters: open plus finished since, and changed since. */
-export function filterNativeRows(rows: NativeTaskRow[], options: { completedSince?: Date; modifiedSince?: Date }): NativeTaskRow[] {
+export function filterNativeRows(
+  rows: NativeTaskRow[],
+  options: { completedSince?: Date; modifiedSince?: Date },
+): NativeTaskRow[] {
   const { completedSince, modifiedSince } = options;
   return rows.filter(
     (r) =>

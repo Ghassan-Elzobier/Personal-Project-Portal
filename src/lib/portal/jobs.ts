@@ -77,7 +77,14 @@ async function rereadOldAdverts() {
     await store.setExtractions(
       stale.map((row) => {
         const { family, seniority, requirements, details, extract_version } = readAdvert(row.title, row.body);
-        return { gid: row.gid, family: row.source_kind === "rse" && family === "software" ? "research" : family, seniority, requirements, details, extract_version };
+        return {
+          gid: row.gid,
+          family: row.source_kind === "rse" && family === "software" ? "research" : family,
+          seniority,
+          requirements,
+          details,
+          extract_version,
+        };
       }),
     );
   }
@@ -96,7 +103,13 @@ export async function addSource(input: { link: string; name: string }): Promise<
       refreshPages();
       return { kind: board.kind };
     }
-    const slug = new URL(link).hostname.replace(/[^A-Za-z0-9.-]/g, "").slice(0, 80) + "-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30);
+    const slug =
+      new URL(link).hostname.replace(/[^A-Za-z0-9.-]/g, "").slice(0, 80) +
+      "-" +
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 30);
     await store.addSource("link", slug, name, link);
     refreshPages();
     return { kind: "link" };
@@ -125,11 +138,18 @@ export async function markSourceChecked(gid: string): Promise<OpResult> {
   }
 }
 
-export type TrackingPatch = { interest?: number | null; stage?: string; next_action?: string; next_action_on?: string | null; notes?: string };
+export type TrackingPatch = {
+  interest?: number | null;
+  stage?: string;
+  next_action?: string;
+  next_action_on?: string | null;
+  notes?: string;
+};
 
 export async function setTracking(gid: string, patch: TrackingPatch): Promise<OpResult> {
   if (!/^\d{1,18}$/.test(gid)) return { error: "That is not a role." };
-  if (patch.interest !== undefined && patch.interest !== null && ![0, 1, 2, 3].includes(patch.interest)) return { error: "Choose an interest from the buttons." };
+  if (patch.interest !== undefined && patch.interest !== null && ![0, 1, 2, 3].includes(patch.interest))
+    return { error: "Choose an interest from the buttons." };
   if (patch.stage !== undefined && !STAGES.has(patch.stage)) return { error: "Choose a stage from the list." };
   if (patch.next_action_on && !isDate(patch.next_action_on)) return { error: "Pick a valid date." };
   if ((patch.next_action?.length ?? 0) > 300) return { error: "Keep the next action under 300 characters." };
@@ -144,7 +164,13 @@ export async function setTracking(gid: string, patch: TrackingPatch): Promise<Op
 }
 
 /** A role from anywhere: a recruiter's message, a referral, or a site with no feed. */
-export async function addRoleByHand(input: { title: string; company: string; location: string; url: string; text: string }): Promise<OpResult & { gid?: string }> {
+export async function addRoleByHand(input: {
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  text: string;
+}): Promise<OpResult & { gid?: string }> {
   const title = input.title.trim();
   const company = input.company.trim();
   if (!title || !company) return { error: "A role needs a title and an employer." };
@@ -171,7 +197,12 @@ export async function addRoleByHand(input: { title: string; company: string; loc
   }
 }
 
-export async function addEvidence(input: { skill: string; level: number; note: string; url: string }): Promise<OpResult> {
+export async function addEvidence(input: {
+  skill: string;
+  level: number;
+  note: string;
+  url: string;
+}): Promise<OpResult> {
   if (!skillByKey(input.skill)) return { error: "Choose a skill from the list." };
   if (![1, 2, 3, 4].includes(input.level)) return { error: "Choose a level from the list." };
   if (!input.note.trim()) return { error: "Say what the evidence is." };

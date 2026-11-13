@@ -23,10 +23,16 @@ export async function grantMentor(_prev: PeopleState, formData: FormData): Promi
     p_projects: projects,
   });
   if (error) return { error: error.message };
-  const shared = await supabase.rpc("set_mentor_share", { p_account: data as string, p_share: "job-hunt", p_on: shareJobHunt });
+  const shared = await supabase.rpc("set_mentor_share", {
+    p_account: data as string,
+    p_share: "job-hunt",
+    p_on: shareJobHunt,
+  });
   if (shared.error) return { error: `Saved their projects, but not the job hunt setting: ${shared.error.message}` };
   revalidatePath("/people");
-  return { ok: `${name} can now see ${projects.length} ${projects.length === 1 ? "project" : "projects"}${shareJobHunt ? " and the job hunt" : ""}.` };
+  return {
+    ok: `${name} can now see ${projects.length} ${projects.length === 1 ? "project" : "projects"}${shareJobHunt ? " and the job hunt" : ""}.`,
+  };
 }
 
 export async function revokeMember(formData: FormData): Promise<void> {
@@ -44,7 +50,11 @@ export async function setJobHuntShare(formData: FormData): Promise<void> {
   const id = String(formData.get("account_id") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_mentor_share", { p_account: id, p_share: "job-hunt", p_on: formData.get("on") === "true" });
+  const { error } = await supabase.rpc("set_mentor_share", {
+    p_account: id,
+    p_share: "job-hunt",
+    p_on: formData.get("on") === "true",
+  });
   if (error) console.error("set_mentor_share failed", error.message);
   revalidatePath("/people");
 }

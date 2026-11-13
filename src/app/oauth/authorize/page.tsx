@@ -14,14 +14,18 @@ const CAN = [
   "Log study sessions and draft or post Sunday updates",
 ];
 
-export default async function AuthorizePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+export default async function AuthorizePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   await requireOwner();
   const raw = await searchParams;
   const req = parseAuthorize(raw);
 
   return (
     <div className="mx-auto mt-16 max-w-md">
-      <div className="card space-y-6 p-8">
+      <div className="space-y-6 card p-8">
         {!req.ok ? (
           <ErrorNote title="Can't connect" message={req.error} />
         ) : (
@@ -46,7 +50,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
               {Object.entries(raw).map(([k, v]) =>
                 v === undefined ? null : <input key={k} type="hidden" name={k} value={v} />,
               )}
-              <button name="decision" value="allow" className="btn btn-primary flex-1">
+              <button name="decision" value="allow" className="btn-primary btn flex-1">
                 Allow
               </button>
               <button name="decision" value="deny" className="btn-ghost flex-1">

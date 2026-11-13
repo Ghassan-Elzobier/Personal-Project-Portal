@@ -39,7 +39,12 @@ const DRAWN: Record<string, string> = {
   "cable-crunch": "cable-crunch",
 };
 
-export const DRAWING_CREDIT = { by: "Everkinetic", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", source: "https://github.com/everkinetic/data" };
+export const DRAWING_CREDIT = {
+  by: "Everkinetic",
+  license: "CC BY-SA 4.0",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  source: "https://github.com/everkinetic/data",
+};
 
 export type Demo = {
   /** Start and end of the movement, or null when there is no drawing. */

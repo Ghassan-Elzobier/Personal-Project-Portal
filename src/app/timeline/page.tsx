@@ -24,7 +24,9 @@ const BAR: Record<string, string> = {
 export default async function TimelinePage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const access = await requireAccess();
   const { from } = await searchParams;
-  const projects = PROJECTS.filter((p) => projectGid(p.key) && (access.role === "owner" || access.projects.includes(p.key)));
+  const projects = PROJECTS.filter(
+    (p) => projectGid(p.key) && (access.role === "owner" || access.projects.includes(p.key)),
+  );
   const results = await Promise.all(projects.map(async (p) => ({ p, tasks: await attempt(() => allTasks(p.key)) })));
 
   const date = today();
@@ -43,20 +45,34 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={`${shortDate(start)} to ${shortDate(end)}`} title="Timeline">
-        Every dated task and milestone across {isOwner ? "your projects" : "the projects shared with you"}.
-        Bars run from a task&apos;s start date to its due date; diamonds are milestones.
+        Every dated task and milestone across {isOwner ? "your projects" : "the projects shared with you"}. Bars run
+        from a task&apos;s start date to its due date; diamonds are milestones.
       </PageHeader>
 
       {projects.length === 0 && <Empty>No projects to show yet.</Empty>}
 
       <div className="flex items-center gap-2">
-        <Link href={`/timeline?from=${addDays(start, -28)}`} className="btn-ghost px-4 py-1.5" aria-label="Four weeks earlier">←</Link>
-        <Link href="/timeline" className="btn-ghost px-4 py-1.5">Now</Link>
-        <Link href={`/timeline?from=${addDays(start, 28)}`} className="btn-ghost px-4 py-1.5" aria-label="Four weeks later">→</Link>
+        <Link
+          href={`/timeline?from=${addDays(start, -28)}`}
+          className="btn-ghost px-4 py-1.5"
+          aria-label="Four weeks earlier"
+        >
+          ←
+        </Link>
+        <Link href="/timeline" className="btn-ghost px-4 py-1.5">
+          Now
+        </Link>
+        <Link
+          href={`/timeline?from=${addDays(start, 28)}`}
+          className="btn-ghost px-4 py-1.5"
+          aria-label="Four weeks later"
+        >
+          →
+        </Link>
       </div>
 
-      <div className="card overflow-x-auto p-0">
-        <div className="min-w-[56rem]">
+      <div className="overflow-x-auto card p-0">
+        <div className="min-w-4xl">
           <div className="relative ml-56 h-8 border-b border-white/5">
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
               <span
@@ -157,7 +173,7 @@ function Rows({
               )}
               {t.milestone ? (
                 <span
-                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-lavender ring-2 ring-primary"
+                  className="absolute top-1/2 size-3 -translate-1/2 rotate-45 bg-lavender ring-2 ring-primary"
                   style={{ left: `${pct(t.dueOn!) + (right - pct(t.dueOn!)) / 2}%` }}
                   title={`${t.name}, ${shortDate(t.dueOn!)}`}
                 />

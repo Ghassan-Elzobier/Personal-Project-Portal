@@ -3,7 +3,15 @@ import { createHash } from "node:crypto";
 import { cache } from "react";
 import { timeZone } from "../config/env";
 import { LIFE_KINDS, recurrence, wallClock, type LifeKind, type Repeat } from "./life-blocks";
-import { isEditable, readTag, selfResponse, STUDY_COLOR, studyTag, type InviteResponse, type StudyRole } from "./study-events";
+import {
+  isEditable,
+  readTag,
+  selfResponse,
+  STUDY_COLOR,
+  studyTag,
+  type InviteResponse,
+  type StudyRole,
+} from "./study-events";
 import { connectorCaller } from "../connector/context";
 import { createClient } from "../supabase/server";
 import { decryptToken } from "./token-crypto";
@@ -138,7 +146,9 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
   });
   if (res.status === 204) return undefined as T;
   if (!res.ok) {
-    const detail = (await res.json().catch(() => ({}))) as { error?: { message?: string; errors?: { reason?: string }[] } };
+    const detail = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string; errors?: { reason?: string }[] };
+    };
     // Google answers bursts of writes with 403 rateLimitExceeded or 429. Back off and try again.
     const reason = detail.error?.errors?.[0]?.reason ?? "";
     const limited = res.status === 429 || (res.status === 403 && /rateLimit|usageLimits|quotaExceeded/i.test(reason));
@@ -271,7 +281,13 @@ export async function upsertTaskSlot(task: StudyTask, start: Date, end: Date): P
   };
   const [first, ...extra] = await slotEvents(task.gid);
   for (const e of extra) await api(`${cal()}/events/${encodeURIComponent(e.id)}`, { method: "DELETE" });
-  if (first && first.summary === task.name && sameInstant(first.start.dateTime, start) && sameInstant(first.end.dateTime, end)) return false;
+  if (
+    first &&
+    first.summary === task.name &&
+    sameInstant(first.start.dateTime, start) &&
+    sameInstant(first.end.dateTime, end)
+  )
+    return false;
   if (first) await api(`${cal()}/events/${encodeURIComponent(first.id)}`, { method: "PATCH", body });
   else await api(`${cal()}/events`, { method: "POST", body });
   return true;
@@ -283,7 +299,10 @@ export async function deleteTaskSlot(gid: string): Promise<void> {
 }
 
 /** Adds one more block of study time on a task. */
-export async function createStudySession(task: StudyTask, input: { date: string; start: number; duration: number }): Promise<void> {
+export async function createStudySession(
+  task: StudyTask,
+  input: { date: string; start: number; duration: number },
+): Promise<void> {
   const tz = timeZone();
   await api(`${cal()}/events`, {
     method: "POST",
@@ -340,9 +359,22 @@ export function mirrorId(key: string): string {
   return `plife${createHash("sha1").update(key).digest("hex").slice(0, 32)}`;
 }
 
-export type MirrorEvent = { key: string; title: string; date: string; start: number; end: number; colour: string; note?: string };
+export type MirrorEvent = {
+  key: string;
+  title: string;
+  date: string;
+  start: number;
+  end: number;
+  colour: string;
+  note?: string;
+};
 
-const MIRROR_COLOR: Record<string, string> = { lunch: LIFE_KINDS.lunch.googleColor, cooking: LIFE_KINDS.cooking.googleColor, gym: LIFE_KINDS.gym.googleColor, other: LIFE_KINDS.other.googleColor };
+const MIRROR_COLOR: Record<string, string> = {
+  lunch: LIFE_KINDS.lunch.googleColor,
+  cooking: LIFE_KINDS.cooking.googleColor,
+  gym: LIFE_KINDS.gym.googleColor,
+  other: LIFE_KINDS.other.googleColor,
+};
 
 function mirrorBody(m: MirrorEvent) {
   const tz = timeZone();

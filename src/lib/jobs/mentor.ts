@@ -7,7 +7,19 @@ import { planUnits } from "../study/plan-types.ts";
 import { phaseOf } from "../study/roadmap.ts";
 import { FAMILIES, isCoreFamily } from "./classify.ts";
 import type { Details, Requirement, Seniority } from "./extract.ts";
-import { branchImpact, buildStandings, isTarget, marketRows, roleFit, type Band, type Fit, type MarketRow, type RoleInput, type StoredEvidence, type UnitFact } from "./match.ts";
+import {
+  branchImpact,
+  buildStandings,
+  isTarget,
+  marketRows,
+  roleFit,
+  type Band,
+  type Fit,
+  type MarketRow,
+  type RoleInput,
+  type StoredEvidence,
+  type UnitFact,
+} from "./match.ts";
 
 export type MentorSource = {
   postings: {
@@ -52,7 +64,21 @@ export function unitFactsFrom(rows: MentorSource["units"]): Map<string, UnitFact
       planUnits(plan).map((unit): [string, UnitFact] => {
         const row = byRef.get(unit.ref);
         const phase = phaseOf(unit.ref);
-        return [unit.ref, { ref: unit.ref, name: unit.short, plan: plan.mode, done: row?.done ?? false, solved: row?.solved ?? 0, measured: row?.measured ?? false, optional: unit.optional ?? false, href: null, dueOn: row?.due_on ?? null, phase: phase >= 0 ? phase : null }];
+        return [
+          unit.ref,
+          {
+            ref: unit.ref,
+            name: unit.short,
+            plan: plan.mode,
+            done: row?.done ?? false,
+            solved: row?.solved ?? 0,
+            measured: row?.measured ?? false,
+            optional: unit.optional ?? false,
+            href: null,
+            dueOn: row?.due_on ?? null,
+            phase: phase >= 0 ? phase : null,
+          },
+        ];
       }),
     ),
   );
@@ -63,7 +89,9 @@ export function mentorJobView(source: MentorSource) {
 
   // One row per role, as on the owner's page: a role posted per city counts once.
   const seen = new Map<string, MentorRole>();
-  for (const posting of [...source.postings].sort((a, b) => (TIER_ORDER[a.location_tier] ?? 9) - (TIER_ORDER[b.location_tier] ?? 9))) {
+  for (const posting of [...source.postings].sort(
+    (a, b) => (TIER_ORDER[a.location_tier] ?? 9) - (TIER_ORDER[b.location_tier] ?? 9),
+  )) {
     const key = `${posting.company.toLowerCase()}|${posting.title.toLowerCase().replace(/\s+/g, " ").trim()}`;
     const existing = seen.get(key);
     if (existing && (existing.stage !== "new" || posting.stage === "new")) continue;
@@ -88,7 +116,14 @@ export function mentorJobView(source: MentorSource) {
   const market: MarketRow[] = marketRows(targets, standings);
   const families = FAMILIES.map((f) => {
     const inFamily = targets.filter((r) => r.family === f.key);
-    return { key: f.key, name: f.name, roles: inFamily.length, ready: inFamily.filter((r) => r.fit.band === "ready").length, onPlan: inFamily.filter((r) => r.fit.band === "by_date").length, oneGap: inFamily.filter((r) => r.fit.band === "one_gap").length };
+    return {
+      key: f.key,
+      name: f.name,
+      roles: inFamily.length,
+      ready: inFamily.filter((r) => r.fit.band === "ready").length,
+      onPlan: inFamily.filter((r) => r.fit.band === "by_date").length,
+      oneGap: inFamily.filter((r) => r.fit.band === "one_gap").length,
+    };
   }).filter((f) => f.roles > 0);
 
   const applications = roles.filter((r) => (STAGES as readonly string[]).includes(r.stage));
@@ -101,10 +136,11 @@ export function mentorJobView(source: MentorSource) {
     coming: market.filter((m) => m.standing.status === "in_plan").slice(0, 15),
     showing: market.filter((m) => m.standing.status === "evidenced").slice(0, 15),
     branches: branchImpact(targets, standings),
-    pipeline: Object.fromEntries(STAGES.map((s) => [s, applications.filter((r) => r.stage === s).length])) as Record<(typeof STAGES)[number], number>,
+    pipeline: Object.fromEntries(STAGES.map((s) => [s, applications.filter((r) => r.stage === s).length])) as Record<
+      (typeof STAGES)[number],
+      number
+    >,
     applications: applications.filter((r) => r.stage !== "rejected"),
     lastRead: source.last_read,
   };
 }
-
-export type MentorJobView = ReturnType<typeof mentorJobView>;

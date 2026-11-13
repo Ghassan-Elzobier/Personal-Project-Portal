@@ -14,9 +14,30 @@ type Sphere = { center: Vec3; radius: number; albedo: Vec3; material: number; fu
 
 /** hitScene's four spheres, in the shader's order. */
 export const SCENE: readonly Sphere[] = [
-  { name: "Mirror sphere", center: [0, 0.4, -2], radius: 0.9, albedo: [0.913, 0.921, 0.925], material: METAL, fuzz: 0.01 },
-  { name: "Red sphere", center: [-0.6, -0.28, -1], radius: 0.22, albedo: [0.8, 0.25, 0.25], material: LAMBERTIAN, fuzz: 0 },
-  { name: "Gold sphere", center: [0.55, -0.32, -0.85], radius: 0.18, albedo: [0.85, 0.65, 0.2], material: METAL, fuzz: 0.3 },
+  {
+    name: "Mirror sphere",
+    center: [0, 0.4, -2],
+    radius: 0.9,
+    albedo: [0.913, 0.921, 0.925],
+    material: METAL,
+    fuzz: 0.01,
+  },
+  {
+    name: "Red sphere",
+    center: [-0.6, -0.28, -1],
+    radius: 0.22,
+    albedo: [0.8, 0.25, 0.25],
+    material: LAMBERTIAN,
+    fuzz: 0,
+  },
+  {
+    name: "Gold sphere",
+    center: [0.55, -0.32, -0.85],
+    radius: 0.18,
+    albedo: [0.85, 0.65, 0.2],
+    material: METAL,
+    fuzz: 0.3,
+  },
   { name: "Ground", center: [0, -100.5, -1], radius: 100, albedo: [0.5, 0.5, 0.5], material: LAMBERTIAN, fuzz: 0 },
 ];
 
@@ -67,7 +88,12 @@ const normalize = (a: Vec3): Vec3 => {
 /** One sphere test, with every number hitSphere works out on the way. */
 export type SphereTest = { sphere: number; a: number; b: number; c: number; disc: number; t: number | null };
 
-function hitSphere(origin: Vec3, dir: Vec3, s: Sphere, index: number): { test: SphereTest; point?: Vec3; normal?: Vec3 } {
+function hitSphere(
+  origin: Vec3,
+  dir: Vec3,
+  s: Sphere,
+  index: number,
+): { test: SphereTest; point?: Vec3; normal?: Vec3 } {
   const oc: Vec3 = [origin[0] - s.center[0], origin[1] - s.center[1], origin[2] - s.center[2]];
   const a = dot(dir, dir);
   const b = 2 * dot(oc, dir);
@@ -143,7 +169,14 @@ function run(x: number, y: number, width: number, height: number, frame: number,
   const hits: Bounce[] = [];
   const stats = { tries: 0 };
   let inward = 0;
-  const done = (result: PathResult) => ({ seed, jitter: [jx, jy] as [number, number], uv01, uv: [u, v] as [number, number], dir: firstDir, result });
+  const done = (result: PathResult) => ({
+    seed,
+    jitter: [jx, jy] as [number, number],
+    uv01,
+    uv: [u, v] as [number, number],
+    dir: firstDir,
+    result,
+  });
 
   for (let bounce = 0; bounce < MAX_BOUNCES; bounce++) {
     let best: { t: number; point: Vec3; normal: Vec3 } | null = null;
@@ -192,7 +225,13 @@ function run(x: number, y: number, width: number, height: number, frame: number,
       dir: into,
       tests,
       hit: { sphere: index, ...hit },
-      scatter: { kind: s.material === LAMBERTIAN ? "diffuse" : "metal", random: r, reflected, next: dir, inward: wentIn },
+      scatter: {
+        kind: s.material === LAMBERTIAN ? "diffuse" : "metal",
+        random: r,
+        reflected,
+        next: dir,
+        inward: wentIn,
+      },
       color: [...color],
     });
   }
@@ -252,7 +291,14 @@ export type SubgroupRun = {
 };
 
 /** What one subgroup does in the bounce loop. Lanes past the image edge return at once. */
-export function runSubgroup(x: number, y: number, size: 8 | 16 | 32 | 64, width: number, height: number, frame = 0): SubgroupRun {
+export function runSubgroup(
+  x: number,
+  y: number,
+  size: 8 | 16 | 32 | 64,
+  width: number,
+  height: number,
+  frame = 0,
+): SubgroupRun {
   const lanes = subgroupPixels(x, y, size).map((p) => {
     const inside = p.x < width && p.y < height;
     return { ...p, inside, path: inside ? tracePixel(p.x, p.y, width, height, frame) : null };
@@ -292,8 +338,18 @@ export type FrameStats = {
 export function frameStats(width: number, height: number, frame = 0, step = 1): FrameStats {
   const sizes = [8, 16, 32, 64] as const;
   const histogram = new Array(MAX_BOUNCES).fill(0);
-  let pixels = 0, iterations = 0, hits = 0, limit = 0, inward = 0, tries = 0;
-  const eff: Record<number, { sum: number; n: number }> = { 8: { sum: 0, n: 0 }, 16: { sum: 0, n: 0 }, 32: { sum: 0, n: 0 }, 64: { sum: 0, n: 0 } };
+  let pixels = 0,
+    iterations = 0,
+    hits = 0,
+    limit = 0,
+    inward = 0,
+    tries = 0;
+  const eff: Record<number, { sum: number; n: number }> = {
+    8: { sum: 0, n: 0 },
+    16: { sum: 0, n: 0 },
+    32: { sum: 0, n: 0 },
+    64: { sum: 0, n: 0 },
+  };
   const lanesOn: Record<number, number[]> = {};
   const groupsOn: Record<number, number[]> = {};
   for (const size of sizes) {
@@ -343,12 +399,23 @@ export function frameStats(width: number, height: number, frame = 0, step = 1): 
     hitLimit: limit / pixels,
     inwardMetal: inward,
     meanUnitTries: hits ? tries / hits : 0,
-    efficiency: { 8: eff[8].sum / eff[8].n, 16: eff[16].sum / eff[16].n, 32: eff[32].sum / eff[32].n, 64: eff[64].sum / eff[64].n },
+    efficiency: {
+      8: eff[8].sum / eff[8].n,
+      16: eff[16].sum / eff[16].n,
+      32: eff[32].sum / eff[32].n,
+      64: eff[64].sum / eff[64].n,
+    },
     pooled: Object.fromEntries(
       sizes.map((size) => {
         const lanes = lanesOn[size].reduce((a, b) => a + b, 0);
         const slots = groupsOn[size].reduce((a, b) => a + b, 0) * size;
-        return [size, { overall: lanes / slots, perTrip: lanesOn[size].map((l, k) => (groupsOn[size][k] ? l / (groupsOn[size][k] * size) : 0)) }];
+        return [
+          size,
+          {
+            overall: lanes / slots,
+            perTrip: lanesOn[size].map((l, k) => (groupsOn[size][k] ? l / (groupsOn[size][k] * size) : 0)),
+          },
+        ];
       }),
     ) as FrameStats["pooled"],
   };

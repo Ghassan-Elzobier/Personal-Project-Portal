@@ -28,23 +28,35 @@ test("the trend barely moves on one heavy day", () => {
 });
 
 test("weekly rate from a steady gain, and none from too few points", () => {
-  const gain = series("2026-11-01", Array.from({ length: 21 }, (_, i) => 65 + (0.3 / 7) * i));
+  const gain = series(
+    "2026-11-01",
+    Array.from({ length: 21 }, (_, i) => 65 + (0.3 / 7) * i),
+  );
   const rate = weeklyRate(gain, "2026-11-21");
   assert.ok(rate !== null && Math.abs(rate - 0.3) < 0.01);
   assert.equal(weeklyRate(gain.slice(0, 5), "2026-11-05"), null);
 });
 
 test("the target waits two weeks, then nudges up by at most 150 kcal", () => {
-  const flat = series("2026-11-01", Array.from({ length: 21 }, () => 65));
+  const flat = series(
+    "2026-11-01",
+    Array.from({ length: 21 }, () => 65),
+  );
   assert.equal(adjust(flat, "2026-11-10", 65, BULK, 1, "2026-11-01").change, 0);
   const a = adjust(flat, "2026-11-21", 65, BULK, 1, "2026-11-01");
   assert.equal(a.change, 150);
-  const fast = series("2026-11-01", Array.from({ length: 21 }, (_, i) => 65 + (1 / 7) * i));
+  const fast = series(
+    "2026-11-01",
+    Array.from({ length: 21 }, (_, i) => 65 + (1 / 7) * i),
+  );
   assert.equal(adjust(fast, "2026-11-21", 65, BULK, 1, "2026-11-01").change, -150);
 });
 
 test("eating under plan is named before the target goes up", () => {
-  const flat = series("2026-11-01", Array.from({ length: 21 }, () => 65));
+  const flat = series(
+    "2026-11-01",
+    Array.from({ length: 21 }, () => 65),
+  );
   const a = adjust(flat, "2026-11-21", 65, BULK, 0.7, "2026-11-01");
   assert.equal(a.change, 0);
   assert.match(a.why, /70%/);

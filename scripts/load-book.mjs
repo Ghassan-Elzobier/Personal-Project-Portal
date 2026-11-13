@@ -62,7 +62,9 @@ function readPdf(path) {
     console.error("pdftotext is missing. Install it with: sudo apt install poppler-utils");
     process.exit(1);
   }
-  return promisify(execFile)("pdftotext", ["-layout", "-enc", "UTF-8", path, "-"], { maxBuffer: 256 * 1024 * 1024 }).then((r) => r.stdout);
+  return promisify(execFile)("pdftotext", ["-layout", "-enc", "UTF-8", path, "-"], {
+    maxBuffer: 256 * 1024 * 1024,
+  }).then((r) => r.stdout);
 }
 
 function clean(lines) {
@@ -153,21 +155,41 @@ function parse(text) {
     const kind = !chapter ? "front" : figures ? "figure" : "body";
     const where = chapter ? `${chapter.label} ${chapter.title}` : "Front matter";
     const heading =
-      kind === "figure" ? `${where} › Figure descriptions${figure ? ` (Figure ${figure})` : ""}` : pageSection ? `${where} › ${pageSection.number} ${pageSection.title}` : where;
+      kind === "figure"
+        ? `${where} › Figure descriptions${figure ? ` (Figure ${figure})` : ""}`
+        : pageSection
+          ? `${where} › ${pageSection.number} ${pageSection.title}`
+          : where;
     const body = clean(lines);
     if (!body) continue;
-    pages.push({ page, kind, chapter: chapter?.id ?? null, section: kind === "body" ? (pageSection?.number ?? null) : null, sectionTitle: pageSection?.title ?? "", heading, figure: kind === "figure" ? figure : null, body });
+    pages.push({
+      page,
+      kind,
+      chapter: chapter?.id ?? null,
+      section: kind === "body" ? (pageSection?.number ?? null) : null,
+      sectionTitle: pageSection?.title ?? "",
+      heading,
+      figure: kind === "figure" ? figure : null,
+      body,
+    });
   }
 
   // Sections and chapters, with the pages each spans (body pages only).
   const sections = new Map();
-  for (const c of CHAPTERS) sections.set(c.id, { number: c.id, chapter: c.id, title: c.title, first: c.page, last: c.page });
+  for (const c of CHAPTERS)
+    sections.set(c.id, { number: c.id, chapter: c.id, title: c.title, first: c.page, last: c.page });
   for (const p of pages) {
     if (p.kind !== "body" || !p.chapter) continue;
     const ch = sections.get(p.chapter);
     ch.last = Math.max(ch.last, p.page);
     if (!p.section) continue;
-    const s = sections.get(p.section) ?? { number: p.section, chapter: p.chapter, title: outline.get(p.section) ?? p.sectionTitle, first: p.page, last: p.page };
+    const s = sections.get(p.section) ?? {
+      number: p.section,
+      chapter: p.chapter,
+      title: outline.get(p.section) ?? p.sectionTitle,
+      first: p.page,
+      last: p.page,
+    };
     s.first = Math.min(s.first, p.page);
     s.last = Math.max(s.last, p.page);
     sections.set(p.section, s);
@@ -205,7 +227,9 @@ function toSql({ pages, sections }) {
   files.push(
     `delete from portal.book_sections where book = ${q(BOOK)};\n` +
       `insert into portal.book_sections (book, number, chapter, title, first_page, last_page) values\n` +
-      sections.map((s) => `(${q(BOOK)}, ${q(s.number)}, ${q(s.chapter)}, ${q(s.title)}, ${s.first}, ${s.last})`).join(",\n") +
+      sections
+        .map((s) => `(${q(BOOK)}, ${q(s.number)}, ${q(s.chapter)}, ${q(s.title)}, ${s.first}, ${s.last})`)
+        .join(",\n") +
       ";\n",
   );
   return files;
@@ -216,8 +240,12 @@ const parsed = parse(text);
 const files = toSql(parsed);
 const count = (k) => parsed.pages.filter((p) => p.kind === k).length;
 const bare = CHAPTERS.filter((c) => !parsed.sections.some((s) => s.chapter === c.id && s.number !== c.id));
-console.log(`Read ${parsed.pages.length} pages: ${count("body")} of text, ${count("figure")} describing figures, ${count("front")} of front matter. The index from page ${parsed.indexFrom} is left out.`);
-console.log(`Found ${parsed.sections.length - CHAPTERS.length} sections in ${CHAPTERS.length} chapters.${bare.length ? ` No sections found in: ${bare.map((c) => c.label).join(", ")}.` : ""}`);
+console.log(
+  `Read ${parsed.pages.length} pages: ${count("body")} of text, ${count("figure")} describing figures, ${count("front")} of front matter. The index from page ${parsed.indexFrom} is left out.`,
+);
+console.log(
+  `Found ${parsed.sections.length - CHAPTERS.length} sections in ${CHAPTERS.length} chapters.${bare.length ? ` No sections found in: ${bare.map((c) => c.label).join(", ")}.` : ""}`,
+);
 
 const dir = sqlOnly ? resolve(sqlOnly) : mkdtempSync(join(tmpdir(), "portal-book-"));
 mkdirSync(dir, { recursive: true });
@@ -231,7 +259,9 @@ if (sqlOnly) {
 try {
   for (let i = 0; i < files.length; i++) {
     process.stdout.write(`Loading part ${i + 1} of ${files.length}\r`);
-    execFileSync("supabase", ["db", "query", target, "-f", join(dir, `${String(i).padStart(2, "0")}.sql`)], { stdio: ["ignore", "ignore", "inherit"] });
+    execFileSync("supabase", ["db", "query", target, "-f", join(dir, `${String(i).padStart(2, "0")}.sql`)], {
+      stdio: ["ignore", "ignore", "inherit"],
+    });
   }
   console.log(`\nDone. Search it at /library, or ask Claude through the connector.`);
 } finally {

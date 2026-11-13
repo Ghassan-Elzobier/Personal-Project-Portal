@@ -6,12 +6,24 @@ import { parseQuickAdd, pastedLines } from "./quick-add.ts";
 const today = "2026-11-04";
 
 test("reads a project tag anywhere and a date at the end", () => {
-  assert.deepEqual(parseQuickAdd("Read chapter 5 #axler fri", today), { name: "Read chapter 5", project: "axler", dueOn: "2026-11-06" });
-  assert.deepEqual(parseQuickAdd("#pmpp CUDA kernels tomorrow", today), { name: "CUDA kernels", project: "pmpp", dueOn: "2026-11-05" });
+  assert.deepEqual(parseQuickAdd("Read chapter 5 #axler fri", today), {
+    name: "Read chapter 5",
+    project: "axler",
+    dueOn: "2026-11-06",
+  });
+  assert.deepEqual(parseQuickAdd("#pmpp CUDA kernels tomorrow", today), {
+    name: "CUDA kernels",
+    project: "pmpp",
+    dueOn: "2026-11-05",
+  });
 });
 
 test("leaves dates in the middle of a name alone", () => {
-  assert.deepEqual(parseQuickAdd("Friday review notes", today), { name: "Friday review notes", project: null, dueOn: null });
+  assert.deepEqual(parseQuickAdd("Friday review notes", today), {
+    name: "Friday review notes",
+    project: null,
+    dueOn: null,
+  });
 });
 
 test("a lone date word is a task name, not an empty task", () => {

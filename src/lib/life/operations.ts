@@ -21,7 +21,17 @@ import { addDays } from "../dates/week";
 export type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
 function refresh() {
-  for (const p of ["/", "/life", "/life/gym", "/life/kitchen", "/life/body", "/life/recipes", "/life/settings", "/schedule"]) revalidatePath(p);
+  for (const p of [
+    "/",
+    "/life",
+    "/life/gym",
+    "/life/kitchen",
+    "/life/body",
+    "/life/recipes",
+    "/life/settings",
+    "/schedule",
+  ])
+    revalidatePath(p);
 }
 
 /**
@@ -37,7 +47,14 @@ async function run<T extends object>(fn: () => Promise<T>, calendar = false): Pr
     if (calendar) after(syncLifeMirrorQuietly);
     return out;
   } catch (e) {
-    return { error: e instanceof store.LifeError ? e.message : e instanceof Error && e.message.startsWith("Life: ") ? e.message.slice(6) : "That didn't save. Try again." };
+    return {
+      error:
+        e instanceof store.LifeError
+          ? e.message
+          : e instanceof Error && e.message.startsWith("Life: ")
+            ? e.message.slice(6)
+            : "That didn't save. Try again.",
+    };
   }
 }
 
@@ -73,7 +90,8 @@ export function logWeight(day: string, kg: number | null): Promise<Result> {
     await store.logWeight(day, kg);
     // The first weigh-in starts the clock on the adaptive target.
     const s = await state();
-    if (kg !== null && !s.profile.goal.startedOn) await store.saveProfile({ ...s.profile, goal: { ...s.profile.goal, startedOn: day } });
+    if (kg !== null && !s.profile.goal.startedOn)
+      await store.saveProfile({ ...s.profile, goal: { ...s.profile.goal, startedOn: day } });
     return {};
   });
 }
@@ -104,11 +122,16 @@ export function planWeek(start?: string): Promise<Result<{ start: string }>> {
     const s = await state();
     const week = start ?? s.weekStart;
     const existing = s.plans.find((p) => p.start === week)?.data;
-    if (existing && s.batches.some((b) => b.planStart === week)) fail("You've cooked from this week already. Swap recipes one at a time instead.");
+    if (existing && s.batches.some((b) => b.planStart === week))
+      fail("You've cooked from this week already. Swap recipes one at a time instead.");
     const spare = Object.fromEntries(s.stock.filter((x) => x.qty > 0).map((x) => [x.item, x.qty]));
     const plan = suggestWeek(s.profile, week, s.ratings, s.lastHad, spare, s.today);
     if (!plan.cooks.length) fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
-    await savePlan(s, { ...plan, shop: existing?.shop, createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today });
+    await savePlan(s, {
+      ...plan,
+      shop: existing?.shop,
+      createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today,
+    });
     return { start: week };
   }, true);
 }
@@ -138,17 +161,10 @@ export function swapCook(start: string, cookId: string, recipeKey: string): Prom
   });
 }
 
-export function addCook(start: string, recipeKey: string, date: string, minutes: number): Promise<Result> {
-  return editPlan(start, (plan) => {
-    const r = recipe(recipeKey);
-    if (!r) fail("Unknown recipe.");
-    plan.cooks.push({ id: `${date}-${recipeKey}-${Date.now() % 100000}`, recipe: recipeKey, date, start: minutes, portions: 0, scale: 1 });
-  });
-}
-
 export function removeCook(start: string, cookId: string): Promise<Result> {
   return editPlan(start, (plan, s) => {
-    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId)) fail("That one is cooked already: undo the cook in the Kitchen first.");
+    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId))
+      fail("That one is cooked already: undo the cook in the Kitchen first.");
     plan.cooks = plan.cooks.filter((c) => c.id !== cookId);
   });
 }
@@ -157,9 +173,14 @@ export function removeCook(start: string, cookId: string): Promise<Result> {
  * Moves a cook session (every recipe in it not cooked yet) to another day or
  * time in the same meal week. Portions are sized again for the days it now feeds.
  */
-export function moveCookSession(start: string, from: { date: string; at: number }, to: { date: string; at: number }): Promise<Result> {
+export function moveCookSession(
+  start: string,
+  from: { date: string; at: number },
+  to: { date: string; at: number },
+): Promise<Result> {
   return editPlan(start, (plan, s) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(to.date) || to.date < start || to.date > addDays(start, 6)) fail("Pick a day in this meal week.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(to.date) || to.date < start || to.date > addDays(start, 6))
+      fail("Pick a day in this meal week.");
     if (to.date < s.today) fail("Pick today or a day still to come.");
     if (!Number.isInteger(to.at) || to.at < 6 * 60 || to.at > 22 * 60) fail("Pick a time between 06:00 and 22:00.");
     const cooked = new Set(s.batches.filter((b) => b.planStart === start && b.cookId).map((b) => b.cookId!));
@@ -213,7 +234,11 @@ export function logMeal(day: string, slot: Slot, status: "eaten" | "skipped" | n
     if (r && p && (p.source === "daily" || p.source === "fresh")) {
       const was = before === "eaten";
       const now = status === "eaten";
-      if (was !== now) await store.changeStock(cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })), "add");
+      if (was !== now)
+        await store.changeStock(
+          cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })),
+          "add",
+        );
     }
     await store.logMeal({
       day,
@@ -235,7 +260,15 @@ export function logPastAsEaten(): Promise<Result<{ count: number }>> {
     const todo = unlogged(s, s.today);
     for (const p of todo) {
       const m = placedMacros(p);
-      await store.logMeal({ day: p.date, slot: p.slot, status: "eaten", recipe: p.recipe, batch: p.batchGid ?? null, kcal: m?.kcal ?? null, protein: m?.protein ?? null });
+      await store.logMeal({
+        day: p.date,
+        slot: p.slot,
+        status: "eaten",
+        recipe: p.recipe,
+        batch: p.batchGid ?? null,
+        kcal: m?.kcal ?? null,
+        protein: m?.protein ?? null,
+      });
     }
     return { count: todo.length };
   });
@@ -247,7 +280,10 @@ export function setRecipePref(recipeKey: string, kind: "hidden" | "favourites", 
     if (!recipe(recipeKey)) fail("Unknown recipe.");
     const s = await state();
     const other = kind === "hidden" ? "favourites" : "hidden";
-    const next = { ...s.profile, [kind]: [...s.profile[kind].filter((k) => k !== recipeKey), ...(on ? [recipeKey] : [])] };
+    const next = {
+      ...s.profile,
+      [kind]: [...s.profile[kind].filter((k) => k !== recipeKey), ...(on ? [recipeKey] : [])],
+    };
     // A hidden recipe is no favourite, and the other way round.
     if (on) next[other] = s.profile[other].filter((k) => k !== recipeKey);
     await store.saveProfile(next);
@@ -279,7 +315,16 @@ export function cookPlanned(start: string, cookId: string): Promise<Result> {
     // Portions nobody is down to eat this week go in the freezer if they can.
     const spare = Math.max(0, c!.portions - placed.length);
     const freeze = frozen + (r!.keeps.freezes ? spare : 0);
-    await store.cook({ recipe: r!.key, day: s.today < c!.date ? s.today : c!.date, portions: c!.portions, scale: c!.scale, freeze, used: cookUse(r!, c!.portions, c!.scale), planStart: start, cookId });
+    await store.cook({
+      recipe: r!.key,
+      day: s.today < c!.date ? s.today : c!.date,
+      portions: c!.portions,
+      scale: c!.scale,
+      freeze,
+      used: cookUse(r!, c!.portions, c!.scale),
+      planStart: start,
+      cookId,
+    });
     return {};
   });
 }
@@ -304,14 +349,21 @@ export function uncook(batch: string): Promise<Result> {
   });
 }
 
-export function setBatch(batch: string, remaining: number | null, location: "fridge" | "freezer" | null): Promise<Result> {
+export function setBatch(
+  batch: string,
+  remaining: number | null,
+  location: "fridge" | "freezer" | null,
+): Promise<Result> {
   return run(async () => {
     await store.setBatch(batch, remaining, location);
     return {};
   });
 }
 
-export function setStock(changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[], mode: "add" | "set"): Promise<Result> {
+export function setStock(
+  changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[],
+  mode: "add" | "set",
+): Promise<Result> {
   return run(async () => {
     for (const c of changes) if (!INGREDIENTS.has(c.item)) fail(`Unknown ingredient ${c.item}.`);
     await store.changeStock(changes, mode);
@@ -336,7 +388,16 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const needs = v ? remainingNeeds(s, v) : weekNeeds(plan!, []);
     const lines = buildList(needs, s.stock, s.products, s.profile.food, s.today);
     const changes = delivery(lines, got, s.today);
-    if (changes.length) await store.changeStock(changes.map((c) => ({ item: c.item, qty: c.add, ...(c.status ? { status: c.status } : {}), ...(c.goodUntil ? { good_until: c.goodUntil } : {}) })), "add");
+    if (changes.length)
+      await store.changeStock(
+        changes.map((c) => ({
+          item: c.item,
+          qty: c.add,
+          ...(c.status ? { status: c.status } : {}),
+          ...(c.goodUntil ? { good_until: c.goodUntil } : {}),
+        })),
+        "add",
+      );
     const added = changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add }));
     await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: s.today, got, added } });
     return { added: changes.length };
@@ -349,19 +410,42 @@ export function undoDelivery(start: string): Promise<Result> {
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan?.shop?.deliveredOn) fail("No delivery to undo.");
     const back = plan!.shop!.added ?? [];
-    if (back.length) await store.changeStock(back.map((c) => ({ item: c.item, qty: -c.qty })), "add");
-    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined } });
+    if (back.length)
+      await store.changeStock(
+        back.map((c) => ({ item: c.item, qty: -c.qty })),
+        "add",
+      );
+    await store.savePlan(start, {
+      ...plan!,
+      shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined },
+    });
     return {};
   });
 }
 
-export function saveProduct(input: { item: string; url: string; name: string; packQty: number; packUnit: Unit; pence: number | null; checked: Tag[] }): Promise<Result> {
+export function saveProduct(input: {
+  item: string;
+  url: string;
+  name: string;
+  packQty: number;
+  packUnit: Unit;
+  pence: number | null;
+  checked: Tag[];
+}): Promise<Result> {
   return run(async () => {
     if (!INGREDIENTS.has(input.item)) fail("Unknown ingredient.");
     const url = input.url.trim().split("?")[0];
     if (!isSainsburysProduct(url)) fail("Paste a Sainsbury's product link (sainsburys.co.uk/gol-ui/product/…).");
     if (!(input.packQty > 0)) fail("Give the pack size.");
-    const product: Product = { item: input.item, url, name: input.name.trim() || INGREDIENTS.get(input.item)!.name, packQty: input.packQty, packUnit: input.packUnit, pence: input.pence, checked: input.checked };
+    const product: Product = {
+      item: input.item,
+      url,
+      name: input.name.trim() || INGREDIENTS.get(input.item)!.name,
+      packQty: input.packQty,
+      packUnit: input.packUnit,
+      pence: input.pence,
+      checked: input.checked,
+    };
     await store.saveProduct(product);
     return {};
   });
@@ -376,7 +460,15 @@ export function removeProduct(item: string): Promise<Result> {
 
 // ---------------------------------------------------------------- gym
 
-export function logSet(input: { day: string; workout: string; exercise: string; position: number; kg: number | null; reps: number | null; rir: number | null }): Promise<Result> {
+export function logSet(input: {
+  day: string;
+  workout: string;
+  exercise: string;
+  position: number;
+  kg: number | null;
+  reps: number | null;
+  rir: number | null;
+}): Promise<Result> {
   return run(async () => {
     if (input.reps !== null && !(input.reps >= 0 && input.reps <= 500)) fail("Reps look wrong.");
     if (input.kg !== null && !(input.kg >= 0 && input.kg <= 500)) fail("Weight looks wrong.");
@@ -385,13 +477,19 @@ export function logSet(input: { day: string; workout: string; exercise: string; 
   });
 }
 
-export function gymSession(input: { day: string; workout: string; finished?: boolean; feel?: number | null; notes?: string | null; remove?: boolean }): Promise<Result> {
+export function gymSession(input: {
+  day: string;
+  workout: string;
+  finished?: boolean;
+  feel?: number | null;
+  notes?: string | null;
+  remove?: boolean;
+}): Promise<Result> {
   return run(async () => {
     await store.gymSession(input);
     return {};
   }, true);
 }
-
 
 // ---------------------------------------------------------------- calendar
 

@@ -10,9 +10,10 @@ import {
 } from "../tasks/tracker";
 import { projectGid, timeZone, usesAsana, weeklyHoursTarget } from "../config/env";
 import { studySnapshot } from "../tasks/native";
-import { projectDef, type ProjectKey } from "../config/projects";
+import { type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
+import { now } from "@/lib/dates/clock";
 
 // What the pages show, shaped from the task backend. Every loader returns a result
 // rather than throwing, so one broken project never blanks the whole page.
@@ -87,11 +88,11 @@ export function toView(task: AsanaTask, project: ProjectKey): TaskView {
 }
 
 export function today(): string {
-  return dateIn(new Date(), timeZone());
+  return dateIn(now(), timeZone());
 }
 
 export function thisWeek(): Week {
-  return weekOf(new Date(), timeZone());
+  return weekOf(now(), timeZone());
 }
 
 /** Open tasks in a project. */
@@ -214,8 +215,12 @@ export async function weekSummary(
 async function weekPractice(key: ProjectKey, week: Week, inWeek: (iso: string) => boolean): Promise<string | null> {
   const [study, tasks] = await Promise.all([studySnapshot(), listTasks(key)]);
   const gids = new Set(tasks.map((t) => t.gid));
-  const solved = study.exercises.filter((e) => gids.has(e.task_gid) && e.status === "solved" && inWeek(e.updated_at)).length;
-  const reviewed = study.reviews.filter((r) => gids.has(r.task_gid) && r.last_reviewed_at && inWeek(r.last_reviewed_at)).length;
+  const solved = study.exercises.filter(
+    (e) => gids.has(e.task_gid) && e.status === "solved" && inWeek(e.updated_at),
+  ).length;
+  const reviewed = study.reviews.filter(
+    (r) => gids.has(r.task_gid) && r.last_reviewed_at && inWeek(r.last_reviewed_at),
+  ).length;
   if (!solved && !reviewed) return null;
   const parts = [];
   if (solved) parts.push(`${solved} ${solved === 1 ? "exercise" : "exercises"} solved`);
@@ -226,8 +231,4 @@ async function weekPractice(key: ProjectKey, week: Week, inWeek: (iso: string) =
 export async function latestStatus(key: ProjectKey): Promise<AsanaStatusUpdate | null> {
   const updates = await listStatusUpdates(key);
   return updates[0] ?? null;
-}
-
-export function projectTitle(key: ProjectKey): string {
-  return projectDef(key).title;
 }

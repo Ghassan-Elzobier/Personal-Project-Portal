@@ -11,9 +11,23 @@ import { Chip, LifeHeader } from "../parts";
 export const metadata: Metadata = { title: "Recipes" };
 export const dynamic = "force-dynamic";
 
-const FILTERS: (Cuisine | "All")[] = ["All", "Italian", "Middle Eastern", "Chinese & SE Asian", "Indian", "Caribbean & West African", "British & American", "Breakfast", "Shake"];
+const FILTERS: (Cuisine | "All")[] = [
+  "All",
+  "Italian",
+  "Middle Eastern",
+  "Chinese & SE Asian",
+  "Indian",
+  "Caribbean & West African",
+  "British & American",
+  "Breakfast",
+  "Shake",
+];
 
-export default async function RecipesPage({ searchParams }: { searchParams: Promise<{ cuisine?: string; all?: string }> }) {
+export default async function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cuisine?: string; all?: string }>;
+}) {
   const [, params, loaded] = await Promise.all([requireOwner(), searchParams, loadLife()]);
   if (loaded.error !== undefined) {
     return (
@@ -26,10 +40,19 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   const s = loaded.state;
   const filter = FILTERS.includes(params.cuisine as Cuisine) ? (params.cuisine as Cuisine) : "All";
   const showAll = params.all === "1";
-  const list = RECIPES.map((r) => ({ r, v: verdict(r, s.profile.food), m: portionMacros(r), stars: s.ratings.find((x) => x.recipe === r.key)?.stars ?? null }))
+  const list = RECIPES.map((r) => ({
+    r,
+    v: verdict(r, s.profile.food),
+    m: portionMacros(r),
+    stars: s.ratings.find((x) => x.recipe === r.key)?.stars ?? null,
+  }))
     .filter((x) => filter === "All" || x.r.cuisine === filter)
     .filter((x) => showAll || (x.v.ok && x.v.disliked.length === 0 && !s.profile.hidden.includes(x.r.key)));
-  const hidden = RECIPES.filter((r) => (filter === "All" || r.cuisine === filter) && (!verdict(r, s.profile.food).ok || s.profile.hidden.includes(r.key))).length;
+  const hidden = RECIPES.filter(
+    (r) =>
+      (filter === "All" || r.cuisine === filter) &&
+      (!verdict(r, s.profile.food).ok || s.profile.hidden.includes(r.key)),
+  ).length;
   const href = (c: string, all = showAll) => {
     const q = new URLSearchParams();
     if (c !== "All") q.set("cuisine", c);
@@ -41,11 +64,17 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-5">
       <LifeHeader eyebrow={`${list.length} recipes`} title="Recipes">
-        Written for batch cooking on a bulk: big portions, lots of protein, and food that reheats well. Rate what you eat and the menu learns.
+        Written for batch cooking on a bulk: big portions, lots of protein, and food that reheats well. Rate what you
+        eat and the menu learns.
       </LifeHeader>
       <nav aria-label="Cuisine" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTERS.map((c) => (
-          <Link key={c} href={href(c)} aria-current={filter === c ? "page" : undefined} className={`chip shrink-0 px-3 py-1.5 text-sm ${filter === c ? "bg-mint/15 text-mint ring-mint/30" : "bg-white/5 text-neutral-300 ring-white/10"}`}>
+          <Link
+            key={c}
+            href={href(c)}
+            aria-current={filter === c ? "page" : undefined}
+            className={`chip shrink-0 px-3 py-1.5 text-sm ${filter === c ? "bg-mint/15 text-mint ring-mint/30" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+          >
             {c}
           </Link>
         ))}
@@ -53,7 +82,10 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {list.map(({ r, v, m, stars }) => (
           <li key={r.key} className="min-w-0">
-            <Link href={`/life/recipes/${r.key}`} className="card-life block h-full space-y-2 transition hover:ring-mint/30">
+            <Link
+              href={`/life/recipes/${r.key}`}
+              className="block h-full space-y-2 card-life transition hover:ring-mint/30"
+            >
               <div className="flex items-start justify-between gap-2">
                 <h2 className="min-w-0 font-semibold">{r.name}</h2>
                 {stars ? <Stars value={stars} size="text-xs" /> : null}

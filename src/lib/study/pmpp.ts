@@ -34,7 +34,10 @@ type ChapterInput = {
  * video id.
  */
 function gpuMode(n: number, title: string, query = title): { label: string; url: string } {
-  return { label: `GPU MODE lecture ${n}: ${title}`, url: `https://www.youtube.com/@GPUMODE/search?query=${encodeURIComponent(`Lecture ${n} ${query}`)}` };
+  return {
+    label: `GPU MODE lecture ${n}: ${title}`,
+    url: `https://www.youtube.com/@GPUMODE/search?query=${encodeURIComponent(`Lecture ${n} ${query}`)}`,
+  };
 }
 
 function chapter(n: number, title: string, input: ChapterInput): PlanUnit {
@@ -54,7 +57,7 @@ export const PMPP: StudyPlan = {
   title: "Programming Massively Parallel Processors",
   subtitle: "Hwu, Kirk and El Hajj, 5th edition",
   guidance:
-    "From Chapter 7 on, every chapter runs the same way: a basic kernel, then items from the checklist in Fig. 6.13, each judged by its arithmetic intensity. Learn that method, not just the code. Kernels run in three places. LeetGPU checks CUDA in the browser. A Colab GPU runs real CUDA when LeetGPU cannot. Your ports run in Vulkan compute on the RX 5700 XT and Iris Xe, and those are the only real timings you will own. Many exercises need no GPU at all, so each chapter says which. Pages are the PDF's own. Each chapter ends with \"Description of Figure\" pages written for screen readers, which you can skip. The book does not mention ray tracing or Vulkan, so the links to the renderer are ours: check them as you go. There is no answer key, so attempt everything first.",
+    'From Chapter 7 on, every chapter runs the same way: a basic kernel, then items from the checklist in Fig. 6.13, each judged by its arithmetic intensity. Learn that method, not just the code. Kernels run in three places. LeetGPU checks CUDA in the browser. A Colab GPU runs real CUDA when LeetGPU cannot. Your ports run in Vulkan compute on the RX 5700 XT and Iris Xe, and those are the only real timings you will own. Many exercises need no GPU at all, so each chapter says which. Pages are the PDF\'s own. Each chapter ends with "Description of Figure" pages written for screen readers, which you can skip. The book does not mention ray tracing or Vulkan, so the links to the renderer are ours: check them as you go. There is no answer key, so attempt everything first.',
   extraLinks: [
     { label: "LeetGPU", url: "https://leetgpu.com" },
     { label: "Vulkan subgroups", url: "https://www.khronos.org/blog/vulkan-subgroup-tutorial" },
@@ -73,7 +76,12 @@ export const PMPP: StudyPlan = {
           name: "Set up your three places to run kernels",
           short: "CUDA setup",
           hours: 2,
-          links: [gpuMode(1, "Profiling and Integrating CUDA kernels in PyTorch", "Profiling"), gpuMode(26, "SYCL MODE (Intel GPU)", "SYCL"), gpuMode(27, "gpu.cpp"), gpuMode(41, "CUDA Docs for Humans")],
+          links: [
+            gpuMode(1, "Profiling and Integrating CUDA kernels in PyTorch", "Profiling"),
+            gpuMode(26, "SYCL MODE (Intel GPU)", "SYCL"),
+            gpuMode(27, "gpu.cpp"),
+            gpuMode(41, "CUDA Docs for Humans"),
+          ],
           notes:
             "CUDA needs an NVIDIA GPU and neither of yours is one. LeetGPU emulates one on a CPU, with a functional mode for output and a cycle-accurate mode, built on Accel-Sim, that estimates timing. Its authors say it covers most of the core runtime API, so expect gaps in what the book uses later: cuda::atomic_ref, warp shuffles, cooperative groups. Find out now rather than mid-chapter. A Colab GPU runtime is your fallback for real CUDA. Done when a small kernel runs in both, and you have saved vulkaninfo for both of your own GPUs.",
           steps: [
@@ -141,7 +149,10 @@ export const PMPP: StudyPlan = {
         chapter(4, "Compute architecture and scheduling", {
           page: 202,
           hours: 7.5,
-          links: [gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory"), gpuMode(37, "Introduction to SASS & GPU Microarchitecture", "SASS")],
+          links: [
+            gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory"),
+            gpuMode(37, "Introduction to SASS & GPU Microarchitecture", "SASS"),
+          ],
           exercises: 9,
           notes:
             "How threads actually run. All nine exercises are on paper. The book's warp is 32 threads, which is close to home: your RX 5700 XT can run compute at a subgroup size of 32 or 64, and the Iris Xe reports its own range. Then test the idea on your own path tracer, in the divergence lab.",
@@ -161,7 +172,10 @@ export const PMPP: StudyPlan = {
         chapter(5, "Memory architecture and data locality", {
           page: 264,
           hours: 9.5,
-          links: [gpuMode(5, "Going Further with CUDA for Python Programmers", "Going Further with CUDA"), gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory")],
+          links: [
+            gpuMode(5, "Going Further with CUDA for Python Programmers", "Going Further with CUDA"),
+            gpuMode(4, "Intro to Compute and Memory Architecture", "Compute and Memory"),
+          ],
           exercises: 12,
           notes:
             "The most important chapter for the renderer. A kernel is limited by compute or by memory, and its arithmetic intensity in FLOP/B says which. The book's H100 crosses over at 20.0 FLOP/B (66.9 TFLOPS over 3.35 TB/s). Your RX 5700 XT's paper figures give about 21.8 (9.75 TFLOPS over 448 GB/s), so the book's reasoning carries over almost unchanged, at a lower absolute speed. The Iris Xe shares system RAM, so measure it. Exercises are on paper, with exercise 10 a kernel to debug by reading.",
@@ -182,7 +196,10 @@ export const PMPP: StudyPlan = {
         chapter(6, "Performance considerations", {
           page: 346,
           hours: 8,
-          links: [gpuMode(8, "CUDA Performance Checklist", "Performance Checklist"), gpuMode(16, "On Hands profiling", "profiling")],
+          links: [
+            gpuMode(8, "CUDA Performance Checklist", "Performance Checklist"),
+            gpuMode(16, "On Hands profiling", "profiling"),
+          ],
           exercises: 5,
           milestone: true,
           notes:
@@ -278,7 +295,11 @@ export const PMPP: StudyPlan = {
         chapter(11, "Scan", {
           page: 677,
           hours: 12,
-          links: [gpuMode(20, "Scan Algorithm"), gpuMode(21, "Scan Algorithm Part 2", "Scan Algorithm Part 2"), gpuMode(24, "Scan at the Speed of Light", "Speed of Light")],
+          links: [
+            gpuMode(20, "Scan Algorithm"),
+            gpuMode(21, "Scan Algorithm Part 2", "Scan Algorithm Part 2"),
+            gpuMode(24, "Scan at the Speed of Light", "Speed of Light"),
+          ],
           exercises: 7,
           notes:
             "The longest pattern chapter, and what filter and radix sort are built on. Budget for it. Take Kogge-Stone and reduce-scan-scan with you into Vulkan. Leave lookback (11.9) behind: it relies on other workgroups making progress, and Vulkan only gives a limited guarantee of that. Exercises 1, 2, 3 and 6 are on paper; 4, 5 and 7 are code.",
@@ -363,7 +384,9 @@ export const PMPP: StudyPlan = {
             "Read 15.4 to 15.9, mapping each step to its checklist item",
             "Exercises 1 to 3, in code",
           ],
-          reviews: ["Large output tiles make matrix multiplication compute-bound. What goes wrong with occupancy, and how does the chapter recover?"],
+          reviews: [
+            "Large output tiles make matrix multiplication compute-bound. What goes wrong with occupancy, and how does the chapter recover?",
+          ],
         }),
       ],
     },
@@ -446,7 +469,13 @@ export const PMPP: StudyPlan = {
           notes:
             "Moved out of Chapter 19 in this edition. It covers classifiers, fully connected and convolutional layers, and training. NeRF is a fully connected network, so this matters even if you skip the rest of the neural chapters.",
           steps: ["Read B.1 to B.4", "Write out one forward and one backward pass for a two-layer network by hand"],
-          reviews: [{ kind: "idea", prompt: "PMPP App. B: From memory, describe a forward and a backward pass through a small network, and name what is stored for each." }],
+          reviews: [
+            {
+              kind: "idea",
+              prompt:
+                "PMPP App. B: From memory, describe a forward and a backward pass through a small network, and name what is stored for each.",
+            },
+          ],
         },
         chapter(19, "Convolutional neural networks", {
           page: 1294,
@@ -461,7 +490,9 @@ export const PMPP: StudyPlan = {
             "Read 19.4",
             "Exercises 2 and 4 by reasoning, then 1 and 3 in code",
           ],
-          reviews: ["How can a convolutional layer be rearranged into a matrix multiplication, and what does that buy you?"],
+          reviews: [
+            "How can a convolutional layer be rearranged into a matrix multiplication, and what does that buy you?",
+          ],
         }),
         chapter(20, "Large language models", {
           page: 1362,
@@ -490,7 +521,12 @@ export const PMPP: StudyPlan = {
           optional: true,
           notes:
             "Despite the name, this is not wavefront path tracing. It parallelises dynamic programming tables, using Floyd-Warshall and Smith-Waterman. A good chapter if you want it, and the renderer does not need it.",
-          steps: ["Read 16.1 to 16.5", "Rebuild the block-tiled kernel (16.6)", "Read 16.7 and 16.8", "Exercises 1 to 6, in code"],
+          steps: [
+            "Read 16.1 to 16.5",
+            "Rebuild the block-tiled kernel (16.6)",
+            "Read 16.7 and 16.8",
+            "Exercises 1 to 6, in code",
+          ],
           reviews: ["What dependency pattern defines a wavefront, and why does tilting the tiles keep threads busy?"],
         }),
         chapter(23, "Multi-GPU programming", {
@@ -533,7 +569,13 @@ export const PMPP: StudyPlan = {
           notes:
             "Read A.6 alongside Chapter 10: floating-point addition is not associative, so a reduction tree and a loop can disagree. Come back when precision causes trouble, such as a ray hitting the surface it just left.",
           steps: ["Read A.1 to A.4 and A.6", "Read A.5 and A.7 when you need them", "Exercises 1 to 5, on paper"],
-          reviews: [{ kind: "idea", prompt: "PMPP App. A: Why can a reduction tree and a sequential sum give different answers, and how does sorting first help?" }],
+          reviews: [
+            {
+              kind: "idea",
+              prompt:
+                "PMPP App. A: Why can a reduction tree and a sequential sum give different answers, and how does sorting first help?",
+            },
+          ],
         },
         {
           ref: "pmpp-app-c",
@@ -542,9 +584,12 @@ export const PMPP: StudyPlan = {
           page: 1787,
           hours: 2,
           optional: true,
-          notes: "Read C.2 around Chapter 6. Zero-copy is the same choice you face in Vulkan between memory the CPU can see and memory only the GPU can see, and your two GPUs answer it differently.",
+          notes:
+            "Read C.2 around Chapter 6. Zero-copy is the same choice you face in Vulkan between memory the CPU can see and memory only the GPU can see, and your two GPUs answer it differently.",
           steps: READ_STEPS,
-          reviews: [{ kind: "idea", prompt: "PMPP App. C: When is zero-copy access the wrong choice, and what limits it?" }],
+          reviews: [
+            { kind: "idea", prompt: "PMPP App. C: When is zero-copy access the wrong choice, and what limits it?" },
+          ],
         },
       ],
     },

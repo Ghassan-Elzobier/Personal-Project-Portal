@@ -19,8 +19,17 @@ export async function recentCommits(): Promise<RepoCommit[]> {
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return [];
-    const rows = (await res.json()) as { sha: string; html_url: string; commit: { message: string; author: { date: string } } }[];
-    return rows.map((c) => ({ sha: c.sha, message: c.commit.message.split("\n")[0], date: c.commit.author.date, url: c.html_url }));
+    const rows = (await res.json()) as {
+      sha: string;
+      html_url: string;
+      commit: { message: string; author: { date: string } };
+    }[];
+    return rows.map((c) => ({
+      sha: c.sha,
+      message: c.commit.message.split("\n")[0],
+      date: c.commit.author.date,
+      url: c.html_url,
+    }));
   } catch {
     return [];
   }

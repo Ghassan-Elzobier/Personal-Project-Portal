@@ -1,0 +1,125 @@
+{
+  "src/app/lab/divergence-explorer.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 5
+    },
+    "react-hooks/set-state-in-effect": {
+      "count": 2
+    }
+  },
+  "src/app/lab/figures-gpu.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 50
+    }
+  },
+  "src/app/lab/figures-host.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 21
+    }
+  },
+  "src/app/lab/figures-maths.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 59
+    }
+  },
+  "src/app/lab/figures-measured.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 10
+    }
+  },
+  "src/app/lab/figures-vulkan.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 69
+    }
+  },
+  "src/app/lab/kit.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 5
+    }
+  },
+  "src/app/library/page.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/life/gym/session.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 2
+    }
+  },
+  "src/app/oauth/authorize/page.tsx": {
+    "better-tailwindcss/no-conflicting-classes": {
+      "count": 2
+    }
+  },
+  "src/app/page.tsx": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/progress/[project]/page.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/schedule/week-planner.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 4
+    }
+  },
+  "src/app/study/page.tsx": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/tasks/page.tsx": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/timeline/page.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/week/draft-form.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/components/nav-links.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 2
+    }
+  },
+  "src/lib/calendar/google.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/library/book.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  },
+  "src/lib/life/calendar-sync.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/life/store.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  },
+  "src/lib/study/load.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/tasks/native.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  }
+}

@@ -98,7 +98,10 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
   useEffect(() => {
     setTapped(null);
     try {
-      setTargets({ work: localStorage.getItem(LAST + "work") || HOME.work, life: localStorage.getItem(LAST + "life") || HOME.life });
+      setTargets({
+        work: localStorage.getItem(LAST + "work") || HOME.work,
+        life: localStorage.getItem(LAST + "life") || HOME.life,
+      });
     } catch {
       setTargets(HOME);
     }
@@ -109,7 +112,8 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
   useEffect(() => {
     if (tapped) return;
     try {
-      if (window.history.state?.portalSpace !== space) window.history.replaceState({ ...window.history.state, portalSpace: space }, "");
+      if (window.history.state?.portalSpace !== space)
+        window.history.replaceState({ ...window.history.state, portalSpace: space }, "");
     } catch {
       // Without history state, a shared page keeps the last space used.
     }
@@ -161,20 +165,23 @@ export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initi
     <nav aria-label="Main" className="hidden items-center gap-x-5 md:flex">
       {[...spaces.shared, ...own.primary].map((l, i) => (
         <span key={l.href} className="flex items-center gap-x-5">
-          {i === spaces.shared.length && spaces.shared.length > 0 && <span className="h-4 w-px bg-white/15" aria-hidden />}
+          {i === spaces.shared.length && spaces.shared.length > 0 && (
+            <span className="h-4 w-px bg-white/15" aria-hidden />
+          )}
           <Link
             href={l.href}
             aria-current={active === l.href ? "page" : undefined}
             className={`text-sm whitespace-nowrap transition-colors hover:text-white ${active === l.href ? `font-medium ${accent}` : "text-neutral-400"}`}
           >
             {l.title}
-            
           </Link>
         </span>
       ))}
       {own.more.length > 0 && (
         <details ref={menu} className="relative">
-          <summary className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-neutral-400"}`}>
+          <summary
+            className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-neutral-400"}`}
+          >
             More <span aria-hidden>▾</span>
           </summary>
           <MenuItems links={own.more} active={active} className="absolute top-8 right-0 w-52" />
@@ -196,11 +203,12 @@ function MenuItems({ links, active, className = "" }: { links: NavLink[]; active
           className={`block rounded-lg px-3 py-2.5 text-sm hover:bg-white/10 ${active === l.href ? "text-white" : "text-neutral-300"}`}
         >
           {l.title}
-          
         </Link>
       ))}
       <form action="/auth/signout" method="post">
-        <button className="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-white">Sign out</button>
+        <button className="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-white">
+          Sign out
+        </button>
       </form>
     </div>
   );
@@ -227,26 +235,50 @@ export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial
   const active = activeHref(pathname, [...candidates, ...own.more]);
   const moreActive = overflow.some((l) => l.href === active);
   const accent = space === "life" ? "text-mint" : "text-white";
-  const item = (on: boolean) => `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center px-1 text-xs ${on ? `font-semibold ${accent}` : "text-neutral-400"}`;
+  const item = (on: boolean) =>
+    `relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center px-1 text-xs ${on ? `font-semibold ${accent}` : "text-neutral-400"}`;
   const tab = (l: NavLink) => (
-    <Link key={l.href} href={l.href} aria-current={active === l.href ? "page" : undefined} className={item(active === l.href)}>
-      {active === l.href && <span className={`absolute top-0 h-0.5 w-8 rounded-full ${space === "life" ? "bg-mint" : "bg-lavender"}`} aria-hidden />}
+    <Link
+      key={l.href}
+      href={l.href}
+      aria-current={active === l.href ? "page" : undefined}
+      className={item(active === l.href)}
+    >
+      {active === l.href && (
+        <span
+          className={`absolute top-0 h-0.5 w-8 rounded-full ${space === "life" ? "bg-mint" : "bg-lavender"}`}
+          aria-hidden
+        />
+      )}
       <span className="max-w-full truncate">{l.title}</span>
-      
     </Link>
   );
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-white/10 bg-primary/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-white/10 bg-primary/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
+    >
       {tabs.slice(0, 2).map(tab)}
       {add && (
-        <button type="button" onClick={openQuickAdd} aria-label="Add a task" className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-royal to-lavender text-2xl leading-none">
+        <button
+          type="button"
+          onClick={openQuickAdd}
+          aria-label="Add a task"
+          className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-r from-royal to-lavender text-2xl leading-none"
+        >
           +
         </button>
       )}
       {tabs.slice(2).map(tab)}
       <details ref={menu} className="flex min-w-0 flex-1">
-        <summary className={`${item(moreActive)} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>More</summary>
-        <MenuItems links={overflow} active={active} className="absolute right-2 bottom-[calc(4rem+env(safe-area-inset-bottom))] max-h-[70dvh] w-60 overflow-y-auto" />
+        <summary className={`${item(moreActive)} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+          More
+        </summary>
+        <MenuItems
+          links={overflow}
+          active={active}
+          className="absolute right-2 bottom-[calc(4rem+env(safe-area-inset-bottom))] max-h-[70dvh] w-60 overflow-y-auto"
+        />
       </details>
     </nav>
   );

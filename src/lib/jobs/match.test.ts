@@ -1,11 +1,48 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Requirement, RequirementLevel } from "./extract.ts";
-import { branchImpact, buildStandings, isTarget, isVisible, marketRows, roleFit, unknownTerms, type RoleInput, type StoredEvidence, type UnitFact } from "./match.ts";
+import {
+  branchImpact,
+  buildStandings,
+  isTarget,
+  isVisible,
+  marketRows,
+  roleFit,
+  unknownTerms,
+  type RoleInput,
+  type StoredEvidence,
+  type UnitFact,
+} from "./match.ts";
 
-const unit = (ref: string, over: Partial<UnitFact> = {}): [string, UnitFact] => [ref, { ref, name: ref, plan: "lab", done: false, solved: 0, measured: false, optional: false, href: `/study?task=${ref}`, dueOn: null, phase: 1, ...over }];
-const evidence = (skill: string, level: number): StoredEvidence => ({ gid: skill, skill, level, note: `${skill} work`, url: null });
-const need = (skill: string, level: RequirementLevel = "required", group?: number): Requirement => ({ skill, level, quote: `Needs ${skill}`, group: group ?? skill.length * 1000 + skill.charCodeAt(0) });
+const unit = (ref: string, over: Partial<UnitFact> = {}): [string, UnitFact] => [
+  ref,
+  {
+    ref,
+    name: ref,
+    plan: "lab",
+    done: false,
+    solved: 0,
+    measured: false,
+    optional: false,
+    href: `/study?task=${ref}`,
+    dueOn: null,
+    phase: 1,
+    ...over,
+  },
+];
+const evidence = (skill: string, level: number): StoredEvidence => ({
+  gid: skill,
+  skill,
+  level,
+  note: `${skill} work`,
+  url: null,
+});
+const need = (skill: string, level: RequirementLevel = "required", group?: number): Requirement => ({
+  skill,
+  level,
+  quote: `Needs ${skill}`,
+  group: group ?? skill.length * 1000 + skill.charCodeAt(0),
+});
 
 // Vulkan is taught by r-harness among others, and PyTorch by r-nerf-tiny.
 const noUnits = new Map<string, UnitFact>();
@@ -21,7 +58,10 @@ test("reading a chapter is studied, and only practice counts as evidence", () =>
 
 test("a finished milestone is practice, and a recorded result lifts it to measured", () => {
   assert.equal(buildStandings(new Map([unit("r-harness", { done: true })]), []).get("vulkan")?.level, 2);
-  assert.equal(buildStandings(new Map([unit("r-harness", { done: true, measured: true })]), []).get("vulkan")?.level, 3);
+  assert.equal(
+    buildStandings(new Map([unit("r-harness", { done: true, measured: true })]), []).get("vulkan")?.level,
+    3,
+  );
 });
 
 test("evidence you add counts, and the strongest shows first", () => {
@@ -37,7 +77,9 @@ test("a unit still to do puts a skill in your plan, with its date", () => {
 });
 
 test("a main-path unit is preferred over an optional one as what comes next", () => {
-  const standing = buildStandings(new Map([unit("r-gs-train", { optional: true }), unit("r-nerf-tiny")]), []).get("pytorch");
+  const standing = buildStandings(new Map([unit("r-gs-train", { optional: true }), unit("r-nerf-tiny")]), []).get(
+    "pytorch",
+  );
   assert.equal(standing?.next?.ref, "r-nerf-tiny");
 });
 
@@ -52,7 +94,10 @@ test("a skill nobody teaches and you have not shown is missing", () => {
   assert.equal(buildStandings(noUnits, []).get("diffusion")?.status, "missing");
 });
 
-const standings = buildStandings(new Map([unit("r-nerf-tiny", { dueOn: "2027-04-01" }), unit("r-gs-load", { dueOn: "2027-03-01" })]), [evidence("cpp", 4), evidence("python", 2), evidence("vulkan", 4)]);
+const standings = buildStandings(
+  new Map([unit("r-nerf-tiny", { dueOn: "2027-04-01" }), unit("r-gs-load", { dueOn: "2027-03-01" })]),
+  [evidence("cpp", 4), evidence("python", 2), evidence("vulkan", 4)],
+);
 
 test("Ready means everything required can be shown", () => {
   assert.equal(roleFit([need("cpp"), need("python"), need("vulkan")], standings).band, "ready");
@@ -63,7 +108,11 @@ test("one recognised skill is not a match, however well you know it", () => {
   assert.equal(fit.band, "unread");
   assert.match(fit.reason, /Only Python from your skill list appears/);
   assert.equal(roleFit([need("python"), need("cpp")], standings).band, "unread", "two with nothing else is still thin");
-  assert.equal(roleFit([need("python"), need("cpp"), need("slam", "preferred")], standings).band, "ready", "two required and one wanted is enough to judge");
+  assert.equal(
+    roleFit([need("python"), need("cpp"), need("slam", "preferred")], standings).band,
+    "ready",
+    "two required and one wanted is enough to judge",
+  );
 });
 
 test("a wanted skill outside your plan is said, without lowering the band", () => {
@@ -72,8 +121,16 @@ test("a wanted skill outside your plan is said, without lowering the band", () =
 });
 
 test("specialist skills you have or are learning are counted, and general ones are not", () => {
-  assert.equal(roleFit([need("cpp"), need("python"), need("vulkan")], standings).specialist, 1, "Vulkan is specialist, and C++ and Python are not");
-  assert.equal(roleFit([need("vulkan"), need("pytorch"), need("slam")], standings).specialist, 2, "SLAM is specialist, but you do not have it");
+  assert.equal(
+    roleFit([need("cpp"), need("python"), need("vulkan")], standings).specialist,
+    1,
+    "Vulkan is specialist, and C++ and Python are not",
+  );
+  assert.equal(
+    roleFit([need("vulkan"), need("pytorch"), need("slam")], standings).specialist,
+    2,
+    "SLAM is specialist, but you do not have it",
+  );
 });
 
 test("On your plan means the rest is coming, with the date it all arrives", () => {
@@ -94,12 +151,23 @@ test("two missing must-haves are a stretch", () => {
 });
 
 test("gaps in what is only wanted do not lower the band", () => {
-  assert.equal(roleFit([need("cpp"), need("python"), need("diffusion", "preferred"), need("slam", "responsibility")], standings).band, "ready");
+  assert.equal(
+    roleFit([need("cpp"), need("python"), need("diffusion", "preferred"), need("slam", "responsibility")], standings)
+      .band,
+    "ready",
+  );
 });
 
 test("alternatives count once, met by the best of them", () => {
-  assert.equal(roleFit([need("diffusion", "required", 5), need("cpp", "required", 5), need("python"), need("vulkan")], standings).band, "ready");
-  const both = roleFit([need("diffusion", "required", 5), need("slam", "required", 5), need("cpp"), need("python")], standings);
+  assert.equal(
+    roleFit([need("diffusion", "required", 5), need("cpp", "required", 5), need("python"), need("vulkan")], standings)
+      .band,
+    "ready",
+  );
+  const both = roleFit(
+    [need("diffusion", "required", 5), need("slam", "required", 5), need("cpp"), need("python")],
+    standings,
+  );
   assert.equal(both.band, "one_gap");
   assert.equal(both.gaps.length, 1);
   assert.deepEqual(both.must[0].orElse, ["SLAM"]);
@@ -110,7 +178,20 @@ test("nothing recognised is not read, rather than a false ready", () => {
   assert.equal(roleFit([need("diffusion", "preferred")], standings).band, "unread");
 });
 
-const role = (over: Partial<RoleInput> = {}): RoleInput => ({ gid: "1", title: "Role", company: "Co", family: "graphics", seniority: "any", location_tier: "london", requirements: [], details: {}, closed_at: null, interest: null, stage: "new", ...over });
+const role = (over: Partial<RoleInput> = {}): RoleInput => ({
+  gid: "1",
+  title: "Role",
+  company: "Co",
+  family: "graphics",
+  seniority: "any",
+  location_tier: "london",
+  requirements: [],
+  details: {},
+  closed_at: null,
+  interest: null,
+  stage: "new",
+  ...over,
+});
 const fitOf = (...requirements: Requirement[]) => roleFit(requirements, standings);
 const strong = fitOf(need("cpp"), need("python"), need("vulkan"));
 
@@ -154,11 +235,18 @@ test("demand ranks skills you lack above ones you have, weighted by what you wan
   );
   assert.equal(rows[0].skill.key, "diffusion", "wanted more, so ranked above SLAM");
   assert.equal(rows.find((r) => r.skill.key === "cpp")?.priority, 0, "you can already show it");
-  assert.deepEqual([rows.find((r) => r.skill.key === "slam")?.must, rows.find((r) => r.skill.key === "slam")?.soft], [1, 1]);
+  assert.deepEqual(
+    [rows.find((r) => r.skill.key === "slam")?.must, rows.find((r) => r.skill.key === "slam")?.soft],
+    [1, 1],
+  );
 });
 
 test("a branch reports who asks for it and who it would move up", () => {
-  const roles = [role({ interest: 2, requirements: [need("pytorch"), need("diffusion"), need("cpp")] }), role({ requirements: [need("cpp")] }), role({ requirements: [need("unreal", "preferred")] })];
+  const roles = [
+    role({ interest: 2, requirements: [need("pytorch"), need("diffusion"), need("cpp")] }),
+    role({ requirements: [need("cpp")] }),
+    role({ requirements: [need("unreal", "preferred")] }),
+  ];
   const ml = branchImpact(roles, standings).find((b) => b.key === "ml-3d");
   assert.equal(ml?.asking, 1);
   assert.equal(ml?.askingWanted, 1);
@@ -167,6 +255,9 @@ test("a branch reports who asks for it and who it would move up", () => {
 });
 
 test("unknown terms need to appear in more than one role", () => {
-  const terms = unknownTerms([role({ details: { unknownTerms: ["Kubeflow", "OneOff"] } }), role({ details: { unknownTerms: ["Kubeflow"] } })]);
+  const terms = unknownTerms([
+    role({ details: { unknownTerms: ["Kubeflow", "OneOff"] } }),
+    role({ details: { unknownTerms: ["Kubeflow"] } }),
+  ]);
   assert.deepEqual(terms, [{ term: "Kubeflow", roles: 2 }]);
 });

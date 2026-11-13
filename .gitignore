@@ -13,3 +13,7 @@ supabase/.branches/
 # Job-hunt research names employers, and this repo is public.
 research_notes/
 reports/
+e2e/.auth/
+playwright-report/
+test-results/
+.claude/worktrees/

@@ -13,7 +13,15 @@ import type { Form } from "./allergens.ts";
 import type { Unit } from "./ingredients.ts";
 
 export type Meal = "breakfast" | "main" | "shake";
-export type Cuisine = "Italian" | "Middle Eastern" | "Chinese & SE Asian" | "Indian" | "Caribbean & West African" | "British & American" | "Breakfast" | "Shake";
+export type Cuisine =
+  | "Italian"
+  | "Middle Eastern"
+  | "Chinese & SE Asian"
+  | "Indian"
+  | "Caribbean & West African"
+  | "British & American"
+  | "Breakfast"
+  | "Shake";
 export type Kit = "oven" | "hob" | "air fryer" | "blender";
 
 export type Line = {
@@ -203,7 +211,8 @@ const R: Recipe[] = [
   {
     key: "pesto-chicken",
     name: "Nut-free pesto chicken pasta",
-    blurb: "Proper basil pesto made with sunflower seeds in place of pine nuts, with chicken and roasted cherry tomatoes.",
+    blurb:
+      "Proper basil pesto made with sunflower seeds in place of pine nuts, with chicken and roasted cherry tomatoes.",
     cuisine: "Italian",
     meal: "main",
     portions: 4,
@@ -406,7 +415,8 @@ const R: Recipe[] = [
   {
     key: "shawarma-bowls",
     name: "Chicken shawarma rice bowls with toum",
-    blurb: "Lemon, garlic and spice marinated chicken from the air fryer, with rice, a cucumber and tomato salad and toum, the whipped Lebanese garlic sauce.",
+    blurb:
+      "Lemon, garlic and spice marinated chicken from the air fryer, with rice, a cucumber and tomato salad and toum, the whipped Lebanese garlic sauce.",
     cuisine: "Middle Eastern",
     meal: "main",
     portions: 4,
@@ -437,10 +447,14 @@ const R: Recipe[] = [
     totalMin: 60,
     kit: ["air fryer", "hob", "blender"],
     keeps: { fridgeDays: 1, freezes: true, rice: true },
-    reheat: "Microwave the chicken and rice until steaming hot (once only), then add the cold toum and salad. Toum keeps a month in the fridge.",
+    reheat:
+      "Microwave the chicken and rice until steaming hot (once only), then add the cold toum and salad. Toum keeps a month in the fridge.",
     spice: 1,
     tags: ["classic", "lunchbox"],
-    swaps: ["Toum in place of garlic yoghurt: garlic, oil and lemon, with no egg or dairy.", "No hummus, falafel or tahini dressing."],
+    swaps: [
+      "Toum in place of garlic yoghurt: garlic, oil and lemon, with no egg or dairy.",
+      "No hummus, falafel or tahini dressing.",
+    ],
   },
   {
     key: "kofta-couscous",
@@ -556,7 +570,8 @@ const R: Recipe[] = [
   {
     key: "salt-pepper-beef",
     name: "Salt and pepper chilli beef with rice",
-    blurb: "The other takeaway classic: crunchy beef strips tossed with peppers, onion, garlic, chilli and a salt and pepper seasoning. Savoury, not sticky.",
+    blurb:
+      "The other takeaway classic: crunchy beef strips tossed with peppers, onion, garlic, chilli and a salt and pepper seasoning. Savoury, not sticky.",
     cuisine: "Chinese & SE Asian",
     meal: "main",
     portions: 4,
@@ -588,7 +603,10 @@ const R: Recipe[] = [
     reheat: "Air fryer at 180°C for 4 minutes re-crisps the beef; reheat rice once until steaming.",
     spice: 2,
     tags: ["classic", "lunchbox"],
-    swaps: ["Shop salt and pepper seasoning often contains five-spice; this mix doesn't.", "Coconut aminos in place of soy sauce."],
+    swaps: [
+      "Shop salt and pepper seasoning often contains five-spice; this mix doesn't.",
+      "Coconut aminos in place of soy sauce.",
+    ],
   },
   {
     key: "katsu-curry",
@@ -631,7 +649,10 @@ const R: Recipe[] = [
     reheat: "Sauce and rice in the microwave until steaming (rice once only); chicken in the air fryer if you can.",
     spice: 1,
     tags: ["classic"],
-    swaps: ["Shop curry blocks usually contain soy, so the sauce is made from spices.", "Egg only in the breaded coating."],
+    swaps: [
+      "Shop curry blocks usually contain soy, so the sauce is made from spices.",
+      "Egg only in the breaded coating.",
+    ],
   },
   {
     key: "thai-green-curry",
@@ -666,12 +687,16 @@ const R: Recipe[] = [
     reheat: "Microwave until steaming hot all through; rice once only.",
     spice: 2,
     tags: ["explore", "lunchbox"],
-    swaps: ["Courgette in place of the usual green beans, which are a legume.", "Check the paste: some contain peanut oil or soy."],
+    swaps: [
+      "Courgette in place of the usual green beans, which are a legume.",
+      "Check the paste: some contain peanut oil or soy.",
+    ],
   },
   {
     key: "garlic-pepper-pork",
     name: "Thai garlic and pepper pork with rice",
-    blurb: "Moo kratiem: pork shoulder fried hard with plenty of garlic and black pepper. Savoury and peppery, with jasmine rice and broccoli.",
+    blurb:
+      "Moo kratiem: pork shoulder fried hard with plenty of garlic and black pepper. Savoury and peppery, with jasmine rice and broccoli.",
     cuisine: "Chinese & SE Asian",
     meal: "main",
     portions: 4,
@@ -898,7 +923,10 @@ const R: Recipe[] = [
     reheat: "Microwave chicken and rice until steaming (rice once only); salsa cold.",
     spice: 2,
     tags: ["explore", "lunchbox"],
-    swaps: ["Coconut rice in place of rice and peas, which is made with kidney beans.", "Coconut aminos in place of soy sauce."],
+    swaps: [
+      "Coconut rice in place of rice and peas, which is made with kidney beans.",
+      "Coconut aminos in place of soy sauce.",
+    ],
   },
   {
     key: "jollof",
@@ -943,7 +971,8 @@ const R: Recipe[] = [
   {
     key: "sunday-roast",
     name: "Roast chicken with Yorkshire puddings",
-    blurb: "The full Sunday roast: crisp roast potatoes, Yorkshires, carrots, broccoli and gravy. Leftovers make Monday's lunch.",
+    blurb:
+      "The full Sunday roast: crisp roast potatoes, Yorkshires, carrots, broccoli and gravy. Leftovers make Monday's lunch.",
     cuisine: "British & American",
     meal: "main",
     portions: 5,
@@ -977,7 +1006,8 @@ const R: Recipe[] = [
   {
     key: "grilled-thighs",
     name: "Garlic and herb grilled chicken thighs with crispy potatoes",
-    blurb: "Juicy charred thighs in garlic, lemon and herbs, crispy air fryer potatoes and broccoli, with a little gravy.",
+    blurb:
+      "Juicy charred thighs in garlic, lemon and herbs, crispy air fryer potatoes and broccoli, with a little gravy.",
     cuisine: "British & American",
     meal: "main",
     portions: 4,
@@ -1214,7 +1244,8 @@ const R: Recipe[] = [
   {
     key: "lemon-garlic-salmon",
     name: "Lemon garlic butter salmon with crispy potatoes",
-    blurb: "Salmon fillets in garlic butter and lemon from the air fryer, with crispy baby potatoes and broccoli. A gentle way into fish.",
+    blurb:
+      "Salmon fillets in garlic butter and lemon from the air fryer, with crispy baby potatoes and broccoli. A gentle way into fish.",
     cuisine: "British & American",
     meal: "main",
     portions: 2,
@@ -1246,7 +1277,8 @@ const R: Recipe[] = [
   {
     key: "porridge",
     name: "Warm protein porridge with raspberries",
-    blurb: "Oats cooked in whole milk with rice protein stirred through, topped with raspberries and a little honey. Five minutes in the microwave.",
+    blurb:
+      "Oats cooked in whole milk with rice protein stirred through, topped with raspberries and a little honey. Five minutes in the microwave.",
     cuisine: "Breakfast",
     meal: "breakfast",
     portions: 1,
@@ -1372,7 +1404,9 @@ const R: Recipe[] = [
       { item: "cheddar", qty: 40 },
       { item: "milk", qty: 300 },
     ],
-    steps: ["Butter the outsides of the bread, fill with ham and grated cheddar, and toast in a dry pan over a medium heat for 2 to 3 minutes a side until golden and melted."],
+    steps: [
+      "Butter the outsides of the bread, fill with ham and grated cheddar, and toast in a dry pan over a medium heat for 2 to 3 minutes a side until golden and melted.",
+    ],
     activeMin: 6,
     totalMin: 6,
     kit: ["hob"],
@@ -1408,7 +1442,8 @@ const R: Recipe[] = [
   {
     key: "raspberry-shake",
     name: "Raspberry oat shake",
-    blurb: "About 750 kcal you can drink in five minutes: milk, oats, a splash of cream, rice protein, honey and raspberries.",
+    blurb:
+      "About 750 kcal you can drink in five minutes: milk, oats, a splash of cream, rice protein, honey and raspberries.",
     cuisine: "Shake",
     meal: "shake",
     portions: 1,

@@ -1,0 +1,34 @@
+name: Feature
+description: Something the portal should do. Written so Claude can build it (mention @claude to start).
+labels: [feature]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What should be true when this is done?
+      description: The outcome, from your side of the screen. One or two sentences.
+      placeholder: On the gym page, I can see last week's best set beside each exercise.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How will we know it works?
+      description: Checks a test can make. These become the end-to-end or unit tests.
+      placeholder: |
+        - The best set shows weight × reps, and says "First time" when there is none.
+        - It fits at 360 px.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Work, Life, Shared (Today, Schedule), The factory itself]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Constraints, things to avoid, links. Never paste private data here; this repository is public.

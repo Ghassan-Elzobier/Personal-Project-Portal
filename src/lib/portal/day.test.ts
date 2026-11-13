@@ -30,7 +30,9 @@ const raw: LifeRaw = {
   profile,
   weights: [],
   plans: [{ start: "2026-11-14", data: { ...plan0, cooks: sizeCooks(plan0, routine as never, 2700) } }],
-  meals: [{ day: "2026-11-14", slot: "breakfast", status: "eaten", recipe: "porridge", kcal: 600, protein: 40 }] as never,
+  meals: [
+    { day: "2026-11-14", slot: "breakfast", status: "eaten", recipe: "porridge", kcal: 600, protein: 40 },
+  ] as never,
   batches: [],
   ratings: [],
   lastHad: {},
@@ -40,8 +42,28 @@ const raw: LifeRaw = {
   sets: [],
 };
 const date = "2026-11-14";
-const study: Block = { id: "t1:2026-11-14", source: "asana", title: "Ch 3 Multidimensional grids", date, start: 570, end: 690, url: "/tasks?task=t1", editable: true, project: "PMPP 5e", taskGid: "t1" };
-const event: Block = { id: "e1:2026-11-14", source: "google", title: "Send-off", date, start: 18 * 60, end: 21 * 60, url: "https://calendar.google.com/x", editable: false };
+const study: Block = {
+  id: "t1:2026-11-14",
+  source: "asana",
+  title: "Ch 3 Multidimensional grids",
+  date,
+  start: 570,
+  end: 690,
+  url: "/tasks?task=t1",
+  editable: true,
+  project: "PMPP 5e",
+  taskGid: "t1",
+};
+const event: Block = {
+  id: "e1:2026-11-14",
+  source: "google",
+  title: "Send-off",
+  date,
+  start: 18 * 60,
+  end: 21 * 60,
+  url: "https://calendar.google.com/x",
+  editable: false,
+};
 
 test("your day is the Schedule's day: study, events and the Life plan at the Schedule's times", () => {
   const s = buildState(raw, date);
@@ -53,7 +75,10 @@ test("your day is the Schedule's day: study, events and the Life plan at the Sch
   for (const k of ["weigh", "meal", "gym", "study", "event", "cook"]) assert.ok(kinds.includes(k as never), `has ${k}`);
   // Same times as the Schedule, in order.
   for (const b of blocks) assert.equal(day.items.find((i) => i.key === b.id)?.start, b.start, b.title);
-  assert.deepEqual(day.items.map((i) => i.start), [...day.items.map((i) => i.start)].sort((a, b) => a - b));
+  assert.deepEqual(
+    day.items.map((i) => i.start),
+    [...day.items.map((i) => i.start)].sort((a, b) => a - b),
+  );
   // Life knows what is done, and what a cook makes.
   const breakfast = day.items.find((i) => i.kind === "meal" && i.title === "Breakfast")!;
   assert.equal(breakfast.done, true);

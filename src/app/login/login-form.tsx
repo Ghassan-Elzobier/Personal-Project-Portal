@@ -10,9 +10,7 @@ export function LoginForm({ next }: { next: string }) {
     return (
       <div className="space-y-2" role="status">
         <p className="font-semibold">Check your inbox</p>
-        <p className="subtext">
-          If {state.sent} has access, a sign-in link is on its way. Open it in this browser.
-        </p>
+        <p className="subtext">If {state.sent} has access, a sign-in link is on its way. Open it in this browser.</p>
       </div>
     );
   }

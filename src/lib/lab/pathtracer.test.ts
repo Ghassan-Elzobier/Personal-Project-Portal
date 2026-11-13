@@ -1,11 +1,38 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { explainPixel, frameStats, pcgHash, randomSequence, runSubgroup, subgroupPixels, tracePixel, workgroupOf } from "./pathtracer.ts";
-import { CENTRE, CODE_LINES, CODE_MAP, MODEL, PARTS, RENDERER, VIEWS, allFindings, codeHref, viewsForUnit } from "./guide.ts";
+import {
+  explainPixel,
+  frameStats,
+  pcgHash,
+  randomSequence,
+  runSubgroup,
+  subgroupPixels,
+  tracePixel,
+  workgroupOf,
+} from "./pathtracer.ts";
+import {
+  CENTRE,
+  CODE_LINES,
+  CODE_MAP,
+  MODEL,
+  PARTS,
+  RENDERER,
+  VIEWS,
+  allFindings,
+  codeHref,
+  viewsForUnit,
+} from "./guide.ts";
 import { findUnit } from "../study/plans.ts";
 
 test("pcgHash matches the shader's, checked against a C build of the same function", () => {
-  const expected: [number, number][] = [[0, 129708002], [1, 2831084092], [42, 1223963391], [719393, 1815429807], [4294967295, 3861530882], [480000, 1097323782]];
+  const expected: [number, number][] = [
+    [0, 129708002],
+    [1, 2831084092],
+    [42, 1223963391],
+    [719393, 1815429807],
+    [4294967295, 3861530882],
+    [480000, 1097323782],
+  ];
   for (const [input, output] of expected) assert.equal(pcgHash(input), output);
 });
 
@@ -22,7 +49,11 @@ test("a ray straight up escapes on the first trip, and paths stay within the cap
   const top = tracePixel(400, 0, 800, 600);
   assert.equal(top.iterations, 1);
   assert.equal(top.ended, "sky");
-  for (const [x, y] of [[400, 300], [100, 550], [620, 380]]) {
+  for (const [x, y] of [
+    [400, 300],
+    [100, 550],
+    [620, 380],
+  ]) {
     const p = tracePixel(x, y, 800, 600);
     assert.ok(p.iterations >= 1 && p.iterations <= 8);
     assert.equal(p.ended === "sky" ? p.hits.length + 1 : p.hits.length, p.iterations);
@@ -65,7 +96,10 @@ test("every view names real study units, line ranges inside the files, and numbe
     }
     assert.ok(v.steps.length >= 4 && v.steps.length <= 9, `${v.id}: figures number 1 to 9`);
     assert.ok((v.book.length || v.bookNote) && v.checks.length && v.facts.length, `${v.id}: book, checks and facts`);
-    assert.ok(PARTS.some((p) => p.id === v.part), `${v.id}: part`);
+    assert.ok(
+      PARTS.some((p) => p.id === v.part),
+      `${v.id}: part`,
+    );
   }
   assert.equal(new Set(VIEWS.map((v) => v.id)).size, VIEWS.length);
   assert.match(codeHref(["main", 804]), /\/blob\/355324b446aaee4faee8a283d5be413d508f0fe8\/src\/main\.cpp#L804$/);
@@ -77,15 +111,30 @@ test("the code map covers every line of the renderer, end to end, and every view
   for (const file of ["cmake", "main", "shader"] as const) {
     const ranges = CODE_MAP.filter((c) => c.file === file);
     assert.equal(ranges[0].from, 1, `${file} starts at line 1`);
-    for (let i = 1; i < ranges.length; i++) assert.equal(ranges[i].from, ranges[i - 1].to + 1, `${file}: gap or overlap before line ${ranges[i].from}`);
+    for (let i = 1; i < ranges.length; i++)
+      assert.equal(ranges[i].from, ranges[i - 1].to + 1, `${file}: gap or overlap before line ${ranges[i].from}`);
     assert.equal(ranges.at(-1)!.to, CODE_LINES[file], `${file} ends at its last line`);
   }
-  for (const c of CODE_MAP) for (const id of c.views) assert.ok(VIEWS.some((v) => v.id === id), `unknown view ${id}`);
-  for (const v of VIEWS) assert.ok(CODE_MAP.some((c) => c.views.includes(v.id)), `${v.id} explains no code`);
+  for (const c of CODE_MAP)
+    for (const id of c.views)
+      assert.ok(
+        VIEWS.some((v) => v.id === id),
+        `unknown view ${id}`,
+      );
+  for (const v of VIEWS)
+    assert.ok(
+      CODE_MAP.some((c) => c.views.includes(v.id)),
+      `${v.id} explains no code`,
+    );
 });
 
 test("the worked examples come from the same code path as the frame statistics", () => {
-  for (const [x, y, frame] of [[400, 300, 0], [240, 370, 0], [600, 430, 3], [5, 595, 1]]) {
+  for (const [x, y, frame] of [
+    [400, 300, 0],
+    [240, 370, 0],
+    [600, 430, 3],
+    [5, 595, 1],
+  ]) {
     const e = explainPixel(x, y, 800, 600, frame);
     assert.deepEqual(e.result, tracePixel(x, y, 800, 600, frame));
     assert.equal(e.trips.length, e.result.iterations);
@@ -95,7 +144,10 @@ test("the worked examples come from the same code path as the frame statistics",
   const first = CENTRE.trips[0];
   assert.equal(first.hit?.sphere, 0);
   assert.ok(Math.abs(first.hit!.t - 1.1946) < 1e-3);
-  assert.deepEqual(first.tests.map((t) => t.disc > 0), [true, false, false, false]);
+  assert.deepEqual(
+    first.tests.map((t) => t.disc > 0),
+    [true, false, false, false],
+  );
   // Its jitter is the second and third hash after the pixel index, as in the shader.
   const draws = randomSequence(pcgHash(400 + 300 * 800), 2).map((d) => d.value);
   assert.deepEqual(draws, CENTRE.jitter);
@@ -103,8 +155,15 @@ test("the worked examples come from the same code path as the frame statistics",
 
 test("every code reference has an anchor recorded at the pinned commit", async () => {
   const { readFileSync } = await import("node:fs");
-  const saved = JSON.parse(readFileSync(new URL("./anchors.json", import.meta.url), "utf8")) as { commit: string; anchors: Record<string, { offset: number; text: string }> };
-  assert.equal(saved.commit, RENDERER.commit, "RENDERER.commit changed: run npm run lab:anchors, then npm run lab:check");
+  const saved = JSON.parse(readFileSync(new URL("./anchors.json", import.meta.url), "utf8")) as {
+    commit: string;
+    anchors: Record<string, { offset: number; text: string }>;
+  };
+  assert.equal(
+    saved.commit,
+    RENDERER.commit,
+    "RENDERER.commit changed: run npm run lab:anchors, then npm run lab:check",
+  );
   const keys = new Set<string>();
   const add = (f: string, a: number, b?: number) => keys.add(`${f}:${a}${b ? `-${b}` : ""}`);
   for (const v of VIEWS) {

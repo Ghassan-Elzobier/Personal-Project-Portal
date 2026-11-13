@@ -8,7 +8,15 @@
 
 import { addDays } from "../dates/week.ts";
 import { labelChecks, type FoodRules, type Tag } from "./allergens.ts";
-import { fromGrams, INGREDIENTS, sainsburysSearch, toGrams, type Aisle, type Ingredient, type Unit } from "./ingredients.ts";
+import {
+  fromGrams,
+  INGREDIENTS,
+  sainsburysSearch,
+  toGrams,
+  type Aisle,
+  type Ingredient,
+  type Unit,
+} from "./ingredients.ts";
 import type { Placement, WeekPlan } from "./planner.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
@@ -50,7 +58,11 @@ export function linesFor(r: Recipe, portions: number, scale: number): { item: st
  * meals already eaten have taken their share out of stock, so they are skipped;
  * so are daily meals on days gone by.
  */
-export function weekNeeds(plan: WeekPlan, placements: Placement[], done: { cooked?: Set<string>; eaten?: Set<string>; from?: string } = {}): Need[] {
+export function weekNeeds(
+  plan: WeekPlan,
+  placements: Placement[],
+  done: { cooked?: Set<string>; eaten?: Set<string>; from?: string } = {},
+): Need[] {
   const out = new Map<string, Need>();
   const put = (item: string, qty: number, date: string, use: string) => {
     const n = out.get(item) ?? { item, qty: 0, firstUse: date, uses: [] };
@@ -102,7 +114,13 @@ function packInItemUnit(item: Ingredient, packQty: number, packUnit: Unit): numb
   return fromGrams(item, toGrams(item, packQty, packUnit));
 }
 
-export function buildList(needs: Need[], stock: StockRow[], products: Product[], rules: FoodRules, deliveredOn: string | null): ListLine[] {
+export function buildList(
+  needs: Need[],
+  stock: StockRow[],
+  products: Product[],
+  rules: FoodRules,
+  deliveredOn: string | null,
+): ListLine[] {
   const stockOf = new Map(stock.map((s) => [s.item, s]));
   const productOf = new Map(products.map((p) => [p.item, p]));
   const lines: ListLine[] = [];
@@ -140,14 +158,30 @@ export function buildList(needs: Need[], stock: StockRow[], products: Product[],
       product,
       checks: labelChecks(rules, item.watch).filter((t) => !product?.checked.includes(t)),
       firstUse: n.firstUse,
-      freezeOnArrival: Boolean(packs > 0 && deliveredOn && item.storage === "fridge" && dayGap(deliveredOn, n.firstUse) > keepsDays),
+      freezeOnArrival: Boolean(
+        packs > 0 && deliveredOn && item.storage === "fridge" && dayGap(deliveredOn, n.firstUse) > keepsDays,
+      ),
       uses: n.uses,
     });
   }
-  return lines.sort((a, b) => AISLES.indexOf(a.item.aisle) - AISLES.indexOf(b.item.aisle) || a.item.name.localeCompare(b.item.name));
+  return lines.sort(
+    (a, b) => AISLES.indexOf(a.item.aisle) - AISLES.indexOf(b.item.aisle) || a.item.name.localeCompare(b.item.name),
+  );
 }
 
-export const AISLES: Aisle[] = ["Fruit & veg", "Meat & fish", "Dairy", "Bakery", "Pasta, rice & grains", "Tins & jars", "Sauces & oils", "Herbs & spices", "Baking", "Frozen", "Supplements"];
+export const AISLES: Aisle[] = [
+  "Fruit & veg",
+  "Meat & fish",
+  "Dairy",
+  "Bakery",
+  "Pasta, rice & grains",
+  "Tins & jars",
+  "Sauces & oils",
+  "Herbs & spices",
+  "Baking",
+  "Frozen",
+  "Supplements",
+];
 
 function dayGap(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
@@ -158,15 +192,31 @@ function dayGap(a: string, b: string): number {
  * (spices, oil, flour, protein powder) last for weeks, so they are a stock-up,
  * not part of what a week of eating costs.
  */
-export function listTotal(lines: ListLine[]): { pence: number; estimated: boolean; packs: number; food: number; cupboard: number } {
+export function listTotal(lines: ListLine[]): {
+  pence: number;
+  estimated: boolean;
+  packs: number;
+  food: number;
+  cupboard: number;
+} {
   const buying = lines.filter((l) => l.packs > 0);
   const cupboard = buying.filter((l) => l.item.staple).reduce((s, l) => s + l.pence, 0);
   const pence = buying.reduce((s, l) => s + l.pence, 0);
-  return { pence, estimated: buying.some((l) => l.priced === "estimate"), packs: buying.reduce((s, l) => s + l.packs, 0), food: pence - cupboard, cupboard };
+  return {
+    pence,
+    estimated: buying.some((l) => l.priced === "estimate"),
+    packs: buying.reduce((s, l) => s + l.packs, 0),
+    food: pence - cupboard,
+    cupboard,
+  };
 }
 
 /** Stock changes when a delivery's ticked lines arrive. */
-export function delivery(lines: ListLine[], got: string[], deliveredOn: string): { item: string; add: number; status: "have" | null; goodUntil: string | null }[] {
+export function delivery(
+  lines: ListLine[],
+  got: string[],
+  deliveredOn: string,
+): { item: string; add: number; status: "have" | null; goodUntil: string | null }[] {
   return lines
     .filter((l) => l.packs > 0 && got.includes(l.item.key))
     .map((l) => ({

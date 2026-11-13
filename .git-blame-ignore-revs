@@ -1,0 +1,5 @@
+# Formatting-only commits. GitHub and `git blame --ignore-revs-file` skip these.
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Prettier and Tailwind class sorting across the codebase
+70393637b3817a3253cb21db67d3a93b702c205b

@@ -38,7 +38,8 @@ test("label checks skip forms the rules allow", () => {
 
 test("legumes expand to every legume, peanut included", () => {
   const tags = expandGroups(["legumes"]);
-  for (const t of ["peanut", "soy", "pea", "chickpea", "lentil", "bean", "fenugreek", "tamarind"]) assert.ok(tags.includes(t as never), t);
+  for (const t of ["peanut", "soy", "pea", "chickpea", "lentil", "bean", "fenugreek", "tamarind"])
+    assert.ok(tags.includes(t as never), t);
 });
 
 test("parsing drops unknown tags, forms and duplicates", () => {

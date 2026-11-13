@@ -1,0 +1,33 @@
+# The shortcuts check (scripts/guard.mjs): migrations stay append-only, the lint
+# and accessibility ratchets only tighten, and changing an existing test or
+# screenshot needs the owner's "approved-test-change" label. Its own workflow,
+# so adding that label re-runs only this.
+name: Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/guard.mjs "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}

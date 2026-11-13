@@ -39,7 +39,7 @@ Everyone signs in with Google or an email link (invited accounts only), so mento
 
 ## How it fits together
 
-- **Next.js 15** (App Router, server actions) on **Vercel**.
+- **Next.js 16** (App Router, server actions) on **Vercel**.
 - **Supabase Auth** for sign-in. The database holds access only, in a private
   `portal` schema reached through four RPCs
   (`supabase/migrations/20261104190000_portal_access.sql`).
@@ -127,25 +127,35 @@ src/
     life/       Meals, the kitchen, the gym and the body: food rules, recipes, the planner, shopping and progression.
     library/    The book library: search, reading and the PDF.
     connector/  The Claude connector (MCP and OAuth).
-    dates/      Weeks and time zones.
+    dates/      Weeks, time zones and the clock.
     portal/     What pages show, and every change the portal makes.
     study/      The study plans for each book and the renderer, reviews and results.
     supabase/   Supabase clients.
     tasks/      The task model, both backends and the switch between them.
-scripts/       One-off loaders, such as the book.
-supabase/       Migrations, database tests and auth config.
-docs/           Setup and launch guides.
+e2e/           End-to-end, accessibility and screenshot suites (Playwright).
+scripts/       Loaders such as the book, and the factory's tools (e2e, guard, health).
+supabase/       Migrations, database tests, test seed data and local config.
+docs/           Setup and launch guides, the factory, design and architecture.
+.claude/        Claude Code rules, skills, hooks and settings for this project.
+.github/        CI, the guard, release, Claude workflows, issue forms.
 ```
 
-Tests sit next to the code they cover, as `*.test.ts`.
+Tests sit next to the code they cover, as `*.test.ts`. The design system is at `/design`.
 
 Setup: [docs/SETUP.md](docs/SETUP.md).
 
-## Checks
+## How it gets built
+
+Changes are made through a software factory: agents work inside a harness of
+rules, checks and workflows, and every change arrives as a pull request that has
+already proved itself. It keeps the design cohesive, refactors weekly and
+improves itself. How it works, why, and the one-time setup: [docs/FACTORY.md](docs/FACTORY.md).
+Agents start from [AGENTS.md](AGENTS.md).
 
 ```sh
-npm run lint
-npm run typecheck
-npm test              # unit tests, including the shader model and book search
-supabase test db      # pgTAP tests for access rules
+npm run check         # format, lint, types, unit tests, dead code
+npm run test:e2e      # every page at phone and desktop sizes, accessibility, screenshots
+npm run test:db       # pgTAP tests for access rules (npm run db:start first)
+npm run guard         # what CI's guard checks: migrations, ratchets, protected tests
+npm run health        # the refactor queue
 ```

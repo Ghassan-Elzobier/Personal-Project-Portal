@@ -20,14 +20,21 @@ export function Toaster() {
     const onToast = (e: Event) => {
       const t = (e as CustomEvent<Toast>).detail;
       setToasts((list) => [...list.slice(-2), t]);
-      window.setTimeout(() => setToasts((list) => list.filter((x) => x.id !== t.id)), t.action || t.tone === "error" ? 7000 : 3500);
+      window.setTimeout(
+        () => setToasts((list) => list.filter((x) => x.id !== t.id)),
+        t.action || t.tone === "error" ? 7000 : 3500,
+      );
     };
     window.addEventListener(EVENT, onToast);
     return () => window.removeEventListener(EVENT, onToast);
   }, []);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 md:bottom-6" aria-live="polite" role="status">
+    <div
+      className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 md:bottom-6"
+      aria-live="polite"
+      role="status"
+    >
       {toasts.map((t) => (
         <div
           key={t.id}

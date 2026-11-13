@@ -43,7 +43,14 @@ export type WeekPlan = {
 };
 
 /** A cooked batch with portions left, from the kitchen. */
-export type StockBatch = { gid: string; recipe: string; cookedOn: string; left: number; location: "fridge" | "freezer"; scale: number };
+export type StockBatch = {
+  gid: string;
+  recipe: string;
+  cookedOn: string;
+  left: number;
+  location: "fridge" | "freezer";
+  scale: number;
+};
 
 export type Placement = {
   id: string;
@@ -76,14 +83,16 @@ export type Routine = {
 
 /** When a slot is eaten on a date. */
 export function slotTime(routine: Routine, date: string, slot: Slot): number {
-  if (slot === "shake" && routine.gymEnd !== undefined && routine.gymDays?.includes(weekdayIndex(date))) return Math.min(23 * 60, routine.gymEnd + 10);
+  if (slot === "shake" && routine.gymEnd !== undefined && routine.gymDays?.includes(weekdayIndex(date)))
+    return Math.min(23 * 60, routine.gymEnd + 10);
   return routine[slot];
 }
 
 export const slotId = (date: string, slot: Slot) => `${date}:${slot}`;
 
 const DAY = 86_400_000;
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY);
+const daysBetween = (a: string, b: string) =>
+  Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY);
 
 export function weekDays(start: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
@@ -127,11 +136,31 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
   const pools: Pool[] = [];
   for (const b of stock) {
     const r = recipe(b.recipe);
-    if (r && b.left > 0) pools.push({ key: `b${b.gid}`, recipe: r, cookedOn: b.cookedOn, readyAt: -Infinity, left: b.left, scale: b.scale, location: b.location, batchGid: b.gid });
+    if (r && b.left > 0)
+      pools.push({
+        key: `b${b.gid}`,
+        recipe: r,
+        cookedOn: b.cookedOn,
+        readyAt: -Infinity,
+        left: b.left,
+        scale: b.scale,
+        location: b.location,
+        batchGid: b.gid,
+      });
   }
   for (const c of plan.cooks) {
     const r = recipe(c.recipe);
-    if (r && c.portions > 0) pools.push({ key: `c${c.id}`, recipe: r, cookedOn: c.date, readyAt: minuteOf(plan.start, c.date, c.start) + r.totalMin, left: c.portions, scale: c.scale, location: "plan", cookId: c.id });
+    if (r && c.portions > 0)
+      pools.push({
+        key: `c${c.id}`,
+        recipe: r,
+        cookedOn: c.date,
+        readyAt: minuteOf(plan.start, c.date, c.start) + r.totalMin,
+        left: c.portions,
+        scale: c.scale,
+        location: "plan",
+        cookId: c.id,
+      });
   }
   const fresh = new Map(plan.fresh.map((f) => [slotId(f.date, f.slot), f.recipe]));
   const out = new Set(plan.out);
@@ -162,7 +191,8 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
       }
       const at = minuteOf(plan.start, date, time);
       const wantMeal = slot === "breakfast" ? "breakfast" : "main";
-      const sameDay = slot === "dinner" ? placements.find((p) => p.date === date && p.slot === "lunch")?.recipe : undefined;
+      const sameDay =
+        slot === "dinner" ? placements.find((p) => p.date === date && p.slot === "lunch")?.recipe : undefined;
       const recent = history[slot];
       const candidates = pools
         .filter((p) => p.left > 0 && p.recipe.meal === wantMeal && p.readyAt <= at)
@@ -238,7 +268,11 @@ function compare(a: number[], b: number[]): number {
 /** Portions left in each planned cook once the week is filled: these go to the freezer. */
 export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string; recipe: string; portions: number }[] {
   return plan.cooks
-    .map((c) => ({ cookId: c.id, recipe: c.recipe, portions: c.portions - placements.filter((p) => p.cookId === c.id).length }))
+    .map((c) => ({
+      cookId: c.id,
+      recipe: c.recipe,
+      portions: c.portions - placements.filter((p) => p.cookId === c.id).length,
+    }))
     .filter((s) => s.portions > 0);
 }
 
@@ -267,7 +301,15 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
   sessions.forEach((at, i) => {
     const group = mains.filter((c) => minuteOf(plan.start, c.date, c.start) === at);
     const ready = at + Math.max(...group.map((c) => recipe(c.recipe)!.totalMin));
-    const until = sessions[i + 1] !== undefined ? sessions[i + 1] + Math.max(...mains.filter((c) => minuteOf(plan.start, c.date, c.start) === sessions[i + 1]).map((c) => recipe(c.recipe)!.totalMin)) : Infinity;
+    const until =
+      sessions[i + 1] !== undefined
+        ? sessions[i + 1] +
+          Math.max(
+            ...mains
+              .filter((c) => minuteOf(plan.start, c.date, c.start) === sessions[i + 1])
+              .map((c) => recipe(c.recipe)!.totalMin),
+          )
+        : Infinity;
     const need = slots.filter((s) => s >= ready && s < until).length;
     const each = Math.floor(need / group.length);
     let extra = need - each * group.length;
@@ -280,7 +322,12 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
   return plan.cooks.map((c) => {
     const r = recipe(c.recipe);
     if (!r) return c;
-    if (r.meal === "breakfast") return { ...c, portions: c.portions || breakfastPortions(plan, c, r), scale: portionScale(r, kcal * SPLIT.breakfast) };
+    if (r.meal === "breakfast")
+      return {
+        ...c,
+        portions: c.portions || breakfastPortions(plan, c, r),
+        scale: portionScale(r, kcal * SPLIT.breakfast),
+      };
     return { ...c, portions: sized.get(c.id) ?? c.portions, scale: cookScale(r, kcal) };
   });
 }
@@ -303,9 +350,15 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
   const freezeByCook = new Map<string, number>();
   for (const p of placements) {
     if (p.storage === "freezer" && p.defrostOn) {
-      out.push({ date: p.defrostOn, time: 21 * 60, kind: "defrost", text: `Move ${name(p.recipe)} from the freezer to the fridge for tomorrow's ${p.slot}.` });
+      out.push({
+        date: p.defrostOn,
+        time: 21 * 60,
+        kind: "defrost",
+        text: `Move ${name(p.recipe)} from the freezer to the fridge for tomorrow's ${p.slot}.`,
+      });
     }
-    if (p.storage === "freezer" && p.source === "cook" && p.cookId) freezeByCook.set(p.cookId, (freezeByCook.get(p.cookId) ?? 0) + 1);
+    if (p.storage === "freezer" && p.source === "cook" && p.cookId)
+      freezeByCook.set(p.cookId, (freezeByCook.get(p.cookId) ?? 0) + 1);
   }
   for (const s of spare(plan, placements)) {
     const r = recipe(s.recipe);
@@ -315,8 +368,19 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
     const n = freezeByCook.get(c.id);
     const r = recipe(c.recipe);
     if (!r) continue;
-    out.push({ date: c.date, time: c.start, kind: "cook", text: `Cook ${r.name}: ${c.portions} ${c.portions === 1 ? "portion" : "portions"}.` });
-    if (n) out.push({ date: c.date, time: c.start + r.totalMin + 30, kind: "freeze", text: `Freeze ${n} ${n === 1 ? "portion" : "portions"} of ${r.name} once cool${r.keeps.rice ? " (within an hour: rice)" : ""}.` });
+    out.push({
+      date: c.date,
+      time: c.start,
+      kind: "cook",
+      text: `Cook ${r.name}: ${c.portions} ${c.portions === 1 ? "portion" : "portions"}.`,
+    });
+    if (n)
+      out.push({
+        date: c.date,
+        time: c.start + r.totalMin + 30,
+        kind: "freeze",
+        text: `Freeze ${n} ${n === 1 ? "portion" : "portions"} of ${r.name} once cool${r.keeps.rice ? " (within an hour: rice)" : ""}.`,
+      });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.time - b.time);
 }

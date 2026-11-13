@@ -38,11 +38,14 @@ test("every recipe passes the strict rules the library is written for", () => {
 });
 
 test("no five-spice, sweet chilli or BBQ sauce: the library keeps sweet out of savoury", () => {
-  for (const r of RECIPES) for (const l of r.lines) assert.ok(!["five-spice", "sweet-chilli", "bbq-sauce", "pineapple"].includes(l.item), `${r.key}: ${l.item}`);
+  for (const r of RECIPES)
+    for (const l of r.lines)
+      assert.ok(!["five-spice", "sweet-chilli", "bbq-sauce", "pineapple"].includes(l.item), `${r.key}: ${l.item}`);
 });
 
 test("egg always says how it is used", () => {
-  for (const r of RECIPES) for (const l of r.lines) if (l.item === "egg") assert.ok(l.form, `${r.key} uses egg without a form`);
+  for (const r of RECIPES)
+    for (const l of r.lines) if (l.item === "egg") assert.ok(l.form, `${r.key} uses egg without a form`);
 });
 
 test("portions are bulking-sized and high in protein", () => {

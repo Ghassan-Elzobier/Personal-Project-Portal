@@ -19,8 +19,7 @@ export default async function WeekPage() {
       .filter((p) => p.key !== "weekly-log")
       .map(async (p) => ({ p, s: await attempt(() => weekSummary(p.key, week)) })),
   );
-  const totalHours =
-    Math.round(study.reduce((sum, { s }) => sum + (s.ok ? s.value.hours : 0), 0) * 100) / 100;
+  const totalHours = Math.round(study.reduce((sum, { s }) => sum + (s.ok ? s.value.hours : 0), 0) * 100) / 100;
   // The weekly log's update reports every project's hours, so it goes last.
   const weekly = configured.find((p) => p.key === "weekly-log");
   const summaries = weekly
@@ -30,20 +29,22 @@ export default async function WeekPage() {
   return (
     <div className="space-y-10">
       <PageHeader eyebrow={`Week of ${shortDate(week.start)} to ${shortDate(week.end)}`} title="Sunday update">
-        Each draft comes from this week&apos;s logged sessions and task changes. Edit the &quot;Blocked / questions&quot;
-        line, since that is the one mentors read most, then post it.
+        Each draft comes from this week&apos;s logged sessions and task changes. Edit the &quot;Blocked /
+        questions&quot; line, since that is the one mentors read most, then post it.
       </PageHeader>
 
       <p className="text-sm text-neutral-400">
-        <span className="text-white">{summaries.filter(({ s }) => s.ok && s.value.posted).length} of {summaries.length}</span> posted.
-        Study hours logged this week: <span className="text-white">{totalHours} h</span>.
+        <span className="text-white">
+          {summaries.filter(({ s }) => s.ok && s.value.posted).length} of {summaries.length}
+        </span>{" "}
+        posted. Study hours logged this week: <span className="text-white">{totalHours} h</span>.
       </p>
 
       {configured.length === 0 && <Empty>No projects are configured yet.</Empty>}
 
       <ul className="space-y-6">
         {summaries.map(({ p, s }) => (
-          <li key={p.key} className="card space-y-4 p-6">
+          <li key={p.key} className="space-y-4 card p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">{p.area}</p>

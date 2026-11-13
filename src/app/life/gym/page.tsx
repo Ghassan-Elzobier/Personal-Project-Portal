@@ -47,12 +47,16 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
       return {
         key: ex.key,
         name: ex.name,
-        swappedFrom: ex.key !== p.exercise ? EXERCISE_MAP.get(p.exercise)?.name ?? null : null,
+        swappedFrom: ex.key !== p.exercise ? (EXERCISE_MAP.get(p.exercise)?.name ?? null) : null,
         perSide: Boolean(ex.perSide),
         cues: ex.cues,
         back: ex.back ?? null,
         demo: demoFor(ex),
-        weighted: ex.load !== "time" && ex.load !== "distance" && ex.load !== "ball" && !(ex.load === "bodyweight" && ex.step === 0),
+        weighted:
+          ex.load !== "time" &&
+          ex.load !== "distance" &&
+          ex.load !== "ball" &&
+          !(ex.load === "bodyweight" && ex.step === 0),
         added: ex.load === "bodyweight",
         unit: p.scheme === "timed" ? (ex.load === "distance" || ex.key === "farmer-carry" ? "m" : "s") : "reps",
         step: ex.step,
@@ -64,7 +68,9 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         target: t.sets,
         change: t.change,
         why: t.why,
-        logged: s.sets.filter((x) => x.day === today && x.exercise === ex.key).map((x) => ({ position: x.position, kg: x.kg, reps: x.reps ?? 0, rir: x.rir })),
+        logged: s.sets
+          .filter((x) => x.day === today && x.exercise === ex.key)
+          .map((x) => ({ position: x.position, kg: x.kg, reps: x.reps ?? 0, rir: x.rir })),
       };
     }),
   }));
@@ -77,7 +83,10 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
   const best = (day: string, ex: string) =>
     s.sets
       .filter((x) => x.day === day && x.exercise === ex && x.kg && x.reps)
-      .reduce<{ kg: number; reps: number } | null>((b, x) => (!b || x.kg! > b.kg ? { kg: x.kg!, reps: x.reps! } : b), null);
+      .reduce<{ kg: number; reps: number } | null>(
+        (b, x) => (!b || x.kg! > b.kg ? { kg: x.kg!, reps: x.reps! } : b),
+        null,
+      );
   const recent = [...s.sessions].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 6);
 
   return (
@@ -101,10 +110,14 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
           </div>
         }
       >
-        {PROGRAM.name}. {key === suggested ? "Next in the rotation:" : "You picked:"} <span className="text-white">{w.key}, {w.name}.</span> {w.focus}
+        {PROGRAM.name}. {key === suggested ? "Next in the rotation:" : "You picked:"}{" "}
+        <span className="text-white">
+          {w.key}, {w.name}.
+        </span>{" "}
+        {w.focus}
       </LifeHeader>
 
-      <section className="card-life grid grid-cols-3 gap-3 text-center" aria-label="This week">
+      <section className="grid grid-cols-3 gap-3 card-life text-center" aria-label="This week">
         <div>
           <p className="text-2xl font-bold tabular-nums">
             {week.done}
@@ -117,15 +130,17 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
           <p className="text-xs text-neutral-400">{week.streak === 1 ? "full week" : "full weeks"} in a row</p>
         </div>
         <div>
-          <p className="text-2xl font-bold tabular-nums">{series.length ? `${Math.round(series[series.length - 1].e1rm)}` : "–"}</p>
+          <p className="text-2xl font-bold tabular-nums">
+            {series.length ? `${Math.round(series[series.length - 1].e1rm)}` : "–"}
+          </p>
           <p className="text-xs text-neutral-400">bench estimate, kg</p>
         </div>
       </section>
 
       {returning && (
         <p className="rounded-xl bg-sand/10 p-3 text-sm text-sand ring-1 ring-sand/25">
-          Coming back from a break: for the first two weeks every set stops with one more rep in reserve than written. Strength returns fast; tendons and
-          soreness take longer.
+          Coming back from a break: for the first two weeks every set stops with one more rep in reserve than written.
+          Strength returns fast; tendons and soreness take longer.
         </p>
       )}
 
@@ -141,26 +156,43 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         started={Boolean(session)}
       />
 
-      <section className="card-life space-y-3" aria-labelledby="bench-title">
+      <section className="space-y-3 card-life" aria-labelledby="bench-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="bench-title" className="text-lg font-semibold">
             Bench press{goal ? ` to ${goal} kg` : ""}
           </h2>
-          {forecast?.eta && <Chip tone="mint">On pace for {new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${forecast.eta}T12:00:00Z`))}</Chip>}
+          {forecast?.eta && (
+            <Chip tone="mint">
+              On pace for{" "}
+              {new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(
+                new Date(`${forecast.eta}T12:00:00Z`),
+              )}
+            </Chip>
+          )}
         </div>
         {series.length ? (
-          <LineChart points={series.map((p) => ({ x: p.day, y: p.e1rm }))} goal={goal ?? undefined} unit="kg" label="Estimated one-rep max, best set of each heavy bench day" />
+          <LineChart
+            points={series.map((p) => ({ x: p.day, y: p.e1rm }))}
+            goal={goal ?? undefined}
+            unit="kg"
+            label="Estimated one-rep max, best set of each heavy bench day"
+          />
         ) : (
-          <p className="text-sm text-neutral-400">Your estimated max appears after the first heavy bench day (session A).</p>
+          <p className="text-sm text-neutral-400">
+            Your estimated max appears after the first heavy bench day (session A).
+          </p>
         )}
         <p className="text-sm text-neutral-300">
-          {forecast?.note ?? "Estimated from your best set each day, with reps in reserve counted (Epley). A forecast, not a promise: it moves every session."}
+          {forecast?.note ??
+            "Estimated from your best set each day, with reps in reserve counted (Epley). A forecast, not a promise: it moves every session."}
           {forecast?.eta ? " Reaching it also needs the body weight: eat the plan." : ""}
         </p>
-        <p className="text-xs text-neutral-500">Paused and close-grip days count too, but only the full bench is on the chart.</p>
+        <p className="text-xs text-neutral-500">
+          Paused and close-grip days count too, but only the full bench is on the chart.
+        </p>
       </section>
 
-      <section className="card-life space-y-3" aria-labelledby="history-title">
+      <section className="space-y-3 card-life" aria-labelledby="history-title">
         <h2 id="history-title" className="text-lg font-semibold">
           Recent sessions
         </h2>
@@ -172,11 +204,16 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
               return (
                 <li key={r.day} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 text-sm">
                   <span>
-                    <span className="font-medium">{weekdayShort(r.day)} {r.day.slice(8)}/{r.day.slice(5, 7)}</span> · {r.workout}, {workout(r.workout)?.name}
+                    <span className="font-medium">
+                      {weekdayShort(r.day)} {r.day.slice(8)}/{r.day.slice(5, 7)}
+                    </span>{" "}
+                    · {r.workout}, {workout(r.workout)?.name}
                   </span>
                   <span className="text-xs text-neutral-400 tabular-nums">
                     {sets} sets
-                    {lift?.best ? ` · ${EXERCISE_MAP.get(lift.b)?.name.toLowerCase()} ${lift.best.kg} × ${lift.best.reps}` : ""}
+                    {lift?.best
+                      ? ` · ${EXERCISE_MAP.get(lift.b)?.name.toLowerCase()} ${lift.best.kg} × ${lift.best.reps}`
+                      : ""}
                     {lift?.best ? ` (≈${Math.round(e1rm(lift.best.kg, lift.best.reps) ?? 0)})` : ""}
                     {r.finished ? "" : " · not finished"}
                   </span>
@@ -185,17 +222,21 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
             })}
           </ul>
         ) : (
-          <p className="text-sm text-neutral-400">Nothing logged yet. Your first session starts with the first set you tick.</p>
+          <p className="text-sm text-neutral-400">
+            Nothing logged yet. Your first session starts with the first set you tick.
+          </p>
         )}
       </section>
 
-      <section className="card-life space-y-3" aria-labelledby="program-title">
+      <section className="space-y-3 card-life" aria-labelledby="program-title">
         <h2 id="program-title" className="text-lg font-semibold">
           The programme
         </h2>
         <p className="text-sm text-neutral-300">{PROGRAM.summary}</p>
         <p className="text-sm text-neutral-300">
-          Days: {s.profile.gym.days.map((d) => DAYS[d]).join(", ")} at {String(Math.floor(s.profile.gym.start / 60)).padStart(2, "0")}:{String(s.profile.gym.start % 60).padStart(2, "0")}.{" "}
+          Days: {s.profile.gym.days.map((d) => DAYS[d]).join(", ")} at{" "}
+          {String(Math.floor(s.profile.gym.start / 60)).padStart(2, "0")}:
+          {String(s.profile.gym.start % 60).padStart(2, "0")}.{" "}
           <Link href="/life/settings#gym" className="text-mint hover:underline">
             Change
           </Link>
@@ -207,23 +248,31 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
                 {x.key} · {x.name}
               </p>
               <ul className="mt-1 space-y-0.5 text-xs text-neutral-400">
-                {x.blocks.flatMap((b) => b.items).map((p) => {
-                  const ex = resolve(p.exercise, s.profile.gym.missing);
-                  return (
-                    <li key={p.exercise}>
-                      {ex?.name}: {p.note ?? `${p.sets} × ${p.reps[0] === p.reps[1] ? p.reps[0] : `${p.reps[0]}–${p.reps[1]}`}`}
-                    </li>
-                  );
-                })}
+                {x.blocks
+                  .flatMap((b) => b.items)
+                  .map((p) => {
+                    const ex = resolve(p.exercise, s.profile.gym.missing);
+                    return (
+                      <li key={p.exercise}>
+                        {ex?.name}:{" "}
+                        {p.note ?? `${p.sets} × ${p.reps[0] === p.reps[1] ? p.reps[0] : `${p.reps[0]}–${p.reps[1]}`}`}
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           ))}
         </div>
         <p className="text-xs text-neutral-500">
-          Missing a piece of kit? Tell Settings what your gym lacks, and every exercise that needs it swaps for its alternative.
+          Missing a piece of kit? Tell Settings what your gym lacks, and every exercise that needs it swaps for its
+          alternative.
         </p>
         <p className="text-xs text-neutral-500">
-          Sessions are on the <Link href="/schedule" className="underline decoration-white/30 underline-offset-2 hover:text-white">Schedule</Link> and in Google Calendar on your gym days, with the workout the rotation says is next.
+          Sessions are on the{" "}
+          <Link href="/schedule" className="underline decoration-white/30 underline-offset-2 hover:text-white">
+            Schedule
+          </Link>{" "}
+          and in Google Calendar on your gym days, with the workout the rotation says is next.
         </p>
       </section>
     </div>

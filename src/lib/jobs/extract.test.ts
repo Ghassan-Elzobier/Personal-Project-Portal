@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { advertText, extractRequirements, headingSection, seniorityOf } from "./extract.ts";
 
-const levels = (text: string) => Object.fromEntries(extractRequirements(text).requirements.map((r) => [r.skill, r.level]));
-const groupOf = (text: string, skill: string) => extractRequirements(text).requirements.find((r) => r.skill === skill)?.group;
+const levels = (text: string) =>
+  Object.fromEntries(extractRequirements(text).requirements.map((r) => [r.skill, r.level]));
+const groupOf = (text: string, skill: string) =>
+  extractRequirements(text).requirements.find((r) => r.skill === skill)?.group;
 
 test("advert HTML becomes the lines a reader sees", () => {
   const text = advertText("<h2>Requirements</h2><ul><li>C++ &amp; Python</li><li>Vulkan</li></ul><p>Thanks</p>");
@@ -35,12 +37,16 @@ test("headings are told apart from sentences", () => {
 });
 
 test("a skill takes its level from the section it sits in", () => {
-  const found = levels(["Responsibilities", "- Write Vulkan code", "Requirements", "- Strong C++", "Nice to have", "- Rust"].join("\n"));
+  const found = levels(
+    ["Responsibilities", "- Write Vulkan code", "Requirements", "- Strong C++", "Nice to have", "- Rust"].join("\n"),
+  );
   assert.deepEqual(found, { vulkan: "responsibility", cpp: "required", rust: "preferred" });
 });
 
 test("company talk before the first heading is ignored when the advert has headings", () => {
-  assert.deepEqual(levels(["We build Vulkan tools for everyone.", "Requirements", "- C++"].join("\n")), { cpp: "required" });
+  assert.deepEqual(levels(["We build Vulkan tools for everyone.", "Requirements", "- C++"].join("\n")), {
+    cpp: "required",
+  });
 });
 
 test("an advert with no headings is read as unstated, not as required", () => {
@@ -52,14 +58,24 @@ test("an advert listing only duties still says what the job takes", () => {
 });
 
 test("a clause softened in a required section counts as wanted, not required", () => {
-  const found = levels(["Key Qualifications", "- Understanding of meshes; knowledge in 3D Gaussian Splatting is a nice to have.", "- Vulkan is not required"].join("\n"));
+  const found = levels(
+    [
+      "Key Qualifications",
+      "- Understanding of meshes; knowledge in 3D Gaussian Splatting is a nice to have.",
+      "- Vulkan is not required",
+    ].join("\n"),
+  );
   assert.equal(found.geometry, "required");
   assert.equal(found["gaussian-splatting"], "preferred");
   assert.equal(found.vulkan, "preferred");
 });
 
 test("degree subjects are not skills", () => {
-  const found = levels(["Requirements", "- Bachelor's degree in computer science, machine learning or computer vision", "- PyTorch"].join("\n"));
+  const found = levels(
+    ["Requirements", "- Bachelor's degree in computer science, machine learning or computer vision", "- PyTorch"].join(
+      "\n",
+    ),
+  );
   assert.deepEqual(found, { pytorch: "required" });
 });
 
@@ -87,7 +103,15 @@ test("every requirement quotes the advert it came from", () => {
 });
 
 test("years, clearance, sponsorship and early-career notes are picked up", () => {
-  const { details } = extractRequirements(["Requirements", "- 5+ years of C++ experience", "- You must hold SC clearance or be clearable", "We are unable to sponsor visas.", "Open to early-career engineers"].join("\n"));
+  const { details } = extractRequirements(
+    [
+      "Requirements",
+      "- 5+ years of C++ experience",
+      "- You must hold SC clearance or be clearable",
+      "We are unable to sponsor visas.",
+      "Open to early-career engineers",
+    ].join("\n"),
+  );
   assert.equal(details.years, 5);
   assert.equal(details.clearance, true);
   assert.equal(details.noSponsorship, true);

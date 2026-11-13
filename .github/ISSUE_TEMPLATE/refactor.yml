@@ -1,0 +1,23 @@
+name: Refactor
+description: Improve the structure without changing what anyone sees. Picked up by the weekly refactor run.
+labels: [refactor]
+body:
+  - type: textarea
+    id: smell
+    attributes:
+      label: What is wrong with the structure now?
+      description: The duplication, the boundary it crosses, the rule it breaks (link the file and line).
+    validations:
+      required: true
+  - type: textarea
+    id: target
+    attributes:
+      label: What should it look like after?
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: What proves nothing changed?
+      description: Usually unchanged screenshots and tests. Name any check to add first if coverage is thin.
+      value: Screenshots unchanged, unit and end-to-end tests green, the suppression count goes down.

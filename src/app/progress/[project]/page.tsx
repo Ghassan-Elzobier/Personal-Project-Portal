@@ -11,7 +11,19 @@ import { BenchmarkTable } from "../../study/benchmarks";
 import { allTasks, attempt, latestStatus, today, type TaskView } from "@/lib/portal/data";
 import { isProjectKey, projectDef } from "@/lib/config/projects";
 import { formatHours } from "@/lib/tasks/session-log";
-import { DueDate, Empty, ErrorNote, EvidenceLink, Hours, PageHeader, SectionTitle, StagePill, StatusPill, TaskLink } from "@/components/ui";
+import {
+  DueDate,
+  Empty,
+  ErrorNote,
+  EvidenceLink,
+  Hours,
+  PageHeader,
+  SectionTitle,
+  StagePill,
+  StatusPill,
+  TaskLink,
+} from "@/components/ui";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +44,7 @@ export default async function ProjectProgress({ params }: Params) {
 
   const def = projectDef(project);
   const tz = timeZone();
-  const now = new Date();
+  const now = clockNow();
   const chartSince = midnightIn(addDays(weekOf(now, tz).start, -7 * (CHART_WEEKS - 1)), tz);
   const [tasks, status, asana, sessions] = await Promise.all([
     attempt(() => allTasks(project)),
@@ -81,7 +93,11 @@ export default async function ProjectProgress({ params }: Params) {
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Complete" value={`${pct}%`} detail={`${done.length} of ${list.length} tasks`} bar={pct} />
-        <Stat label="Hours logged" value={`${formatHours(Math.round(totalHours * 100) / 100)} h`} detail="Across all tasks" />
+        <Stat
+          label="Hours logged"
+          value={`${formatHours(Math.round(totalHours * 100) / 100)} h`}
+          detail="Across all tasks"
+        />
         <Stat
           label="Open now"
           value={String(list.length - done.length)}
@@ -94,8 +110,9 @@ export default async function ProjectProgress({ params }: Params) {
           <SectionTitle>{progress.plan.title}</SectionTitle>
           <p className="text-sm text-neutral-300">
             {progress.core.done} of {progress.core.total} {progress.plan.unitLabel} finished
-            {progress.exercises.total > 0 && `, and ${progress.exercises.solved} of ${progress.exercises.total} exercises solved`}.
-            {" "}Optional {progress.plan.unitLabel} are not counted.
+            {progress.exercises.total > 0 &&
+              `, and ${progress.exercises.solved} of ${progress.exercises.total} exercises solved`}
+            . Optional {progress.plan.unitLabel} are not counted.
           </p>
           {benchmarks.length > 0 && <BenchmarkTable rows={benchmarks} />}
         </section>
@@ -108,12 +125,16 @@ export default async function ProjectProgress({ params }: Params) {
         {!status.ok ? (
           <ErrorNote message={status.error} />
         ) : status.value ? (
-          <div className="card space-y-3">
+          <div className="space-y-3 card">
             <div className="flex flex-wrap items-center gap-3">
               <StatusPill status={status.value.status_type} />
               <span className="font-semibold">{status.value.title}</span>
               <span className="text-xs text-neutral-400">
-                {new Date(status.value.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                {new Date(status.value.created_at).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
               </span>
             </div>
             <p className="text-sm whitespace-pre-line text-neutral-300">{status.value.text}</p>
@@ -128,12 +149,17 @@ export default async function ProjectProgress({ params }: Params) {
           <SectionTitle>Recently finished</SectionTitle>
           <ul className="space-y-2">
             {recent.map((t) => (
-              <li key={t.gid} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
+              <li
+                key={t.gid}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm"
+              >
                 <span>{t.name}</span>
                 <span className="flex items-center gap-4 text-neutral-400">
                   {t.hours > 0 && <Hours value={t.hours} />}
                   <EvidenceLink href={t.evidence} />
-                  <span>{new Date(t.completedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                  <span>
+                    {new Date(t.completedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </span>
                 </span>
               </li>
             ))}
@@ -154,7 +180,10 @@ export default async function ProjectProgress({ params }: Params) {
             </div>
             <ul className="divide-y divide-white/5">
               {items.map((t) => (
-                <li key={t.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm">
+                <li
+                  key={t.gid}
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm"
+                >
                   <span className={t.completed ? "text-neutral-400 line-through decoration-neutral-600" : ""}>
                     {isOwner ? (
                       <TaskLink href={t.url} className="hover:underline">
@@ -190,10 +219,20 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
     <section>
       <SectionTitle>Hours per week</SectionTitle>
       <div className="card">
-        <div className="flex h-40 items-end gap-1" role="img" aria-label={`Hours per week for the last ${weeks.length} weeks, latest ${formatHours(weeks[latest].hours)}, peak ${formatHours(peak)}.`}>
+        <div
+          className="flex h-40 items-end gap-1"
+          role="img"
+          aria-label={`Hours per week for the last ${weeks.length} weeks, latest ${formatHours(weeks[latest].hours)}, peak ${formatHours(peak)}.`}
+        >
           {weeks.map((w, i) => (
-            <div key={w.start} className="group relative flex h-full flex-1 flex-col items-center justify-end" title={`Week of ${shortDate(w.start)}: ${formatHours(w.hours)} h`}>
-              {(i === latest || i === peakIndex) && w.hours > 0 && <span className="mb-1 text-xs text-neutral-200 tabular-nums">{formatHours(w.hours)}</span>}
+            <div
+              key={w.start}
+              className="group relative flex h-full flex-1 flex-col items-center justify-end"
+              title={`Week of ${shortDate(w.start)}: ${formatHours(w.hours)} h`}
+            >
+              {(i === latest || i === peakIndex) && w.hours > 0 && (
+                <span className="mb-1 text-xs text-neutral-200 tabular-nums">{formatHours(w.hours)}</span>
+              )}
               <div
                 className={`w-full max-w-6 rounded-t ${i === latest ? "bg-aqua" : "bg-aqua/50"} group-hover:bg-aqua`}
                 style={{ height: `${(w.hours / peak) * 80}%`, minHeight: w.hours > 0 ? 4 : 0 }}
@@ -212,7 +251,10 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
           <caption>Hours per week</caption>
           <tbody>
             {weeks.map((w) => (
-              <tr key={w.start}><th scope="row">Week of {shortDate(w.start)}</th><td>{formatHours(w.hours)} h</td></tr>
+              <tr key={w.start}>
+                <th scope="row">Week of {shortDate(w.start)}</th>
+                <td>{formatHours(w.hours)} h</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -223,13 +265,13 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
 
 function Stat({ label, value, detail, bar }: { label: string; value: string; detail: string; bar?: number }) {
   return (
-    <div className="card space-y-1">
+    <div className="space-y-1 card">
       <dt className="text-sm text-neutral-400">{label}</dt>
       <dd className="text-3xl font-bold tabular-nums">{value}</dd>
       <dd className="text-xs text-neutral-400">{detail}</dd>
       {bar !== undefined && (
         <dd className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
-          <div className="h-full rounded-full bg-gradient-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />
+          <div className="h-full rounded-full bg-linear-to-r from-royal to-aqua" style={{ width: `${bar}%` }} />
         </dd>
       )}
     </div>

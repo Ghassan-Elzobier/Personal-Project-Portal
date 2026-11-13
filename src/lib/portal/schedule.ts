@@ -10,6 +10,7 @@ import { midnightIn } from "../dates/week";
 import type { AgendaItem } from "../life/agenda";
 import { loadLife } from "../life/load";
 import { lifeBlocks } from "./life-plan";
+import { now } from "@/lib/dates/clock";
 
 // One week of schedule: tasks with times (work), extra study sessions, Google
 // Calendar events, and the Life plan (meals, cooking, gym and the weigh-in, read
@@ -81,7 +82,7 @@ export function resolveWeek(param: string | undefined): Week {
   if (param && /^\d{4}-\d{2}-\d{2}$/.test(param) && !Number.isNaN(Date.parse(`${param}T12:00:00Z`))) {
     return weekOf(new Date(midnightIn(param, tz).getTime() + 12 * 3600 * 1000), tz);
   }
-  return weekOf(new Date(), tz);
+  return weekOf(now(), tz);
 }
 
 /** Splits a span into per-day pieces so a block past midnight shows on both days. */
@@ -180,7 +181,14 @@ export async function loadScheduleWeek(
           if (e.mirror) {
             const a = zonedParts(new Date(e.start), tz);
             const b = zonedParts(new Date(e.end), tz);
-            mirrors.push({ id: e.id, key: e.mirror, title: e.title, date: a.date, start: a.minutes, end: b.date === a.date ? b.minutes : 24 * 60 });
+            mirrors.push({
+              id: e.id,
+              key: e.mirror,
+              title: e.title,
+              date: a.date,
+              start: a.minutes,
+              end: b.date === a.date ? b.minutes : 24 * 60,
+            });
             continue;
           }
           if (e.study?.role === "slot") continue;
@@ -230,7 +238,7 @@ export async function loadScheduleWeek(
   const loaded = await lifeLoad;
   let life: AgendaItem[] = [];
   if (loaded?.state) {
-    const planned = lifeBlocks(loaded.state, days, blocks, zonedParts(new Date(), tz));
+    const planned = lifeBlocks(loaded.state, days, blocks, zonedParts(now(), tz));
     blocks.push(...planned.blocks);
     life = planned.items;
   } else if (loaded?.error) {

@@ -12,18 +12,34 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
   const due = hub.actions.filter((a) => a.next_action_on && a.next_action_on <= today);
   return (
     <section aria-label="Your goals" className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div className="card space-y-2">
+      <div className="space-y-2 card">
         <p className="eyebrow">Studying</p>
         {phase ? (
           <>
-            <p className="font-semibold">Phase {phase.index + 1} of {roadmap.phases.length}: {phase.phase.name}</p>
-            <p className="text-sm text-neutral-300 tabular-nums">{phase.done} of {phase.total} done, about {Math.round(phase.hoursLeft)} h left</p>
+            <p className="font-semibold">
+              Phase {phase.index + 1} of {roadmap.phases.length}: {phase.phase.name}
+            </p>
+            <p className="text-sm text-neutral-300 tabular-nums">
+              {phase.done} of {phase.total} done, about {Math.round(phase.hoursLeft)} h left
+            </p>
             {hub.nextUnit && (
               <p className="text-sm text-neutral-300">
                 Next:{" "}
-                {hub.nextUnit.href ? <Link href={hub.nextUnit.href} className="text-aqua underline-offset-2 hover:underline">{hub.nextUnit.name}</Link> : hub.nextUnit.name}
+                {hub.nextUnit.href ? (
+                  <Link href={hub.nextUnit.href} className="text-aqua underline-offset-2 hover:underline">
+                    {hub.nextUnit.name}
+                  </Link>
+                ) : (
+                  hub.nextUnit.name
+                )}
                 {hub.nextUnit.skills.length > 0 && (
-                  <span className="text-neutral-400">. It teaches {hub.nextUnit.skills.map((s) => `${s.name} (${s.must + s.soft} ${s.must + s.soft === 1 ? "role" : "roles"})`).join(", ")}.</span>
+                  <span className="text-neutral-400">
+                    . It teaches{" "}
+                    {hub.nextUnit.skills
+                      .map((s) => `${s.name} (${s.must + s.soft} ${s.must + s.soft === 1 ? "role" : "roles"})`)
+                      .join(", ")}
+                    .
+                  </span>
                 )}
               </p>
             )}
@@ -31,15 +47,22 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
         ) : (
           <p className="text-sm text-neutral-300">Every phase is done.</p>
         )}
-        <Link href="/study" className="block text-sm text-neutral-400 hover:text-white">Open the roadmap</Link>
+        <Link href="/study" className="block text-sm text-neutral-400 hover:text-white">
+          Open the roadmap
+        </Link>
       </div>
 
-      <div className="card space-y-2">
+      <div className="space-y-2 card">
         <p className="eyebrow">The market</p>
         {hub.closest ? (
           <p className="text-sm text-neutral-300">
             Closest role:{" "}
-            <Link href={`/jobs?role=${hub.closest.gid}`} className="font-medium text-white underline-offset-2 hover:underline">{hub.closest.title}</Link>
+            <Link
+              href={`/jobs?role=${hub.closest.gid}`}
+              className="font-medium text-white underline-offset-2 hover:underline"
+            >
+              {hub.closest.title}
+            </Link>
             <span className="text-neutral-400">, {hub.closest.company} </span>
             <BandChip band={hub.closest.fit.band} />
           </p>
@@ -49,7 +72,9 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
         {hub.biggestGap && (
           <p className="text-sm text-neutral-300">
             Biggest gap: <span className="font-medium text-white">{hub.biggestGap.skill.name}</span>
-            <span className="text-neutral-400">, required by {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.</span>
+            <span className="text-neutral-400">
+              , required by {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.
+            </span>
           </p>
         )}
         {hub.nextSkill && (
@@ -58,14 +83,18 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
             <span className="text-neutral-400">, required by {plural(hub.nextSkill.must, "role", "roles")}.</span>
           </p>
         )}
-        <Link href="/jobs?view=skills" className="block text-sm text-neutral-400 hover:text-white">See skills against the market</Link>
+        <Link href="/jobs?view=skills" className="block text-sm text-neutral-400 hover:text-white">
+          See skills against the market
+        </Link>
       </div>
 
-      <div className="card space-y-2">
+      <div className="space-y-2 card">
         <p className="eyebrow">Job hunt</p>
         <p className="text-sm text-neutral-300 tabular-nums">
           {hub.fresh > 0 ? (
-            <Link href="/jobs" className="text-white underline-offset-2 hover:underline">{plural(hub.fresh, "role", "roles")} new to you</Link>
+            <Link href="/jobs" className="text-white underline-offset-2 hover:underline">
+              {plural(hub.fresh, "role", "roles")} new to you
+            </Link>
           ) : (
             "No new roles to look at"
           )}
@@ -76,18 +105,29 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
           <ul className="space-y-1 text-sm">
             {due.slice(0, 2).map((a) => (
               <li key={a.gid}>
-                <Link href={`/jobs?view=applications&role=${a.gid}`} className="text-sand underline-offset-2 hover:underline">{a.next_action}</Link>
+                <Link
+                  href={`/jobs?view=applications&role=${a.gid}`}
+                  className="text-sand underline-offset-2 hover:underline"
+                >
+                  {a.next_action}
+                </Link>
                 <span className="text-neutral-400">, {a.company}</span>
               </li>
             ))}
           </ul>
         ) : hub.actions[0] ? (
-          <p className="text-sm text-neutral-300">Next action: {hub.actions[0].next_action}, {shortDate(hub.actions[0].next_action_on as string)}</p>
+          <p className="text-sm text-neutral-300">
+            Next action: {hub.actions[0].next_action}, {shortDate(hub.actions[0].next_action_on as string)}
+          </p>
         ) : (
           <p className="text-sm text-neutral-400">Nothing due. Choose up to two things to do this week.</p>
         )}
-        {hub.failing > 0 && <p className="text-sm text-coral">{plural(hub.failing, "feed", "feeds")} could not be read last time.</p>}
-        <Link href="/jobs?view=applications" className="block text-sm text-neutral-400 hover:text-white">Open applications</Link>
+        {hub.failing > 0 && (
+          <p className="text-sm text-coral">{plural(hub.failing, "feed", "feeds")} could not be read last time.</p>
+        )}
+        <Link href="/jobs?view=applications" className="block text-sm text-neutral-400 hover:text-white">
+          Open applications
+        </Link>
       </div>
     </section>
   );

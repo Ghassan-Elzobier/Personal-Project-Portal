@@ -31,14 +31,15 @@ work data.
 
 ## 2. Supabase
 
-With the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started):
+With the Supabase CLI, pinned in `package.json` (v3: commands act on the local
+stack unless given `--remote`, and hosted changes ask first):
 
 ```sh
-supabase login
-supabase projects create personal-project-portal   # or create it in the dashboard
-supabase link --project-ref <ref>
-supabase db push            # applies supabase/migrations
-supabase config push        # applies auth settings from supabase/config.toml
+npx supabase login
+npx supabase projects create personal-project-portal   # or create it in the dashboard
+npx supabase link --project-ref <ref>
+npx supabase db push --remote     # first setup only; after that CI applies migrations on merge
+npx supabase config push --yes    # applies auth settings from supabase/config.toml
 ```
 
 Then in the dashboard:
@@ -187,7 +188,7 @@ npm install
 npm run dev
 ```
 
-Checks: `npm run lint`, `npm run typecheck`, `npm test`.
+Checks: `npm run check`, then `npm run test:e2e` and `npm run test:db` (docs/FACTORY.md).
 
 To try the connector locally, point an MCP client such as the MCP Inspector at
 `http://localhost:3000/api/mcp`. Under `next dev`, localhost redirect URIs are

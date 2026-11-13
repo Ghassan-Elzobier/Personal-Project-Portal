@@ -10,6 +10,7 @@ import { postingDetail } from "@/lib/jobs/store";
 import { RefreshButton } from "./controls";
 import { RolePane } from "./role-pane";
 import { ApplicationsView, RolesView, SkillsView, SourcesView, type Filters } from "./views";
+import { now } from "@/lib/dates/clock";
 
 export const metadata: Metadata = { title: "Jobs" };
 export const dynamic = "force-dynamic";
@@ -33,7 +34,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     return (
       <div className="space-y-6">
         <PageHeader title="Jobs" />
-        <ErrorNote title="Could not load the job tracker" message={`${loaded.error} If this is the first run, its database migration may not be applied yet.`} />
+        <ErrorNote
+          title="Could not load the job tracker"
+          message={`${loaded.error} If this is the first run, its database migration may not be applied yet.`}
+        />
       </div>
     );
   }
@@ -45,7 +49,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const closeFilters = { ...filters, role: undefined };
   const closeHref = `/jobs${Object.values(closeFilters).some(Boolean) ? `?${new URLSearchParams(Object.entries(closeFilters).filter((e): e is [string, string] => Boolean(e[1])))}` : ""}`;
   const feeds = board.sources.filter((s) => s.kind !== "link" && s.active);
-  const stale = !board.lastRead || Date.now() - new Date(board.lastRead).getTime() > STALE_MS;
+  const stale = !board.lastRead || now().getTime() - new Date(board.lastRead).getTime() > STALE_MS;
 
   return (
     <div className="space-y-6">
@@ -62,7 +66,6 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             aria-current={view === tab.key ? "page" : undefined}
             className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${view === tab.key ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
           >
-            
             <span className="block text-sm font-semibold">{tab.title}</span>
             <span className="block text-xs text-neutral-300">{tab.blurb}</span>
           </Link>
@@ -71,7 +74,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
       {board.sources.length === 0 && view !== "sources" && (
         <Empty>
-          Nothing to read yet. <Link href="/jobs?view=sources" className="text-aqua hover:underline">Follow your first employer</Link> by pasting a job link from them.
+          Nothing to read yet.{" "}
+          <Link href="/jobs?view=sources" className="text-aqua hover:underline">
+            Follow your first employer
+          </Link>{" "}
+          by pasting a job link from them.
         </Empty>
       )}
 

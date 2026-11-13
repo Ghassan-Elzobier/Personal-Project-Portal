@@ -52,7 +52,20 @@ test("titles land in the field they sound like", () => {
 });
 
 test("roles that are not engineering stay out, however technical they sound", () => {
-  for (const title of ["Enterprise Account Executive", "Site Engineer - El Paso", "Mechanical Design Engineer", "Enterprise AI Product Owner", "AI transformation lead", "Research Communications Lead", "Engineering Manager, Compute", "Lead Vehicle Artist", "Senior Security Engineer", "Software Engineer, Quality Engineering", "Solutions Engineer", "Senior Scientist (DMPK)"]) {
+  for (const title of [
+    "Enterprise Account Executive",
+    "Site Engineer - El Paso",
+    "Mechanical Design Engineer",
+    "Enterprise AI Product Owner",
+    "AI transformation lead",
+    "Research Communications Lead",
+    "Engineering Manager, Compute",
+    "Lead Vehicle Artist",
+    "Senior Security Engineer",
+    "Software Engineer, Quality Engineering",
+    "Solutions Engineer",
+    "Senior Scientist (DMPK)",
+  ]) {
     assert.equal(familyOf(title), null, title);
   }
 });

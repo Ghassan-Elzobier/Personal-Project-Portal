@@ -1,0 +1,15 @@
+# Generated or vendored: formatting these would only add churn.
+package-lock.json
+.next/
+playwright-report/
+test-results/
+e2e/__screenshots__/
+public/
+supabase/.temp/
+supabase/.branches/
+src/lib/lab/anchors.json
+eslint-suppressions.json
+# Prose stays as written; private notes never get touched.
+*.md
+research_notes/
+reports/

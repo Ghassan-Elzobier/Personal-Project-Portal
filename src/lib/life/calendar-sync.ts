@@ -5,6 +5,7 @@ import { addDays, zonedParts } from "../dates/week";
 import { loadScheduleWeek, resolveWeek, type Mirror } from "../portal/schedule";
 import type { AgendaItem } from "./agenda";
 import { lifeToday, loadLife } from "./load";
+import { now as clockNow } from "@/lib/dates/clock";
 
 // Keeps a copy of the Life plan in Google Calendar for the next two weeks, so the
 // phone's calendar shows meals, cooking and the gym where the Schedule does. The
@@ -17,7 +18,8 @@ import { lifeToday, loadLife } from "./load";
 const DAYS_AHEAD = 14;
 const DEADLINE_MS = 40_000;
 
-export type SyncResult = { written: number; removed: number; unchanged: number; partial: boolean } | { skipped: string } | { error: string };
+export type SyncResult =
+  { written: number; removed: number; unchanged: number; partial: boolean } | { skipped: string } | { error: string };
 
 // One at a time per server: a second change while a sync runs waits for it.
 let queue: Promise<unknown> = Promise.resolve();
@@ -45,7 +47,7 @@ async function sync(): Promise<SyncResult> {
   const began = Date.now();
   const tz = timeZone();
   const today = lifeToday();
-  const now = zonedParts(new Date(), tz).minutes;
+  const now = zonedParts(clockNow(), tz).minutes;
   const last = addDays(today, DAYS_AHEAD - 1);
   const life = await loadLife();
   if (life.error !== undefined) return { error: life.error };
@@ -87,7 +89,15 @@ async function sync(): Promise<SyncResult> {
     const end = Math.min(24 * 60, i.start + i.duration);
     if (m && kept.has(i.key) && m.title === i.title && m.start === i.start && m.end === end) continue;
     if (late()) return { written, removed, unchanged, partial: true };
-    await putMirror({ key: i.key, title: i.title, date: i.date, start: i.start, end, colour: i.colour, note: i.moved ?? i.clash });
+    await putMirror({
+      key: i.key,
+      title: i.title,
+      date: i.date,
+      start: i.start,
+      end,
+      colour: i.colour,
+      note: i.moved ?? i.clash,
+    });
     written++;
   }
   return { written, removed, unchanged, partial: false };

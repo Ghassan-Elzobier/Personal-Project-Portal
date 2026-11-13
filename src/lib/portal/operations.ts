@@ -1,11 +1,31 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { addComment, AsanaError, createStatusUpdate, enumOption, field, getTask, listStatusUpdates, projectKeyOfTask, updateTask } from "../tasks/tracker";
+import {
+  addComment,
+  AsanaError,
+  createStatusUpdate,
+  enumOption,
+  field,
+  getTask,
+  listStatusUpdates,
+  projectKeyOfTask,
+  updateTask,
+} from "../tasks/tracker";
 import { completionChange, stageChange } from "../tasks/model";
 import { projectGid, timeZone, usesAsana } from "../config/env";
 import * as native from "../tasks/native";
-import { createLifeBlock, createStudySession, deleteLifeBlock, deleteTaskSlot, googleConfigured, googleConnection, GoogleError, moveLifeBlock, upsertTaskSlot } from "../calendar/google";
+import {
+  createLifeBlock,
+  createStudySession,
+  deleteLifeBlock,
+  deleteTaskSlot,
+  googleConfigured,
+  googleConnection,
+  GoogleError,
+  moveLifeBlock,
+  upsertTaskSlot,
+} from "../calendar/google";
 import { isLifeKind, parseBlock, REPEATS, type Repeat } from "../calendar/life-blocks";
 import { openTasks, thisWeek, today } from "./data";
 import { isProjectKey, PROJECTS, type ProjectKey } from "../config/projects";
@@ -57,12 +77,19 @@ async function mirrorSlot(change: () => Promise<void>): Promise<string | undefin
     return undefined;
   } catch (err) {
     console.error(err);
-    return err instanceof GoogleError ? `Saved, but Google Calendar was not updated: ${err.message}` : "Saved, but Google Calendar was not updated.";
+    return err instanceof GoogleError
+      ? `Saved, but Google Calendar was not updated: ${err.message}`
+      : "Saved, but Google Calendar was not updated.";
   }
 }
 
 /** Puts a task in a time slot: sets its start and due time, and mirrors it to Google Calendar. */
-export async function scheduleTask(input: { gid: string; date: string; start: number; duration: number }): Promise<OpResult & { task?: string; warning?: string }> {
+export async function scheduleTask(input: {
+  gid: string;
+  date: string;
+  start: number;
+  duration: number;
+}): Promise<OpResult & { task?: string; warning?: string }> {
   const block = parseBlock(input);
   if (!block.ok) return { error: block.error };
   try {
@@ -84,11 +111,17 @@ export async function scheduleTask(input: { gid: string; date: string; start: nu
 }
 
 /** Adds one more study session on a task. Sessions live in Google Calendar only. */
-export async function addStudySession(input: { gid: string; date: string; start: number; duration: number }): Promise<OpResult & { task?: string }> {
+export async function addStudySession(input: {
+  gid: string;
+  date: string;
+  start: number;
+  duration: number;
+}): Promise<OpResult & { task?: string }> {
   const block = parseBlock(input);
   if (!block.ok) return { error: block.error };
   try {
-    if (!(await googleReady())) return { error: "Connect Google Calendar on the Schedule page first. Study sessions are kept there." };
+    if (!(await googleReady()))
+      return { error: "Connect Google Calendar on the Schedule page first. Study sessions are kept there." };
     const task = await ourTask(input.gid);
     if (task.completed) return { error: "That task is finished." };
     await createStudySession({ gid: task.gid, name: task.name, project: await projectKeyOfTask(task) }, block.value);
@@ -105,13 +138,17 @@ export async function addStudySession(input: { gid: string; date: string; start:
  * time budget: when the budget runs out it reports what is left, and pressing
  * again carries on, since finished tasks are skipped.
  */
-export async function syncStudyCalendar(): Promise<OpResult & { synced?: number; unchanged?: number; failed?: number; remaining?: number; firstError?: string }> {
+export async function syncStudyCalendar(): Promise<
+  OpResult & { synced?: number; unchanged?: number; failed?: number; remaining?: number; firstError?: string }
+> {
   try {
     if (!(await googleReady())) return { error: "Connect Google Calendar on the Schedule page first." };
     const keys = PROJECTS.filter((p) => projectGid(p.key)).map((p) => p.key);
     const tasks = (await Promise.all(keys.map((k) => openTasks(k)))).flat().filter((t) => t.dueAt);
     const since = Date.now() - 7 * 24 * 3600 * 1000;
-    const todo = tasks.filter((t) => new Date(t.dueAt!).getTime() >= since).sort((a, b) => a.dueAt!.localeCompare(b.dueAt!));
+    const todo = tasks
+      .filter((t) => new Date(t.dueAt!).getTime() >= since)
+      .sort((a, b) => a.dueAt!.localeCompare(b.dueAt!));
     const deadline = Date.now() + 40_000;
     let synced = 0;
     let unchanged = 0;
@@ -182,7 +219,12 @@ export async function addLifeBlock(input: {
   }
 }
 
-export async function moveLifeBlockTo(input: { id: string; date: string; start: number; duration: number }): Promise<OpResult> {
+export async function moveLifeBlockTo(input: {
+  id: string;
+  date: string;
+  start: number;
+  duration: number;
+}): Promise<OpResult> {
   const block = parseBlock(input);
   if (!block.ok) return { error: block.error };
   try {
@@ -210,7 +252,10 @@ export type LogResult = {
 };
 
 /** Adds hours to the task's Hours field, sets Stage and Evidence, posts the session comment. */
-export async function logSession(taskGid: string, raw: { hours: unknown; stage?: unknown; evidence?: unknown; notes?: unknown }): Promise<LogResult> {
+export async function logSession(
+  taskGid: string,
+  raw: { hours: unknown; stage?: unknown; evidence?: unknown; notes?: unknown },
+): Promise<LogResult> {
   const parsed = parseSessionForm(raw);
   if (!parsed.ok) return { error: parsed.error };
   const input = parsed.value;
@@ -267,7 +312,12 @@ export async function logSession(taskGid: string, raw: { hours: unknown; stage?:
 }
 
 /** Posts this week's status update on a project. Refuses a second one unless force is set. */
-export async function postStatusUpdate(input: { project: string; status: string; text: string; force: boolean }): Promise<OpResult> {
+export async function postStatusUpdate(input: {
+  project: string;
+  status: string;
+  text: string;
+  force: boolean;
+}): Promise<OpResult> {
   const key = input.project;
   const text = input.text.replace(/\r\n?/g, "\n").trim();
   if (!isProjectKey(key)) return { error: "Unknown project." };
@@ -347,7 +397,9 @@ export async function createTask(input: {
       const wanted = input.sectionName?.trim().toLowerCase();
       const match = wanted ? sections.find((s) => s.name.trim().toLowerCase() === wanted) : sections[0];
       if (wanted && !match) {
-        return { error: `That project has no section called "${input.sectionName}". It has: ${sections.map((s) => s.name).join(", ") || "none"}.` };
+        return {
+          error: `That project has no section called "${input.sectionName}". It has: ${sections.map((s) => s.name).join(", ") || "none"}.`,
+        };
       }
       section = match?.gid ?? null;
     }
@@ -361,7 +413,10 @@ export async function createTask(input: {
 }
 
 /** Changes the fields given and leaves the rest. */
-export async function editTask(gid: string, input: { name?: string; notes?: string; dueOn?: string; section?: string; evidence?: string }): Promise<OpResult> {
+export async function editTask(
+  gid: string,
+  input: { name?: string; notes?: string; dueOn?: string; section?: string; evidence?: string },
+): Promise<OpResult> {
   const changes: Record<string, unknown> = {};
   if (input.name !== undefined) {
     const name = input.name.trim();
@@ -382,7 +437,8 @@ export async function editTask(gid: string, input: { name?: string; notes?: stri
   if (input.section !== undefined) changes.section_gid = input.section || null;
   if (input.evidence !== undefined) {
     const evidence = input.evidence.trim();
-    if (evidence && !/^https?:\/\//.test(evidence)) return { error: "Evidence must be a link starting with http:// or https://." };
+    if (evidence && !/^https?:\/\//.test(evidence))
+      return { error: "Evidence must be a link starting with http:// or https://." };
     changes.evidence = evidence;
   }
   return taskChange(() => native.updateTaskFields(gid, changes), "Could not save the task.");
@@ -398,7 +454,11 @@ export async function rescheduleTask(gid: string, date: string): Promise<OpResul
 }
 
 /** Adds several tasks to a project in order, from a pasted list. */
-export async function createTasks(input: { project: string; names: string[]; section?: string | null }): Promise<OpResult> {
+export async function createTasks(input: {
+  project: string;
+  names: string[];
+  section?: string | null;
+}): Promise<OpResult> {
   if (usesAsana()) return { error: "With TASK_BACKEND=asana, add tasks in Asana." };
   if (!isProjectKey(input.project)) return { error: "Unknown project." };
   const names = input.names.map((n) => n.trim()).filter(Boolean);
@@ -423,7 +483,6 @@ export async function setTaskCompleted(gid: string, completed: boolean): Promise
     await native.updateTaskFields(gid, completionChange(completed, field(task, "Stage")?.enum_value?.name ?? null));
   }, "Could not update the task.");
 }
-
 
 export async function removeTask(gid: string): Promise<OpResult> {
   const result = await taskChange(() => native.deleteTask(gid), "Could not delete the task.");
@@ -487,16 +546,31 @@ export async function loadAllPlans(): Promise<OpResult & { added?: number }> {
 }
 
 /** Dates the main path of all three plans at so many hours a week, in roadmap order. */
-export async function setRoadmapPace(hoursPerWeek: number, start: string, then?: { from: string; hoursPerWeek: number }): Promise<OpResult & { last?: string; count?: number }> {
+export async function setRoadmapPace(
+  hoursPerWeek: number,
+  start: string,
+  then?: { from: string; hoursPerWeek: number },
+): Promise<OpResult & { last?: string; count?: number }> {
   const blocked = studyOnly();
   if (blocked) return blocked;
-  if (!Number.isFinite(hoursPerWeek) || hoursPerWeek <= 0 || hoursPerWeek > 100) return { error: "Choose how many hours a week, from 1 to 100." };
+  if (!Number.isFinite(hoursPerWeek) || hoursPerWeek <= 0 || hoursPerWeek > 100)
+    return { error: "Choose how many hours a week, from 1 to 100." };
   if (!isDate(start)) return { error: "Pick a valid start date." };
-  if (then && (!isDate(then.from) || !Number.isFinite(then.hoursPerWeek) || then.hoursPerWeek <= 0 || then.hoursPerWeek > 100)) return { error: "Check the date and hours for the later pace." };
+  if (
+    then &&
+    (!isDate(then.from) || !Number.isFinite(then.hoursPerWeek) || then.hoursPerWeek <= 0 || then.hoursPerWeek > 100)
+  )
+    return { error: "Check the date and hours for the later pace." };
   try {
     const tasks = (await Promise.all(PLANS.map((plan) => native.listTasks(plan.project)))).flat();
     const byRef = new Map(tasks.filter((t) => t.ref).map((t) => [t.ref as string, t]));
-    const dated = scheduleRoadmap({ isDone: (ref) => byRef.get(ref)?.completed ?? false, start, hoursPerWeek, until: then?.from, thenHoursPerWeek: then?.hoursPerWeek });
+    const dated = scheduleRoadmap({
+      isDone: (ref) => byRef.get(ref)?.completed ?? false,
+      start,
+      hoursPerWeek,
+      until: then?.from,
+      thenHoursPerWeek: then?.hoursPerWeek,
+    });
     // A task with a time on the Schedule keeps it, and one not loaded yet cannot be dated.
     const items = dated.flatMap((d) => {
       const task = byRef.get(d.ref);
@@ -511,12 +585,17 @@ export async function setRoadmapPace(hoursPerWeek: number, start: string, then?:
 }
 
 /** Spreads a plan's remaining units from a start day. Optional ones are left undated. */
-export async function setPace(project: string, perWeek: number, start: string): Promise<OpResult & { last?: string; count?: number }> {
+export async function setPace(
+  project: string,
+  perWeek: number,
+  start: string,
+): Promise<OpResult & { last?: string; count?: number }> {
   const blocked = studyOnly();
   if (blocked) return blocked;
   const plan = planFor(project);
   if (!plan) return { error: "That project has no study plan." };
-  if (!Number.isFinite(perWeek) || perWeek <= 0 || perWeek > 50) return { error: "Choose how many a week, from 1 to 50." };
+  if (!Number.isFinite(perWeek) || perWeek <= 0 || perWeek > 50)
+    return { error: "Choose how many a week, from 1 to 50." };
   if (!isDate(start)) return { error: "Pick a valid start date." };
   try {
     const tasks = await native.listTasks(plan.project);
@@ -539,7 +618,8 @@ export async function setExercise(task: string, number: number, status: Exercise
   const blocked = studyOnly();
   if (blocked) return blocked;
   if (!Number.isInteger(number) || number < 1 || number > 1000) return { error: "That exercise number is not valid." };
-  if (status !== null && !["solved", "hint", "stuck", "skip"].includes(status)) return { error: "Pick a state for the exercise." };
+  if (status !== null && !["solved", "hint", "stuck", "skip"].includes(status))
+    return { error: "Pick a state for the exercise." };
   try {
     await native.setExercise(task, number, status);
     return {};
@@ -551,7 +631,8 @@ export async function setExercise(task: string, number: number, status: Exercise
 export async function setExerciseCount(task: string, count: number | null): Promise<OpResult> {
   const blocked = studyOnly();
   if (blocked) return blocked;
-  if (count !== null && (!Number.isInteger(count) || count < 0 || count > 1000)) return { error: "Enter a whole number up to 1000." };
+  if (count !== null && (!Number.isInteger(count) || count < 0 || count > 1000))
+    return { error: "Enter a whole number up to 1000." };
   return taskChange(() => native.setExerciseCount(task, count), "Could not save the number of exercises.");
 }
 
@@ -584,7 +665,8 @@ export async function addReview(task: string, prompt: string): Promise<OpResult>
 export async function rateReview(gid: string, rating: string): Promise<OpResult> {
   const blocked = studyOnly();
   if (blocked) return blocked;
-  if (rating !== "got" && rating !== "shaky" && rating !== "missed") return { error: "Rate it as got it, shaky or missed." };
+  if (rating !== "got" && rating !== "shaky" && rating !== "missed")
+    return { error: "Rate it as got it, shaky or missed." };
   return taskChange(async () => {
     const { reviews } = await native.studySnapshot();
     const review = reviews.find((r) => r.gid === gid);
@@ -615,7 +697,8 @@ export async function addBenchmark(input: {
   const commit = (input.commit ?? "").trim().toLowerCase();
   if (!metric || metric.length > 80) return { error: "Name what you measured." };
   if (!Number.isFinite(input.value)) return { error: "Enter the measured value as a number." };
-  if (commit && !/^[0-9a-f]{7,40}$/.test(commit)) return { error: "A commit is 7 to 40 letters and digits, a to f and 0 to 9." };
+  if (commit && !/^[0-9a-f]{7,40}$/.test(commit))
+    return { error: "A commit is 7 to 40 letters and digits, a to f and 0 to 9." };
   const project: ProjectKey = input.project;
   return taskChange(
     () =>

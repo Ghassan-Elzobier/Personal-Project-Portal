@@ -76,9 +76,14 @@ export function NavigationProgress() {
 
   if (state === "idle") return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-0.5" role="progressbar" aria-label="Loading the page" aria-busy={state === "loading"}>
+    <div
+      className="pointer-events-none fixed inset-x-0 top-0 z-60 h-0.5"
+      role="progressbar"
+      aria-label="Loading the page"
+      aria-busy={state === "loading"}
+    >
       <div
-        className={`h-full bg-gradient-to-r from-aqua to-mint shadow-[0_0_8px_var(--color-aqua)] ${state === "loading" ? "nav-progress" : "w-full opacity-0 transition-opacity duration-200"}`}
+        className={`h-full bg-linear-to-r from-aqua to-mint shadow-[0_0_8px_var(--color-aqua)] ${state === "loading" ? "nav-progress" : "w-full opacity-0 transition-opacity duration-200"}`}
       />
     </div>
   );

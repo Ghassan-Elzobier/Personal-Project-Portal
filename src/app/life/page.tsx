@@ -7,7 +7,14 @@ import { portionMacros } from "@/lib/life/nutrition";
 import { spare, weekDays } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
-import { placedMacros, remainingNeeds, unlogged, weekView, type LifeState, type WeekView as MealWeek } from "@/lib/life/state";
+import {
+  placedMacros,
+  remainingNeeds,
+  unlogged,
+  weekView,
+  type LifeState,
+  type WeekView as MealWeek,
+} from "@/lib/life/state";
 import { rank } from "@/lib/life/suggest";
 import { ErrorNote } from "@/components/ui";
 import { ActionButton } from "./kit";
@@ -55,10 +62,17 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
         ]}
       />
       {nudge && (
-        <Link href="/life?week=next" className="card-life flex flex-wrap items-center justify-between gap-3 ring-mint/30 transition hover:ring-mint/50">
+        <Link
+          href="/life?week=next"
+          className="flex flex-wrap items-center justify-between gap-3 card-life ring-mint/30 transition hover:ring-mint/50"
+        >
           <span className="min-w-0">
-            <span className="block font-semibold">Next week starts {dayLabel(s.next.start, s.today).toLowerCase()}</span>
-            <span className="text-sm text-neutral-300">Plan it now so the shopping can arrive before the first cook.</span>
+            <span className="block font-semibold">
+              Next week starts {dayLabel(s.next.start, s.today).toLowerCase()}
+            </span>
+            <span className="text-sm text-neutral-300">
+              Plan it now so the shopping can arrive before the first cook.
+            </span>
           </span>
           <span className="text-sm text-mint">Plan next week →</span>
         </Link>
@@ -92,12 +106,12 @@ function alts(s: LifeState, meal: "main" | "breakfast" | "shake", weekend = fals
 function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
   const menu = alts(s, "main").slice(0, 6);
   return (
-    <section className="card-life space-y-5">
+    <section className="space-y-5 card-life">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Plan this week in one tap</h2>
         <p className="text-sm text-neutral-300">
-          Picks two recipes for each cook session from what you like, sizes every portion to your target, and works out what goes in the freezer. Swap
-          anything afterwards.
+          Picks two recipes for each cook session from what you like, sizes every portion to your target, and works out
+          what goes in the freezer. Swap anything afterwards.
         </p>
       </div>
       <ActionButton action={planWeek.bind(null, v.start)} className="btn-life w-full sm:w-auto" done="Planned.">
@@ -154,48 +168,54 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
     });
   }
   const from = plan.createdOn ?? plan.start;
-  const days: DayView[] = weekDays(plan.start).filter((date) => date >= from).map((date) => {
-    const meals = v.placements
-      .filter((p) => p.date === date)
-      .sort((a, b) => a.time - b.time)
-      .map((p) => {
-        const r = p.recipe ? recipe(p.recipe) : undefined;
-        const m = placedMacros(p);
-        const log = s.meals.find((x) => x.day === date && x.slot === p.slot);
-        return {
-          id: p.id,
-          slot: p.slot,
-          time: clock(p.time),
-          recipe: p.recipe,
-          name: r?.name ?? null,
-          source: p.source,
-          storage: p.storage ?? null,
-          defrost: p.defrostOn ? weekdayShort(p.defrostOn) : null,
-          kcal: m?.kcal ?? 0,
-          protein: m?.protein ?? 0,
-          status: log?.status ?? null,
-        };
-      });
-    return {
-      date,
-      label: dayLabel(date, s.today),
-      past: date < s.today,
-      today: date === s.today,
-      meals,
-      kcal: meals.reduce((t, m) => t + m.kcal, 0),
-      protein: meals.reduce((t, m) => t + m.protein, 0),
-      notes: v.reminders.filter((r) => r.date === date && (r.kind === "defrost" || r.kind === "freeze")).map((r) => `${clock(r.time)} · ${r.text}`),
-    };
-  });
+  const days: DayView[] = weekDays(plan.start)
+    .filter((date) => date >= from)
+    .map((date) => {
+      const meals = v.placements
+        .filter((p) => p.date === date)
+        .sort((a, b) => a.time - b.time)
+        .map((p) => {
+          const r = p.recipe ? recipe(p.recipe) : undefined;
+          const m = placedMacros(p);
+          const log = s.meals.find((x) => x.day === date && x.slot === p.slot);
+          return {
+            id: p.id,
+            slot: p.slot,
+            time: clock(p.time),
+            recipe: p.recipe,
+            name: r?.name ?? null,
+            source: p.source,
+            storage: p.storage ?? null,
+            defrost: p.defrostOn ? weekdayShort(p.defrostOn) : null,
+            kcal: m?.kcal ?? 0,
+            protein: m?.protein ?? 0,
+            status: log?.status ?? null,
+          };
+        });
+      return {
+        date,
+        label: dayLabel(date, s.today),
+        past: date < s.today,
+        today: date === s.today,
+        meals,
+        kcal: meals.reduce((t, m) => t + m.kcal, 0),
+        protein: meals.reduce((t, m) => t + m.protein, 0),
+        notes: v.reminders
+          .filter((r) => r.date === date && (r.kind === "defrost" || r.kind === "freeze"))
+          .map((r) => `${clock(r.time)} · ${r.text}`),
+      };
+    });
   const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
   const total = listTotal(lines);
   const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
-  const nothing = v.placements.filter((p) => p.source === "none" && p.date >= s.today && (p.slot === "lunch" || p.slot === "dinner")).length;
+  const nothing = v.placements.filter(
+    (p) => p.source === "none" && p.date >= s.today && (p.slot === "lunch" || p.slot === "dinner"),
+  ).length;
 
   return (
     <div className="space-y-6">
       {missing > 0 && (
-        <section className="card-life flex flex-wrap items-center justify-between gap-3">
+        <section className="flex flex-wrap items-center justify-between gap-3 card-life">
           <p className="text-sm">
             {missing} past {missing === 1 ? "meal is" : "meals are"} not ticked.
           </p>
@@ -204,9 +224,20 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           </ActionButton>
         </section>
       )}
-      <Link href={v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next"} className="card-life flex flex-wrap items-center justify-between gap-3 transition hover:ring-mint/30">
+      <Link
+        href={v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next"}
+        className="flex flex-wrap items-center justify-between gap-3 card-life transition hover:ring-mint/30"
+      >
         <span className="min-w-0">
-          <span className="block font-semibold">{plan.shop?.deliveredOn ? (total.packs ? "Top-ups" : "Shopping is in") : plan.shop?.orderedOn ? "Order placed" : "Shopping list"}</span>
+          <span className="block font-semibold">
+            {plan.shop?.deliveredOn
+              ? total.packs
+                ? "Top-ups"
+                : "Shopping is in"
+              : plan.shop?.orderedOn
+                ? "Order placed"
+                : "Shopping list"}
+          </span>
           <span className="text-sm text-neutral-300">
             {plan.shop?.deliveredOn && !total.packs
               ? "Everything for the week is in the kitchen."
@@ -224,12 +255,20 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         days={days}
         nothing={nothing}
         daily={{ breakfast: plan.breakfast, shake: plan.shake, shakes: plan.shakes ?? [] }}
-        options={{ main: alts(s, "main"), breakfast: alts(s, "breakfast"), shake: alts(s, "shake"), fresh: alts(s, "main", true) }}
+        options={{
+          main: alts(s, "main"),
+          breakfast: alts(s, "breakfast"),
+          shake: alts(s, "shake"),
+          fresh: alts(s, "main", true),
+        }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
       />
       <p className="text-sm text-neutral-400">
         Your meals, cooking and gym are on the{" "}
-        <Link href="/schedule" className="text-neutral-200 underline decoration-white/30 underline-offset-2 hover:text-white">
+        <Link
+          href="/schedule"
+          className="text-neutral-200 underline decoration-white/30 underline-offset-2 hover:text-white"
+        >
           Schedule
         </Link>{" "}
         and in Google Calendar. They follow this plan, and move around study when they clash.

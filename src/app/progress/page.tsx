@@ -13,10 +13,16 @@ export const dynamic = "force-dynamic";
 
 export default async function ProgressIndex() {
   const access = await requireAccess();
-  const projects = PROJECTS.filter((p) => projectGid(p.key) && (access.role === "owner" || access.projects.includes(p.key)));
+  const projects = PROJECTS.filter(
+    (p) => projectGid(p.key) && (access.role === "owner" || access.projects.includes(p.key)),
+  );
   const date = today();
   const rows = await Promise.all(
-    projects.map(async (p) => ({ p, tasks: await attempt(() => allTasks(p.key)), status: await attempt(() => latestStatus(p.key)) })),
+    projects.map(async (p) => ({
+      p,
+      tasks: await attempt(() => allTasks(p.key)),
+      status: await attempt(() => latestStatus(p.key)),
+    })),
   );
 
   return (

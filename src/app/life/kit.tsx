@@ -63,7 +63,17 @@ export function ActionButton({
 }
 
 /** A native dialog: a bottom sheet on phones, a centred panel on wider screens. */
-export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -83,7 +93,12 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     >
       <div className="mb-4 flex items-start justify-between gap-4">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <button type="button" onClick={onClose} className="tap -mt-2 -mr-2 text-2xl leading-none text-neutral-400 hover:text-white" aria-label="Close">
+        <button
+          type="button"
+          onClick={onClose}
+          className="-mt-2 -mr-2 tap text-2xl leading-none text-neutral-400 hover:text-white"
+          aria-label="Close"
+        >
           ×
         </button>
       </div>
@@ -92,11 +107,23 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   );
 }
 
-export function Stars({ value, onChange, size = "text-xl" }: { value: number | null; onChange?: (stars: number | null) => void; size?: string }) {
+export function Stars({
+  value,
+  onChange,
+  size = "text-xl",
+}: {
+  value: number | null;
+  onChange?: (stars: number | null) => void;
+  size?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const shown = hover ?? value ?? 0;
   return (
-    <span className="inline-flex" role={onChange ? "radiogroup" : "img"} aria-label={value ? `${value} of 5 stars` : "Not rated"}>
+    <span
+      className="inline-flex"
+      role={onChange ? "radiogroup" : "img"}
+      aria-label={value ? `${value} of 5 stars` : "Not rated"}
+    >
       {[1, 2, 3, 4, 5].map((n) =>
         onChange ? (
           <button

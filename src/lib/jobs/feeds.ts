@@ -9,7 +9,15 @@ import { advertText, decodeEntities } from "./extract.ts";
 import { familyOf, isCoreFamily, locationTier } from "./classify.ts";
 
 export type SourceKind = "greenhouse" | "ashby" | "lever" | "workable" | "teamtailor" | "arbeitnow" | "rse";
-export const FEED_KINDS: readonly SourceKind[] = ["greenhouse", "ashby", "lever", "workable", "teamtailor", "arbeitnow", "rse"];
+export const FEED_KINDS: readonly SourceKind[] = [
+  "greenhouse",
+  "ashby",
+  "lever",
+  "workable",
+  "teamtailor",
+  "arbeitnow",
+  "rse",
+];
 
 export type RawJob = {
   id: string;
@@ -34,7 +42,10 @@ export type FeedRead = {
 
 type Fetcher = typeof fetch;
 
-const HEADERS = { "User-Agent": "personal-job-tracker", Accept: "application/json, application/rss+xml, text/xml;q=0.9, */*;q=0.5" };
+const HEADERS = {
+  "User-Agent": "personal-job-tracker",
+  Accept: "application/json, application/rss+xml, text/xml;q=0.9, */*;q=0.5",
+};
 const TIMEOUT_MS = 60000;
 const MAX_BYTES = 40 * 1024 * 1024;
 const TOKEN = /^[A-Za-z0-9_.-]{1,120}$/;
@@ -45,7 +56,12 @@ export class FeedError extends Error {}
 
 async function get(url: string, fetcher: Fetcher): Promise<string> {
   // A redirect could leave the hosts this file chooses, so none are followed.
-  const res = await fetcher(url, { headers: HEADERS, redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  const res = await fetcher(url, {
+    headers: HEADERS,
+    redirect: "error",
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    cache: "no-store",
+  });
   if (!res.ok) throw new FeedError(`The feed answered ${res.status}.`);
   const text = await res.text();
   if (text.length > MAX_BYTES) throw new FeedError("The feed was too large to read.");
@@ -67,7 +83,8 @@ const dateOf = (value: unknown): string | null => {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 };
 
-const safeUrl = (value: unknown): string | null => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : null);
+const safeUrl = (value: unknown): string | null =>
+  typeof value === "string" && /^https?:\/\//i.test(value) ? value : null;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Whether a role is worth fetching in full, from what a list tells us. */
@@ -78,8 +95,21 @@ export function worthKeeping(title: string, locations: string[], remote: boolean
   return tier !== "abroad" || isCoreFamily(family);
 }
 
-async function readGreenhouse(token: string, name: string, known: ReadonlySet<string>, fetcher: Fetcher): Promise<FeedRead> {
-  type Item = { id: number; title: string; location?: { name?: string }; absolute_url?: string; first_published?: string; updated_at?: string; content?: string };
+async function readGreenhouse(
+  token: string,
+  name: string,
+  known: ReadonlySet<string>,
+  fetcher: Fetcher,
+): Promise<FeedRead> {
+  type Item = {
+    id: number;
+    title: string;
+    location?: { name?: string };
+    absolute_url?: string;
+    first_published?: string;
+    updated_at?: string;
+    content?: string;
+  };
   const base = `https://boards-api.greenhouse.io/v1/boards/${token}/jobs`;
   const list = await getJson<{ jobs?: Item[] }>(base, fetcher);
   const items = list.jobs ?? [];
@@ -119,15 +149,32 @@ async function readGreenhouse(token: string, name: string, known: ReadonlySet<st
     }
     await pause(250);
   }
-  return { ok: true, error: partial ? "Some adverts were not fetched this time. The rest come next refresh." : null, seen: items.map((j) => String(j.id)), jobs };
+  return {
+    ok: true,
+    error: partial ? "Some adverts were not fetched this time. The rest come next refresh." : null,
+    seen: items.map((j) => String(j.id)),
+    jobs,
+  };
 }
 
 async function readAshby(token: string, name: string, fetcher: Fetcher): Promise<FeedRead> {
   type Item = {
-    id: string; title: string; location?: string; secondaryLocations?: { location?: string }[]; isRemote?: boolean; isListed?: boolean;
-    publishedAt?: string; jobUrl?: string; descriptionHtml?: string; descriptionPlain?: string; compensation?: { compensationTierSummary?: string };
+    id: string;
+    title: string;
+    location?: string;
+    secondaryLocations?: { location?: string }[];
+    isRemote?: boolean;
+    isListed?: boolean;
+    publishedAt?: string;
+    jobUrl?: string;
+    descriptionHtml?: string;
+    descriptionPlain?: string;
+    compensation?: { compensationTierSummary?: string };
   };
-  const data = await getJson<{ jobs?: Item[] }>(`https://api.ashbyhq.com/posting-api/job-board/${token}?includeCompensation=true`, fetcher);
+  const data = await getJson<{ jobs?: Item[] }>(
+    `https://api.ashbyhq.com/posting-api/job-board/${token}?includeCompensation=true`,
+    fetcher,
+  );
   const items = (data.jobs ?? []).filter((j) => j.isListed !== false);
   return {
     ok: true,
@@ -149,8 +196,18 @@ async function readAshby(token: string, name: string, fetcher: Fetcher): Promise
 
 async function readLever(token: string, name: string, fetcher: Fetcher): Promise<FeedRead> {
   type Item = {
-    id: string; text: string; categories?: { location?: string; allLocations?: string[] }; country?: string; workplaceType?: string; hostedUrl?: string; createdAt?: number;
-    description?: string; descriptionPlain?: string; lists?: { text?: string; content?: string }[]; additional?: string; additionalPlain?: string;
+    id: string;
+    text: string;
+    categories?: { location?: string; allLocations?: string[] };
+    country?: string;
+    workplaceType?: string;
+    hostedUrl?: string;
+    createdAt?: number;
+    description?: string;
+    descriptionPlain?: string;
+    lists?: { text?: string; content?: string }[];
+    additional?: string;
+    additionalPlain?: string;
     salaryRange?: { min?: number; max?: number; currency?: string };
   };
   const items = await getJson<Item[]>(`https://api.lever.co/v0/postings/${token}?mode=json`, fetcher);
@@ -163,20 +220,43 @@ async function readLever(token: string, name: string, fetcher: Fetcher): Promise
       title: j.text,
       company: name,
       // "Remote" means little without its country, and a US company's remote is not yours.
-      locations: [...new Set([...(j.categories?.allLocations ?? []), j.categories?.location ?? ""])].filter(Boolean).map((l) => (/remote/i.test(l) && j.country ? `${l}, ${j.country}` : l)),
+      locations: [...new Set([...(j.categories?.allLocations ?? []), j.categories?.location ?? ""])]
+        .filter(Boolean)
+        .map((l) => (/remote/i.test(l) && j.country ? `${l}, ${j.country}` : l)),
       remote: j.workplaceType === "remote",
       url: safeUrl(j.hostedUrl),
       postedOn: dateOf(j.createdAt),
-      salary: j.salaryRange?.min ? `${j.salaryRange.currency ?? ""} ${j.salaryRange.min} to ${j.salaryRange.max ?? ""}`.trim() : null,
+      salary: j.salaryRange?.min
+        ? `${j.salaryRange.currency ?? ""} ${j.salaryRange.min} to ${j.salaryRange.max ?? ""}`.trim()
+        : null,
       // Lever keeps its sections apart, so each gets its heading back.
-      content: [j.description ?? j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `<h3>${l.text ?? ""}</h3><ul>${l.content ?? ""}</ul>`), j.additional ?? j.additionalPlain ?? ""].join("\n"),
+      content: [
+        j.description ?? j.descriptionPlain ?? "",
+        ...(j.lists ?? []).map((l) => `<h3>${l.text ?? ""}</h3><ul>${l.content ?? ""}</ul>`),
+        j.additional ?? j.additionalPlain ?? "",
+      ].join("\n"),
     })),
   };
 }
 
 async function readWorkable(token: string, name: string, fetcher: Fetcher): Promise<FeedRead> {
-  type Item = { shortcode: string; title: string; city?: string; state?: string; country?: string; telecommuting?: boolean; url?: string; application_url?: string; published_on?: string; created_at?: string; description?: string };
-  const data = await getJson<{ jobs?: Item[] }>(`https://apply.workable.com/api/v1/widget/accounts/${token}?details=true`, fetcher);
+  type Item = {
+    shortcode: string;
+    title: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    telecommuting?: boolean;
+    url?: string;
+    application_url?: string;
+    published_on?: string;
+    created_at?: string;
+    description?: string;
+  };
+  const data = await getJson<{ jobs?: Item[] }>(
+    `https://apply.workable.com/api/v1/widget/accounts/${token}?details=true`,
+    fetcher,
+  );
   const items = data.jobs ?? [];
   return {
     ok: true,
@@ -199,7 +279,10 @@ async function readWorkable(token: string, name: string, fetcher: Fetcher): Prom
 /** The items of an RSS feed, with CDATA unwrapped. Only named tags are ever read. */
 export function rssItems(xml: string): ((tag: string) => string)[] {
   return [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map((m) => (tag: string) => {
-    const found = new RegExp(`<${tag.replace(":", "\\:")}\\b[^>]*>([\\s\\S]*?)<\\/${tag.replace(":", "\\:")}>`, "i").exec(m[1]);
+    const found = new RegExp(
+      `<${tag.replace(":", "\\:")}\\b[^>]*>([\\s\\S]*?)<\\/${tag.replace(":", "\\:")}>`,
+      "i",
+    ).exec(m[1]);
     if (!found) return "";
     const cdata = /^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/.exec(found[1]);
     return cdata ? cdata[1] : decodeEntities(found[1]);
@@ -214,7 +297,9 @@ async function readTeamtailor(token: string, name: string, fetcher: Fetcher): Pr
       id: tag("guid").trim() || link,
       title: advertText(tag("title")),
       company: name,
-      locations: [tag("tt:location") || [tag("tt:city"), tag("tt:country")].filter(Boolean).join(", ") || tag("location")].map((l) => advertText(l)),
+      locations: [
+        tag("tt:location") || [tag("tt:city"), tag("tt:country")].filter(Boolean).join(", ") || tag("location"),
+      ].map((l) => advertText(l)),
       remote: /remote/i.test(tag("remote") + tag("tt:remote-status")),
       url: safeUrl(link),
       postedOn: dateOf(tag("pubDate")),
@@ -247,7 +332,16 @@ async function readRse(fetcher: Fetcher): Promise<FeedRead> {
 const ARBEITNOW_PAGES = 15;
 
 async function readArbeitnow(fetcher: Fetcher): Promise<FeedRead> {
-  type Item = { slug: string; company_name?: string; title: string; description?: string; remote?: boolean; url?: string; location?: string; created_at?: number };
+  type Item = {
+    slug: string;
+    company_name?: string;
+    title: string;
+    description?: string;
+    remote?: boolean;
+    url?: string;
+    location?: string;
+    created_at?: number;
+  };
   const jobs: RawJob[] = [];
   let partial = false;
   for (let page = 1; page <= ARBEITNOW_PAGES; page++) {
@@ -276,7 +370,12 @@ async function readArbeitnow(fetcher: Fetcher): Promise<FeedRead> {
     if (!items.length || !data.links?.next) break;
     await pause(1000);
   }
-  return { ok: true, error: partial ? "Only part of the feed was read this time." : null, seen: partial ? null : jobs.map((j) => j.id), jobs };
+  return {
+    ok: true,
+    error: partial ? "Only part of the feed was read this time." : null,
+    seen: partial ? null : jobs.map((j) => j.id),
+    jobs,
+  };
 }
 
 /** Works out a feed from any job link at an employer, so adding one takes a paste. */
@@ -290,7 +389,13 @@ export function parseBoardLink(link: string): { kind: SourceKind; token: string 
   const host = url.hostname.toLowerCase();
   const first = url.pathname.split("/").filter(Boolean)[0] ?? "";
   const named = (kind: SourceKind, token: string) => (TOKEN.test(token) ? { kind, token } : null);
-  if (host === "job-boards.greenhouse.io" || host === "boards.greenhouse.io" || host === "job-boards.eu.greenhouse.io" || host === "boards.eu.greenhouse.io") return named("greenhouse", first);
+  if (
+    host === "job-boards.greenhouse.io" ||
+    host === "boards.greenhouse.io" ||
+    host === "job-boards.eu.greenhouse.io" ||
+    host === "boards.eu.greenhouse.io"
+  )
+    return named("greenhouse", first);
   if (host === "jobs.ashbyhq.com") return named("ashby", first);
   if (host === "jobs.lever.co" || host === "jobs.eu.lever.co") return named("lever", first);
   if (host === "apply.workable.com") return named("workable", first);
@@ -300,7 +405,11 @@ export function parseBoardLink(link: string): { kind: SourceKind; token: string 
 }
 
 /** Reads one source. Never throws: a failed read is a result, and closes nothing. */
-export async function readFeed(source: { kind: string; token: string; name: string }, known: ReadonlySet<string> = new Set(), fetcher: Fetcher = fetch): Promise<FeedRead> {
+export async function readFeed(
+  source: { kind: string; token: string; name: string },
+  known: ReadonlySet<string> = new Set(),
+  fetcher: Fetcher = fetch,
+): Promise<FeedRead> {
   try {
     if (!TOKEN.test(source.token)) throw new FeedError("That board name is not valid.");
     switch (source.kind as SourceKind) {
@@ -322,7 +431,12 @@ export async function readFeed(source: { kind: string; token: string; name: stri
         throw new FeedError("That kind of source has no feed.");
     }
   } catch (err) {
-    const message = err instanceof FeedError ? err.message : err instanceof Error && err.name === "TimeoutError" ? "The feed took too long to answer." : "Could not reach the feed.";
+    const message =
+      err instanceof FeedError
+        ? err.message
+        : err instanceof Error && err.name === "TimeoutError"
+          ? "The feed took too long to answer."
+          : "Could not reach the feed.";
     return { ok: false, error: message, seen: null, jobs: [] };
   }
 }

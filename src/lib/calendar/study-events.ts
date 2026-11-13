@@ -16,9 +16,7 @@ export const STUDY_COLOR = "9";
 export type StudyRole = "slot" | "session";
 
 export type PortalTag =
-  | { type: "life"; kind: LifeKind }
-  | { type: "study"; task: string; role: StudyRole; project: string | null }
-  | null;
+  { type: "life"; kind: LifeKind } | { type: "study"; task: string; role: StudyRole; project: string | null } | null;
 
 /** What the portal wrote on an event, or null for events made elsewhere. */
 export function readTag(props: Record<string, string> | undefined): PortalTag {
@@ -44,7 +42,9 @@ export function isEditable(tag: PortalTag): boolean {
 export type InviteResponse = "accepted" | "tentative" | "needsAction" | "declined";
 
 /** How the calendar's owner answered an invite. Null for events with no guests, which are their own. */
-export function selfResponse(attendees: { self?: boolean; responseStatus?: string }[] | undefined): InviteResponse | null {
+export function selfResponse(
+  attendees: { self?: boolean; responseStatus?: string }[] | undefined,
+): InviteResponse | null {
   const me = attendees?.find((a) => a.self);
   if (!me) return null;
   const r = me.responseStatus;

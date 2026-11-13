@@ -7,6 +7,7 @@ import { dateIn } from "@/lib/dates/week";
 import { NavLinks, SpaceSwitch, TabBar, type NavSpaces } from "./nav-links";
 import { QuickAdd } from "./quick-add";
 import { SessionPill } from "./session-timer";
+import { now } from "@/lib/dates/clock";
 
 export const SPACE_COOKIE = "portal-space";
 
@@ -21,7 +22,7 @@ function Brand() {
 function Bar({ children }: { children?: React.ReactNode }) {
   return (
     <div className="sticky top-0 z-20 w-full bg-primary/80 backdrop-blur-lg">
-      <div className="c-space mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2">
+      <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 c-space py-2">
         <Brand />
         {children}
       </div>
@@ -40,7 +41,8 @@ export async function Nav() {
     .filter((t) => !t.share || access.shares.includes(t.share));
   const title = (t: (typeof tools)[number]) => (owner && t.mentorView ? `${t.title} (mentor view)` : t.title);
   const link = (t: (typeof tools)[number]) => ({ href: t.href, title: title(t) });
-  const pick = (space: Space, group: "primary" | "more") => tools.filter((t) => t.space === space && t.group === group).map(link);
+  const pick = (space: Space, group: "primary" | "more") =>
+    tools.filter((t) => t.space === space && t.group === group).map(link);
 
   if (!owner) {
     // A mentor has only a handful of places, so all of them stay in view, and there is no Life.
@@ -74,7 +76,7 @@ export async function Nav() {
         </div>
       </Bar>
       <TabBar spaces={spaces} initial={initial} canAdd={canAdd} />
-      <QuickAdd today={dateIn(new Date(), timeZone())} />
+      <QuickAdd today={dateIn(now(), timeZone())} />
     </>
   );
 }

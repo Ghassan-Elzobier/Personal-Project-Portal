@@ -32,12 +32,15 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
 
   if (shown.length === 0) return null;
   return (
-    <section aria-labelledby="reviews-title" className="card space-y-4">
+    <section aria-labelledby="reviews-title" className="space-y-4 card">
       <div>
         <h2 id="reviews-title" className="text-lg font-semibold">
-          Recall from memory <span className="text-sm font-normal text-neutral-300 tabular-nums">{shown.length} due</span>
+          Recall from memory{" "}
+          <span className="text-sm font-normal text-neutral-300 tabular-nums">{shown.length} due</span>
         </h2>
-        <p className="text-sm text-neutral-300">Write it on blank paper before looking anything up, then check it and rate yourself honestly.</p>
+        <p className="text-sm text-neutral-300">
+          Write it on blank paper before looking anything up, then check it and rate yourself honestly.
+        </p>
       </div>
       <ul className="divide-y divide-white/10">
         {shown.slice(0, SHOWN).map((r) => (
@@ -45,9 +48,13 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
             <div className="min-w-56 flex-1">
               <p className="text-sm">{r.prompt}</p>
               <p className="flex flex-wrap gap-x-3 text-xs text-neutral-300">
-                <Link href={r.sourceHref} scroll={false} className="underline-offset-4 hover:underline">{r.source}</Link>
+                <Link href={r.sourceHref} scroll={false} className="underline-offset-4 hover:underline">
+                  {r.source}
+                </Link>
                 {r.bookHref && (
-                  <a href={r.bookHref} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">Open the book</a>
+                  <a href={r.bookHref} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+                    Open the book
+                  </a>
                 )}
               </p>
             </div>
@@ -55,7 +62,8 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
               {(["got", "shaky", "missed"] as const).map((rating) => (
                 <button
                   key={rating}
-                  disabled={pending} aria-busy={pending}
+                  disabled={pending}
+                  aria-busy={pending}
                   onClick={() => rate(r.gid, rating)}
                   title={`Next: ${gapLabel(today, nextReview({ step: r.step, kind: r.kind, rating, today }).dueOn)}`}
                   className="btn-ghost px-3 py-1 text-xs"

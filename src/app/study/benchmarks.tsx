@@ -15,7 +15,16 @@ function Sparkline({ values, label }: { values: number[]; label: string }) {
   const last = values[values.length - 1];
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label}>
-      {values.length > 1 && <polyline points={points} fill="none" stroke="var(--color-aqua)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+      {values.length > 1 && (
+        <polyline
+          points={points}
+          fill="none"
+          stroke="var(--color-aqua)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
       <circle cx={x(values.length - 1)} cy={y(last)} r="4" fill="var(--color-aqua)" />
     </svg>
   );
@@ -26,33 +35,58 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
   const series = groupBenchmarks(rows);
   if (!series.length) return null;
   return (
-    <div className="card overflow-x-auto p-0">
-      <table className="w-full min-w-[42rem] text-sm">
+    <div className="overflow-x-auto card p-0">
+      <table className="w-full min-w-2xl text-sm">
         <thead>
           <tr className="border-b border-white/10 text-left text-xs text-neutral-300">
-            <th scope="col" className="px-4 py-3 font-medium">Measured</th>
-            <th scope="col" className="px-4 py-3 font-medium">Scene and GPU</th>
-            <th scope="col" className="px-4 py-3 text-right font-medium">Latest</th>
-            <th scope="col" className="px-4 py-3 font-medium">Since first</th>
-            <th scope="col" className="px-4 py-3 font-medium">Trend</th>
-            <th scope="col" className="px-4 py-3 font-medium">Commit</th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Measured
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Scene and GPU
+            </th>
+            <th scope="col" className="px-4 py-3 text-right font-medium">
+              Latest
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Since first
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Trend
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Commit
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {series.map((s) => (
             <tr key={s.key}>
-              <th scope="row" className="px-4 py-3 text-left font-medium">{s.metric}</th>
-              <td className="px-4 py-3 text-neutral-300">{[s.scene, s.gpu].filter(Boolean).join(" · ") || "Not recorded"}</td>
-              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums">{Number(s.latest.value)} {s.unit}</td>
+              <th scope="row" className="px-4 py-3 text-left font-medium">
+                {s.metric}
+              </th>
+              <td className="px-4 py-3 text-neutral-300">
+                {[s.scene, s.gpu].filter(Boolean).join(" · ") || "Not recorded"}
+              </td>
+              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums">
+                {Number(s.latest.value)} {s.unit}
+              </td>
               <td className="px-4 py-3 whitespace-nowrap text-neutral-300 tabular-nums">
-                {s.changePercent === null ? "First result" : `${s.changePercent > 0 ? "+" : ""}${s.changePercent}%${s.improved === null ? "" : s.improved ? ", better" : ", worse"}`}
+                {s.changePercent === null
+                  ? "First result"
+                  : `${s.changePercent > 0 ? "+" : ""}${s.changePercent}%${s.improved === null ? "" : s.improved ? ", better" : ", worse"}`}
               </td>
               <td className="px-4 py-2">
                 <Sparkline values={s.values} label={`${s.metric}: ${s.values.join(", ")}`} />
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-neutral-300">
                 {s.latest.commit_sha ? (
-                  <a href={commitUrl(s.latest.commit_sha)} target="_blank" rel="noreferrer" className="font-mono text-xs text-aqua hover:underline">
+                  <a
+                    href={commitUrl(s.latest.commit_sha)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-xs text-aqua hover:underline"
+                  >
                     {s.latest.commit_sha.slice(0, 7)}
                   </a>
                 ) : (

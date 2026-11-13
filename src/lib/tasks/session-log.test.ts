@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { addHours, parseSessionForm, sessionComment, sessionHours, statusDraft } from "./session-log.ts";
 
 test("parseSessionForm accepts a normal session", () => {
-  const result = parseSessionForm({ hours: "1.5", stage: "In progress", evidence: "https://github.com/x/y/commit/abc", notes: " read 3.2 " });
+  const result = parseSessionForm({
+    hours: "1.5",
+    stage: "In progress",
+    evidence: "https://github.com/x/y/commit/abc",
+    notes: " read 3.2 ",
+  });
   assert.deepEqual(result, {
     ok: true,
     value: { hours: 1.5, stage: "In progress", evidence: "https://github.com/x/y/commit/abc", notes: "read 3.2" },

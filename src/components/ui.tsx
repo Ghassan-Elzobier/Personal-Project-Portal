@@ -21,7 +21,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   at_risk: { label: "At risk", className: "bg-sand/10 text-sand ring-sand/30" },
   off_track: { label: "Off track", className: "bg-coral/10 text-coral ring-coral/30" },
   on_hold: { label: "On hold", className: "bg-white/5 text-neutral-300 ring-white/10" },
-  complete: { label: "Complete", className: "bg-lavender/10 text-lavender ring-lavender/30" },
+  complete: { label: "Complete", className: "bg-lavender/10 text-lilac ring-lavender/30" },
 };
 
 export function StatusPill({ status }: { status: string }) {
@@ -34,7 +34,7 @@ export function PageHeader({ eyebrow, title, children }: { eyebrow?: string; tit
     <header className="mb-8 space-y-2">
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <h1 className="text-heading">{title}</h1>
-      {children && <div className="subtext max-w-2xl">{children}</div>}
+      {children && <div className="max-w-2xl subtext">{children}</div>}
     </header>
   );
 }
@@ -81,20 +81,11 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
   );
 }
 
-export function TextLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className="text-sm text-neutral-400 transition-colors hover:text-white">
-      {children}
-    </Link>
-  );
-}
-
 /** A task's link: same tab inside the portal, new tab when it points to Asana. */
 export function TaskLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
   return href.startsWith("/") ? (
     <Link href={href} scroll={false} className={className}>
       {children}
-      
     </Link>
   ) : (
     <a href={href} target="_blank" rel="noreferrer" className={className}>
