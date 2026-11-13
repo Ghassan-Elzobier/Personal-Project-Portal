@@ -5,6 +5,7 @@ import { addDays, zonedParts } from "../dates/week";
 import { loadScheduleWeek, resolveWeek, type Mirror } from "../portal/schedule";
 import type { AgendaItem } from "./agenda";
 import { lifeToday, loadLife } from "./load";
+import { now as clockNow } from "@/lib/dates/clock";
 
 // Keeps a copy of the Life plan in Google Calendar for the next two weeks, so the
 // phone's calendar shows meals, cooking and the gym where the Schedule does. The
@@ -45,7 +46,7 @@ async function sync(): Promise<SyncResult> {
   const began = Date.now();
   const tz = timeZone();
   const today = lifeToday();
-  const now = zonedParts(new Date(), tz).minutes;
+  const now = zonedParts(clockNow(), tz).minutes;
   const last = addDays(today, DAYS_AHEAD - 1);
   const life = await loadLife();
   if (life.error !== undefined) return { error: life.error };

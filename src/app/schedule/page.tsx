@@ -9,6 +9,7 @@ import { disconnectGoogle } from "./actions";
 import { SyncStudyButton } from "./sync-button";
 import { CalendarButton } from "../life/calendar-button";
 import { WeekPlanner } from "./week-planner";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const metadata: Metadata = { title: "Schedule" };
 export const dynamic = "force-dynamic";
@@ -39,8 +40,8 @@ export default async function SchedulePage({
   const keep = showInvites ? "&invites=show" : "";
   const googleReady = typeof data.google === "object" && "email" in data.google;
   const tz = timeZone();
-  const now = zonedParts(new Date(), tz);
-  const thisWeek = dateIn(new Date(), tz);
+  const now = zonedParts(clockNow(), tz);
+  const thisWeek = dateIn(clockNow(), tz);
   const note = params.google ? GOOGLE_NOTES[params.google] : null;
 
   return (

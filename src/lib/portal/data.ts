@@ -13,6 +13,7 @@ import { studySnapshot } from "../tasks/native";
 import { projectDef, type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
+import { now } from "@/lib/dates/clock";
 
 // What the pages show, shaped from the task backend. Every loader returns a result
 // rather than throwing, so one broken project never blanks the whole page.
@@ -87,11 +88,11 @@ export function toView(task: AsanaTask, project: ProjectKey): TaskView {
 }
 
 export function today(): string {
-  return dateIn(new Date(), timeZone());
+  return dateIn(now(), timeZone());
 }
 
 export function thisWeek(): Week {
-  return weekOf(new Date(), timeZone());
+  return weekOf(now(), timeZone());
 }
 
 /** Open tasks in a project. */

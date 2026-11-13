@@ -3,10 +3,11 @@ import { timeZone } from "../config/env";
 import { addDays, dateIn } from "../dates/week";
 import { buildState, type LifeState } from "./state";
 import { LifeError, readLife } from "./store";
+import { now } from "@/lib/dates/clock";
 
 /** Today in the portal's time zone. */
 export function lifeToday(): string {
-  return dateIn(new Date(), timeZone());
+  return dateIn(now(), timeZone());
 }
 
 /** The Life state for today, or a message saying why it could not be read. */

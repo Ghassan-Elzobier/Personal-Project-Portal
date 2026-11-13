@@ -7,6 +7,7 @@ import { dateIn } from "@/lib/dates/week";
 import { NavLinks, SpaceSwitch, TabBar, type NavSpaces } from "./nav-links";
 import { QuickAdd } from "./quick-add";
 import { SessionPill } from "./session-timer";
+import { now } from "@/lib/dates/clock";
 
 export const SPACE_COOKIE = "portal-space";
 
@@ -74,7 +75,7 @@ export async function Nav() {
         </div>
       </Bar>
       <TabBar spaces={spaces} initial={initial} canAdd={canAdd} />
-      <QuickAdd today={dateIn(new Date(), timeZone())} />
+      <QuickAdd today={dateIn(now(), timeZone())} />
     </>
   );
 }

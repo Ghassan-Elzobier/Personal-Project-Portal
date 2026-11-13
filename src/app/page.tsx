@@ -23,6 +23,7 @@ import { loadLife } from "@/lib/life/load";
 import { yourDay } from "@/lib/portal/day";
 import { YourDay } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ async function OwnerHome() {
   const date = today();
   const week = thisWeek();
   const tz = timeZone();
-  const now = zonedParts(new Date(), tz).minutes;
+  const now = zonedParts(clockNow(), tz).minutes;
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();

@@ -2,16 +2,20 @@
 # `supabase config push` after `supabase link` (see docs/SETUP.md).
 project_id = "personal-project-portal"
 
+# Ports sit in 554xx, away from the 543xx defaults, so this stack runs beside
+# other local Supabase projects (the defaults are often taken by work).
+
 [api]
 enabled = true
-port = 54321
+port = 55421
 # `portal` is deliberately absent: it is reached only through public RPCs.
 schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
+port = 55422
+shadow_port = 55420
 major_version = 17
 
 [db.migrations]
@@ -19,16 +23,18 @@ enabled = true
 
 [studio]
 enabled = true
-port = 54323
+port = 55423
 
-[inbucket]
+# Catches sign-in emails locally (Mailpit). Called [inbucket] before CLI v3.
+[local_smtp]
 enabled = true
-port = 54324
+port = 55424
 
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+# 3100 is the end-to-end suite's server (playwright.config.ts).
+additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://localhost:3100/auth/callback"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 # Nobody signs themselves up. The owner invites mentors from the dashboard,
@@ -36,9 +42,9 @@ enable_refresh_token_rotation = true
 enable_signup = false
 
 [auth.email]
-# This switch is the whole email provider, not just sign-ups: false also turns
-# off email links. Sign-ups stay blocked by [auth] enable_signup above.
-enable_signup = true
+# The whole email provider: false would also turn off email links. Sign-ups
+# stay blocked by [auth] enable_signup above. (CLI v2 called this enable_signup.)
+enabled = true
 enable_confirmations = false
 otp_length = 6
 otp_expiry = 3600
@@ -51,3 +57,6 @@ enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
+
+[analytics]
+enabled = false

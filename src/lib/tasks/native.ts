@@ -5,6 +5,7 @@ import { anonClient } from "../connector/oauth";
 import { PROJECTS, type ProjectKey } from "../config/projects";
 import { createClient } from "../supabase/server";
 import type { BenchmarkRow } from "../study/benchmarks";
+import { now } from "@/lib/dates/clock";
 import {
   AsanaError,
   filterNativeRows,
@@ -86,7 +87,7 @@ export async function listTasks(
   options: { completedSince?: Date | "now"; modifiedSince?: Date } = {},
 ): Promise<AsanaTask[]> {
   const data = await readable(key);
-  const completedSince = options.completedSince === "now" ? new Date() : options.completedSince;
+  const completedSince = options.completedSince === "now" ? now() : options.completedSince;
   const rows = data.tasks.filter((t) => t.project === key);
   return filterNativeRows(rows, { completedSince, modifiedSince: options.modifiedSince }).map(toTask);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
@@ -242,16 +242,24 @@ function suggestKg(item: ItemView, position: number, logged: Logged): number | n
  * motion turned on, both frames sit side by side instead. The line drawings are
  * inverted to white so they suit the dark page.
  */
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 function Movement({ frames, name }: { frames: [string, string]; name: string }) {
   const [frame, setFrame] = useState(0);
-  const [still, setStill] = useState(false);
+  // Read from the browser, not copied into state, so it also follows a change
+  // to the setting while the page is open. The server renders the moving version.
+  const still = useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(REDUCED_MOTION).matches, () => false);
   useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setStill(reduce.matches);
-    if (reduce.matches) return;
+    if (still) return;
     const id = window.setInterval(() => setFrame((f) => 1 - f), 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [still]);
   const picture = (src: string, label: string, shown: boolean) => (
     <Image key={src} src={src} alt={label} fill unoptimized sizes="20rem" className={`object-contain p-2 invert transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`} />
   );

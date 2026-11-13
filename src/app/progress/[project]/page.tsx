@@ -12,6 +12,7 @@ import { allTasks, attempt, latestStatus, today, type TaskView } from "@/lib/por
 import { isProjectKey, projectDef } from "@/lib/config/projects";
 import { formatHours } from "@/lib/tasks/session-log";
 import { DueDate, Empty, ErrorNote, EvidenceLink, Hours, PageHeader, SectionTitle, StagePill, StatusPill, TaskLink } from "@/components/ui";
+import { now as clockNow } from "@/lib/dates/clock";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function ProjectProgress({ params }: Params) {
 
   const def = projectDef(project);
   const tz = timeZone();
-  const now = new Date();
+  const now = clockNow();
   const chartSince = midnightIn(addDays(weekOf(now, tz).start, -7 * (CHART_WEEKS - 1)), tz);
   const [tasks, status, asana, sessions] = await Promise.all([
     attempt(() => allTasks(project)),
