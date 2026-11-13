@@ -6,6 +6,7 @@ import { toast } from "@/components/toaster";
 import type { Slot } from "@/lib/life/nutrition";
 import { logMeal, planWeek, removeCook, setDaily, setFresh, setOut, swapCook } from "./actions";
 import { ActionButton, Sheet, Stars } from "./kit";
+import { Chip } from "@/components/ui";
 
 export type Alt = {
   key: string;
@@ -149,7 +150,7 @@ export function WeekView({
                     </p>
                   </div>
                   {c.cooked ? (
-                    <span className="chip bg-mint/10 text-mint ring-mint/25">Cooked</span>
+                    <Chip tone="mint">Cooked</Chip>
                   ) : (
                     <div className="flex shrink-0 items-center gap-1">
                       <button
@@ -420,11 +421,7 @@ function AltList({
           >
             <span className="flex items-start justify-between gap-3">
               <span className="min-w-0 font-medium">{a.name}</span>
-              {a.stars ? (
-                <Stars value={a.stars} size="text-xs" />
-              ) : a.explore ? (
-                <span className="chip shrink-0 bg-sand/10 text-sand ring-sand/25">New</span>
-              ) : null}
+              {a.stars ? <Stars value={a.stars} size="text-xs" /> : a.explore ? <Chip tone="sand">New</Chip> : null}
             </span>
             <span className="block text-xs text-muted tabular-nums">
               {a.cuisine} · {a.kcal} kcal · {a.protein} g · {a.minutes} min

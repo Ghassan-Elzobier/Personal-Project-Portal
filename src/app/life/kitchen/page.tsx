@@ -12,8 +12,8 @@ import { attempt } from "@/lib/portal/data";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import Link from "next/link";
 import { eligible, sessionDates } from "@/lib/life/suggest";
-import { ErrorNote } from "@/components/ui";
-import { dayLabel, LifeHeader, Tabs, weekRange } from "../parts";
+import { ErrorNote, Tabs } from "@/components/ui";
+import { dayLabel, LifeHeader, weekRange } from "../parts";
 import { CupboardView, FridgeView, ShopView, type ShopLine } from "./views";
 
 export const metadata: Metadata = { title: "Kitchen" };

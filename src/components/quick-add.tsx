@@ -8,6 +8,7 @@ import { shortDate } from "@/lib/dates/week";
 import { parseQuickAdd, pastedLines } from "@/lib/tasks/quick-add";
 import { toast } from "./toaster";
 import { startNavigation } from "./navigation-progress";
+import { Chip } from "@/components/ui";
 
 // Add a task from anywhere. Press n, or the Add button, and type a line such as
 // "Read chapter 5 #axler fri". Paste several lines to add them all.
@@ -189,11 +190,9 @@ function QuickAddDialog({
               ))}
             </select>
             {many ? (
-              <span className="chip bg-white/5 text-body ring-white/10">{lines.length} tasks, one per line</span>
+              <Chip>{lines.length} tasks, one per line</Chip>
             ) : (
-              parsed.dueOn && (
-                <span className="chip bg-aqua/10 text-aqua ring-aqua/30">Due {shortDate(parsed.dueOn)}</span>
-              )
+              parsed.dueOn && <Chip tone="aqua">Due {shortDate(parsed.dueOn)}</Chip>
             )}
           </div>
           <div className="flex items-center gap-2">

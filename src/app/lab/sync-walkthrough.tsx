@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
 import { viewById } from "@/lib/lab/guide";
 import { SYNC_STEP_X, SyncLanes } from "./figures-host";
+import { Chip } from "@/components/ui";
 
 // Steps through the command buffer one command at a time: a band slides to each
 // barrier, and the caption says what it orders and whether it sits on the chain
@@ -145,10 +146,8 @@ export function SyncWalkthrough() {
                     Step {step} of {steps.length}
                   </span>
                   <span className="font-semibold">{current.title}</span>
-                  {chain.on === true && <span className="chip bg-aqua/10 text-aqua ring-aqua/30">on the chain</span>}
-                  {chain.on === false && (
-                    <span className="chip bg-coral/10 text-coral ring-coral/30">off the chain</span>
-                  )}
+                  {chain.on === true && <Chip tone="aqua">on the chain</Chip>}
+                  {chain.on === false && <Chip tone="coral">off the chain</Chip>}
                 </p>
                 <p className="text-sm text-body">{current.text}</p>
                 <p className="text-sm text-muted">{chain.note}</p>

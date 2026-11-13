@@ -18,6 +18,7 @@ import {
   undoDelivery,
 } from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
+import { Chip } from "@/components/ui";
 
 // ---------------------------------------------------------------------------
 // Shop
@@ -188,15 +189,11 @@ export function ShopView({
                       {l.spare ? ` · ${l.spare} spare` : ""}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {l.freeze && (
-                        <span className="chip bg-sky-400/10 text-sky-300 ring-sky-400/25">
-                          Freeze on arrival · for {l.firstUse}
-                        </span>
-                      )}
+                      {l.freeze && <Chip tone="ice">Freeze on arrival · for {l.firstUse}</Chip>}
                       {l.checks.map((c) => (
-                        <span key={c.tag} className="chip bg-sand/10 text-sand ring-sand/25">
+                        <Chip key={c.tag} tone="sand">
                           Check label: {c.label.split(" (")[0]}
-                        </span>
+                        </Chip>
                       ))}
                     </div>
                   </div>

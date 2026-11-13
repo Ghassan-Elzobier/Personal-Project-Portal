@@ -3,6 +3,7 @@ import { codeHref, codeLabel, type CodeRef, type Finding, type Source } from "@/
 import { bookHref } from "@/lib/library/links";
 import { RENDERER } from "@/lib/lab/guide";
 import type { Drift } from "@/lib/lab/drift";
+import { Chip, type Tone } from "@/components/ui";
 // Pieces the Lab hub and the view pages share. The figures themselves are in
 // view-figure.tsx, so the hub does not load the interactive ones.
 
@@ -26,25 +27,25 @@ export function CodeLinks({ refs }: { refs: readonly CodeRef[] }) {
   );
 }
 
-const SOURCE: Record<Source, { label: string; className: string; title: string }> = {
+const SOURCE: Record<Source, { label: string; tone: Tone; title: string }> = {
   measured: {
     label: "Measured",
-    className: "bg-mint/10 text-mint ring-mint/30",
+    tone: "mint",
     title: "Read off the Iris Xe laptop, or from docs/benchmark.md",
   },
   model: {
     label: "Model",
-    className: "bg-aqua/10 text-aqua ring-aqua/30",
+    tone: "aqua",
     title: "Computed by running the shader's logic in TypeScript",
   },
   published: {
     label: "Published",
-    className: "bg-sand/10 text-sand ring-sand/30",
+    tone: "sand",
     title: "A vendor's paper figure, not measured here",
   },
   code: {
     label: "From the code",
-    className: "bg-white/5 text-body ring-white/10",
+    tone: "neutral",
     title: "Follows directly from the code",
   },
 };
@@ -52,16 +53,16 @@ const SOURCE: Record<Source, { label: string; className: string; title: string }
 export function SourceChip({ source }: { source: Source }) {
   const s = SOURCE[source];
   return (
-    <span className={`chip ${s.className}`} title={s.title}>
+    <Chip tone={s.tone} title={s.title}>
       {s.label}
-    </span>
+    </Chip>
   );
 }
 
-const FINDING: Record<Finding["kind"], { label: string; className: string }> = {
-  bug: { label: "Bug, confirmed", className: "bg-coral/10 text-coral ring-coral/30" },
-  check: { label: "Worth checking", className: "bg-sand/10 text-sand ring-sand/30" },
-  note: { label: "Note", className: "bg-white/5 text-body ring-white/10" },
+const FINDING: Record<Finding["kind"], { label: string; tone: Tone }> = {
+  bug: { label: "Bug, confirmed", tone: "coral" },
+  check: { label: "Worth checking", tone: "sand" },
+  note: { label: "Note", tone: "neutral" },
 };
 
 export function FindingCard({ finding, view }: { finding: Finding; view?: { id: string; title: string } }) {
@@ -71,7 +72,7 @@ export function FindingCard({ finding, view }: { finding: Finding; view?: { id: 
       className={`space-y-2 rounded-xl p-4 ring-1 ${finding.kind === "bug" ? "bg-coral/5 ring-coral/30" : "bg-white/5 ring-white/10"}`}
     >
       <p className="flex flex-wrap items-center gap-2">
-        <span className={`chip ${k.className}`}>{k.label}</span>
+        <Chip tone={k.tone}>{k.label}</Chip>
         <span className="font-semibold">{finding.title}</span>
       </p>
       <p className="text-sm text-body">{finding.text}</p>

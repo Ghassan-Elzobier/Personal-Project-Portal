@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { requireOwner } from "@/lib/auth/access";
-import { DueDate, Empty, ErrorNote, PageHeader, SectionTitle, StagePill, StatusPill } from "@/components/ui";
-import { Chip, LifeHeader, Ring, Tabs } from "@/app/life/parts";
+import {
+  Chip,
+  DueDate,
+  Empty,
+  ErrorNote,
+  PageHeader,
+  Ring,
+  SectionTitle,
+  StagePill,
+  StatusPill,
+  Tabs,
+} from "@/components/ui";
+import { LifeHeader } from "@/app/life/parts";
 
 export const metadata: Metadata = { title: "Design" };
 export const dynamic = "force-dynamic";
@@ -40,7 +51,13 @@ const LIFE_COLOURS = [
 
 const STAGES = ["Not started", "In progress", "Blocked", "Needs review", "Done"];
 const STATUSES = ["on_track", "at_risk", "off_track", "on_hold", "complete"];
-const CHIP_TONES = ["neutral", "mint", "sand", "aqua", "coral", "ice"] as const;
+const CHIP_TONES = ["neutral", "quiet", "aqua", "mint", "sand", "coral", "lilac", "ice"] as const;
+const TEXT_ROLES = [
+  ["text-bright", "Bright: emphasised detail, text on buttons"],
+  ["text-body", "Body: reading text and labels"],
+  ["text-muted", "Muted: secondary detail, such as a date or a count"],
+  ["text-faint", "Faint: the least important, such as a footnote"],
+] as const;
 
 function Swatches({ colours }: { colours: readonly (readonly [string, string])[] }) {
   return (
@@ -84,7 +101,7 @@ export default async function DesignPage() {
         </div>
       </Section>
 
-      <Section title="Type" note="One family, Funnel Display. Headings are bold, body text is neutral.">
+      <Section title="Type" note="One family, Funnel Display. Headings are white and bold; greys are text roles.">
         <div className="space-y-3 card">
           <p className="eyebrow">Eyebrow</p>
           <p className="text-heading">Page heading</p>
@@ -93,6 +110,13 @@ export default async function DesignPage() {
           <p className="subtext">Subtext explains what a section is for.</p>
           <p className="text-sm text-muted">Secondary detail, such as a date or a count.</p>
           <p className="text-xs text-faint tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
+          <ul className="space-y-1 border-t border-white/10 pt-3 text-sm">
+            {TEXT_ROLES.map(([role, text]) => (
+              <li key={role} className={role}>
+                {text}
+              </li>
+            ))}
+          </ul>
         </div>
       </Section>
 
@@ -163,7 +187,10 @@ export default async function DesignPage() {
         </form>
       </Section>
 
-      <Section title="Status" note="Pills and chips name a state; colour backs up the word, never replaces it.">
+      <Section
+        title="Status"
+        note="One Chip in eight tones; stages and statuses map onto them. Colour backs up the word, never replaces it."
+      >
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {STAGES.map((s) => (
@@ -197,7 +224,7 @@ export default async function DesignPage() {
         </div>
       </Section>
 
-      <Section title="Life pieces" note="Shared by the meals, kitchen, gym and body pages.">
+      <Section title="Life pieces" note="The Life header, with the shared Tabs and Ring as they look on Life's greens.">
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
             Life pages open with this header.
