@@ -44,10 +44,10 @@ export default async function ProgressIndex() {
                   </div>
                   {status.ok && status.value && <StatusPill status={status.value.status_type} />}
                 </div>
-                <p className="text-sm text-neutral-400">{p.blurb}</p>
+                <p className="text-sm text-muted">{p.blurb}</p>
                 {stats && stats.total > 0 && (
                   <>
-                    <p className="text-sm text-neutral-300 tabular-nums">
+                    <p className="text-sm text-body tabular-nums">
                       {stats.percent}% done, {stats.done} of {stats.total} tasks, {formatHours(stats.hours)} h
                     </p>
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>

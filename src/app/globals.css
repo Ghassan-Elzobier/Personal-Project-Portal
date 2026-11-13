@@ -22,6 +22,13 @@
   --color-moss: #0c1915;
   --color-pine: #13271f;
   --color-fern: #1b3a2d;
+  /* Text roles, brightest to faintest, so one place sets how loud each kind of
+     text is. White is for headings and anything the eye should land on first.
+     The values are Tailwind's neutral 200 to 500. */
+  --color-bright: oklch(92.2% 0 none); /* emphasised detail, text on buttons */
+  --color-body: oklch(87% 0 none); /* reading text and labels */
+  --color-muted: oklch(70.8% 0 none); /* secondary detail: dates, counts, captions */
+  --color-faint: oklch(55.6% 0 none); /* the least important: placeholders, footnotes */
 }
 
 html {
@@ -75,11 +82,11 @@ body {
 }
 
 @utility subtext {
-  @apply text-sm text-pretty text-neutral-400 md:text-base;
+  @apply text-sm text-pretty text-muted md:text-base;
 }
 
 @utility eyebrow {
-  @apply text-xs font-medium tracking-wider text-neutral-400 uppercase;
+  @apply text-xs font-medium tracking-wider text-muted uppercase;
 }
 
 @utility btn {
@@ -91,15 +98,15 @@ body {
 }
 
 @utility btn-ghost {
-  @apply btn bg-white/5 text-neutral-200 ring-1 ring-white/10 hover:bg-white/10;
+  @apply btn bg-white/5 text-bright ring-1 ring-white/10 hover:bg-white/10;
 }
 
 @utility field-label {
-  @apply text-sm font-medium text-neutral-300;
+  @apply text-sm font-medium text-body;
 }
 
 @utility field-input {
-  @apply mt-2 min-h-10 w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 text-sm text-white placeholder-neutral-500 transition duration-200 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none;
+  @apply mt-2 min-h-10 w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 text-sm text-white placeholder-faint transition duration-200 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none;
 }
 
 select option,

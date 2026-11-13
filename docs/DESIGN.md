@@ -31,11 +31,17 @@ In `src/app/globals.css`, under `@theme` (colours, the font) and `@utility`
 | Life surfaces | `moss`, `pine`, `fern` |
 | Brand | `royal`, `lavender`, `lilac` (lavender for text on dark) |
 | Accents | `aqua`, `mint`, `sand`, `coral`, `orange`, `fuchsia` |
+| Text roles | `text-white` (headings), `bright`, `body`, `muted`, `faint` (as `text-`, `fill-`, `placeholder-`) |
 | Type | `text-heading`, `subtext`, `eyebrow`, `field-label`, Tailwind's scale |
 | Containers | `card`, `card-special`, `card-link`, `card-life`, `dialog.sheet` |
 | Actions | `btn-primary`, `btn-ghost`, `btn-soft`, `btn-life`, `tap` (44 px target) |
 | Forms | `field-input` |
 | Status | `chip`, with the tone classes in `StagePill`, `StatusPill` and Life's `Chip` |
+
+Text greys are roles, not steps: `body` for reading text and labels, `muted` for
+secondary detail (dates, counts, captions), `faint` for the least important,
+`bright` for emphasised detail. Pick the role that says why the text is grey;
+the values live in one place.
 
 The linter rejects raw hex colours and one-off pixel font sizes. When the scale
 lacks a step, add a token here and in `globals.css`, then use it everywhere it
@@ -57,6 +63,3 @@ one-off.
   `Chip` with tones, in `src/components`, should serve both.
 - `Tabs`, `Ring` and `Chip` are shared beyond Life but live in `src/app/life`;
   they belong in `src/components`.
-- Text greys are raw Tailwind steps (`text-neutral-300`, `-400`, `-500`, about 500
-  uses). Named roles (body, muted, faint) would make intent visible and let the
-  palette change in one place.

@@ -48,7 +48,7 @@ export default async function RecipePage({
   return (
     <article className="space-y-6">
       <p>
-        <Link href="/life/recipes" className="text-sm text-neutral-400 hover:text-white">
+        <Link href="/life/recipes" className="text-sm text-muted hover:text-white">
           ← Recipes
         </Link>
       </p>
@@ -76,7 +76,7 @@ export default async function RecipePage({
           <h2 id="allergy-title" className="font-semibold">
             Your food rules
           </h2>
-          <ul className="space-y-1 text-sm text-neutral-300">
+          <ul className="space-y-1 text-sm text-body">
             {r.swaps?.map((w) => (
               <li key={w}>· {w}</li>
             ))}
@@ -110,7 +110,7 @@ export default async function RecipePage({
                   key={i}
                   href={`/life/recipes/${r.key}?portions=${n}`}
                   scroll={false}
-                  className="tap h-9 min-w-9 rounded-lg bg-white/5 text-neutral-300"
+                  className="tap h-9 min-w-9 rounded-lg bg-white/5 text-body"
                   aria-label={i === 0 ? "Fewer portions" : "More portions"}
                 >
                   {i === 0 ? "−" : "+"}
@@ -119,7 +119,7 @@ export default async function RecipePage({
               <span className="ml-1 tabular-nums">{portions} portions</span>
             </span>
           </div>
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-muted">
             Sized to your {s.kcal.toLocaleString("en-GB")} kcal target: {Math.round(scale * 100)}% of the written
             amounts.
           </p>
@@ -131,10 +131,10 @@ export default async function RecipePage({
                 <li key={i} className="flex items-baseline justify-between gap-3 py-1.5">
                   <span className="min-w-0">
                     {ing.name}
-                    {line.note && <span className="text-neutral-400">, {line.note}</span>}
-                    {line.side && <span className="text-neutral-500"> (to serve)</span>}
+                    {line.note && <span className="text-muted">, {line.note}</span>}
+                    {line.side && <span className="text-faint"> (to serve)</span>}
                   </span>
-                  <span className="shrink-0 text-neutral-300 tabular-nums">{amount(ing, l.qty)}</span>
+                  <span className="shrink-0 text-body tabular-nums">{amount(ing, l.qty)}</span>
                 </li>
               );
             })}
@@ -151,11 +151,11 @@ export default async function RecipePage({
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
                   {i + 1}
                 </span>
-                <span className="text-neutral-200">{step}</span>
+                <span className="text-bright">{step}</span>
               </li>
             ))}
           </ol>
-          {r.reheat && <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-300">Reheat: {r.reheat}</p>}
+          {r.reheat && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">Reheat: {r.reheat}</p>}
           {r.keeps.rice && (
             <p className="text-xs text-sky-300">
               Rice: cool it within an hour, keep it in the fridge for one day at most, and reheat it once only (Food

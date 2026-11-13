@@ -48,7 +48,7 @@ export default async function LoginPage({
                     Continue with Google
                   </button>
                 </form>
-                <div className="flex items-center gap-3 text-xs text-neutral-400">
+                <div className="flex items-center gap-3 text-xs text-muted">
                   <span className="h-px flex-1 bg-white/10" />
                   or get an email link
                   <span className="h-px flex-1 bg-white/10" />

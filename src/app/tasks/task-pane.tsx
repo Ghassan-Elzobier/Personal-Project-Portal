@@ -124,7 +124,7 @@ export function TaskPane({
             {completed ? "Completed" : "Mark complete"}
           </label>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-400" role="status">
+            <span className="text-xs text-muted" role="status">
               {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
             </span>
             <Link href={closeHref} scroll={false} className="btn-ghost px-4 py-1.5">
@@ -284,13 +284,11 @@ export function TaskPane({
 
         <section aria-label="Comments" className="space-y-3 border-t border-white/10 pt-5">
           <h3 className="font-semibold">Comments</h3>
-          {comments.length === 0 && (
-            <p className="text-sm text-neutral-400">No comments yet. Logged sessions appear here.</p>
-          )}
+          {comments.length === 0 && <p className="text-sm text-muted">No comments yet. Logged sessions appear here.</p>}
           <ul className="space-y-3">
             {comments.map((c) => (
               <li key={c.gid} className="rounded-xl bg-white/5 p-3">
-                <p className="text-xs text-neutral-400">{stamp.format(new Date(c.createdAt))}</p>
+                <p className="text-xs text-muted">{stamp.format(new Date(c.createdAt))}</p>
                 <p className="mt-1 text-sm whitespace-pre-wrap">{c.text}</p>
               </li>
             ))}

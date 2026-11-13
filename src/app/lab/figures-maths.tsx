@@ -58,7 +58,7 @@ export function Camera() {
               x={cx + (i === 1 ? -s.radius * S - 6 : s.radius * S + 6)}
               y={cy + (i === 1 ? -16 : i === 2 ? 20 : 4)}
               anchor={i === 1 ? "end" : "start"}
-              className="fill-neutral-400 text-[11px]"
+              className="fill-muted text-[11px]"
             >
               {s.name.toLowerCase()}
             </Text>
@@ -105,7 +105,7 @@ export function Camera() {
             strokeWidth={1.2}
           />
           <Badge n={r.n} x={522} y={46 + i * 64} tone="shader" />
-          <Text x={544} y={65 + i * 64} className="fill-neutral-300 text-[12px]">
+          <Text x={544} y={65 + i * 64} className="fill-body text-[12px]">
             {r.label}
           </Text>
           <Text x={544} y={84 + i * 64} className="fill-white text-[14px] font-semibold tabular-nums">
@@ -114,13 +114,13 @@ export function Camera() {
           {i < rows.length - 1 && <Arrow id={id} d={`M 750 ${94 + i * 64} L 750 ${106 + i * 64}`} tone="shader" />}
         </g>
       ))}
-      <Text x={520} y={376} className="fill-neutral-300 text-[12px]">
+      <Text x={520} y={376} className="fill-body text-[12px]">
         y is negated in step 5: pixel rows count down, the scene&apos;s y points up.
       </Text>
-      <Text x={520} y={396} className="fill-neutral-300 text-[12px]">
+      <Text x={520} y={396} className="fill-body text-[12px]">
         Jitter moves the sample inside the pixel each frame, which is free anti-aliasing.
       </Text>
-      <Text x={520} y={420} className="fill-neutral-400 text-[12px]">
+      <Text x={520} y={420} className="fill-muted text-[12px]">
         On the left, the aqua ray is this pixel: straight ahead, into the mirror sphere.
       </Text>
     </Figure>
@@ -144,7 +144,7 @@ export function Intersection() {
           key={i}
           x={[480, 600, 660, 735, 810, 910][i]}
           y={y}
-          className={`${head ? "fill-neutral-400 text-[11.5px]" : hit ? "fill-aqua text-[12.5px] font-semibold" : "fill-neutral-200 text-[12.5px]"} tabular-nums`}
+          className={`${head ? "fill-muted text-[11.5px]" : hit ? "fill-aqua text-[12.5px] font-semibold" : "fill-bright text-[12.5px]"} tabular-nums`}
         >
           {c}
         </Text>
@@ -186,12 +186,12 @@ export function Intersection() {
       label="A ray meets a sphere where a quadratic in t has a root. Three rays show the discriminant below zero (a miss), zero (a touch) and above zero (two crossings, of which the nearer is kept). Tables give a, b, c, the discriminant and t for each sphere along two real pixels' rays; the nearest hit is highlighted."
     >
       <circle cx={C.x} cy={C.y} r={C.r} className="fill-white/5 stroke-white/40" strokeWidth={1.5} />
-      <circle cx={C.x} cy={C.y} r={3} className="fill-neutral-400" />
-      <Text x={C.x + 6} y={C.y + 4} className="fill-neutral-400 text-[11px]">
+      <circle cx={C.x} cy={C.y} r={3} className="fill-muted" />
+      <Text x={C.x + 6} y={C.y + 4} className="fill-muted text-[11px]">
         c
       </Text>
       <line x1={C.x} y1={C.y} x2={C.x - C.r * 0.71} y2={C.y + C.r * 0.71} className="stroke-white/40" />
-      <Text x={C.x - 36} y={C.y + 46} className="fill-neutral-400 text-[11px]">
+      <Text x={C.x - 36} y={C.y + 46} className="fill-muted text-[11px]">
         r
       </Text>
       {rays.map((r, i) => {
@@ -202,7 +202,7 @@ export function Intersection() {
             {dx > 0 && i === 2 && (
               <>
                 <circle cx={C.x - dx} cy={r.y} r={4} className="fill-aqua" />
-                <circle cx={C.x + dx} cy={r.y} r={4} className="fill-neutral-500" />
+                <circle cx={C.x + dx} cy={r.y} r={4} className="fill-faint" />
                 <Label x={C.x - dx - 4} y={r.y + 22} tone="shader" size={11} anchor="end">
                   t₁, kept
                 </Label>
@@ -225,41 +225,41 @@ export function Intersection() {
         Where the quadratic comes from
       </Text>
       <Badge n={1} x={20} y={296} tone="shader" />
-      <Text x={40} y={300} className="fill-neutral-200 text-[13px]">
+      <Text x={40} y={300} className="fill-bright text-[13px]">
         a point on the ray: p(t) = o + t·d
       </Text>
       <Badge n={2} x={20} y={326} tone="shader" />
-      <Text x={40} y={330} className="fill-neutral-200 text-[13px]">
+      <Text x={40} y={330} className="fill-bright text-[13px]">
         on the sphere: |p − c|² = r²
       </Text>
       <Badge n={3} x={20} y={356} tone="shader" />
-      <Text x={40} y={360} className="fill-neutral-200 text-[13px]">
+      <Text x={40} y={360} className="fill-bright text-[13px]">
         put one in the other, with oc = o − c:
       </Text>
       <Text x={40} y={382} className="fill-aqua text-[13px]">
         (d·d) t² + 2(oc·d) t + (oc·oc − r²) = 0
       </Text>
-      <Text x={40} y={404} className="fill-neutral-300 text-[12.5px]">
+      <Text x={40} y={404} className="fill-body text-[12.5px]">
         a t² + b t + c = 0, so t = (−b ± √(b² − 4ac)) ÷ 2a
       </Text>
       <Badge n={6} x={20} y={430} tone="shader" />
-      <Text x={40} y={434} className="fill-neutral-300 text-[12.5px]">
+      <Text x={40} y={434} className="fill-body text-[12.5px]">
         t ≤ 0.001 is ignored: no hitting the surface you left
       </Text>
       <Badge n={7} x={20} y={456} tone="shader" />
-      <Text x={40} y={460} className="fill-neutral-300 text-[12.5px]">
+      <Text x={40} y={460} className="fill-body text-[12.5px]">
         hit point o + t·d; normal (p − c) ÷ r, pointing out
       </Text>
 
       {table("Pixel (400, 300), first trip: one hit", CENTRE.trips[0].tests, 40, 8)}
       {table("Pixel (240, 370), first trip: two hits, nearest wins", TWO_HITS.trips[0].tests, 200, 8)}
-      <Text x={480} y={362} className="fill-neutral-400 text-[12px]">
+      <Text x={480} y={362} className="fill-muted text-[12px]">
         a is 1 every time: the direction has length 1, so d·d = 1.
       </Text>
-      <Text x={480} y={380} className="fill-neutral-400 text-[12px]">
+      <Text x={480} y={380} className="fill-muted text-[12px]">
         The ground is a sphere of radius 100, centred 100.5 below,
       </Text>
-      <Text x={480} y={398} className="fill-neutral-400 text-[12px]">
+      <Text x={480} y={398} className="fill-muted text-[12px]">
         which is why its c is so large.
       </Text>
     </Figure>
@@ -327,10 +327,10 @@ export function Bounce() {
         r, going out
       </Label>
       <line x1={R.x + k} y1={R.y - k} x2={R.x + k} y2={R.y + k * 0} className="stroke-white/30" strokeDasharray="3 3" />
-      <Text x={30} y={R.y + 28} className="fill-neutral-300 text-[12px]">
+      <Text x={30} y={R.y + 28} className="fill-body text-[12px]">
         Keep the part along the surface,
       </Text>
-      <Text x={30} y={R.y + 46} className="fill-neutral-300 text-[12px]">
+      <Text x={30} y={R.y + 46} className="fill-body text-[12px]">
         flip the part along the normal.
       </Text>
       <Badge n={3} x={20} y={46} tone="shader" />
@@ -351,10 +351,10 @@ export function Bounce() {
           </g>
         );
       })}
-      <Text x={350} y={M.y + 28} className="fill-neutral-300 text-[12px]">
+      <Text x={350} y={M.y + 28} className="fill-body text-[12px]">
         Points on the ball above the hit:
       </Text>
-      <Text x={350} y={M.y + 46} className="fill-neutral-300 text-[12px]">
+      <Text x={350} y={M.y + 46} className="fill-body text-[12px]">
         directions near the normal win most.
       </Text>
       <Badge n={2} x={340} y={46} tone="shader" />
@@ -376,12 +376,12 @@ export function Bounce() {
             className="fill-aqua/10 stroke-aqua/70"
             strokeDasharray="3 3"
           />
-          <Text x={m.x} y={M.y + 24} anchor="middle" className="fill-neutral-300 text-[12px]">
+          <Text x={m.x} y={M.y + 24} anchor="middle" className="fill-body text-[12px]">
             {m.name}
           </Text>
         </g>
       ))}
-      <Text x={660} y={M.y + 46} className="fill-neutral-300 text-[12px]">
+      <Text x={660} y={M.y + 46} className="fill-body text-[12px]">
         mirror direction + fuzz × a random unit vector
       </Text>
       <Badge n={4} x={660} y={46} tone="shader" />
@@ -390,19 +390,19 @@ export function Bounce() {
         The sky: the only light
       </Text>
       <rect x={30} y={290} width={40} height={210} rx={6} fill={`url(#${id}-sky)`} />
-      <Text x={80} y={300} className="fill-neutral-300 text-[12px]">
+      <Text x={80} y={300} className="fill-body text-[12px]">
         straight up: (0.5, 0.7, 1)
       </Text>
-      <Text x={80} y={398} className="fill-neutral-300 text-[12px]">
+      <Text x={80} y={398} className="fill-body text-[12px]">
         horizon: halfway
       </Text>
-      <Text x={80} y={496} className="fill-neutral-300 text-[12px]">
+      <Text x={80} y={496} className="fill-body text-[12px]">
         straight down: white
       </Text>
-      <Text x={80} y={430} className="fill-neutral-400 text-[11.5px]">
+      <Text x={80} y={430} className="fill-muted text-[11.5px]">
         t = (y + 1) ÷ 2,
       </Text>
-      <Text x={80} y={446} className="fill-neutral-400 text-[11.5px]">
+      <Text x={80} y={446} className="fill-muted text-[11.5px]">
         mix(white, blue, t)
       </Text>
       <Badge n={5} x={20} y={290} tone="shader" />
@@ -413,26 +413,26 @@ export function Bounce() {
       {swatches.map((c, i) => (
         <g key={i}>
           <rect x={290 + i * 70} y={290} width={56} height={56} rx={8} fill={css(c)} className="stroke-white/20" />
-          <Text x={318 + i * 70} y={362} anchor="middle" className="fill-neutral-300 text-[11.5px]">
+          <Text x={318 + i * 70} y={362} anchor="middle" className="fill-body text-[11.5px]">
             {names[i]}
           </Text>
-          <Text x={318 + i * 70} y={378} anchor="middle" className="fill-neutral-500 text-[10px] tabular-nums">
+          <Text x={318 + i * 70} y={378} anchor="middle" className="fill-faint text-[10px] tabular-nums">
             {f(c[0], 2)}
           </Text>
           {i < swatches.length - 1 && (
-            <Text x={352 + i * 70} y={322} anchor="middle" className="fill-neutral-500 text-[12px]">
+            <Text x={352 + i * 70} y={322} anchor="middle" className="fill-faint text-[12px]">
               →
             </Text>
           )}
         </g>
       ))}
-      <Text x={290} y={410} className="fill-neutral-300 text-[12px]">
+      <Text x={290} y={410} className="fill-body text-[12px]">
         × mirror (0.91), × ground (0.5), × mirror, × ground, × sky.
       </Text>
       <Text
         x={290}
         y={428}
-        className="fill-neutral-300 text-[12px]"
+        className="fill-body text-[12px]"
       >{`What comes back: ${vec(CENTRE.result.color)}. Swatches are shown after gamma.`}</Text>
       <Badge n={1} x={290} y={290} tone="memory" />
       <Badge n={6} x={290 + (swatches.length - 1) * 70 + 56} y={290} tone="memory" />
@@ -454,7 +454,7 @@ export function Bounce() {
       <Label x={gx(0.82)} y={gy(0.82) + 26} size={11} anchor="start">
         none
       </Label>
-      <Text x={gx(0.5)} y={520} anchor="middle" className="fill-neutral-400 text-[11px]">
+      <Text x={gx(0.5)} y={520} anchor="middle" className="fill-muted text-[11px]">
         light in the sum →
       </Text>
       <Badge n={7} x={760} y={350} tone="shader" />
@@ -479,7 +479,7 @@ export function RandomNumbers() {
     ];
     return (
       <g key={frame}>
-        <Text x={20} y={y - 12} className="fill-neutral-300 text-[12.5px]">{`Pixel (400, 300), frame ${frame}`}</Text>
+        <Text x={20} y={y - 12} className="fill-body text-[12.5px]">{`Pixel (400, 300), frame ${frame}`}</Text>
         {boxes.map((b, i) => {
           const xs = [20, 186, 382, 488, 594];
           const ws = [150, 180, 92, 92, 92];
@@ -522,7 +522,7 @@ export function RandomNumbers() {
       {chain(1, 150)}
       <Badge n={1} x={20} y={50} tone="cpu" />
       <Badge n={3} x={382} y={50} tone="shader" />
-      <Text x={20} y={232} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={232} className="fill-muted text-[12px]">
         Each arrow is one pcgHash. Same pixel, next frame: a completely different sequence.
       </Text>
 
@@ -530,16 +530,16 @@ export function RandomNumbers() {
         pcgHash, line by line
       </Text>
       <rect x={20} y={290} width={600} height={100} rx={10} className="fill-white/5 stroke-white/15" />
-      <Text x={36} y={316} className="fill-neutral-200 text-[13px]">
+      <Text x={36} y={316} className="fill-bright text-[13px]">
         state = v × 747796405 + 2891336453
       </Text>
-      <Text x={36} y={342} className="fill-neutral-200 text-[13px]">
+      <Text x={36} y={342} className="fill-bright text-[13px]">
         word = ((state ≫ ((state ≫ 28) + 4)) ^ state) × 277803737
       </Text>
-      <Text x={36} y={368} className="fill-neutral-200 text-[13px]">
+      <Text x={36} y={368} className="fill-bright text-[13px]">
         return (word ≫ 22) ^ word
       </Text>
-      <Text x={36} y={410} className="fill-neutral-400 text-[12px]">
+      <Text x={36} y={410} className="fill-muted text-[12px]">
         All in 32-bit unsigned maths, so every overflow wraps. The shift amount depends on the value.
       </Text>
       <Badge n={2} x={20} y={290} tone="shader" />
@@ -561,13 +561,13 @@ export function RandomNumbers() {
           />
         );
       })}
-      <Text x={sq.x} y={sq.y + sq.s + 22} className="fill-neutral-300 text-[12px]">
+      <Text x={sq.x} y={sq.y + sq.s + 22} className="fill-body text-[12px]">
         Aqua: kept. Coral: outside, try again.
       </Text>
-      <Text x={sq.x} y={sq.y + sq.s + 40} className="fill-neutral-300 text-[12px]">
+      <Text x={sq.x} y={sq.y + sq.s + 40} className="fill-body text-[12px]">
         In 2D the circle fills π/4 of the square;
       </Text>
-      <Text x={sq.x} y={sq.y + sq.s + 58} className="fill-neutral-300 text-[12px]">
+      <Text x={sq.x} y={sq.y + sq.s + 58} className="fill-body text-[12px]">
         in 3D the ball fills π/6 ≈ 52% of the cube.
       </Text>
       <Badge n={5} x={sq.x} y={sq.y} tone="shader" />

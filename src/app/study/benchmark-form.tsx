@@ -196,19 +196,19 @@ export function BenchmarkHistory({ rows }: { rows: BenchmarkRow[] }) {
   if (!rows.length) return null;
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer text-neutral-300 hover:text-white">All {rows.length} results</summary>
+      <summary className="cursor-pointer text-body hover:text-white">All {rows.length} results</summary>
       <ul className="mt-2 divide-y divide-white/5">
         {[...rows].reverse().map((r) => (
-          <li key={r.gid} className="flex flex-wrap items-center justify-between gap-3 py-2 text-neutral-300">
+          <li key={r.gid} className="flex flex-wrap items-center justify-between gap-3 py-2 text-body">
             <span>
               {r.created_at.slice(0, 10)}: {r.metric} {Number(r.value)} {r.unit}
-              {r.notes && <span className="text-neutral-400"> ({r.notes})</span>}
+              {r.notes && <span className="text-muted"> ({r.notes})</span>}
             </span>
             <button
               disabled={pending}
               aria-busy={pending}
               aria-label={`Delete result from ${r.created_at.slice(0, 10)}: ${r.metric}`}
-              className="cursor-pointer text-xs text-neutral-400 hover:text-white"
+              className="cursor-pointer text-xs text-muted hover:text-white"
               onClick={() =>
                 start(async () => {
                   const result = await removeBenchmark(r.gid);

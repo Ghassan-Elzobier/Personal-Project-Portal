@@ -75,7 +75,7 @@ export default async function SchedulePage({
           {googleReady && (data.hiddenInvites > 0 || showInvites) && (
             <Link
               href={`/schedule?week=${week.start}${showInvites ? "" : "&invites=show"}`}
-              className="text-sm text-neutral-400 hover:text-white"
+              className="text-sm text-muted hover:text-white"
             >
               {showInvites
                 ? "Hide invites I haven't accepted"
@@ -88,7 +88,7 @@ export default async function SchedulePage({
         </div>
       </div>
 
-      {note && <p className="rounded-xl bg-white/5 p-3 text-sm text-neutral-300">{note}</p>}
+      {note && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">{note}</p>}
       {data.errors.map((e) => (
         <ErrorNote key={e} message={e} />
       ))}
@@ -108,7 +108,7 @@ export default async function SchedulePage({
 
 function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadScheduleWeek>>["google"] }) {
   if (google === "not-configured") {
-    return <span className="text-sm text-neutral-400">Google Calendar not set up</span>;
+    return <span className="text-sm text-muted">Google Calendar not set up</span>;
   }
   if (google === "not-connected") {
     return (
@@ -128,12 +128,12 @@ function GoogleStatus({ google }: { google: Awaited<ReturnType<typeof loadSchedu
     );
   }
   return (
-    <form action={disconnectGoogle} className="flex items-center gap-3 text-sm text-neutral-400">
+    <form action={disconnectGoogle} className="flex items-center gap-3 text-sm text-muted">
       <span className="flex items-center gap-2">
         <span className="size-2 rounded-full bg-mint" aria-hidden />
         Google Calendar{google.email ? `: ${google.email}` : ""}
       </span>
-      <button className="cursor-pointer text-neutral-400 hover:text-white">Disconnect</button>
+      <button className="cursor-pointer text-muted hover:text-white">Disconnect</button>
     </form>
   );
 }

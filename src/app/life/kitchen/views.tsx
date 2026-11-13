@@ -105,20 +105,16 @@ export function ShopView({
             {total.estimated ? "≈ " : ""}
             {total.price}
           </p>
-          <p className="text-sm text-neutral-400 tabular-nums">
+          <p className="text-sm text-muted tabular-nums">
             {total.packs} packs · {buying.length} items
           </p>
         </div>
-        <p className="text-sm text-neutral-300 tabular-nums">
+        <p className="text-sm text-body tabular-nums">
           Food this week {total.food}
-          {total.budget && (
-            <span className={total.over ? "text-sand" : "text-neutral-400"}> of your {total.budget}</span>
-          )}
-          {total.cupboard && (
-            <span className="text-neutral-400"> · cupboard stock-up {total.cupboard}, lasts weeks</span>
-          )}
+          {total.budget && <span className={total.over ? "text-sand" : "text-muted"}> of your {total.budget}</span>}
+          {total.cupboard && <span className="text-muted"> · cupboard stock-up {total.cupboard}, lasts weeks</span>}
         </p>
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-body">
           {delivered
             ? `Delivered ${delivered}. It's all in the cupboard tab.`
             : ordered
@@ -155,7 +151,7 @@ export function ShopView({
           </button>
         </div>
         {total.estimated && (
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-faint">
             Prices marked ≈ are typical ones until you pick the product and its price.
           </p>
         )}
@@ -183,9 +179,9 @@ export function ShopView({
                   </a>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium wrap-break-word">
-                      {l.product?.name ?? l.name} <span className="text-neutral-400">× {l.packs}</span>
+                      {l.product?.name ?? l.name} <span className="text-muted">× {l.packs}</span>
                     </p>
-                    <p className="text-xs text-neutral-400 tabular-nums">
+                    <p className="text-xs text-muted tabular-nums">
                       {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack} packs
                       · {l.estimate ? "≈" : ""}
                       {l.price}
@@ -220,8 +216,8 @@ export function ShopView({
 
       {covered.length > 0 && (
         <details className="card-life text-sm">
-          <summary className="cursor-pointer text-neutral-300">Already in the kitchen ({covered.length})</summary>
-          <ul className="mt-2 space-y-1 text-neutral-400">
+          <summary className="cursor-pointer text-body">Already in the kitchen ({covered.length})</summary>
+          <ul className="mt-2 space-y-1 text-muted">
             {covered.map((l) => (
               <li key={l.item}>
                 {l.name}
@@ -265,7 +261,7 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
         <h2 id="have-title" className="font-semibold">
           Already have any of these?
         </h2>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           Cupboard staples are tracked as have, low or out, not weighed. Tick what you have and it comes off the list.
         </p>
       </div>
@@ -283,7 +279,7 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
                 return n;
               })
             }
-            className={`min-h-10 rounded-full px-3.5 text-sm ring-1 ${have.has(i.item) ? "bg-mint/15 text-mint ring-mint/40" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+            className={`min-h-10 rounded-full px-3.5 text-sm ring-1 ${have.has(i.item) ? "bg-mint/15 text-mint ring-mint/40" : "bg-white/5 text-body ring-white/10"}`}
           >
             {i.name}
           </button>
@@ -316,7 +312,7 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-3">
-      <p className="text-sm text-neutral-300">
+      <p className="text-sm text-body">
         Everything is ticked. Untick what was missing or substituted with something you won&apos;t use.
       </p>
       <ul className="max-h-[50dvh] space-y-1 overflow-y-auto">
@@ -337,7 +333,7 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
                 className="size-5 accent-mint"
               />
               <span className="min-w-0 flex-1 truncate">{l.product?.name ?? l.name}</span>
-              <span className="text-xs text-neutral-400">× {l.packs}</span>
+              <span className="text-xs text-muted">× {l.packs}</span>
             </label>
           </li>
         ))}
@@ -405,7 +401,7 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
         if (ok) onDone();
       }}
     >
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-neutral-300">
+      <ol className="list-decimal space-y-1 pl-5 text-sm text-body">
         <li>
           <a
             href={
@@ -572,7 +568,7 @@ export function FridgeView({
           {sessions.map((x) => (
             <CookSession key={x.key} start={start} session={x} days={days} />
           ))}
-          <p className="px-1 text-xs text-neutral-500">
+          <p className="px-1 text-xs text-faint">
             Cooked it takes the ingredients out of the cupboard and puts the portions in the fridge, the later ones in
             the freezer.
           </p>
@@ -588,7 +584,7 @@ export function FridgeView({
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{b.name}</p>
-                    <p className={`text-xs ${b.late ? "text-coral" : b.soon ? "text-sand" : "text-neutral-400"}`}>
+                    <p className={`text-xs ${b.late ? "text-coral" : b.soon ? "text-sand" : "text-muted"}`}>
                       {b.location === "fridge" ? "Fridge" : "Freezer"} · cooked {b.cooked.toLowerCase()} ·{" "}
                       {b.late ? "past its fridge time: bin it" : `eat by ${b.eatBy.toLowerCase()}`}
                       {b.rice && b.location === "fridge" ? " (rice: one day)" : ""}
@@ -596,7 +592,7 @@ export function FridgeView({
                   </div>
                   <span className="shrink-0 text-xl font-bold tabular-nums">
                     {b.remaining}
-                    <span className="text-sm font-normal text-neutral-400">/{b.portions}</span>
+                    <span className="text-sm font-normal text-muted">/{b.portions}</span>
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -633,7 +629,7 @@ export function FridgeView({
                   )}
                   <ActionButton
                     action={() => uncook(b.gid)}
-                    className="px-3 py-1.5 text-xs text-neutral-500 hover:text-coral"
+                    className="px-3 py-1.5 text-xs text-faint hover:text-coral"
                     confirm={`Undo cooking ${b.name}? Its ingredients go back in the cupboard.`}
                   >
                     Undo cook
@@ -643,7 +639,7 @@ export function FridgeView({
             ))}
           </ul>
         ) : (
-          <p className="card-life text-sm text-neutral-400">Nothing cooked yet. Tap Cooked it after a cook session.</p>
+          <p className="card-life text-sm text-muted">Nothing cooked yet. Tap Cooked it after a cook session.</p>
         )}
       </section>
 
@@ -725,14 +721,14 @@ export function CupboardView({
             type="button"
             onClick={() => setFilter(k)}
             aria-pressed={filter === k}
-            className={`min-h-10 flex-1 rounded-xl text-sm ${filter === k ? "bg-fern font-semibold" : "text-neutral-400"}`}
+            className={`min-h-10 flex-1 rounded-xl text-sm ${filter === k ? "bg-fern font-semibold" : "text-muted"}`}
           >
             {label}
           </button>
         ))}
       </div>
       {filter === "staples" && (
-        <p className="px-1 text-xs text-neutral-400">
+        <p className="px-1 text-xs text-muted">
           Staples aren&apos;t weighed. Mark one low or out and it goes on the next list.
         </p>
       )}
@@ -742,7 +738,7 @@ export function CupboardView({
             <li key={r.item} className="flex min-w-0 items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
                 <p className={`font-medium ${r.soon ? "text-sand" : ""}`}>{r.name}</p>
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-muted">
                   {r.staple
                     ? r.status === "have"
                       ? "Have it"
@@ -767,7 +763,7 @@ export function CupboardView({
           ))}
         </ul>
       ) : (
-        <p className="card-life text-sm text-neutral-400">
+        <p className="card-life text-sm text-muted">
           {filter === "have" ? "Nothing counted in yet. Confirming a delivery fills this in." : "Nothing here."}
         </p>
       )}
@@ -790,7 +786,7 @@ function StapleToggle({ item, status }: { item: string; status: "have" | "low" |
           aria-busy={pending}
           aria-pressed={status === s}
           onClick={() => void run(() => setStock([{ item, status: s }], "set"))}
-          className={`min-h-9 rounded-lg px-2.5 text-xs ${status === s ? (s === "have" ? "bg-mint text-primary" : s === "low" ? "bg-sand text-primary" : "bg-coral text-white") : "bg-white/5 text-neutral-400"}`}
+          className={`min-h-9 rounded-lg px-2.5 text-xs ${status === s ? (s === "have" ? "bg-mint text-primary" : s === "low" ? "bg-sand text-primary" : "bg-coral text-white") : "bg-white/5 text-muted"}`}
         >
           {s === "have" ? "Have" : s === "low" ? "Low" : "Out"}
         </button>
@@ -865,9 +861,9 @@ function CookSession({
           <p className="text-sm font-semibold">
             {x.when} · {clockOf(x.time)}
           </p>
-          {x.note && <p className={`text-xs ${x.clash ? "text-coral" : "text-neutral-400"}`}>{x.note}</p>}
+          {x.note && <p className={`text-xs ${x.clash ? "text-coral" : "text-muted"}`}>{x.note}</p>}
           {x.catchUp && (
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted">
               Catch-up: this week was planned after its cook days had gone, so they became this one. Move it if the time
               doesn&apos;t work.
             </p>
@@ -894,7 +890,7 @@ function CookSession({
             ).then((ok) => ok && setMoving(false));
           }}
         >
-          <label className="text-xs text-neutral-400">
+          <label className="text-xs text-muted">
             Day
             <select
               value={date}
@@ -908,7 +904,7 @@ function CookSession({
               ))}
             </select>
           </label>
-          <label className="text-xs text-neutral-400">
+          <label className="text-xs text-muted">
             Time
             <input
               type="time"
@@ -930,7 +926,7 @@ function CookSession({
           <li key={c.id} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
             <div className="min-w-0 flex-1">
               <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted">
                 {c.portions} portions{c.freeze ? `, ${c.freeze} to freeze` : ""}
               </p>
             </div>

@@ -281,7 +281,7 @@ export function RemoveEvidenceButton({ gid }: { gid: string }) {
     <button
       disabled={pending}
       aria-busy={pending}
-      className="text-xs text-neutral-400 hover:text-white hover:underline"
+      className="text-xs text-muted hover:text-white hover:underline"
       onClick={() =>
         start(async () => {
           const result = await removeEvidence(gid);

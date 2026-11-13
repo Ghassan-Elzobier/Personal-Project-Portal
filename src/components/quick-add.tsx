@@ -169,7 +169,7 @@ function QuickAddDialog({
           maxLength={20000}
           aria-label="New task"
           placeholder="Read chapter 5 #axler fri"
-          className="w-full resize-none bg-transparent text-lg placeholder-neutral-500 focus:outline-none"
+          className="w-full resize-none bg-transparent text-lg placeholder-faint focus:outline-none"
         />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -189,7 +189,7 @@ function QuickAddDialog({
               ))}
             </select>
             {many ? (
-              <span className="chip bg-white/5 text-neutral-300 ring-white/10">{lines.length} tasks, one per line</span>
+              <span className="chip bg-white/5 text-body ring-white/10">{lines.length} tasks, one per line</span>
             ) : (
               parsed.dueOn && (
                 <span className="chip bg-aqua/10 text-aqua ring-aqua/30">Due {shortDate(parsed.dueOn)}</span>
@@ -210,7 +210,7 @@ function QuickAddDialog({
             {error}
           </p>
         )}
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-muted">
           Tag a project with #axler, #pmpp, #rendering or #weekly. End with a date: today, tomorrow, fri, 20 nov. Paste
           a list to add every line.
         </p>
@@ -249,7 +249,7 @@ function ShortcutHelp({ onClose }: { onClose: () => void }) {
         <dl className="space-y-2 text-sm">
           {SHORTCUTS.map(([keys, what]) => (
             <div key={keys} className="flex items-center justify-between gap-4">
-              <dt className="text-neutral-300">{what}</dt>
+              <dt className="text-body">{what}</dt>
               <dd>
                 <kbd className="rounded-sm bg-white/10 px-2 py-0.5 text-xs">{keys}</kbd>
               </dd>

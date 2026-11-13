@@ -65,7 +65,7 @@ function JobMarket({ items }: { items: NonNullable<PanelData["market"]> }) {
   return (
     <div>
       <h3 className="mb-1 text-sm font-semibold">In the job market</h3>
-      <ul className="space-y-1 text-sm text-neutral-300">
+      <ul className="space-y-1 text-sm text-body">
         {items.map((item) => (
           <li key={item.name}>
             {item.name}: required by {item.must}, wanted by {item.soft} of the roles you are tracking
@@ -83,7 +83,7 @@ function Connections({ items }: { items: PanelData["connections"] }) {
   return (
     <div>
       <h3 className="mb-1 text-sm font-semibold">How this connects</h3>
-      <ul className="space-y-2 text-sm text-neutral-300">
+      <ul className="space-y-2 text-sm text-body">
         {items.map((item) => (
           <li key={item.href}>
             <Link href={item.href} scroll={false} className="text-aqua underline-offset-4 hover:underline">
@@ -120,16 +120,16 @@ function References({ data }: { data: PanelData }) {
         </p>
       )}
       {data.needs.length > 0 && (
-        <p className="text-neutral-300">
-          <span className={unfinished.length ? "text-sand" : "text-neutral-400"}>
+        <p className="text-body">
+          <span className={unfinished.length ? "text-sand" : "text-muted"}>
             {unfinished.length ? "Do these first: " : "Builds on: "}
           </span>
           <RefLinks items={unfinished.length ? unfinished : data.needs} />
         </p>
       )}
       {data.feeds.length > 0 && (
-        <p className="text-neutral-300">
-          <span className="text-neutral-400">Feeds into: </span>
+        <p className="text-body">
+          <span className="text-muted">Feeds into: </span>
           <RefLinks items={data.feeds} />
         </p>
       )}
@@ -172,7 +172,7 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
       <h3 className="font-semibold">
         Steps{" "}
         {shown.length > 0 && (
-          <span className="text-sm font-normal text-neutral-400 tabular-nums">
+          <span className="text-sm font-normal text-muted tabular-nums">
             {done} of {shown.length}
           </span>
         )}
@@ -195,12 +195,12 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
                 }}
                 className="mt-0.5 size-5 shrink-0 cursor-pointer accent-mint"
               />
-              <span className={s.done ? "text-neutral-400 line-through" : ""}>{s.name}</span>
+              <span className={s.done ? "text-muted line-through" : ""}>{s.name}</span>
             </label>
             <button
               onClick={() => run(() => removeSubtask(s.gid))}
               aria-label={`Delete step: ${s.name}`}
-              className="cursor-pointer px-1 text-xs text-neutral-400 hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+              className="cursor-pointer px-1 text-xs text-muted hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
               ✕
             </button>
@@ -214,7 +214,7 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
           placeholder="Add a step"
           aria-label="New step"
           maxLength={300}
-          className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
+          className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-muted hover:border-white/10 focus:border-white/20"
         />
         {name.trim() && (
           <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">
@@ -230,7 +230,7 @@ const STATUS_STYLE: Record<ExerciseStatus, { mark: string; label: string; classN
   solved: { mark: "✓", label: "solved on your own", className: "bg-mint/20 text-mint ring-mint/50" },
   hint: { mark: "?", label: "needed a hint", className: "bg-sand/20 text-sand ring-sand/50" },
   stuck: { mark: "!", label: "stuck", className: "bg-coral/20 text-coral ring-coral/50" },
-  skip: { mark: "–", label: "skipped", className: "bg-transparent text-neutral-400 ring-white/10" },
+  skip: { mark: "–", label: "skipped", className: "bg-transparent text-muted ring-white/10" },
 };
 
 function Exercises({ data }: { data: PanelData }) {
@@ -282,7 +282,7 @@ function Exercises({ data }: { data: PanelData }) {
             run(() => setExerciseCount(data.taskGid, Number(count)));
           }}
         >
-          <label htmlFor="exercise-count" className="text-neutral-300">
+          <label htmlFor="exercise-count" className="text-body">
             How many in this chapter?
           </label>
           <input
@@ -307,11 +307,11 @@ function Exercises({ data }: { data: PanelData }) {
     <section aria-label="Exercises">
       <h3 className="font-semibold">
         Exercises{" "}
-        <span className="text-sm font-normal text-neutral-400 tabular-nums">
+        <span className="text-sm font-normal text-muted tabular-nums">
           {tally.solved} of {data.exerciseCount} solved
         </span>
       </h3>
-      <p className="mt-1 text-xs text-neutral-400">
+      <p className="mt-1 text-xs text-muted">
         Tap to change: ✓ solved, ? needed a hint, ! stuck, – skipped. Hints and stuck ones come back to redo.
       </p>
       <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-1.5">
@@ -324,7 +324,7 @@ function Exercises({ data }: { data: PanelData }) {
                 type="button"
                 onClick={() => tap(n)}
                 aria-label={`Exercise ${n}: ${style?.label ?? "not tried"}`}
-                className={`flex h-10 w-full cursor-pointer items-center justify-center gap-0.5 rounded-lg text-sm tabular-nums ring-1 transition hover:ring-white/40 ${style?.className ?? "bg-white/5 text-neutral-200 ring-white/10"}`}
+                className={`flex h-10 w-full cursor-pointer items-center justify-center gap-0.5 rounded-lg text-sm tabular-nums ring-1 transition hover:ring-white/40 ${style?.className ?? "bg-white/5 text-bright ring-white/10"}`}
               >
                 {n}
                 {style && (
@@ -354,7 +354,7 @@ function Reviews({ data }: { data: PanelData }) {
   return (
     <section aria-label="Recall later">
       <h3 className="font-semibold">Recall later</h3>
-      <p className="mt-1 text-xs text-neutral-400">
+      <p className="mt-1 text-xs text-muted">
         {data.completed ? "Scheduled now that this is finished." : "These start the day after you finish this."}
       </p>
       <ul className="mt-2 space-y-1.5">
@@ -362,14 +362,14 @@ function Reviews({ data }: { data: PanelData }) {
           <li key={r.gid} className="group flex items-start justify-between gap-3 text-sm">
             <span>
               {r.prompt}
-              {r.dueOn && <span className="ml-2 text-xs text-neutral-400">{r.dueOn}</span>}
+              {r.dueOn && <span className="ml-2 text-xs text-muted">{r.dueOn}</span>}
             </span>
             <button
               onClick={() => run(() => removeReview(r.gid))}
               disabled={pending}
               aria-busy={pending}
               aria-label={`Delete review: ${r.prompt}`}
-              className="cursor-pointer px-1 text-xs text-neutral-400 hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+              className="cursor-pointer px-1 text-xs text-muted hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
               ✕
             </button>
@@ -383,7 +383,7 @@ function Reviews({ data }: { data: PanelData }) {
           placeholder="Add something to recall"
           aria-label="New review prompt"
           maxLength={500}
-          className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
+          className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-muted hover:border-white/10 focus:border-white/20"
         />
         {prompt.trim() && (
           <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">

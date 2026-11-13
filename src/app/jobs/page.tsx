@@ -67,7 +67,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${view === tab.key ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
           >
             <span className="block text-sm font-semibold">{tab.title}</span>
-            <span className="block text-xs text-neutral-300">{tab.blurb}</span>
+            <span className="block text-xs text-body">{tab.blurb}</span>
           </Link>
         ))}
       </nav>

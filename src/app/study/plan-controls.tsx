@@ -113,7 +113,7 @@ export function RoadmapPaceForm({
       }}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <label htmlFor="roadmap-hours" className="text-neutral-300">
+        <label htmlFor="roadmap-hours" className="text-body">
           Study
         </label>
         <input
@@ -125,7 +125,7 @@ export function RoadmapPaceForm({
           onChange={(e) => setHours(e.target.value)}
           className={`${field} w-16`}
         />
-        <span className="text-neutral-300">hours a week, from</span>
+        <span className="text-body">hours a week, from</span>
         <label htmlFor="roadmap-start" className="sr-only">
           Start date
         </label>
@@ -136,14 +136,14 @@ export function RoadmapPaceForm({
           onChange={(e) => setStartOn(e.target.value)}
           className={field}
         />
-        <label className="flex min-h-9 cursor-pointer items-center gap-2 text-neutral-300">
+        <label className="flex min-h-9 cursor-pointer items-center gap-2 text-body">
           <input type="checkbox" checked={changes} onChange={(e) => setChanges(e.target.checked)} />
           My hours change later
         </label>
       </div>
       {changes && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <label htmlFor="roadmap-from" className="text-neutral-300">
+          <label htmlFor="roadmap-from" className="text-body">
             From
           </label>
           <input
@@ -154,7 +154,7 @@ export function RoadmapPaceForm({
             onChange={(e) => setFrom(e.target.value)}
             className={field}
           />
-          <label htmlFor="roadmap-later" className="text-neutral-300">
+          <label htmlFor="roadmap-later" className="text-body">
             study
           </label>
           <input
@@ -166,7 +166,7 @@ export function RoadmapPaceForm({
             onChange={(e) => setLater(e.target.value)}
             className={`${field} w-16`}
           />
-          <span className="text-neutral-300">hours a week</span>
+          <span className="text-body">hours a week</span>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -174,7 +174,7 @@ export function RoadmapPaceForm({
           Set dates across all three
         </button>
         {finish && (
-          <span className="text-neutral-300">
+          <span className="text-body">
             About {weeks} weeks, to around {shortDate(finish)}.
           </span>
         )}
@@ -221,7 +221,7 @@ export function PaceForm({
         });
       }}
     >
-      <label htmlFor="pace" className="text-neutral-300">
+      <label htmlFor="pace" className="text-body">
         Pace
       </label>
       <input
@@ -233,7 +233,7 @@ export function PaceForm({
         onChange={(e) => setPerWeek(e.target.value)}
         className="min-h-9 w-16 rounded-md border border-white/10 bg-white/5 px-2"
       />
-      <span className="text-neutral-300">{label} a week, from</span>
+      <span className="text-body">{label} a week, from</span>
       <label htmlFor="pace-start" className="sr-only">
         Start date
       </label>
@@ -247,7 +247,7 @@ export function PaceForm({
       <button disabled={pending || !finish} aria-busy={pending} className="btn-ghost px-4 py-1.5">
         Set dates
       </button>
-      {finish && <span className="text-neutral-300">Finishes around {shortDate(finish)}.</span>}
+      {finish && <span className="text-body">Finishes around {shortDate(finish)}.</span>}
     </form>
   );
 }

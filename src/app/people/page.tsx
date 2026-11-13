@@ -47,9 +47,9 @@ export default async function PeoplePage() {
             <li key={m.account_id} className="flex flex-wrap items-center justify-between gap-4 card">
               <div>
                 <p className="font-semibold">
-                  {m.display_name} <span className="text-xs font-normal text-neutral-400">{m.role}</span>
+                  {m.display_name} <span className="text-xs font-normal text-muted">{m.role}</span>
                 </p>
-                <p className="text-sm text-neutral-400">{m.email}</p>
+                <p className="text-sm text-muted">{m.email}</p>
                 {m.role === "mentor" && (
                   <p className="mt-1 text-xs text-lavender">
                     {m.projects
@@ -86,7 +86,7 @@ export default async function PeoplePage() {
         </ul>
       </section>
 
-      <p className="text-sm text-neutral-300">
+      <p className="text-sm text-body">
         See what mentors see:{" "}
         <Link href="/progress" className="text-aqua hover:underline">
           Progress

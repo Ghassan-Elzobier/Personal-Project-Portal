@@ -44,7 +44,7 @@ const SOURCE: Record<Source, { label: string; className: string; title: string }
   },
   code: {
     label: "From the code",
-    className: "bg-white/5 text-neutral-300 ring-white/10",
+    className: "bg-white/5 text-body ring-white/10",
     title: "Follows directly from the code",
   },
 };
@@ -61,7 +61,7 @@ export function SourceChip({ source }: { source: Source }) {
 const FINDING: Record<Finding["kind"], { label: string; className: string }> = {
   bug: { label: "Bug, confirmed", className: "bg-coral/10 text-coral ring-coral/30" },
   check: { label: "Worth checking", className: "bg-sand/10 text-sand ring-sand/30" },
-  note: { label: "Note", className: "bg-white/5 text-neutral-300 ring-white/10" },
+  note: { label: "Note", className: "bg-white/5 text-body ring-white/10" },
 };
 
 export function FindingCard({ finding, view }: { finding: Finding; view?: { id: string; title: string } }) {
@@ -74,16 +74,16 @@ export function FindingCard({ finding, view }: { finding: Finding; view?: { id: 
         <span className={`chip ${k.className}`}>{k.label}</span>
         <span className="font-semibold">{finding.title}</span>
       </p>
-      <p className="text-sm text-neutral-300">{finding.text}</p>
+      <p className="text-sm text-body">{finding.text}</p>
       {finding.evidence && (
-        <p className="text-sm text-neutral-400">
-          <span className="text-neutral-300">Evidence:</span> {finding.evidence}
+        <p className="text-sm text-muted">
+          <span className="text-body">Evidence:</span> {finding.evidence}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {finding.code && <CodeLinks refs={finding.code} />}
         {view && (
-          <Link href={`/lab/${view.id}`} className="text-xs text-neutral-400 hover:text-white">
+          <Link href={`/lab/${view.id}`} className="text-xs text-muted hover:text-white">
             In {view.title}
           </Link>
         )}
@@ -98,7 +98,7 @@ export function DriftBanner({ drift }: { drift: Drift | null }) {
   return (
     <div role="status" className="rounded-xl bg-sand/10 p-4 text-sm ring-1 ring-sand/30">
       <p className="font-semibold text-sand">The renderer has moved on since these figures were drawn</p>
-      <p className="mt-1 text-neutral-200">
+      <p className="mt-1 text-bright">
         {drift.commits} {drift.commits === 1 ? "commit" : "commits"} on main after {RENDERER.short} change{" "}
         {drift.files.join(", ")}. The figures and line links still describe {RENDERER.short}. Run{" "}
         <span className="font-mono text-xs">npm run lab:check</span> in the portal to see which references moved.{" "}
@@ -117,7 +117,7 @@ export function BookLinks({ page }: { page: number }) {
       <Link href={bookHref.page(page)} className="text-aqua underline-offset-4 hover:underline">
         Read p. {page}
       </Link>
-      <a href={bookHref.pdf(page)} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-white">
+      <a href={bookHref.pdf(page)} target="_blank" rel="noreferrer" className="text-muted hover:text-white">
         Open the PDF
       </a>
     </span>

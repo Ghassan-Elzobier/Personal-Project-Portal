@@ -4,7 +4,7 @@ import { formatHours } from "@/lib/tasks/session-log";
 import { shortDate } from "@/lib/dates/week";
 
 const STAGE_STYLES: Record<string, string> = {
-  "Not started": "bg-white/5 text-neutral-300 ring-white/10",
+  "Not started": "bg-white/5 text-body ring-white/10",
   "In progress": "bg-aqua/10 text-aqua ring-aqua/30",
   Blocked: "bg-coral/10 text-coral ring-coral/30",
   "Needs review": "bg-sand/10 text-sand ring-sand/30",
@@ -20,7 +20,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   on_track: { label: "On track", className: "bg-mint/10 text-mint ring-mint/30" },
   at_risk: { label: "At risk", className: "bg-sand/10 text-sand ring-sand/30" },
   off_track: { label: "Off track", className: "bg-coral/10 text-coral ring-coral/30" },
-  on_hold: { label: "On hold", className: "bg-white/5 text-neutral-300 ring-white/10" },
+  on_hold: { label: "On hold", className: "bg-white/5 text-body ring-white/10" },
   complete: { label: "Complete", className: "bg-lavender/10 text-lilac ring-lavender/30" },
 };
 
@@ -49,7 +49,7 @@ export function ErrorNote({ title, message }: { title?: string; message: string 
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">{children}</p>;
+  return <p className="rounded-xl bg-white/5 p-4 text-sm text-muted">{children}</p>;
 }
 
 export function Hours({ value }: { value: number }) {
@@ -60,7 +60,7 @@ export function DueDate({ dueOn, today }: { dueOn: string | null; today: string 
   if (!dueOn) return null;
   const overdue = dueOn < today;
   const label = dueOn === today ? "Due today" : overdue ? `Overdue, ${shortDate(dueOn)}` : `Due ${shortDate(dueOn)}`;
-  return <span className={overdue ? "text-coral" : dueOn === today ? "text-sand" : "text-neutral-400"}>{label}</span>;
+  return <span className={overdue ? "text-coral" : dueOn === today ? "text-sand" : "text-muted"}>{label}</span>;
 }
 
 export function EvidenceLink({ href }: { href: string | null }) {

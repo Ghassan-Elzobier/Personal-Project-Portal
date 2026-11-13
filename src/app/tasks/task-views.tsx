@@ -147,7 +147,7 @@ export function TaskViews({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tasks"
           aria-label="Search tasks"
-          className="min-h-9 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-neutral-400 sm:w-56"
+          className="min-h-9 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-muted sm:w-56"
         />
         <div className="flex flex-wrap gap-1" role="group" aria-label="Filter">
           {FILTERS.map((f) => (
@@ -155,7 +155,7 @@ export function TaskViews({
               key={f.key}
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
-              className={`btn min-h-9 px-3 py-1 text-xs ring-1 ${filter === f.key ? "bg-white/15 text-white ring-white/30" : "bg-transparent text-neutral-300 ring-white/10 hover:bg-white/5"}`}
+              className={`btn min-h-9 px-3 py-1 text-xs ring-1 ${filter === f.key ? "bg-white/15 text-white ring-white/30" : "bg-transparent text-body ring-white/10 hover:bg-white/5"}`}
             >
               {f.label}
             </button>
@@ -164,7 +164,7 @@ export function TaskViews({
       </div>
 
       {narrowed && shown.length === 0 && (
-        <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">No tasks match. Try another filter.</p>
+        <p className="rounded-xl bg-white/5 p-4 text-sm text-muted">No tasks match. Try another filter.</p>
       )}
 
       {view === "board" ? (
@@ -259,14 +259,14 @@ function SectionBlock({
     >
       <div className="flex items-baseline justify-between gap-4 border-b border-white/10 pb-2">
         <h3 className="font-semibold">
-          {group.name} <span className="ml-1 text-sm font-normal text-neutral-400 tabular-nums">{open.length}</span>
+          {group.name} <span className="ml-1 text-sm font-normal text-muted tabular-nums">{open.length}</span>
         </h3>
         {group.gid && !narrowed && (
           <button
             onClick={remove}
             disabled={pending}
             aria-busy={pending}
-            className="cursor-pointer text-xs text-neutral-400 hover:text-white disabled:opacity-50"
+            className="cursor-pointer text-xs text-muted hover:text-white disabled:opacity-50"
           >
             Delete section
           </button>
@@ -280,9 +280,7 @@ function SectionBlock({
       {group.gid && !narrowed && <AddTask project={project} section={group.gid} />}
       {done.length > 0 && (
         <details className="mt-2" open={narrowed}>
-          <summary className="cursor-pointer py-1 text-xs text-neutral-400 hover:text-white">
-            {done.length} completed
-          </summary>
+          <summary className="cursor-pointer py-1 text-xs text-muted hover:text-white">{done.length} completed</summary>
           <ul className="divide-y divide-white/5">
             {done.map((t) => (
               <TaskRow key={t.gid} task={t} today={today} tomorrow={tomorrow} />
@@ -343,7 +341,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         <Link
           href={href(task.gid)}
           scroll={false}
-          className={`min-w-40 flex-1 text-sm hover:underline ${completed ? "text-neutral-400 line-through" : ""}`}
+          className={`min-w-40 flex-1 text-sm hover:underline ${completed ? "text-muted line-through" : ""}`}
         >
           {task.milestone && (
             <span className="mr-1 text-lavender" title="Milestone">
@@ -375,7 +373,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
             </>
           )}
           {task.hours > 0 && (
-            <span className="text-neutral-400">
+            <span className="text-muted">
               <Hours value={task.hours} />
             </span>
           )}
@@ -397,7 +395,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
           disabled={pending}
           aria-busy={pending}
           onChange={(e) => changeStage(e.target.value)}
-          className="w-28 rounded-md border border-transparent bg-transparent p-1 text-xs text-neutral-300 hover:border-white/10 focus:border-white/20"
+          className="w-28 rounded-md border border-transparent bg-transparent p-1 text-xs text-body hover:border-white/10 focus:border-white/20"
         >
           {STAGES.map((s) => (
             <option key={s}>{s}</option>
@@ -461,7 +459,7 @@ function AddTask({
         placeholder={placeholder}
         aria-label="New task name"
         maxLength={500}
-        className="min-h-9 min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20 focus:bg-white/5"
+        className="min-h-9 min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-muted hover:border-white/10 focus:border-white/20 focus:bg-white/5"
       />
       {name.trim() && (
         <>
@@ -472,7 +470,7 @@ function AddTask({
             aria-label="Due date"
             className="min-h-9 rounded-md border border-white/10 bg-white/5 px-2 text-sm"
           />
-          <label className="flex items-center gap-1.5 text-xs text-neutral-300">
+          <label className="flex items-center gap-1.5 text-xs text-body">
             <input
               type="checkbox"
               checked={milestone}
@@ -508,7 +506,7 @@ function AddSection({ project }: { project: string }) {
         placeholder="New section"
         aria-label="New section name"
         maxLength={120}
-        className="min-h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-neutral-400"
+        className="min-h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-muted"
       />
       <button disabled={pending || !name.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">
         Add section
@@ -559,7 +557,7 @@ function Board({
             >
               <header className="flex items-center justify-between">
                 <StagePill stage={stage} />
-                <span className="text-xs text-neutral-400 tabular-nums">{column.length}</span>
+                <span className="text-xs text-muted tabular-nums">{column.length}</span>
               </header>
               {column.map((t) => (
                 <article
@@ -571,7 +569,7 @@ function Board({
                   <Link
                     href={href(t.gid)}
                     scroll={false}
-                    className={`block text-sm hover:underline ${t.completed ? "text-neutral-400 line-through" : ""}`}
+                    className={`block text-sm hover:underline ${t.completed ? "text-muted line-through" : ""}`}
                   >
                     {t.milestone && (
                       <span className="mr-1 text-lavender" title="Milestone">
@@ -583,7 +581,7 @@ function Board({
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <DueDate dueOn={t.completed ? null : t.dueOn} today={today} />
                     {t.hours > 0 && (
-                      <span className="text-neutral-400">
+                      <span className="text-muted">
                         <Hours value={t.hours} />
                       </span>
                     )}

@@ -96,7 +96,7 @@ export function Sheet({
         <button
           type="button"
           onClick={onClose}
-          className="-mt-2 -mr-2 tap text-2xl leading-none text-neutral-400 hover:text-white"
+          className="-mt-2 -mr-2 tap text-2xl leading-none text-muted hover:text-white"
           aria-label="Close"
         >
           ×

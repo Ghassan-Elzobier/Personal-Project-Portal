@@ -45,6 +45,11 @@ export default defineConfig([
               message:
                 "Raw hex colour. Use a palette token from globals.css @theme (aqua, mint, coral, sand, …); add a token there if the palette lacks it.",
             },
+            {
+              pattern: "^(.*:)?(text|fill|stroke|placeholder)-neutral-(200|300|400|500)$",
+              message:
+                "Raw grey for text. Use the text role that says why it is grey: bright, body, muted or faint (globals.css @theme, docs/DESIGN.md).",
+            },
           ],
         },
       ],

@@ -48,7 +48,7 @@ function Swatches({ colours }: { colours: readonly (readonly [string, string])[]
       {colours.map(([name, bg]) => (
         <li key={name} className="min-w-0 space-y-1.5">
           <div className={`h-12 rounded-xl ring-1 ring-white/10 ${bg}`} />
-          <p className="truncate text-xs text-neutral-400">{name}</p>
+          <p className="truncate text-xs text-muted">{name}</p>
         </li>
       ))}
     </ul>
@@ -91,8 +91,8 @@ export default async function DesignPage() {
           <p className="text-xl font-semibold">Section heading</p>
           <p className="text-base">Body text for reading.</p>
           <p className="subtext">Subtext explains what a section is for.</p>
-          <p className="text-sm text-neutral-400">Secondary detail, such as a date or a count.</p>
-          <p className="text-xs text-neutral-500 tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
+          <p className="text-sm text-muted">Secondary detail, such as a date or a count.</p>
+          <p className="text-xs text-faint tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
         </div>
       </Section>
 
@@ -100,7 +100,7 @@ export default async function DesignPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="card">
             <p className="font-semibold">card</p>
-            <p className="text-sm text-neutral-400">The default container.</p>
+            <p className="text-sm text-muted">The default container.</p>
           </div>
           <div className="card-special">
             <p className="font-semibold">card-special</p>
@@ -108,11 +108,11 @@ export default async function DesignPage() {
           </div>
           <a href="#surfaces" className="card-link">
             <p className="font-semibold">card-link</p>
-            <p className="text-sm text-neutral-400">A whole card that opens something.</p>
+            <p className="text-sm text-muted">A whole card that opens something.</p>
           </a>
           <div className="card-life">
             <p className="font-semibold">card-life</p>
-            <p className="text-sm text-neutral-300">The Life space&apos;s container.</p>
+            <p className="text-sm text-body">The Life space&apos;s container.</p>
           </div>
         </div>
       </Section>

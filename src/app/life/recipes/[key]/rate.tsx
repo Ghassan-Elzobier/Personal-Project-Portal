@@ -46,7 +46,7 @@ export function RateRecipe({
               on ? "A favourite: it'll come round more often." : "No longer a favourite.",
             );
           }}
-          className={`min-h-10 rounded-full px-4 text-sm ring-1 ${fav ? "bg-sand/15 text-sand ring-sand/40" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+          className={`min-h-10 rounded-full px-4 text-sm ring-1 ${fav ? "bg-sand/15 text-sand ring-sand/40" : "bg-white/5 text-body ring-white/10"}`}
         >
           {fav ? "★ Favourite" : "☆ Favourite"}
         </button>
@@ -64,7 +64,7 @@ export function RateRecipe({
               on ? "Hidden: it won't be suggested again." : "Back on the menu.",
             );
           }}
-          className={`min-h-10 rounded-full px-4 text-sm ring-1 ${off ? "bg-coral/15 text-coral ring-coral/40" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+          className={`min-h-10 rounded-full px-4 text-sm ring-1 ${off ? "bg-coral/15 text-coral ring-coral/40" : "bg-white/5 text-body ring-white/10"}`}
         >
           {off ? "Hidden from my menu" : "Not for me"}
         </button>

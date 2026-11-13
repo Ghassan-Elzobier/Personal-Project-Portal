@@ -102,7 +102,7 @@ export function SessionPill() {
         Stop and log
       </button>
       <button
-        className="cursor-pointer rounded-full px-2 py-1 text-xs text-neutral-400 hover:text-white"
+        className="cursor-pointer rounded-full px-2 py-1 text-xs text-muted hover:text-white"
         aria-label="Discard this session"
         title="Discard"
         onClick={() => {

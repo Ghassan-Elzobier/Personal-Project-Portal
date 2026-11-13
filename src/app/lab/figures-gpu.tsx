@@ -58,13 +58,13 @@ export function Dispatch() {
         className="stroke-aqua/50"
         strokeDasharray="3 3"
       />
-      <Text x={img.x} y={img.y + img.h + 20} className="fill-neutral-400 text-[12px]">
+      <Text x={img.x} y={img.y + img.h + 20} className="fill-muted text-[12px]">
         Lines every 10 workgroups. Highlighted: (50, 37).
       </Text>
-      <Text x={img.x} y={img.y + img.h + 38} className="fill-neutral-400 text-[12px]">
+      <Text x={img.x} y={img.y + img.h + 38} className="fill-muted text-[12px]">
         (800 + 7) / 8 rounds up, so no edge is missed;
       </Text>
-      <Text x={img.x} y={img.y + img.h + 54} className="fill-neutral-400 text-[12px]">
+      <Text x={img.x} y={img.y + img.h + 54} className="fill-muted text-[12px]">
         invocations past it return at line 123.
       </Text>
       <Badge n={1} x={img.x} y={img.y} tone="gpu" />
@@ -92,7 +92,7 @@ export function Dispatch() {
               x={tile.x + cx * tile.cell + 11}
               y={tile.y + cy * tile.cell + 15}
               anchor="middle"
-              className="fill-neutral-200 text-[10px] tabular-nums"
+              className="fill-bright text-[10px] tabular-nums"
             >
               {String(i)}
             </Text>
@@ -107,10 +107,10 @@ export function Dispatch() {
           className={s % 2 ? `${TONES.gpu.text} text-[11.5px]` : "fill-aqua text-[11.5px]"}
         >{`subgroup ${s}`}</Text>
       ))}
-      <Text x={tile.x} y={tile.y + 8 * tile.cell + 20} className="fill-neutral-400 text-[12px]">
+      <Text x={tile.x} y={tile.y + 8 * tile.cell + 20} className="fill-muted text-[12px]">
         The number in each cell is x + 8y,
       </Text>
-      <Text x={tile.x} y={tile.y + 8 * tile.cell + 36} className="fill-neutral-400 text-[12px]">
+      <Text x={tile.x} y={tile.y + 8 * tile.cell + 36} className="fill-muted text-[12px]">
         the order subgroups fill in.
       </Text>
       <Badge n={2} x={tile.x} y={tile.y} tone="shader" />
@@ -119,7 +119,7 @@ export function Dispatch() {
       <Text x={lanes.x} y={50} className="fill-white text-[14px] font-semibold">
         One subgroup: 16 lanes
       </Text>
-      <Text x={lanes.x} y={70} className="fill-neutral-400 text-[12px]">
+      <Text x={lanes.x} y={70} className="fill-muted text-[12px]">
         as Mesa compiled it for the Iris Xe
       </Text>
       {Array.from({ length: 16 }, (_, i) => (
@@ -137,7 +137,7 @@ export function Dispatch() {
             x={lanes.x + i * lanes.cell + 8}
             y={lanes.y + 19}
             anchor="middle"
-            className="fill-neutral-200 text-[9.5px] tabular-nums"
+            className="fill-bright text-[9.5px] tabular-nums"
           >
             {String(i)}
           </Text>
@@ -146,21 +146,21 @@ export function Dispatch() {
       <path
         d={`M ${lanes.x} ${lanes.y + 38} l 0 6 l ${8 * lanes.cell - 4} 0 l 0 -6 M ${lanes.x + 8 * lanes.cell} ${lanes.y + 38} l 0 6 l ${8 * lanes.cell - 4} 0 l 0 -6`}
         fill="none"
-        className="stroke-neutral-400"
+        className="stroke-muted"
       />
-      <Text x={lanes.x + 4 * lanes.cell} y={lanes.y + 60} anchor="middle" className="fill-neutral-300 text-[11.5px]">
+      <Text x={lanes.x + 4 * lanes.cell} y={lanes.y + 60} anchor="middle" className="fill-body text-[11.5px]">
         tile row 0
       </Text>
-      <Text x={lanes.x + 12 * lanes.cell} y={lanes.y + 60} anchor="middle" className="fill-neutral-300 text-[11.5px]">
+      <Text x={lanes.x + 12 * lanes.cell} y={lanes.y + 60} anchor="middle" className="fill-body text-[11.5px]">
         tile row 1
       </Text>
-      <Text x={lanes.x} y={lanes.y + 92} className="fill-neutral-200 text-[12.5px]">
+      <Text x={lanes.x} y={lanes.y + 92} className="fill-bright text-[12.5px]">
         One instruction stream for all 16.
       </Text>
-      <Text x={lanes.x} y={lanes.y + 110} className="fill-neutral-200 text-[12.5px]">
+      <Text x={lanes.x} y={lanes.y + 110} className="fill-bright text-[12.5px]">
         Each lane keeps its own seed, ray
       </Text>
-      <Text x={lanes.x} y={lanes.y + 128} className="fill-neutral-200 text-[12.5px]">
+      <Text x={lanes.x} y={lanes.y + 128} className="fill-bright text-[12.5px]">
         and colour, for its own pixel.
       </Text>
       <Badge n={6} x={lanes.x - 16} y={lanes.y + 15} tone="shader" />
@@ -184,7 +184,7 @@ export function Dispatch() {
               className={Math.floor(i / 8) < m.rows ? "fill-aqua/50" : "fill-white/10"}
             />
           ))}
-          <Text x={lanes.x + k * 140} y={lanes.y + 272} className="fill-neutral-300 text-[11.5px]">
+          <Text x={lanes.x + k * 140} y={lanes.y + 272} className="fill-body text-[11.5px]">
             {m.label}
           </Text>
         </g>
@@ -317,7 +317,7 @@ export function Invocation() {
       <Text x={600} y={30} className="fill-white text-[14px] font-semibold">
         hitSphere, to scale
       </Text>
-      <Text x={600} y={50} className="fill-neutral-400 text-[12px]">
+      <Text x={600} y={50} className="fill-muted text-[12px]">
         t solves |o + t·d − c|² = r², a quadratic in t
       </Text>
       <circle cx={C[0]} cy={C[1]} r={R} className="fill-white/5 stroke-white/40" strokeWidth={1.5} />
@@ -336,7 +336,7 @@ export function Invocation() {
         ray in
       </Label>
       <circle cx={P1[0]} cy={P1[1]} r={5} className="fill-aqua" />
-      <circle cx={P2[0]} cy={P2[1]} r={4} className="fill-neutral-500" />
+      <circle cx={P2[0]} cy={P2[1]} r={4} className="fill-faint" />
       <Label x={P1[0] + 14} y={P1[1] + 30} tone="shader" size={11} anchor="start">
         nearer root: used
       </Label>
@@ -352,26 +352,26 @@ export function Invocation() {
         mirror
       </Label>
       <circle cx={lobe[0]} cy={lobe[1]} r={34} className="fill-none stroke-aqua/70" strokeDasharray="3 3" />
-      <Text x={600} y={372} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={372} className="fill-body text-[12px]">
         Diffuse: normal + a random point on the dashed ball.
       </Text>
-      <Text x={600} y={390} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={390} className="fill-body text-[12px]">
         b² − 4ac &lt; 0 means a miss. A hit nearer than 0.001 is ignored.
       </Text>
 
       <Text x={600} y={436} className="fill-coral text-[12.5px] font-semibold">
         A ray that starts inside
       </Text>
-      <Text x={600} y={454} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={454} className="fill-body text-[12px]">
         Its nearer root is ≤ 0.001, so it never
       </Text>
-      <Text x={600} y={472} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={472} className="fill-body text-[12px]">
         hits this sphere and passes through.
       </Text>
-      <Text x={600} y={490} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={490} className="fill-body text-[12px]">
         Fuzzy metal sends 506 rays a frame
       </Text>
-      <Text x={600} y={508} className="fill-neutral-300 text-[12px]">
+      <Text x={600} y={508} className="fill-body text-[12px]">
         this way, 466 of them at the gold sphere.
       </Text>
       <circle cx={910} cy={530} r={50} className="fill-white/5 stroke-white/40" strokeWidth={1.5} />
@@ -483,10 +483,10 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
       <Text x={20} y={306} className="fill-white text-[13px] font-semibold">
         36 bytes per pixel, timed
       </Text>
-      <Text x={20} y={324} className="fill-neutral-300 text-[12px]">
+      <Text x={20} y={324} className="fill-body text-[12px]">
         × 480,000 pixels = 17.3 MB a frame
       </Text>
-      <Text x={20} y={342} className="fill-neutral-300 text-[12px]">
+      <Text x={20} y={342} className="fill-body text-[12px]">
         ≈ 324 FLOP per path ÷ 36 B ≈ 9 FLOP/B
       </Text>
 
@@ -498,7 +498,7 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
       {[0.1, 1, 10, 100].map((v) => (
         <g key={v}>
           <line x1={X(v)} y1={380} x2={X(v)} y2={385} className="stroke-white/40" />
-          <Text x={X(v)} y={400} anchor="middle" className="fill-neutral-400 text-[11px]">
+          <Text x={X(v)} y={400} anchor="middle" className="fill-muted text-[11px]">
             {String(v)}
           </Text>
         </g>
@@ -507,15 +507,15 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
         <g key={v}>
           <line x1={555} y1={Y(v)} x2={560} y2={Y(v)} className="stroke-white/40" />
           <line x1={560} y1={Y(v)} x2={965} y2={Y(v)} className="stroke-white/5" />
-          <Text x={550} y={Y(v) + 4} anchor="end" className="fill-neutral-400 text-[11px]">
+          <Text x={550} y={Y(v) + 4} anchor="end" className="fill-muted text-[11px]">
             {v.toLocaleString("en-GB")}
           </Text>
         </g>
       ))}
-      <Text x={760} y={420} anchor="middle" className="fill-neutral-400 text-[11.5px]">
+      <Text x={760} y={420} anchor="middle" className="fill-muted text-[11.5px]">
         FLOP per byte of memory traffic
       </Text>
-      <Text x={548} y={52} anchor="end" className="fill-neutral-400 text-[11.5px]">
+      <Text x={548} y={52} anchor="end" className="fill-muted text-[11.5px]">
         GFLOP/s
       </Text>
 
@@ -548,15 +548,11 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
           <Label x={X(k) + 12} y={Y(a.gflops) + 4} tone={g === "rx" ? "gpu" : "shader"} size={11} anchor="start">
             {`${g === "rx" ? "RX 5700 XT" : "Iris Xe"}: ${Math.round(a.gflops).toLocaleString("en-GB")}${g === "rx" ? `, ${Math.round(a.ofRxRoof * 100)}% of roof` : ""}`}
           </Label>
-          <Text
-            x={X(k) + 12}
-            y={Y(a.gflops) + 20}
-            className="fill-neutral-500 text-[10.5px]"
-          >{`${ms} ms, recorded`}</Text>
+          <Text x={X(k) + 12} y={Y(a.gflops) + 20} className="fill-faint text-[10.5px]">{`${ms} ms, recorded`}</Text>
         </g>
       ))}
       {!points.length && (
-        <Text x={X(k) + 12} y={Y(100)} className="fill-neutral-400 text-[11px]">
+        <Text x={X(k) + 12} y={Y(100)} className="fill-muted text-[11px]">
           Record a frame time to place it here
         </Text>
       )}
@@ -564,7 +560,7 @@ export function Memory({ results }: { results?: Record<"iris" | "rx", GpuResult>
       <Text x={X(k) - 14} y={Y(30)} anchor="end" className="fill-aqua text-[11.5px]">
         this kernel ≈ 9
       </Text>
-      <Text x={965} y={Y(15)} anchor="end" className="fill-neutral-400 text-[11px]">
+      <Text x={965} y={Y(15)} anchor="end" className="fill-muted text-[11px]">
         Iris Xe roofs: measure them
       </Text>
     </Figure>
@@ -652,17 +648,17 @@ export function Accumulation() {
       {[0, 0.5, 1].map((v) => (
         <g key={v}>
           <line x1={426} y1={Y(v)} x2={975} y2={Y(v)} className="stroke-white/5" />
-          <Text x={420} y={Y(v) + 4} anchor="end" className="fill-neutral-400 text-[11px]">
+          <Text x={420} y={Y(v) + 4} anchor="end" className="fill-muted text-[11px]">
             {String(v)}
           </Text>
         </g>
       ))}
       {[0, 64, 128, 192, 255].map((f) => (
-        <Text key={f} x={X(f)} y={348} anchor="middle" className="fill-neutral-400 text-[11px]">
+        <Text key={f} x={X(f)} y={348} anchor="middle" className="fill-muted text-[11px]">
           {String(f)}
         </Text>
       ))}
-      <Text x={702} y={368} anchor="middle" className="fill-neutral-400 text-[11.5px]">
+      <Text x={702} y={368} anchor="middle" className="fill-muted text-[11.5px]">
         frame
       </Text>
       <path d={band} className="fill-lavender/20" />

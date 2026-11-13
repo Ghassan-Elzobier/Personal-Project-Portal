@@ -250,7 +250,7 @@ export function SettingsForm({
           />
         ))}
         <details className="rounded-xl bg-white/5 p-3">
-          <summary className="cursor-pointer text-sm text-neutral-300">Other allergens</summary>
+          <summary className="cursor-pointer text-sm text-body">Other allergens</summary>
           <div className="mt-2 space-y-2">
             {OTHERS.map((t) => (
               <RuleRow
@@ -368,7 +368,7 @@ export function SettingsForm({
               {p.routine.cooks.length > 1 && (
                 <button
                   type="button"
-                  className="text-sm text-neutral-400 hover:text-coral"
+                  className="text-sm text-muted hover:text-coral"
                   onClick={() => set((d) => void d.routine.cooks.splice(i, 1))}
                 >
                   Remove
@@ -530,7 +530,7 @@ function Section({ title, hint, children, id }: { title: string; hint?: string; 
     <section id={id} className="scroll-mt-20 space-y-3 card-life">
       <div>
         <h2 className="text-lg font-semibold">{title}</h2>
-        {hint && <p className="text-sm text-neutral-400">{hint}</p>}
+        {hint && <p className="text-sm text-muted">{hint}</p>}
       </div>
       {children}
     </section>
@@ -561,7 +561,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`min-h-10 rounded-full px-3.5 text-sm ring-1 ${on ? "bg-mint/15 text-mint ring-mint/40" : "bg-white/5 text-neutral-300 ring-white/10"}`}
+      className={`min-h-10 rounded-full px-3.5 text-sm ring-1 ${on ? "bg-mint/15 text-mint ring-mint/40" : "bg-white/5 text-body ring-white/10"}`}
     >
       {children}
     </button>
@@ -589,7 +589,7 @@ function RuleRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="font-medium">{label}</p>
-          {detail && <p className="text-xs text-neutral-400">{detail}</p>}
+          {detail && <p className="text-xs text-muted">{detail}</p>}
           {mixed && <p className="text-xs text-sand">Set differently per item</p>}
         </div>
         <div className="flex gap-1" role="group" aria-label={`${label} rule`}>
@@ -605,7 +605,7 @@ function RuleRow({
               type="button"
               aria-pressed={!mixed && level === l}
               onClick={() => onLevel(l)}
-              className={`min-h-9 rounded-lg px-3 text-xs ${!mixed && level === l ? (l === "avoid" ? "bg-coral text-white" : l === "flag" ? "bg-sand text-primary" : "bg-mint text-primary") : "bg-white/5 text-neutral-400"}`}
+              className={`min-h-9 rounded-lg px-3 text-xs ${!mixed && level === l ? (l === "avoid" ? "bg-coral text-white" : l === "flag" ? "bg-sand text-primary" : "bg-mint text-primary") : "bg-white/5 text-muted"}`}
             >
               {text}
             </button>

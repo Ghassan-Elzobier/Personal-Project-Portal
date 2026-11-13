@@ -69,9 +69,7 @@ export function LogForm({
 
   if (!tasks.length) {
     return (
-      <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">
-        No open tasks yet. Add some on the Tasks page.
-      </p>
+      <p className="rounded-xl bg-white/5 p-4 text-sm text-muted">No open tasks yet. Add some on the Tasks page.</p>
     );
   }
 
@@ -111,7 +109,7 @@ export function LogForm({
           ))}
         </select>
         {task && (
-          <span className="mt-2 block text-xs text-neutral-400">
+          <span className="mt-2 block text-xs text-muted">
             {task.hours} h so far{task.stage ? ` · ${task.stage}` : ""}
             {task.evidence ? " · has evidence" : ""}
           </span>
@@ -130,7 +128,7 @@ export function LogForm({
               key={h}
               onClick={() => setHours(h)}
               aria-pressed={hours === h}
-              className={`btn px-4 py-1.5 ring-1 ${hours === h ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10 hover:bg-white/10"}`}
+              className={`btn px-4 py-1.5 ring-1 ${hours === h ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
             >
               {h}
             </button>
@@ -157,7 +155,7 @@ export function LogForm({
           {(task?.stageOptions ?? []).map((s) => (
             <label
               key={s}
-              className={`btn cursor-pointer px-4 py-1.5 ring-1 ${stage === s ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-neutral-300 ring-white/10 hover:bg-white/10"}`}
+              className={`btn cursor-pointer px-4 py-1.5 ring-1 ${stage === s ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
             >
               <input
                 type="radio"
@@ -186,7 +184,7 @@ export function LogForm({
           className="field-input"
           defaultValue=""
         />
-        <span className="mt-2 block text-xs text-neutral-400">
+        <span className="mt-2 block text-xs text-muted">
           A commit, notes or exercise solutions. Replaces the task&apos;s current Evidence link.
         </span>
       </label>

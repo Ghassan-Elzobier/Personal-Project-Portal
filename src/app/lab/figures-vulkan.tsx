@@ -14,10 +14,10 @@ export function ShaderBuild() {
       h={330}
       label="raytrace.comp is compiled by glslc into SPIR-V when you build. At startup the program reads that file into a shader module, and creating the pipeline is when the driver compiles it into the GPU's own instructions. The module is then destroyed, and the pipeline is bound every frame."
     >
-      <Text x={20} y={24} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={20} y={24} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         When you build
       </Text>
-      <Text x={540} y={24} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={540} y={24} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         When the program starts
       </Text>
       <line x1={520} y1={10} x2={520} y2={300} className="stroke-white/10" />
@@ -92,22 +92,22 @@ export function ShaderBuild() {
       <Box x={790} y={220} w={190} h={64} tone="gpu" n={7} title="Every frame" sub="bind it, then dispatch" />
       <Arrow id={id} d="M 885 170 L 885 216" tone="shader" />
 
-      <Text x={20} y={170} className="fill-neutral-300 text-[12.5px]">
+      <Text x={20} y={170} className="fill-body text-[12.5px]">
         CMake reruns glslc whenever raytrace.comp changes,
       </Text>
-      <Text x={20} y={188} className="fill-neutral-300 text-[12.5px]">
+      <Text x={20} y={188} className="fill-body text-[12.5px]">
         so a build always brings the .spv up to date.
       </Text>
-      <Text x={20} y={226} className="fill-neutral-300 text-[12.5px]">
+      <Text x={20} y={226} className="fill-body text-[12.5px]">
         The program opens build/raytrace.comp.spv by a
       </Text>
-      <Text x={20} y={244} className="fill-neutral-300 text-[12.5px]">
+      <Text x={20} y={244} className="fill-body text-[12.5px]">
         relative path: start it from the project root.
       </Text>
-      <Text x={20} y={282} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={282} className="fill-muted text-[12px]">
         Like CUDA: the compiler makes a portable form (PTX there, SPIR-V here),
       </Text>
-      <Text x={20} y={300} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={300} className="fill-muted text-[12px]">
         and the driver finishes the job for the exact GPU.
       </Text>
     </Figure>
@@ -133,7 +133,7 @@ export function MemoryBinding() {
       h={520}
       label="Left: an image asks for memory; the driver allows memory types 0 to 2 and findMemoryType picks type 0, which on the Iris Xe is system RAM shared with the CPU. Right: the descriptor set layout, the set and its two slots, and the shader bindings they feed; frameCount goes by push constant instead."
     >
-      <Text x={20} y={24} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={20} y={24} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         Memory for one image
       </Text>
       <Box
@@ -180,36 +180,36 @@ export function MemoryBinding() {
             x={48 + i * 62}
             y={236}
             anchor="middle"
-            className={t.allowed ? "fill-white text-[12px] font-semibold" : "fill-neutral-500 text-[12px]"}
+            className={t.allowed ? "fill-white text-[12px] font-semibold" : "fill-faint text-[12px]"}
           >{`type ${i}`}</Text>
           <Text
             x={48 + i * 62}
             y={256}
             anchor="middle"
-            className={t.allowed ? "fill-neutral-200 text-[11px]" : "fill-neutral-500 text-[11px]"}
+            className={t.allowed ? "fill-bright text-[11px]" : "fill-faint text-[11px]"}
           >
             {t.flags}
           </Text>
         </g>
       ))}
       <Badge n={3} x={20} y={216} tone="memory" />
-      <Text x={20} y={286} className="fill-neutral-400 text-[11px]">
+      <Text x={20} y={286} className="fill-muted text-[11px]">
         L device-local · V host-visible · C host-coherent · $ host-cached · P protected
       </Text>
-      <Text x={20} y={304} className="fill-neutral-300 text-[12px]">
+      <Text x={20} y={304} className="fill-body text-[12px]">
         First type that is allowed and DEVICE_LOCAL: type 0. All 7 are in
       </Text>
-      <Text x={20} y={320} className="fill-neutral-300 text-[12px]">
+      <Text x={20} y={320} className="fill-body text-[12px]">
         one 11.5 GiB heap: the laptop&apos;s RAM, shared with the CPU.
       </Text>
       <Box x={20} y={340} w={205} h={60} tone="memory" n={4} title="VkDeviceMemory" sub="2,187,616 bytes of type 0" />
       <Box x={245} y={340} w={205} h={60} tone="memory" n={5} title="VkImageView" sub="2D, colour, 1 level, 1 layer" />
       <Arrow id={id} d="M 225 370 L 241 370" tone="memory" />
-      <Text x={20} y={428} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={428} className="fill-muted text-[12px]">
         accumImage is the same, in RGBA32F: 7,812,896 bytes.
       </Text>
 
-      <Text x={520} y={24} className="fill-neutral-400 eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={520} y={24} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
         How binding = 1 finds it
       </Text>
       <Box
@@ -229,14 +229,14 @@ export function MemoryBinding() {
         Descriptor set, from a pool of 2
       </Text>
       <rect x={540} y={164} width={420} height={34} rx={6} className="fill-primary stroke-white/15" />
-      <Text x={556} y={186} className="fill-neutral-300 text-[12.5px]">
+      <Text x={556} y={186} className="fill-body text-[12.5px]">
         slot 0 →
       </Text>
       <Text x={620} y={186} className="fill-mint text-[12.5px]">
         storageImage&apos;s view, GENERAL
       </Text>
       <rect x={540} y={204} width={420} height={34} rx={6} className="fill-primary stroke-white/15" />
-      <Text x={556} y={226} className="fill-neutral-300 text-[12.5px]">
+      <Text x={556} y={226} className="fill-body text-[12.5px]">
         slot 1 →
       </Text>
       <Text x={620} y={226} className="fill-mint text-[12.5px]">
@@ -273,7 +273,7 @@ export function MemoryBinding() {
       <Text x={544} y={356} className="fill-aqua text-[12.5px]">
         layout(binding = 1, rgba32f) accumImage
       </Text>
-      <Text x={544} y={404} className="fill-neutral-400 text-[12px]">
+      <Text x={544} y={404} className="fill-muted text-[12px]">
         The format in the shader must match the image&apos;s.
       </Text>
 
@@ -282,10 +282,10 @@ export function MemoryBinding() {
       <Text x={544} y={444} className="fill-white text-[13.5px] font-semibold">
         The short path: a push constant
       </Text>
-      <Text x={544} y={466} className="fill-neutral-300 text-[12.5px]">
+      <Text x={544} y={466} className="fill-body text-[12.5px]">
         frameCount, 4 bytes → vkCmdPushConstants → pc.frameCount
       </Text>
-      <Text x={544} y={484} className="fill-neutral-400 text-[12px]">
+      <Text x={544} y={484} className="fill-muted text-[12px]">
         Written into the command buffer itself. No descriptor, no memory.
       </Text>
     </Figure>
@@ -361,13 +361,13 @@ export function Swapchain() {
       <Label x={C.x - 130} y={C.y - 148} size={11}>
         let go
       </Label>
-      <Text x={C.x} y={C.y - 6} anchor="middle" className="fill-neutral-300 text-[12px]">
+      <Text x={C.x} y={C.y - 6} anchor="middle" className="fill-body text-[12px]">
         4 images (X11)
       </Text>
-      <Text x={C.x} y={C.y + 12} anchor="middle" className="fill-neutral-300 text-[12px]">
+      <Text x={C.x} y={C.y + 12} anchor="middle" className="fill-body text-[12px]">
         5 images (Wayland)
       </Text>
-      <Text x={20} y={480} className="fill-neutral-400 text-[12px]">
+      <Text x={20} y={480} className="fill-muted text-[12px]">
         MAILBOX: a newer present replaces one still waiting, so nothing waits for the refresh.
       </Text>
       <Badge n={8} x={C.x + 186} y={C.y + 128} tone="display" />
@@ -384,7 +384,7 @@ export function Swapchain() {
       ].map((r, i) => (
         <g key={r.k}>
           <Badge n={r.n} x={548} y={70 + i * 34} tone="display" />
-          <Text x={566} y={74 + i * 34} className="fill-neutral-300 text-[12.5px]">
+          <Text x={566} y={74 + i * 34} className="fill-body text-[12.5px]">
             {r.k}
           </Text>
           <Text
@@ -399,10 +399,10 @@ export function Swapchain() {
           </Text>
         </g>
       ))}
-      <Text x={680} y={48} className="fill-neutral-400 text-[11.5px]">
+      <Text x={680} y={48} className="fill-muted text-[11.5px]">
         X11
       </Text>
-      <Text x={862} y={48} className="fill-neutral-400 text-[11.5px]">
+      <Text x={862} y={48} className="fill-muted text-[11.5px]">
         Wayland
       </Text>
 
@@ -418,7 +418,7 @@ export function Swapchain() {
           </Text>
         </g>
       ))}
-      <Text x={560} y={346} className="fill-neutral-300 text-[11.5px]">
+      <Text x={560} y={346} className="fill-body text-[11.5px]">
         storageImage: R8G8B8A8
       </Text>
       <Arrow id={id} d="M 724 310 L 788 310" tone="gpu" />
@@ -433,25 +433,25 @@ export function Swapchain() {
           </Text>
         </g>
       ))}
-      <Text x={796} y={346} className="fill-neutral-300 text-[11.5px]">
+      <Text x={796} y={346} className="fill-body text-[11.5px]">
         swapchain: B8G8R8A8
       </Text>
       <rect x={560} y={366} width={60} height={60} rx={8} fill={`rgb(${red.join(",")})`} />
-      <Text x={590} y={444} anchor="middle" className="fill-neutral-300 text-[11.5px]">
+      <Text x={590} y={444} anchor="middle" className="fill-body text-[11.5px]">
         what you wrote
       </Text>
       <Arrow id={id} d="M 630 396 L 700 396" tone="problem" />
       <rect x={710} y={366} width={60} height={60} rx={8} fill={`rgb(${[...red].reverse().join(",")})`} />
-      <Text x={740} y={444} anchor="middle" className="fill-neutral-300 text-[11.5px]">
+      <Text x={740} y={444} anchor="middle" className="fill-body text-[11.5px]">
         what X11 shows
       </Text>
-      <Text x={790} y={386} className="fill-neutral-300 text-[12px]">
+      <Text x={790} y={386} className="fill-body text-[12px]">
         A copy never converts.
       </Text>
-      <Text x={790} y={404} className="fill-neutral-300 text-[12px]">
+      <Text x={790} y={404} className="fill-body text-[12px]">
         The bytes stay put, and
       </Text>
-      <Text x={790} y={422} className="fill-neutral-300 text-[12px]">
+      <Text x={790} y={422} className="fill-body text-[12px]">
         their meaning changes.
       </Text>
     </Figure>
@@ -506,7 +506,7 @@ export function Timing() {
       <Badge n={2} x={20} y={70} tone="gpu" />
       <Badge n={4} x={280} y={70} tone="shader" />
       <Badge n={1} x={232} y={29} tone="gpu" />
-      <Text x={250} y={34} className="fill-neutral-400 text-[12px]">
+      <Text x={250} y={34} className="fill-muted text-[12px]">
         a query pool with room for 2, made once
       </Text>
 
@@ -518,20 +518,20 @@ export function Timing() {
       <Text
         x={60}
         y={266}
-        className="fill-neutral-200 text-[13px]"
+        className="fill-bright text-[13px]"
       >{`t1 − t0 ≈ ${ticks.toLocaleString("en-GB")} ticks`}</Text>
       <Text
         x={60}
         y={290}
-        className="fill-neutral-200 text-[13px]"
+        className="fill-bright text-[13px]"
       >{`× ${IRIS_XE.timestampNs} ns a tick = ${ms.toFixed(3)} ms`}</Text>
       <Text
         x={60}
         y={314}
-        className="fill-neutral-200 text-[13px]"
+        className="fill-bright text-[13px]"
       >{`480,000 paths ÷ ${(ms / 1000).toFixed(6)} s ≈ ${Math.round(paths)} million a second`}</Text>
       <Badge n={9} x={40} y={310} tone="cpu" />
-      <Text x={60} y={340} className="fill-neutral-400 text-[12px]">
+      <Text x={60} y={340} className="fill-muted text-[12px]">
         One path is up to 8 rays, so rays a second are about twice that.
       </Text>
 
@@ -540,20 +540,20 @@ export function Timing() {
       </Text>
       <rect x={520} y={256} width={46} height={30} rx={4} className="fill-white/10" />
       <rect x={570} y={256} width={410} height={30} rx={4} className="fill-aqua/20 stroke-aqua/50" />
-      <Text x={543} y={276} anchor="middle" className="fill-neutral-300 text-[11px]">
+      <Text x={543} y={276} anchor="middle" className="fill-body text-[11px]">
         100
       </Text>
       <Text x={775} y={276} anchor="middle" className="fill-white text-[12px]">
         1,000 frames timed: mean, min, max
       </Text>
-      <Text x={520} y={306} className="fill-neutral-400 text-[12px]">
+      <Text x={520} y={306} className="fill-muted text-[12px]">
         Warm-up frames are skipped while clocks rise.
       </Text>
       <Badge n={8} x={506} y={271} tone="shader" />
-      <Text x={520} y={332} className="fill-neutral-300 text-[12px]">
+      <Text x={520} y={332} className="fill-body text-[12px]">
         Each frame reads the previous frame&apos;s pair, after the fence:
       </Text>
-      <Text x={520} y={350} className="fill-neutral-300 text-[12px]">
+      <Text x={520} y={350} className="fill-body text-[12px]">
         by then the GPU has certainly written them.
       </Text>
       <Badge n={6} x={506} y={328} tone="cpu" />

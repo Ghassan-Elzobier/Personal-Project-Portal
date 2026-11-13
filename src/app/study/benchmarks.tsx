@@ -38,7 +38,7 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
     <div className="overflow-x-auto card p-0">
       <table className="w-full min-w-2xl text-sm">
         <thead>
-          <tr className="border-b border-white/10 text-left text-xs text-neutral-300">
+          <tr className="border-b border-white/10 text-left text-xs text-body">
             <th scope="col" className="px-4 py-3 font-medium">
               Measured
             </th>
@@ -65,13 +65,11 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
               <th scope="row" className="px-4 py-3 text-left font-medium">
                 {s.metric}
               </th>
-              <td className="px-4 py-3 text-neutral-300">
-                {[s.scene, s.gpu].filter(Boolean).join(" · ") || "Not recorded"}
-              </td>
+              <td className="px-4 py-3 text-body">{[s.scene, s.gpu].filter(Boolean).join(" · ") || "Not recorded"}</td>
               <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums">
                 {Number(s.latest.value)} {s.unit}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-neutral-300 tabular-nums">
+              <td className="px-4 py-3 whitespace-nowrap text-body tabular-nums">
                 {s.changePercent === null
                   ? "First result"
                   : `${s.changePercent > 0 ? "+" : ""}${s.changePercent}%${s.improved === null ? "" : s.improved ? ", better" : ", worse"}`}
@@ -79,7 +77,7 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
               <td className="px-4 py-2">
                 <Sparkline values={s.values} label={`${s.metric}: ${s.values.join(", ")}`} />
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-neutral-300">
+              <td className="px-4 py-3 whitespace-nowrap text-body">
                 {s.latest.commit_sha ? (
                   <a
                     href={commitUrl(s.latest.commit_sha)}
@@ -92,7 +90,7 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
                 ) : (
                   "–"
                 )}{" "}
-                <span className="text-xs text-neutral-400">{shortDate(s.latest.created_at.slice(0, 10))}</span>
+                <span className="text-xs text-muted">{shortDate(s.latest.created_at.slice(0, 10))}</span>
               </td>
             </tr>
           ))}

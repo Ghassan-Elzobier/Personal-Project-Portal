@@ -32,7 +32,7 @@ export function RecordDivergence({ gpus, scene, commit }: { gpus: string[]; scen
     <form onSubmit={submit} className="space-y-3 card">
       <div>
         <h3 className="font-semibold">Record a measured run</h3>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted">
           Paste the DIVERGENCE line the renderer prints. It is saved as a SIMD efficiency result, so it also shows under
           Study, Results.
         </p>
@@ -49,7 +49,7 @@ export function RecordDivergence({ gpus, scene, commit }: { gpus: string[]; scen
       </label>
       {parsed && !parsed.ok && <p className="text-sm text-coral">{parsed.error}</p>}
       {preview && (
-        <p className="text-sm text-neutral-300 tabular-nums">
+        <p className="text-sm text-body tabular-nums">
           {Math.round(preview.overall * 100)}% over the loop. Per trip:{" "}
           {preview.perTrip.map((x) => `${Math.round(x * 100)}%`).join(", ")}.
         </p>

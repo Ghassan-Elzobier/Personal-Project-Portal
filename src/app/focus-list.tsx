@@ -28,8 +28,8 @@ export function FocusList({ groups, ...props }: Props & { groups: FocusGroup[] }
         .filter((g) => g.tasks.length)
         .map((g) => (
           <div key={g.title}>
-            <h3 className={`mb-1 text-sm font-semibold ${g.overdue ? "text-coral" : "text-neutral-300"}`}>
-              {g.title} <span className="font-normal text-neutral-400 tabular-nums">{g.tasks.length}</span>
+            <h3 className={`mb-1 text-sm font-semibold ${g.overdue ? "text-coral" : "text-body"}`}>
+              {g.title} <span className="font-normal text-muted tabular-nums">{g.tasks.length}</span>
             </h3>
             <ul className="divide-y divide-white/5">
               {g.tasks.map((t) => (
@@ -80,7 +80,7 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
         <TaskLink href={task.url} className={`block text-sm font-medium hover:underline ${done ? "line-through" : ""}`}>
           {task.name}
         </TaskLink>
-        <p className="flex flex-wrap items-center gap-x-3 text-xs text-neutral-400">
+        <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted">
           <span>{task.project}</span>
           <DueDate dueOn={task.dueOn} today={today} />
           {overdue && (
