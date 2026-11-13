@@ -77,7 +77,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
               <span
                 key={w}
-                className="absolute top-2 border-l border-white/10 pl-1 text-[11px] text-muted"
+                className="absolute top-2 border-l border-white/10 pl-1 text-2xs text-muted"
                 style={{ left: `${pct(w)}%` }}
               >
                 {shortDate(w)}

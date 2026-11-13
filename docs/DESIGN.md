@@ -30,9 +30,9 @@ In `src/app/globals.css`, under `@theme` (colours, the font) and `@utility`
 | Work surfaces | `primary` (page), `midnight`, `navy`, `indigo`, `storm` (cards) |
 | Life surfaces | `moss`, `pine`, `fern` |
 | Brand | `royal`, `lavender`, `lilac` (lavender for text on dark) |
-| Accents | `aqua`, `mint`, `sand`, `coral`, `orange`, `fuchsia` |
+| Accents | `aqua`, `mint`, `sand`, `coral`, `orange`, `fuchsia` (`orchid` for its text on dark) |
 | Text roles | `text-white` (headings), `bright`, `body`, `muted`, `faint` (as `text-`, `fill-`, `placeholder-`) |
-| Type | `text-heading`, `subtext`, `eyebrow`, `field-label`, Tailwind's scale |
+| Type | `text-heading`, `subtext`, `eyebrow`, `field-label`, Tailwind's scale plus `text-2xs` (11 px) and `text-3xs` (10 px) |
 | Containers | `card`, `card-special`, `card-link`, `card-life`, `dialog.sheet` |
 | Actions | `btn-primary`, `btn-ghost`, `btn-soft`, `btn-life`, `tap` (44 px target) |
 | Forms | `field-input` |
@@ -42,6 +42,10 @@ Text greys are roles, not steps: `body` for reading text and labels, `muted` for
 secondary detail (dates, counts, captions), `faint` for the least important,
 `bright` for emphasised detail. Pick the role that says why the text is grey;
 the values live in one place.
+
+Figures (the Lab, charts) use four type steps: `text-sm` for box titles,
+`text-xs` for labels, `text-2xs` for notes and `text-3xs` for axis ticks. SVG
+text takes the same classes as HTML (`fill-body text-xs`), never a `fontSize`.
 
 The linter rejects raw hex colours and one-off pixel font sizes. When the scale
 lacks a step, add a token here and in `globals.css`, then use it everywhere it
@@ -61,6 +65,8 @@ tones mean what the accents mean, plus `quiet` (present but unimportant), `lilac
 
 ## Known debt
 
-- The Lab figures use about 230 one-off pixel font sizes for SVG text. They want
-  a small figure type scale (three or four tokens) and a codemod, proven by
-  screenshots of the Lab views.
+- Lab figures shrink on phones until Chrome clamps their text, so labels crowd
+  their boxes (#33).
+- Five toggle buttons styled as chips (recipe filters, divergence explorer,
+  schedule kinds) each define their own selected state; a `ToggleChip` would
+  serve them.

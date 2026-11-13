@@ -57,13 +57,13 @@ export function LineChart({
         {ticks.map((v) => (
           <g key={v}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / 0.06)" />
-            <text x={PAD.left - 8} y={y(v)} dy="0.32em" textAnchor="end" fontSize="12" fill="rgb(163 163 163)">
+            <text x={PAD.left - 8} y={y(v)} dy="0.32em" textAnchor="end" className="fill-muted text-xs">
               {Number.isInteger(v) ? v : v.toFixed(1)}
             </text>
           </g>
         ))}
         {xticks.map((d) => (
-          <text key={d.toISOString()} x={x(d)} y={H - 6} textAnchor="middle" fontSize="12" fill="rgb(115 115 115)">
+          <text key={d.toISOString()} x={x(d)} y={H - 6} textAnchor="middle" className="fill-faint text-xs">
             {fmt.format(d)}
           </text>
         ))}
@@ -78,7 +78,7 @@ export function LineChart({
               strokeDasharray="6 5"
               strokeWidth="1.5"
             />
-            <text x={W - PAD.right} y={y(goal) - 6} textAnchor="end" fontSize="12" fill="var(--color-sand)">
+            <text x={W - PAD.right} y={y(goal) - 6} textAnchor="end" className="fill-sand text-xs">
               Goal {goal} {unit}
             </text>
           </g>

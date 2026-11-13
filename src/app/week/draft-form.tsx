@@ -78,7 +78,7 @@ export function DraftForm({
           rows={7}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="field-input font-mono text-[13px] leading-relaxed"
+          className="field-input font-mono leading-relaxed"
         />
       </label>
       {state.error && (

@@ -44,7 +44,7 @@ export const TONES: Record<Tone, { label: string; box: string; line: string; tex
       label: "The display and swapchain",
       box: "fill-fuchsia/10 stroke-fuchsia/80",
       line: "stroke-fuchsia",
-      text: "fill-[#e05aa8]",
+      text: "fill-orchid",
       dot: "bg-fuchsia",
       hex: "#e05aa8",
     },
@@ -119,7 +119,7 @@ export function Badge({ n, x, y, tone = "plain" }: { n: number; x: number; y: nu
   return (
     <a href={`#step-${n}`} aria-label={`Step ${n}`}>
       <circle cx={x} cy={y} r={11} className="fill-primary" stroke={TONES[tone].hex} strokeWidth={1.5} />
-      <text x={x} y={y + 4} textAnchor="middle" className="fill-white text-[12px] font-semibold">
+      <text x={x} y={y + 4} textAnchor="middle" className="fill-white text-xs font-semibold">
         {n}
       </text>
     </a>
@@ -168,16 +168,16 @@ export function Box({
         strokeWidth={1.5}
         strokeDasharray={dashed ? "5 4" : undefined}
       />
-      <text x={tx} y={top} textAnchor={align} className="fill-white text-[14px] font-semibold">
+      <text x={tx} y={top} textAnchor={align} className="fill-white text-sm font-semibold">
         {title}
       </text>
       {sub && (
-        <text x={tx} y={top + 17} textAnchor={align} className="fill-body text-[12px]">
+        <text x={tx} y={top + 17} textAnchor={align} className="fill-body text-xs">
           {sub}
         </text>
       )}
       {note && (
-        <text x={tx} y={top + (sub ? 33 : 17)} textAnchor={align} className={`${TONES.shader.text} text-[11.5px]`}>
+        <text x={tx} y={top + (sub ? 33 : 17)} textAnchor={align} className={`${TONES.shader.text} text-2xs`}>
           {note}
         </text>
       )}
@@ -190,6 +190,8 @@ export function Box({
     </g>
   );
 }
+
+const LABEL_STEP = { 10: "text-3xs", 11: "text-2xs", 12: "text-xs" } as const;
 
 /** A label that stays legible over lines, with the page colour behind it. */
 export function Label({
@@ -205,20 +207,15 @@ export function Label({
   children: string;
   tone?: Tone;
   anchor?: "start" | "middle" | "end";
-  size?: number;
+  /** A step of the figure type scale: 3xs (10 px), 2xs (11 px) or xs (12 px). */
+  size?: keyof typeof LABEL_STEP;
 }) {
   const width = children.length * size * 0.56 + 10;
   const left = anchor === "middle" ? x - width / 2 : anchor === "end" ? x - width + 5 : x - 5;
   return (
     <g>
       <rect x={left} y={y - size + 1} width={width} height={size + 6} rx={4} className="fill-primary" />
-      <text
-        x={x}
-        y={y + 2}
-        textAnchor={anchor}
-        className={`${TONES[tone].text} text-[12px]`}
-        style={{ fontSize: size }}
-      >
+      <text x={x} y={y + 2} textAnchor={anchor} className={`${TONES[tone].text} ${LABEL_STEP[size]}`}>
         {children}
       </text>
     </g>
@@ -269,7 +266,7 @@ export function Text({
   x,
   y,
   children,
-  className = "fill-muted text-[12px]",
+  className = "fill-muted text-xs",
   anchor = "start",
 }: {
   x: number;

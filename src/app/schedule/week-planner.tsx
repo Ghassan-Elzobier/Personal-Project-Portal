@@ -161,7 +161,7 @@ export function WeekPlanner({
                 >
                   {Number(d.slice(8))}
                 </span>
-                <span className="mt-1 block h-4 text-[11px] text-muted tabular-nums" title="Planned study time">
+                <span className="mt-1 block h-4 text-2xs text-muted tabular-nums" title="Planned study time">
                   {plannedHours(byDay.get(d) ?? [])}
                 </span>
               </div>
@@ -173,7 +173,7 @@ export function WeekPlanner({
                 {hours.map((h) => (
                   <span
                     key={h}
-                    className="absolute right-2 -translate-y-1/2 text-[11px] text-muted tabular-nums"
+                    className="absolute right-2 -translate-y-1/2 text-2xs text-muted tabular-nums"
                     style={{ top: (h - DAY_START) * PX_PER_MIN }}
                   >
                     {h === DAY_START ? "" : clock(h)}
@@ -208,7 +208,7 @@ export function WeekPlanner({
                 onClick={() => setMobileDay(d)}
                 className={`btn shrink-0 flex-col gap-0 px-3 py-1.5 ring-1 ${d === mobileDay ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10"}`}
               >
-                <span className="text-[10px] uppercase">{WEEKDAY[i]}</span>
+                <span className="text-3xs uppercase">{WEEKDAY[i]}</span>
                 <span>{Number(d.slice(8))}</span>
               </button>
             ))}
@@ -265,7 +265,7 @@ export function WeekPlanner({
                         }}
                         className="group cursor-grab rounded-xl bg-white/5 p-3 text-sm ring-1 ring-white/5 transition hover:ring-lavender/40 active:cursor-grabbing"
                       >
-                        <p className="text-[11px] tracking-wider text-muted uppercase">{t.project}</p>
+                        <p className="text-2xs tracking-wider text-muted uppercase">{t.project}</p>
                         <p className="font-medium">{t.title}</p>
                         <div className="mt-1 flex items-center justify-between text-xs text-muted">
                           <span>{t.dueOn ? `Due ${shortDate(t.dueOn)}` : "No date"}</span>

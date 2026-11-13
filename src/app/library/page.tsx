@@ -263,7 +263,7 @@ async function Reader({ page, back, hasPdf }: { page: number; back: string | nul
               {p.kind === "figure" ? " · figure description" : ""}
             </span>
           </header>
-          <div className="max-w-3xl text-[15px] leading-relaxed whitespace-pre-wrap text-bright">{p.text}</div>
+          <div className="max-w-3xl text-base/relaxed whitespace-pre-wrap text-bright">{p.text}</div>
         </article>
       ))}
       {nav}
