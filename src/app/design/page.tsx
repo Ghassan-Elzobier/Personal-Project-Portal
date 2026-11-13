@@ -109,6 +109,12 @@ export default async function DesignPage() {
           <p className="text-base">Body text for reading.</p>
           <p className="subtext">Subtext explains what a section is for.</p>
           <p className="text-xs text-faint tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
+          <p className="flex flex-wrap items-baseline gap-x-3 text-muted">
+            <span className="text-sm">Figure title</span>
+            <span className="text-xs">label</span>
+            <span className="text-2xs">note, 2xs</span>
+            <span className="text-3xs">tick, 3xs</span>
+          </p>
           <ul className="space-y-1 border-t border-white/10 pt-3 text-sm">
             {TEXT_ROLES.map(([role, text]) => (
               <li key={role} className={role}>
