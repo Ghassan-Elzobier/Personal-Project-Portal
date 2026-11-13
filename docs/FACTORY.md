@@ -43,7 +43,7 @@ and computational checks come before AI judgement:
 | Every PR | CI **Integration**: 193 database tests, every page at Pixel 7, 360 px and desktop, accessibility, screenshots | Broken pages, sideways scrolling, access leaks, visual change |
 | Every PR | **Guard**: migrations append-only, ratchets only tighten, existing tests need your label to change | An agent getting to green by weakening the checks |
 | Every PR, once | Claude review, in a fresh session that did not write the code | Logic and design problems the checks can't see |
-| Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until it passes | Code going live before its database |
+| Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until "Production database migrated" passes | Code going live before its database |
 | Weekly | Dependabot, CodeQL, secret scanning with push protection | Vulnerable dependencies, leaked keys |
 
 Two rules make the checks trustworthy. Existing tests and screenshots are your
@@ -167,8 +167,9 @@ Done once by you, since each needs your accounts. About fifteen minutes.
 3. **The Claude GitHub App.** Install it on this repository from
    github.com/apps/claude. `@claude`, the review, auto-fix and routines need it.
 4. **Vercel.** Project settings, Build and Deployment, Deployment Checks, Add
-   checks, GitHub: require "Migrate production database", "Checks" and
-   "Integration". `vercel.json` already turns off preview builds: previews have
+   checks, GitHub: require "Production database migrated", "Checks" and
+   "Integration". The first appears in the list after the first merge that runs
+   the release workflow. `vercel.json` already turns off preview builds: previews have
    no database, and CI renders every page instead.
 5. **The cloud environment.** At claude.ai/code, keep the Default environment's
    Limited network access: everything the factory needs (npm, nodejs.org, the

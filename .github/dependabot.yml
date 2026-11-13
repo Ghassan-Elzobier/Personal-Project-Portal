@@ -22,6 +22,15 @@ updates:
     # so each can be read and tested on its own.
     commit-message:
       prefix: deps
+    ignore:
+      # Types follow the Node version the portal runs on (.nvmrc, engines):
+      # move them with Node, not ahead of it.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint must support a TypeScript major before we can take it
+      # (TypeScript 7 failed lint on 2026-11-13). Remove this once it does.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     cooldown:
