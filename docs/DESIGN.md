@@ -36,7 +36,7 @@ In `src/app/globals.css`, under `@theme` (colours, the font) and `@utility`
 | Containers | `card`, `card-special`, `card-link`, `card-life`, `dialog.sheet` |
 | Actions | `btn-primary`, `btn-ghost`, `btn-soft`, `btn-life`, `tap` (44 px target) |
 | Forms | `field-input` |
-| Status | `chip`, with the tone classes in `StagePill`, `StatusPill` and Life's `Chip` |
+| Status | `Chip` in eight tones: `neutral`, `quiet`, `aqua`, `mint`, `sand`, `coral`, `lilac`, `ice` |
 
 Text greys are roles, not steps: `body` for reading text and labels, `muted` for
 secondary detail (dates, counts, captions), `faint` for the least important,
@@ -54,13 +54,19 @@ one-off.
 
 ## Components
 
-`src/components/ui.tsx`: `PageHeader`, `SectionTitle`, `StagePill`, `StatusPill`,
-`DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`, `TaskLink`.
-`src/app/life/parts.tsx`: `LifeHeader`, `Tabs`, `Ring`, `Chip`, `SetupCard`.
+`src/components/ui.tsx`: `PageHeader`, `SectionTitle`, `Chip` (and `StagePill`,
+`StatusPill` built on it), `DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`,
+`TaskLink`, `Tabs`, `Ring`. `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
+
+A chip is a few words in a tone: `<Chip tone="sand">Due Fri</Chip>`. Never write a
+chip's colours by hand; a chip that is also a link takes `toneClass(tone)`. The
+tones mean what the accents mean, plus `quiet` (present but unimportant), `lilac`
+(complete) and `ice` (frozen).
 
 ## Known debt
 
-- Life's `Chip` and the pills in `ui.tsx` repeat the same tone classes. One
-  `Chip` with tones, in `src/components`, should serve both.
-- `Tabs`, `Ring` and `Chip` are shared beyond Life but live in `src/app/life`;
-  they belong in `src/components`.
+- Lab figures shrink on phones until Chrome clamps their text, so labels crowd
+  their boxes (#33).
+- Five toggle buttons styled as chips (recipe filters, divergence explorer,
+  schedule kinds) each define their own selected state; a `ToggleChip` would
+  serve them.

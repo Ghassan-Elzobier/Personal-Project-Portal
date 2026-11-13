@@ -16,10 +16,10 @@ import {
   type WeekView as MealWeek,
 } from "@/lib/life/state";
 import { rank } from "@/lib/life/suggest";
-import { ErrorNote } from "@/components/ui";
+import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek, logPastAsEaten } from "./actions";
-import { clock, dayLabel, LifeHeader, SetupCard, Tabs, weekRange, weekdayShort } from "./parts";
+import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
 import { WeekView, type Alt, type CookGroup, type DayView } from "./week-view";
 
 export const metadata: Metadata = { title: "Meals" };

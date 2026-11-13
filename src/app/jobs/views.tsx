@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Empty, SectionTitle } from "@/components/ui";
+import { Chip, Empty, SectionTitle, type Tone } from "@/components/ui";
 import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import type { JobBoard, RoleView } from "@/lib/jobs/load";
@@ -9,19 +9,19 @@ import { AddRoleForm, AddSourceForm, CopySummary, EvidenceForm, RemoveEvidenceBu
 
 export type Filters = { view?: string; where?: string; family?: string; level?: string; role?: string };
 
-const BAND_STYLES: Record<Band, string> = {
-  ready: "bg-mint/10 text-mint ring-mint/30",
-  by_date: "bg-aqua/10 text-aqua ring-aqua/30",
-  one_gap: "bg-sand/10 text-sand ring-sand/30",
-  stretch: "bg-white/5 text-body ring-white/10",
-  unread: "bg-white/5 text-muted ring-white/10",
+const BAND_TONES: Record<Band, Tone> = {
+  ready: "mint",
+  by_date: "aqua",
+  one_gap: "sand",
+  stretch: "neutral",
+  unread: "quiet",
 };
 
 export function BandChip({ band }: { band: Band }) {
   return (
-    <span className={`chip ${BAND_STYLES[band]}`} title={BANDS[band].meaning}>
+    <Chip tone={BAND_TONES[band]} title={BANDS[band].meaning}>
       {BANDS[band].name}
-    </span>
+    </Chip>
   );
 }
 
@@ -83,12 +83,8 @@ function RoleRow({ role, filters }: { role: RoleView; filters: Filters }) {
         {role.interest !== null && role.interest >= 2 && (
           <span className="text-lavender">{role.interest === 3 ? "Really want" : "Want"}</span>
         )}
-        {SENIOR.has(role.seniority) && (
-          <span className="chip bg-white/5 text-body ring-white/10">
-            {role.seniority === "lead" ? "Lead level" : "Senior"}
-          </span>
-        )}
-        {role.closed_at && <span className="chip bg-coral/10 text-coral ring-coral/30">No longer listed</span>}
+        {SENIOR.has(role.seniority) && <Chip>{role.seniority === "lead" ? "Lead level" : "Senior"}</Chip>}
+        {role.closed_at && <Chip tone="coral">No longer listed</Chip>}
         <BandChip band={role.fit.band} />
       </div>
     </li>
@@ -468,8 +464,10 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               </p>
               <ul className="flex flex-wrap gap-2 text-xs">
                 {unknown.map((u) => (
-                  <li key={u.term} className="chip bg-white/5 text-body ring-white/10">
-                    {u.term} {u.roles}
+                  <li key={u.term}>
+                    <Chip>
+                      {u.term} {u.roles}
+                    </Chip>
                   </li>
                 ))}
               </ul>

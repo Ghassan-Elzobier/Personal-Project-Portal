@@ -28,6 +28,8 @@
   --color-moss: #0c1915;
   --color-pine: #13271f;
   --color-fern: #1b3a2d;
+  /* Ice: frozen food and the freezer. */
+  --color-ice: oklch(82.8% 0.111 230.318);
   /* Text roles, brightest to faintest, so one place sets how loud each kind of
      text is. White is for headings and anything the eye should land on first.
      The values are Tailwind's neutral 200 to 500. */

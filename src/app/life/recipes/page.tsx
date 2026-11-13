@@ -4,9 +4,9 @@ import { requireOwner } from "@/lib/auth/access";
 import { loadLife } from "@/lib/life/load";
 import { portionMacros, verdict } from "@/lib/life/nutrition";
 import { RECIPES, type Cuisine } from "@/lib/life/recipes";
-import { ErrorNote } from "@/components/ui";
+import { Chip, ErrorNote } from "@/components/ui";
 import { Stars } from "../kit";
-import { Chip, LifeHeader } from "../parts";
+import { LifeHeader } from "../parts";
 
 export const metadata: Metadata = { title: "Recipes" };
 export const dynamic = "force-dynamic";

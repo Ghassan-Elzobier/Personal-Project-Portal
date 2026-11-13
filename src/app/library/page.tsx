@@ -14,7 +14,7 @@ import {
 } from "@/lib/library/book";
 import { bookHref } from "@/lib/library/links";
 import { splitExcerpt } from "@/lib/library/query";
-import { Empty, ErrorNote, PageHeader } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, toneClass } from "@/components/ui";
 import { UploadPdf } from "./upload-pdf";
 
 export const metadata: Metadata = { title: "Book" };
@@ -98,11 +98,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
           <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
             Try
             {TRY.map((t) => (
-              <Link
-                key={t}
-                href={bookHref.search(t)}
-                className="chip bg-white/5 text-body ring-white/10 hover:bg-white/10"
-              >
+              <Link key={t} href={bookHref.search(t)} className={`chip ${toneClass("neutral")} hover:bg-white/10`}>
                 {t}
               </Link>
             ))}
@@ -305,11 +301,7 @@ function Contents({ outline }: { outline: Outline }) {
               </span>
               <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 {(lab.get(c.chapter) ?? []).map((v) => (
-                  <Link
-                    key={v.id}
-                    href={`/lab/${v.id}`}
-                    className="chip bg-aqua/10 text-aqua ring-aqua/30 hover:bg-aqua/20"
-                  >
+                  <Link key={v.id} href={`/lab/${v.id}`} className={`chip ${toneClass("aqua")} hover:bg-aqua/20`}>
                     Lab: {v.title}
                   </Link>
                 ))}

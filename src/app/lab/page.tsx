@@ -6,7 +6,7 @@ import { latestResults } from "@/lib/lab/results";
 import { attempt } from "@/lib/portal/data";
 import { loadStudy } from "@/lib/study/load";
 import { GpuTable } from "./figures-measured";
-import { PageHeader, SectionTitle } from "@/components/ui";
+import { Chip, PageHeader, SectionTitle } from "@/components/ui";
 import { FrameMap } from "./figures-host";
 import { Legend } from "./kit";
 import { DriftBanner, FindingCard } from "./shared";
@@ -77,15 +77,11 @@ export default async function LabPage() {
                     <span className="line-clamp-3 block text-sm text-body">{v.claim}</span>
                     <span className="flex flex-wrap gap-1.5 pt-1">
                       {v.book.slice(0, 3).map((b) => (
-                        <span key={b.section} className="chip bg-white/5 text-body ring-white/10">
-                          PMPP {b.section}
-                        </span>
+                        <Chip key={b.section}>PMPP {b.section}</Chip>
                       ))}
-                      {bugs > 0 && <span className="chip bg-coral/10 text-coral ring-coral/30">{bugs} bug</span>}
-                      {checks > 0 && <span className="chip bg-sand/10 text-sand ring-sand/30">{checks} to check</span>}
-                      {(v.id === "divergence" || v.id === "sync") && (
-                        <span className="chip bg-aqua/10 text-aqua ring-aqua/30">Interactive</span>
-                      )}
+                      {bugs > 0 && <Chip tone="coral">{bugs} bug</Chip>}
+                      {checks > 0 && <Chip tone="sand">{checks} to check</Chip>}
+                      {(v.id === "divergence" || v.id === "sync") && <Chip tone="aqua">Interactive</Chip>}
                     </span>
                   </Link>
                 </li>

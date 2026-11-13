@@ -5,11 +5,11 @@ import { loadLife } from "@/lib/life/load";
 import { bmr, KCAL_PER_KG_GAINED, weeklyRate } from "@/lib/life/nutrition";
 import { ageOn } from "@/lib/life/profile";
 import { effort } from "@/lib/life/state";
-import { ErrorNote } from "@/components/ui";
+import { ErrorNote, Ring } from "@/components/ui";
 import { applyAdjustment } from "../actions";
 import { LineChart } from "../chart";
 import { ActionButton } from "../kit";
-import { LifeHeader, Ring, SetupCard } from "../parts";
+import { LifeHeader, SetupCard } from "../parts";
 import { WeighIn } from "./weigh-in";
 
 export const metadata: Metadata = { title: "Body" };

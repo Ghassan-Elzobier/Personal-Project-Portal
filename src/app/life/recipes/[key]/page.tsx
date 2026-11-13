@@ -9,8 +9,8 @@ import { portionMacros, portionScale, SPLIT, verdict } from "@/lib/life/nutritio
 import { cookScale } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { amount, linesFor } from "@/lib/life/shopping";
-import { ErrorNote } from "@/components/ui";
-import { Chip, LifeHeader } from "../../parts";
+import { Chip, ErrorNote } from "@/components/ui";
+import { LifeHeader } from "../../parts";
 import { RateRecipe } from "./rate";
 
 export const dynamic = "force-dynamic";

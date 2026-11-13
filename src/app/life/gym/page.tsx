@@ -7,8 +7,8 @@ import { consistency, e1rm, e1rmSeries, nextWorkout, project, target } from "@/l
 import { demoFor } from "@/lib/life/gym/media";
 import { loadLife } from "@/lib/life/load";
 import { isReturning } from "@/lib/life/state";
-import { ErrorNote } from "@/components/ui";
-import { Chip, dayLabel, LifeHeader, weekdayShort } from "../parts";
+import { Chip, ErrorNote } from "@/components/ui";
+import { dayLabel, LifeHeader, weekdayShort } from "../parts";
 import { LineChart } from "../chart";
 import { SessionLogger, type BlockView } from "./session";
 

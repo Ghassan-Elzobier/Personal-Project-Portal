@@ -6,7 +6,7 @@ import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import { mentorJobView, type MentorSource } from "@/lib/jobs/mentor";
 import { createClient } from "@/lib/supabase/server";
-import { Empty, ErrorNote, PageHeader, SectionTitle } from "@/components/ui";
+import { Chip, Empty, ErrorNote, PageHeader, SectionTitle } from "@/components/ui";
 import { BandChip, SkillTable, TIER_NAMES } from "../jobs/views";
 
 export const metadata: Metadata = { title: "Job hunt" };
@@ -91,9 +91,7 @@ export default async function SharedJobHuntPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {(r.seniority === "senior" || r.seniority === "lead") && (
-                    <span className="chip bg-white/5 text-body ring-white/10">
-                      {r.seniority === "lead" ? "Lead level" : "Senior"}
-                    </span>
+                    <Chip>{r.seniority === "lead" ? "Lead level" : "Senior"}</Chip>
                   )}
                   <BandChip band={r.fit.band} />
                 </div>
