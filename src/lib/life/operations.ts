@@ -161,21 +161,6 @@ export function swapCook(start: string, cookId: string, recipeKey: string): Prom
   });
 }
 
-export function addCook(start: string, recipeKey: string, date: string, minutes: number): Promise<Result> {
-  return editPlan(start, (plan) => {
-    const r = recipe(recipeKey);
-    if (!r) fail("Unknown recipe.");
-    plan.cooks.push({
-      id: `${date}-${recipeKey}-${Date.now() % 100000}`,
-      recipe: recipeKey,
-      date,
-      start: minutes,
-      portions: 0,
-      scale: 1,
-    });
-  });
-}
-
 export function removeCook(start: string, cookId: string): Promise<Result> {
   return editPlan(start, (plan, s) => {
     if (s.batches.some((b) => b.planStart === start && b.cookId === cookId))

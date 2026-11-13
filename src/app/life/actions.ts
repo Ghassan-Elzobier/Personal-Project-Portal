@@ -34,11 +34,6 @@ export async function swapCook(start: string, cookId: string, recipe: string) {
   return ops.swapCook(start, cookId, recipe);
 }
 
-export async function addCook(start: string, recipe: string, date: string, minutes: number) {
-  await requireOwner();
-  return ops.addCook(start, recipe, date, minutes);
-}
-
 export async function removeCook(start: string, cookId: string) {
   await requireOwner();
   return ops.removeCook(start, cookId);

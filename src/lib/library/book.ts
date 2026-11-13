@@ -138,5 +138,3 @@ export async function pdfUploadTarget(): Promise<{ path: string; token: string }
   }
   return { path: data.path, token: data.token };
 }
-
-export { bookHref } from "./links";

@@ -3,12 +3,9 @@
 // Pure, so it is tested; src/lib/life/load.ts reads the data and calls it.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import type { Tag } from "./allergens.ts";
-import type { Unit } from "./ingredients.ts";
 import {
   adjust,
   portionMacros,
-  SPLIT,
   targetsFor,
   trend,
   type Adjustment,
@@ -59,8 +56,6 @@ export type LifeRaw = {
   sessions: SessionLog[];
   sets: SetLog[];
 };
-
-export type { Tag, Unit };
 
 /** One meal week: its plan (if made), every meal placed, and the reminders. */
 export type WeekView = { start: string; plan: WeekPlan | null; placements: Placement[]; reminders: Reminder[] };
@@ -298,12 +293,6 @@ export function isReturning(s: LifeState, today: string): boolean {
   return s.profile.gym.returning && (!first || first >= addDays(today, -14));
 }
 
-/** The first thing not done yet, from now on, or the next thing left today. */
-export function nextUp(items: RoutineItem[], minutes: number): RoutineItem | null {
-  const open = items.filter((i) => !i.done && !i.skipped);
-  return open.find((i) => i.time >= minutes - 60) ?? open[open.length - 1] ?? null;
-}
-
 // ---------------------------------------------------------------------------
 // Effort: the week so far
 // ---------------------------------------------------------------------------
@@ -373,19 +362,3 @@ export function placedMacros(p: Placement): { kcal: number; protein: number } | 
 }
 
 const portionCache = new Map<string, { kcal: number; protein: number }>();
-
-/** A day's planned kcal and protein against target. */
-export function dayTotals(s: LifeState, date: string): { kcal: number; protein: number; target: number } {
-  let kcal = 0;
-  let protein = 0;
-  for (const p of viewOn(s, date).placements.filter((x) => x.date === date)) {
-    const m = placedMacros(p);
-    if (m) {
-      kcal += m.kcal;
-      protein += m.protein;
-    }
-  }
-  return { kcal, protein, target: s.kcal };
-}
-
-export { SPLIT };

@@ -1,0 +1,269 @@
+{
+  "src/app/focus-list.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/job-hunt/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 1
+    }
+  },
+  "src/app/jobs/role-pane.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/jobs/views.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 4
+    }
+  },
+  "src/app/lab/[view]/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/lab/divergence-explorer.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 10
+    },
+    "better-tailwindcss/no-deprecated-classes": {
+      "count": 1
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 5
+    },
+    "react-hooks/set-state-in-effect": {
+      "count": 2
+    }
+  },
+  "src/app/lab/figures-gpu.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 51
+    }
+  },
+  "src/app/lab/figures-host.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 21
+    }
+  },
+  "src/app/lab/figures-maths.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 59
+    }
+  },
+  "src/app/lab/figures-measured.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 11
+    }
+  },
+  "src/app/lab/figures-vulkan.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 71
+    }
+  },
+  "src/app/lab/kit.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 5
+    }
+  },
+  "src/app/lab/sync-walkthrough.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/library/page.tsx": {
+    "better-tailwindcss/no-deprecated-classes": {
+      "count": 1
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/life/gym/session.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 5
+    },
+    "better-tailwindcss/no-deprecated-classes": {
+      "count": 1
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 2
+    }
+  },
+  "src/app/life/kitchen/views.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 13
+    }
+  },
+  "src/app/life/parts.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/life/recipes/[key]/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/life/settings/form.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 3
+    }
+  },
+  "src/app/life/week-view.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/login/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/oauth/authorize/page.tsx": {
+    "better-tailwindcss/no-conflicting-classes": {
+      "count": 2
+    }
+  },
+  "src/app/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    },
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/progress/[project]/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 1
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/schedule/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/schedule/week-planner.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 17
+    },
+    "better-tailwindcss/no-deprecated-classes": {
+      "count": 5
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 4
+    }
+  },
+  "src/app/study/benchmarks.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 1
+    }
+  },
+  "src/app/study/page.tsx": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/study/study-panel.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/tasks/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    },
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/app/tasks/task-pane.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/app/tasks/task-views.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 4
+    }
+  },
+  "src/app/timeline/page.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 5
+    },
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/week/draft-form.tsx": {
+    "better-tailwindcss/no-restricted-classes": {
+      "count": 1
+    }
+  },
+  "src/app/your-day.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 4
+    }
+  },
+  "src/components/nav-links.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 1
+    },
+    "react-hooks/set-state-in-effect": {
+      "count": 2
+    }
+  },
+  "src/components/navigation-progress.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/components/quick-add.tsx": {
+    "better-tailwindcss/no-deprecated-classes": {
+      "count": 1
+    }
+  },
+  "src/components/session-timer.tsx": {
+    "better-tailwindcss/enforce-canonical-classes": {
+      "count": 2
+    }
+  },
+  "src/lib/calendar/google.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/library/book.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  },
+  "src/lib/life/calendar-sync.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/life/store.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  },
+  "src/lib/study/load.ts": {
+    "no-restricted-imports": {
+      "count": 1
+    }
+  },
+  "src/lib/tasks/native.ts": {
+    "no-restricted-imports": {
+      "count": 2
+    }
+  }
+}

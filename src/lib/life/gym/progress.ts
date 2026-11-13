@@ -13,7 +13,7 @@
 // reps done, so a set of 5 with 2 left counts like a 7-rep max. It is only an
 // estimate, and only sets of 12 or fewer are used. Pure, so it is tested.
 
-import { EXERCISE_MAP, PROGRAM, type Exercise, type Prescription } from "./program.ts";
+import { EXERCISE_MAP, PROGRAM, type Prescription } from "./program.ts";
 
 export type SetLog = {
   day: string;
@@ -231,8 +231,4 @@ export function consistency(
     else break;
   }
   return { done: inWeek(weekStart), planned, streak };
-}
-
-export function exercise(key: string): Exercise | undefined {
-  return EXERCISE_MAP.get(key);
 }

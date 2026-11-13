@@ -2,7 +2,6 @@
 // status draft. Pure, so it is tested with node's test runner.
 
 export const STAGES = ["Not started", "In progress", "Blocked", "Needs review", "Done"] as const;
-export type Stage = (typeof STAGES)[number];
 
 export const STATUS_TYPES = {
   on_track: "On track",

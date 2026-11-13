@@ -144,5 +144,3 @@ export function mentorJobView(source: MentorSource) {
     lastRead: source.last_read,
   };
 }
-
-export type MentorJobView = ReturnType<typeof mentorJobView>;

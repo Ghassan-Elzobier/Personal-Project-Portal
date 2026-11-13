@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/*.{mjs,ts}", "src/**/*.test.ts", "e2e/**/*.ts", "playwright.config.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,ts}", "e2e/**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": ["pdftotext"],
+  "ignoreDependencies": [],
+  "ignoreIssues": {
+    "src/lib/tasks/native.ts": ["exports"],
+    "src/lib/tasks/tracker.ts": ["exports"]
+  }
+}

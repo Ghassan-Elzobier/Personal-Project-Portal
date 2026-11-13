@@ -81,14 +81,6 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
   );
 }
 
-export function TextLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className="text-sm text-neutral-400 transition-colors hover:text-white">
-      {children}
-    </Link>
-  );
-}
-
 /** A task's link: same tab inside the portal, new tab when it points to Asana. */
 export function TaskLink({ href, className, children }: { href: string; className?: string; children: ReactNode }) {
   return href.startsWith("/") ? (

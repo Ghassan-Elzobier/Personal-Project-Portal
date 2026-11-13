@@ -19,7 +19,6 @@ import {
   type StoredEvidence,
   type UnitFact,
 } from "./match";
-import { SKILLS } from "./skills";
 import { listEvidence, listPostings, listSources, type JobRow, type JobSource } from "./store";
 
 // Everything the job pages and the Today hub show, worked out from the roles on file,
@@ -272,5 +271,3 @@ export function mentorSummary(board: JobBoard): string {
     ...board.branches.map((b) => `- ${b.name}: asked for by ${b.asking} roles, would move ${b.unlocks} up a band`),
   ].join("\n");
 }
-
-export const skillChoices = () => SKILLS.map((s) => ({ key: s.key, name: s.name, group: s.group }));

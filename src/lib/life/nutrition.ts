@@ -243,7 +243,6 @@ function fmt(n: number): string {
 /** How a day's food splits across its slots. */
 export const SPLIT = { breakfast: 0.22, lunch: 0.27, dinner: 0.29, shake: 0.22 } as const;
 export type Slot = keyof typeof SPLIT;
-export const SLOTS: Slot[] = ["breakfast", "lunch", "shake", "dinner"];
 
 /**
  * How much bigger or smaller to make portions so one hits its slot's share.

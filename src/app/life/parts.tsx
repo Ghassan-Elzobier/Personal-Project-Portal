@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clock, shortDate } from "@/lib/dates/week";
-import type { Placement } from "@/lib/life/planner";
 
 // Server-rendered pieces shared by the Life pages.
 
@@ -84,18 +83,6 @@ export function Chip({
   return <span className={`chip whitespace-nowrap ${tones[tone]}`}>{children}</span>;
 }
 
-export function StorageChip({ p }: { p: Placement }) {
-  if (p.source === "fresh") return <Chip tone="sand">Cook fresh</Chip>;
-  if (p.storage === "freezer")
-    return (
-      <Chip tone="ice">
-        Freezer · defrost {p.defrostOn ? `${weekdayShort(p.defrostOn)} night` : "the night before"}
-      </Chip>
-    );
-  if (p.storage === "fridge") return <Chip>Fridge</Chip>;
-  return null;
-}
-
 export function weekdayShort(date: string): string {
   return new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 }
@@ -130,14 +117,6 @@ export function SetupCard() {
         Open settings
       </Link>
     </section>
-  );
-}
-
-export function Macro({ kcal, protein, className = "" }: { kcal: number; protein: number; className?: string }) {
-  return (
-    <span className={`text-xs text-neutral-400 tabular-nums ${className}`}>
-      {Math.round(kcal).toLocaleString("en-GB")} kcal · {Math.round(protein)} g protein
-    </span>
   );
 }
 

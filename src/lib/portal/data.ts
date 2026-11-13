@@ -10,7 +10,7 @@ import {
 } from "../tasks/tracker";
 import { projectGid, timeZone, usesAsana, weeklyHoursTarget } from "../config/env";
 import { studySnapshot } from "../tasks/native";
-import { projectDef, type ProjectKey } from "../config/projects";
+import { type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
 import { now } from "@/lib/dates/clock";
@@ -231,8 +231,4 @@ async function weekPractice(key: ProjectKey, week: Week, inWeek: (iso: string) =
 export async function latestStatus(key: ProjectKey): Promise<AsanaStatusUpdate | null> {
   const updates = await listStatusUpdates(key);
   return updates[0] ?? null;
-}
-
-export function projectTitle(key: ProjectKey): string {
-  return projectDef(key).title;
 }
