@@ -11,7 +11,19 @@ const W = 640;
 const H = 220;
 const PAD = { top: 16, right: 16, bottom: 26, left: 40 };
 
-export function LineChart({ points, smooth, goal, unit, label }: { points: Point[]; smooth?: Point[]; goal?: number; unit: string; label: string }) {
+export function LineChart({
+  points,
+  smooth,
+  goal,
+  unit,
+  label,
+}: {
+  points: Point[];
+  smooth?: Point[];
+  goal?: number;
+  unit: string;
+  label: string;
+}) {
   const all = [...points, ...(smooth ?? [])];
   if (!all.length) return null;
   const t = (d: string) => new Date(`${d}T12:00:00Z`);
@@ -36,7 +48,12 @@ export function LineChart({ points, smooth, goal, unit, label }: { points: Point
   const last = points[points.length - 1];
   return (
     <figure className="w-full">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={`${label}. Latest ${last ? `${last.y} ${unit}` : "none"}.`}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="h-auto w-full"
+        role="img"
+        aria-label={`${label}. Latest ${last ? `${last.y} ${unit}` : "none"}.`}
+      >
         {ticks.map((v) => (
           <g key={v}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / 0.06)" />
@@ -52,16 +69,34 @@ export function LineChart({ points, smooth, goal, unit, label }: { points: Point
         ))}
         {goal !== undefined && y(goal) >= PAD.top && y(goal) <= H - PAD.bottom && (
           <g>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(goal)} y2={y(goal)} stroke="var(--color-sand)" strokeDasharray="6 5" strokeWidth="1.5" />
+            <line
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={y(goal)}
+              y2={y(goal)}
+              stroke="var(--color-sand)"
+              strokeDasharray="6 5"
+              strokeWidth="1.5"
+            />
             <text x={W - PAD.right} y={y(goal) - 6} textAnchor="end" fontSize="12" fill="var(--color-sand)">
               Goal {goal} {unit}
             </text>
           </g>
         )}
-        {smooth && smooth.length > 1 && <path d={path(smooth) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />}
-        {!smooth && points.length > 1 && <path d={path(points) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />}
+        {smooth && smooth.length > 1 && (
+          <path d={path(smooth) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />
+        )}
+        {!smooth && points.length > 1 && (
+          <path d={path(points) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />
+        )}
         {points.map((p) => (
-          <circle key={p.x} cx={x(t(p.x))} cy={y(p.y)} r={smooth ? 3 : 4} fill={smooth ? "rgb(255 255 255 / 0.45)" : "var(--color-mint)"} />
+          <circle
+            key={p.x}
+            cx={x(t(p.x))}
+            cy={y(p.y)}
+            r={smooth ? 3 : 4}
+            fill={smooth ? "rgb(255 255 255 / 0.45)" : "var(--color-mint)"}
+          />
         ))}
       </svg>
       <figcaption className="sr-only">{label}</figcaption>

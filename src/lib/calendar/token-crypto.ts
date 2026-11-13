@@ -13,7 +13,9 @@ export function encryptToken(plain: string, rawKey: string | undefined): string 
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key(rawKey), iv);
   const data = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
-  return ["v1", iv, cipher.getAuthTag(), data].map((p) => (typeof p === "string" ? p : p.toString("base64url"))).join(".");
+  return ["v1", iv, cipher.getAuthTag(), data]
+    .map((p) => (typeof p === "string" ? p : p.toString("base64url")))
+    .join(".");
 }
 
 export function decryptToken(sealed: string, rawKey: string | undefined): string {

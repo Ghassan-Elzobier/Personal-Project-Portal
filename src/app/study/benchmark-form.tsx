@@ -33,7 +33,17 @@ export function BenchmarkForm({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     start(async () => {
-      const result = await addBenchmark({ project, task: task || null, metric, value: Number(value), unit, scene, gpu, commit, notes });
+      const result = await addBenchmark({
+        project,
+        task: task || null,
+        metric,
+        value: Number(value),
+        unit,
+        scene,
+        gpu,
+        commit,
+        notes,
+      });
       if (result.error) toast(result.error, { tone: "error" });
       else {
         setValue("");
@@ -44,9 +54,11 @@ export function BenchmarkForm({
   };
   const input = "field-input mt-1";
   return (
-    <form onSubmit={submit} className="card grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form onSubmit={submit} className="grid grid-cols-1 gap-3 card sm:grid-cols-2 lg:grid-cols-4">
       <div>
-        <label htmlFor="bench-metric" className="field-label">Measured</label>
+        <label htmlFor="bench-metric" className="field-label">
+          Measured
+        </label>
         <input
           id="bench-metric"
           className={input}
@@ -61,48 +73,119 @@ export function BenchmarkForm({
           }}
         />
         <datalist id="metric-names">
-          {METRICS.map((m) => <option key={m.name} value={m.name} />)}
+          {METRICS.map((m) => (
+            <option key={m.name} value={m.name} />
+          ))}
         </datalist>
       </div>
       <div>
-        <label htmlFor="bench-value" className="field-label">Value</label>
-        <input id="bench-value" className={input} type="number" step="any" required value={value} onChange={(e) => setValue(e.target.value)} />
+        <label htmlFor="bench-value" className="field-label">
+          Value
+        </label>
+        <input
+          id="bench-value"
+          className={input}
+          type="number"
+          step="any"
+          required
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
       </div>
       <div>
-        <label htmlFor="bench-unit" className="field-label">Unit</label>
-        <input id="bench-unit" className={input} value={unit} maxLength={20} onChange={(e) => setUnit(e.target.value)} />
+        <label htmlFor="bench-unit" className="field-label">
+          Unit
+        </label>
+        <input
+          id="bench-unit"
+          className={input}
+          value={unit}
+          maxLength={20}
+          onChange={(e) => setUnit(e.target.value)}
+        />
       </div>
       <div>
-        <label htmlFor="bench-commit" className="field-label">Commit</label>
-        <input id="bench-commit" className={input} list="repo-commits" value={commit} maxLength={40} placeholder="Hash" onChange={(e) => setCommit(e.target.value)} />
+        <label htmlFor="bench-commit" className="field-label">
+          Commit
+        </label>
+        <input
+          id="bench-commit"
+          className={input}
+          list="repo-commits"
+          value={commit}
+          maxLength={40}
+          placeholder="Hash"
+          onChange={(e) => setCommit(e.target.value)}
+        />
         <datalist id="repo-commits">
-          {commits.map((c) => <option key={c.sha} value={c.sha.slice(0, 7)}>{c.message}</option>)}
+          {commits.map((c) => (
+            <option key={c.sha} value={c.sha.slice(0, 7)}>
+              {c.message}
+            </option>
+          ))}
         </datalist>
       </div>
       <div>
-        <label htmlFor="bench-scene" className="field-label">Scene</label>
-        <input id="bench-scene" className={input} value={scene} maxLength={120} placeholder="Four spheres, 1280×720" onChange={(e) => setScene(e.target.value)} />
+        <label htmlFor="bench-scene" className="field-label">
+          Scene
+        </label>
+        <input
+          id="bench-scene"
+          className={input}
+          value={scene}
+          maxLength={120}
+          placeholder="Four spheres, 1280×720"
+          onChange={(e) => setScene(e.target.value)}
+        />
       </div>
       <div>
-        <label htmlFor="bench-gpu" className="field-label">GPU</label>
-        <input id="bench-gpu" className={input} list="gpu-names" value={gpu} maxLength={80} placeholder={GPUS[0]} onChange={(e) => setGpu(e.target.value)} />
+        <label htmlFor="bench-gpu" className="field-label">
+          GPU
+        </label>
+        <input
+          id="bench-gpu"
+          className={input}
+          list="gpu-names"
+          value={gpu}
+          maxLength={80}
+          placeholder={GPUS[0]}
+          onChange={(e) => setGpu(e.target.value)}
+        />
         <datalist id="gpu-names">
-          {GPUS.map((g) => <option key={g} value={g} />)}
+          {GPUS.map((g) => (
+            <option key={g} value={g} />
+          ))}
         </datalist>
       </div>
       <div>
-        <label htmlFor="bench-task" className="field-label">Milestone</label>
+        <label htmlFor="bench-task" className="field-label">
+          Milestone
+        </label>
         <select id="bench-task" className={input} value={task} onChange={(e) => setTask(e.target.value)}>
           <option value="">None</option>
-          {units.map((u) => <option key={u.gid} value={u.gid}>{u.name}</option>)}
+          {units.map((u) => (
+            <option key={u.gid} value={u.gid}>
+              {u.name}
+            </option>
+          ))}
         </select>
       </div>
       <div>
-        <label htmlFor="bench-notes" className="field-label">Notes</label>
-        <input id="bench-notes" className={input} value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
+        <label htmlFor="bench-notes" className="field-label">
+          Notes
+        </label>
+        <input
+          id="bench-notes"
+          className={input}
+          value={notes}
+          maxLength={1000}
+          onChange={(e) => setNotes(e.target.value)}
+        />
       </div>
       <div className="sm:col-span-2 lg:col-span-4">
-        <button disabled={pending || !value} aria-busy={pending} className="btn-primary px-4 py-1.5">{pending ? "Saving…" : "Save result"}</button>
+        <button disabled={pending || !value} aria-busy={pending} className="btn-primary px-4 py-1.5">
+          {pending ? "Saving…" : "Save result"}
+        </button>
       </div>
     </form>
   );
@@ -122,7 +205,8 @@ export function BenchmarkHistory({ rows }: { rows: BenchmarkRow[] }) {
               {r.notes && <span className="text-neutral-400"> ({r.notes})</span>}
             </span>
             <button
-              disabled={pending} aria-busy={pending}
+              disabled={pending}
+              aria-busy={pending}
               aria-label={`Delete result from ${r.created_at.slice(0, 10)}: ${r.metric}`}
               className="cursor-pointer text-xs text-neutral-400 hover:text-white"
               onClick={() =>

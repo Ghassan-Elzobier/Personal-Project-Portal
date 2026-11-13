@@ -10,7 +10,8 @@ export function SyncStudyButton() {
   return (
     <button
       className="btn-ghost px-4 py-1.5 text-sm"
-      disabled={pending} aria-busy={pending}
+      disabled={pending}
+      aria-busy={pending}
       title="Copy every planned study block to Google Calendar"
       onClick={() =>
         start(async () => {
@@ -22,7 +23,9 @@ export function SyncStudyButton() {
             const more = r.remaining ? ` ${r.remaining} left: press again to carry on.` : "";
             toast(`Study blocks in Google Calendar: ${parts.join(", ")}.${more}`, r.failed ? { tone: "error" } : {});
           } catch {
-            toast("The sync took too long and stopped. Press again: it carries on where it left off.", { tone: "error" });
+            toast("The sync took too long and stopped. Press again: it carries on where it left off.", {
+              tone: "error",
+            });
           }
         })
       }

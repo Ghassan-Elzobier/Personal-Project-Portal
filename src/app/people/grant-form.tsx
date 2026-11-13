@@ -7,7 +7,7 @@ import { grantMentor, type PeopleState } from "./actions";
 export function GrantForm() {
   const [state, action, pending] = useActionState<PeopleState, FormData>(grantMentor, {});
   return (
-    <form action={action} className="card space-y-5 p-6">
+    <form action={action} className="space-y-5 card p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">Email</span>
@@ -36,10 +36,16 @@ export function GrantForm() {
         <label className="mt-2 flex items-start gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm">
           <input type="checkbox" name="share_job_hunt" className="mt-1 accent-lavender" />
           <span>
-            Job hunt <span className="text-neutral-400">· closest roles, the skills gap and application counts. Never your notes, next actions, ratings or contacts.</span>
+            Job hunt{" "}
+            <span className="text-neutral-400">
+              · closest roles, the skills gap and application counts. Never your notes, next actions, ratings or
+              contacts.
+            </span>
           </span>
         </label>
-        <p className="mt-2 text-xs text-neutral-400">The study roadmap follows the projects above: a mentor sees the plans they can see.</p>
+        <p className="mt-2 text-xs text-neutral-400">
+          The study roadmap follows the projects above: a mentor sees the plans they can see.
+        </p>
       </fieldset>
       {state.error && <p className="text-sm text-coral">{state.error}</p>}
       {state.ok && <p className="text-sm text-mint">{state.ok}</p>}

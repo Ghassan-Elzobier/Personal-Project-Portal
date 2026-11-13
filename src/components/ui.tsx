@@ -34,7 +34,7 @@ export function PageHeader({ eyebrow, title, children }: { eyebrow?: string; tit
     <header className="mb-8 space-y-2">
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <h1 className="text-heading">{title}</h1>
-      {children && <div className="subtext max-w-2xl">{children}</div>}
+      {children && <div className="max-w-2xl subtext">{children}</div>}
     </header>
   );
 }
@@ -94,7 +94,6 @@ export function TaskLink({ href, className, children }: { href: string; classNam
   return href.startsWith("/") ? (
     <Link href={href} scroll={false} className={className}>
       {children}
-      
     </Link>
   ) : (
     <a href={href} target="_blank" rel="noreferrer" className={className}>

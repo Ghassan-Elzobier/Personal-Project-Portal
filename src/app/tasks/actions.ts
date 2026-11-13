@@ -5,18 +5,31 @@ import * as ops from "@/lib/portal/operations";
 
 export type ActionResult = { error?: string };
 
-export async function createTask(input: { project: string; name: string; section?: string | null; dueOn?: string | null; milestone?: boolean }): Promise<ActionResult> {
+export async function createTask(input: {
+  project: string;
+  name: string;
+  section?: string | null;
+  dueOn?: string | null;
+  milestone?: boolean;
+}): Promise<ActionResult> {
   await requireOwner();
   const { error } = await ops.createTask(input);
   return error ? { error } : {};
 }
 
-export async function createTasks(input: { project: string; names: string[]; section?: string | null }): Promise<ActionResult> {
+export async function createTasks(input: {
+  project: string;
+  names: string[];
+  section?: string | null;
+}): Promise<ActionResult> {
   await requireOwner();
   return ops.createTasks(input);
 }
 
-export async function editTask(gid: string, input: { name?: string; notes?: string; dueOn?: string; section?: string; evidence?: string }): Promise<ActionResult> {
+export async function editTask(
+  gid: string,
+  input: { name?: string; notes?: string; dueOn?: string; section?: string; evidence?: string },
+): Promise<ActionResult> {
   await requireOwner();
   return ops.editTask(gid, input);
 }

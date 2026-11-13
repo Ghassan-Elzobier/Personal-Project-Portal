@@ -1,6 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { completionChange, enumOption, field, filterNativeRows, groupBySection, nativeChanges, nativeToAsanaTask, projectStats, stageChange, type NativeTaskRow } from "./model.ts";
+import {
+  completionChange,
+  enumOption,
+  field,
+  filterNativeRows,
+  groupBySection,
+  nativeChanges,
+  nativeToAsanaTask,
+  projectStats,
+  stageChange,
+  type NativeTaskRow,
+} from "./model.ts";
 
 const row: NativeTaskRow = {
   gid: "7",
@@ -84,21 +95,46 @@ test("projectStats handles an empty project", () => {
 });
 
 test("groupBySection keeps empty sections and puts loose tasks last", () => {
-  const sections = [{ gid: "1", name: "To do" }, { gid: "2", name: "Later" }];
+  const sections = [
+    { gid: "1", name: "To do" },
+    { gid: "2", name: "Later" },
+  ];
   const tasks = [{ sectionGid: "2" }, { sectionGid: null }, { sectionGid: "99" }];
   const groups = groupBySection(sections, tasks);
-  assert.deepEqual(groups.map((g) => [g.name, g.tasks.length]), [["To do", 0], ["Later", 1], ["No section", 2]]);
+  assert.deepEqual(
+    groups.map((g) => [g.name, g.tasks.length]),
+    [
+      ["To do", 0],
+      ["Later", 1],
+      ["No section", 2],
+    ],
+  );
   assert.equal(groups[2].gid, null);
 });
 
 test("groupBySection adds no empty No section group", () => {
-  assert.deepEqual(groupBySection([{ gid: "1", name: "To do" }], []).map((g) => g.name), ["To do"]);
+  assert.deepEqual(
+    groupBySection([{ gid: "1", name: "To do" }], []).map((g) => g.name),
+    ["To do"],
+  );
 });
 
 test("filterNativeRows keeps open tasks and those finished or changed since a moment", () => {
   const open = { ...row, gid: "1", modified_at: "2026-11-01T00:00:00Z" };
-  const doneOld = { ...row, gid: "2", completed: true, completed_at: "2026-10-01T00:00:00Z", modified_at: "2026-10-01T00:00:00Z" };
-  const doneNew = { ...row, gid: "3", completed: true, completed_at: "2026-11-03T00:00:00Z", modified_at: "2026-11-03T00:00:00Z" };
+  const doneOld = {
+    ...row,
+    gid: "2",
+    completed: true,
+    completed_at: "2026-10-01T00:00:00Z",
+    modified_at: "2026-10-01T00:00:00Z",
+  };
+  const doneNew = {
+    ...row,
+    gid: "3",
+    completed: true,
+    completed_at: "2026-11-03T00:00:00Z",
+    modified_at: "2026-11-03T00:00:00Z",
+  };
   const rows = [open, doneOld, doneNew];
   const gids = (r: NativeTaskRow[]) => r.map((x) => x.gid);
   assert.deepEqual(gids(filterNativeRows(rows, {})), ["1", "2", "3"]);

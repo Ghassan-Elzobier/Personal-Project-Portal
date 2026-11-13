@@ -22,13 +22,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={funnel.variable}>
       <body className="min-h-screen">
-        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-navy focus:px-4 focus:py-2">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-navy focus:px-4 focus:py-2"
+        >
           Skip to content
         </a>
         <NavigationProgress />
         <RefreshOnReturn />
         <Nav />
-        <main id="main" className="c-space mx-auto max-w-6xl pt-8 pb-28 md:pb-24">
+        <main id="main" className="mx-auto max-w-6xl c-space pt-8 pb-28 md:pb-24">
           {children}
         </main>
         <Toaster />

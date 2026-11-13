@@ -22,7 +22,12 @@ export function efficiencyOf(d: Divergence): { perTrip: number[]; overall: numbe
   return { perTrip, overall: slots ? d.lanes.reduce((a, b) => a + b, 0) / slots : 0 };
 }
 
-const numbers = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean).map(Number);
+const numbers = (s: string) =>
+  s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map(Number);
 
 /**
  * Reads the line the instrumented renderer prints, or the same fields in a
@@ -32,18 +37,28 @@ export function parseDivergence(text: string): { ok: true; value: Divergence } |
   const sub = /subgroup\s*=\s*(\d+)/i.exec(text);
   const lanes = /lanes\s*=\s*([\d,\s]+)/i.exec(text);
   const groups = /subgroups\s*=\s*([\d,\s]+)/i.exec(text);
-  if (!sub || !lanes || !groups) return { ok: false, error: "Paste the whole line: it needs subgroup=, lanes= and subgroups=." };
+  if (!sub || !lanes || !groups)
+    return { ok: false, error: "Paste the whole line: it needs subgroup=, lanes= and subgroups=." };
   const subgroup = Number(sub[1]);
-  if (![4, 8, 16, 32, 64, 128].includes(subgroup)) return { ok: false, error: "subgroup= should be the subgroup size, such as 16, 32 or 64." };
+  if (![4, 8, 16, 32, 64, 128].includes(subgroup))
+    return { ok: false, error: "subgroup= should be the subgroup size, such as 16, 32 or 64." };
   const l = numbers(lanes[1]);
   const g = numbers(groups[1]);
-  if (!l.length || l.length > 8 || l.length !== g.length) return { ok: false, error: "lanes= and subgroups= need the same count of numbers, one per trip, at most 8." };
-  if ([...l, ...g].some((n) => !Number.isSafeInteger(n) || n < 0)) return { ok: false, error: "The counts should be whole numbers, 0 or more." };
+  if (!l.length || l.length > 8 || l.length !== g.length)
+    return { ok: false, error: "lanes= and subgroups= need the same count of numbers, one per trip, at most 8." };
+  if ([...l, ...g].some((n) => !Number.isSafeInteger(n) || n < 0))
+    return { ok: false, error: "The counts should be whole numbers, 0 or more." };
   for (let k = 0; k < l.length; k++) {
-    if (l[k] > g[k] * subgroup) return { ok: false, error: `Trip ${k + 1} has more lanes than ${g[k]} subgroups of ${subgroup} can hold.` };
-    if (k > 0 && g[k] > g[k - 1]) return { ok: false, error: `More subgroups are looping on trip ${k + 1} than on trip ${k}, which cannot happen.` };
+    if (l[k] > g[k] * subgroup)
+      return { ok: false, error: `Trip ${k + 1} has more lanes than ${g[k]} subgroups of ${subgroup} can hold.` };
+    if (k > 0 && g[k] > g[k - 1])
+      return {
+        ok: false,
+        error: `More subgroups are looping on trip ${k + 1} than on trip ${k}, which cannot happen.`,
+      };
   }
-  if (!g[0]) return { ok: false, error: "No subgroups ran the first trip. Check the counters are read after the frames." };
+  if (!g[0])
+    return { ok: false, error: "No subgroups ran the first trip. Check the counters are read after the frames." };
   return { ok: true, value: { subgroup, lanes: l, subgroups: g } };
 }
 
@@ -51,7 +66,14 @@ export function parseDivergence(text: string): { ok: true; value: Divergence } |
 export function divergenceNotes(d: Divergence, extra = ""): string {
   const e = efficiencyOf(d);
   const curve = e.perTrip.map((x) => (x * 100).toFixed(1)).join(", ");
-  return [`subgroup=${d.subgroup}; lanes=${d.lanes.join(",")}; subgroups=${d.subgroups.join(",")}`, `Per trip, % of lanes working: ${curve}.`, extra.trim()].filter(Boolean).join(" ").slice(0, 2000);
+  return [
+    `subgroup=${d.subgroup}; lanes=${d.lanes.join(",")}; subgroups=${d.subgroups.join(",")}`,
+    `Per trip, % of lanes working: ${curve}.`,
+    extra.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 2000);
 }
 
 /** The two GPUs, whatever name a result used for them. */
@@ -88,7 +110,13 @@ export function latestResults(rows: BenchmarkRow[]): Record<"iris" | "rx", GpuRe
     }
     if (r.metric === "SIMD efficiency") {
       const parsed = parseDivergence(r.notes);
-      if (parsed.ok) out[key].divergence = { ...parsed.value, ...efficiencyOf(parsed.value), commit: r.commit_sha, date: r.created_at.slice(0, 10) };
+      if (parsed.ok)
+        out[key].divergence = {
+          ...parsed.value,
+          ...efficiencyOf(parsed.value),
+          commit: r.commit_sha,
+          date: r.created_at.slice(0, 10),
+        };
     }
   }
   return out;

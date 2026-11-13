@@ -10,7 +10,13 @@ const profile = {
   ...DEFAULT_PROFILE,
   body: { sex: "male", birthYear: 1997, heightCm: 180 },
   gym: { ...DEFAULT_PROFILE.gym, days: [1, 3, 5], start: 405, minutes: 65 },
-  routine: { ...DEFAULT_PROFILE.routine, cooks: [{ weekday: 5, start: 1020 }, { weekday: 2, start: 1110 }] },
+  routine: {
+    ...DEFAULT_PROFILE.routine,
+    cooks: [
+      { weekday: 5, start: 1020 },
+      { weekday: 2, start: 1110 },
+    ],
+  },
 };
 const plan0: WeekPlan = {
   start: "2026-11-14",
@@ -71,11 +77,17 @@ test("a clash moves the life item to the nearest free time in its window, and fi
   // Wednesday dinner doesn't overlap the cook (it comes from the earlier batch, so before is fine).
   const cook = at(out, "2026-11-18:cook:1110");
   const dinner = at(out, "2026-11-18:meal:dinner");
-  assert.ok(dinner.start + dinner.duration <= cook.start || dinner.start >= cook.start + cook.duration, `dinner ${dinner.start} cook ${cook.start}`);
+  assert.ok(
+    dinner.start + dinner.duration <= cook.start || dinner.start >= cook.start + cook.duration,
+    `dinner ${dinner.start} cook ${cook.start}`,
+  );
   // Nothing life-side overlaps anything else on any day.
   for (const d of days) {
     const list = out.filter((i) => i.date === d && !i.clash);
-    for (const a of list) for (const b of list) if (a !== b) assert.ok(a.start + a.duration <= b.start || b.start + b.duration <= a.start, `${a.key} overlaps ${b.key}`);
+    for (const a of list)
+      for (const b of list)
+        if (a !== b)
+          assert.ok(a.start + a.duration <= b.start || b.start + b.duration <= a.start, `${a.key} overlaps ${b.key}`);
   }
 });
 
@@ -90,7 +102,10 @@ test("with nowhere to go, an item stays and says what it clashes with", () => {
 
 test("the rotation carries on from today: a missed day is not counted as trained, and next week follows this one", () => {
   // Today is Thursday 19th; Saturday's A was done, Tuesday was missed.
-  const s = buildState({ ...raw, sessions: [{ day: "2026-11-14", workout: "A", finished: true, feel: null, notes: "" }] }, "2026-11-19");
+  const s = buildState(
+    { ...raw, sessions: [{ day: "2026-11-14", workout: "A", finished: true, feel: null, notes: "" }] },
+    "2026-11-19",
+  );
   const items = lifeAgenda(s, ["2026-11-17", "2026-11-19", "2026-11-21", "2026-11-24"]);
   assert.match(at(items, "2026-11-17:gym").title, /^Gym: B,/, "Tuesday was due B");
   assert.match(at(items, "2026-11-19:gym").title, /^Gym: B,/, "B carries over to today");
@@ -104,13 +119,19 @@ test("a meal cooked that day never goes before its cook, and today nothing moves
   const items = lifeAgenda(s, ["2026-11-14"]);
   const dinner = at(items, "2026-11-14:meal:dinner");
   assert.ok(dinner.after, "dinner comes from today's cook");
-  const out = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, { date: "2026-11-14", minutes: 9 * 60 });
+  const out = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, {
+    date: "2026-11-14",
+    minutes: 9 * 60,
+  });
   const cook = at(out, "2026-11-14:cook:1020");
   const moved = at(out, "2026-11-14:meal:dinner");
   assert.ok(cook.start >= 9 * 60, `cook at ${cook.start} is not in the past`);
   if (!moved.clash) assert.ok(moved.start >= cook.start + 30, `dinner ${moved.start} after cook ${cook.start}`);
   // Later the same day, with the morning gone, the cook has nowhere to go and says so.
-  const late = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, { date: "2026-11-14", minutes: 15 * 60 + 50 });
+  const late = arrange(items, [{ date: "2026-11-14", start: 16 * 60, end: 21 * 60, title: "Send-off" }], 15, {
+    date: "2026-11-14",
+    minutes: 15 * 60 + 50,
+  });
   const lateCook = at(late, "2026-11-14:cook:1020");
   assert.match(lateCook.clash ?? "", /Send-off/);
   assert.equal(lateCook.start, 1020);

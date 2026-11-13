@@ -41,7 +41,13 @@ export function TaskPane({
   /** More about the task, such as its steps and exercises. */
   children?: ReactNode;
 }) {
-  const stamp = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone });
+  const stamp = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  });
   const router = useRouter();
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -79,7 +85,10 @@ export function TaskPane({
 
   const addComment = (e: React.FormEvent) => {
     e.preventDefault();
-    run(() => commentOnTask(task.gid, comment), () => setComment(""));
+    run(
+      () => commentOnTask(task.gid, comment),
+      () => setComment(""),
+    );
   };
   const remove = () => {
     if (window.confirm(`Delete "${task.name}" and its comments? This cannot be undone.`)) {
@@ -101,7 +110,8 @@ export function TaskPane({
             <input
               type="checkbox"
               checked={completed}
-              disabled={pending} aria-busy={pending}
+              disabled={pending}
+              aria-busy={pending}
               onChange={(e) => {
                 const done = e.target.checked;
                 run(() => {
@@ -117,15 +127,27 @@ export function TaskPane({
             <span className="text-xs text-neutral-400" role="status">
               {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
             </span>
-            <Link href={closeHref} scroll={false} className="btn-ghost px-4 py-1.5">Close</Link>
+            <Link href={closeHref} scroll={false} className="btn-ghost px-4 py-1.5">
+              Close
+            </Link>
           </div>
         </div>
 
-        {loadError && <p className="text-sm text-coral" role="alert">{loadError}</p>}
-        {error && <p className="text-sm text-coral" role="alert">{error}</p>}
+        {loadError && (
+          <p className="text-sm text-coral" role="alert">
+            {loadError}
+          </p>
+        )}
+        {error && (
+          <p className="text-sm text-coral" role="alert">
+            {error}
+          </p>
+        )}
 
         <div>
-          <label className="sr-only" htmlFor="task-name">{task.milestone ? "Milestone" : "Task"} name</label>
+          <label className="sr-only" htmlFor="task-name">
+            {task.milestone ? "Milestone" : "Task"} name
+          </label>
           <textarea
             id="task-name"
             value={name}
@@ -148,11 +170,14 @@ export function TaskPane({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="field-label" htmlFor="task-stage">Stage</label>
+            <label className="field-label" htmlFor="task-stage">
+              Stage
+            </label>
             <select
               id="task-stage"
               value={stage}
-              disabled={pending} aria-busy={pending}
+              disabled={pending}
+              aria-busy={pending}
               onChange={(e) => {
                 const next = e.target.value;
                 run(() => {
@@ -162,11 +187,15 @@ export function TaskPane({
               }}
               className="field-input"
             >
-              {STAGES.map((s) => <option key={s}>{s}</option>)}
+              {STAGES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </div>
           <div>
-            <label className="field-label" htmlFor="task-due">Due</label>
+            <label className="field-label" htmlFor="task-due">
+              Due
+            </label>
             <input
               id="task-due"
               type="date"
@@ -182,7 +211,9 @@ export function TaskPane({
             />
           </div>
           <div>
-            <label className="field-label" htmlFor="task-section">Section</label>
+            <label className="field-label" htmlFor="task-section">
+              Section
+            </label>
             <select
               id="task-section"
               value={section}
@@ -196,21 +227,33 @@ export function TaskPane({
               className="field-input"
             >
               <option value="">No section</option>
-              {sections.map((s) => <option key={s.gid} value={s.gid}>{s.name}</option>)}
+              {sections.map((s) => (
+                <option key={s.gid} value={s.gid}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <p className="field-label">Hours logged</p>
             <div className="mt-2 flex min-h-10 flex-wrap items-center gap-2 text-sm">
-              <span className="mr-auto"><Hours value={task.hours} /></span>
-              {!completed && <StartSessionButton gid={task.gid} name={task.name} className="btn-ghost px-3 py-1 text-xs" />}
-              <Link href={`/log?task=${task.gid}`} className="btn-ghost px-3 py-1 text-xs">Log</Link>
+              <span className="mr-auto">
+                <Hours value={task.hours} />
+              </span>
+              {!completed && (
+                <StartSessionButton gid={task.gid} name={task.name} className="btn-ghost px-3 py-1 text-xs" />
+              )}
+              <Link href={`/log?task=${task.gid}`} className="btn-ghost px-3 py-1 text-xs">
+                Log
+              </Link>
             </div>
           </div>
         </div>
 
         <div>
-          <label className="field-label" htmlFor="task-evidence">Evidence link</label>
+          <label className="field-label" htmlFor="task-evidence">
+            Evidence link
+          </label>
           <input
             id="task-evidence"
             type="url"
@@ -224,7 +267,9 @@ export function TaskPane({
         </div>
 
         <div>
-          <label className="field-label" htmlFor="task-notes">Description</label>
+          <label className="field-label" htmlFor="task-notes">
+            Description
+          </label>
           <textarea
             id="task-notes"
             value={notes}
@@ -239,7 +284,9 @@ export function TaskPane({
 
         <section aria-label="Comments" className="space-y-3 border-t border-white/10 pt-5">
           <h3 className="font-semibold">Comments</h3>
-          {comments.length === 0 && <p className="text-sm text-neutral-400">No comments yet. Logged sessions appear here.</p>}
+          {comments.length === 0 && (
+            <p className="text-sm text-neutral-400">No comments yet. Logged sessions appear here.</p>
+          )}
           <ul className="space-y-3">
             {comments.map((c) => (
               <li key={c.gid} className="rounded-xl bg-white/5 p-3">
@@ -249,14 +296,33 @@ export function TaskPane({
             ))}
           </ul>
           <form onSubmit={addComment} className="space-y-2">
-            <label className="sr-only" htmlFor="task-comment">Add a comment</label>
-            <textarea id="task-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} maxLength={10000} placeholder="Add a comment" className="field-input" />
-            <button disabled={pending || !comment.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">Comment</button>
+            <label className="sr-only" htmlFor="task-comment">
+              Add a comment
+            </label>
+            <textarea
+              id="task-comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={2}
+              maxLength={10000}
+              placeholder="Add a comment"
+              className="field-input"
+            />
+            <button disabled={pending || !comment.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">
+              Comment
+            </button>
           </form>
         </section>
 
         <div className="border-t border-white/10 pt-5">
-          <button onClick={remove} disabled={pending} aria-busy={pending} className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50">Delete task</button>
+          <button
+            onClick={remove}
+            disabled={pending}
+            aria-busy={pending}
+            className="cursor-pointer text-sm text-coral hover:underline disabled:opacity-50"
+          >
+            Delete task
+          </button>
         </div>
       </aside>
     </>

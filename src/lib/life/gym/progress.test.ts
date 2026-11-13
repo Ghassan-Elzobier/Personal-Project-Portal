@@ -3,12 +3,22 @@ import assert from "node:assert/strict";
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target, type SetLog } from "./progress.ts";
 import { EXERCISE_MAP, resolve, workout } from "./program.ts";
 
-const item = (w: string, key: string) => workout(w)!.blocks.flatMap((b) => b.items).find((p) => p.exercise === key)!;
+const item = (w: string, key: string) =>
+  workout(w)!
+    .blocks.flatMap((b) => b.items)
+    .find((p) => p.exercise === key)!;
 const bench = item("A", "bench");
 const squat = item("A", "back-squat");
 const pullUp = item("B", "pull-up");
 const legRaise = item("A", "hanging-leg-raise");
-const set = (day: string, exercise: string, position: number, kg: number, reps: number, rir: number | null = null): SetLog => ({ day, workout: "A", exercise, position, kg, reps, rir });
+const set = (
+  day: string,
+  exercise: string,
+  position: number,
+  kg: number,
+  reps: number,
+  rir: number | null = null,
+): SetLog => ({ day, workout: "A", exercise, position, kg, reps, rir });
 
 test("Epley with reps in reserve", () => {
   assert.equal(e1rm(100, 1), 100);
@@ -76,11 +86,21 @@ test("the programme never bends under load: no bent-over rows, Romanian deadlift
 test("workouts rotate A, B, C", () => {
   assert.equal(nextWorkout([]), "A");
   assert.equal(nextWorkout([{ day: "2026-11-13", workout: "A", finished: true, feel: null, notes: "" }]), "B");
-  assert.equal(nextWorkout([{ day: "2026-11-13", workout: "C", finished: true, feel: null, notes: "" }, { day: "2026-11-15", workout: "A", finished: false, feel: null, notes: "" }]), "A");
+  assert.equal(
+    nextWorkout([
+      { day: "2026-11-13", workout: "C", finished: true, feel: null, notes: "" },
+      { day: "2026-11-15", workout: "A", finished: false, feel: null, notes: "" },
+    ]),
+    "A",
+  );
 });
 
 test("the bench forecast needs three days and a rising trend", () => {
-  const h = [set("2026-11-02", "bench", 1, 60, 5), set("2026-11-09", "bench", 1, 62.5, 5), set("2026-11-16", "bench", 1, 65, 5)];
+  const h = [
+    set("2026-11-02", "bench", 1, 60, 5),
+    set("2026-11-09", "bench", 1, 62.5, 5),
+    set("2026-11-16", "bench", 1, 65, 5),
+  ];
   const s = e1rmSeries(h, "bench");
   assert.equal(s.length, 3);
   const p = project(s, 100, "2026-11-16");
@@ -97,6 +117,8 @@ test("a missing trap bar swaps to its alternative", () => {
 });
 
 test("weeks of three sessions make a streak", () => {
-  const s = ["2026-11-02", "2026-11-04", "2026-11-06", "2026-11-09", "2026-11-11", "2026-11-13", "2026-11-16"].map((day) => ({ day, workout: "A", finished: true, feel: null, notes: "" }));
+  const s = ["2026-11-02", "2026-11-04", "2026-11-06", "2026-11-09", "2026-11-11", "2026-11-13", "2026-11-16"].map(
+    (day) => ({ day, workout: "A", finished: true, feel: null, notes: "" }),
+  );
   assert.deepEqual(consistency(s, [0, 2, 4], "2026-11-16"), { done: 1, planned: 3, streak: 2 });
 });

@@ -2,13 +2,33 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+  type ClipboardEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import { StartSessionButton } from "@/components/session-timer";
 import { toast } from "@/components/toaster";
 import { DueDate, Hours, StagePill } from "@/components/ui";
 import { pastedLines } from "@/lib/tasks/quick-add";
 import { STAGES } from "@/lib/tasks/session-log";
-import { addSection, createTask, createTasks, editTask, removeSection, rescheduleTask, setTaskCompleted, setTaskStage, type ActionResult } from "./actions";
+import {
+  addSection,
+  createTask,
+  createTasks,
+  editTask,
+  removeSection,
+  rescheduleTask,
+  setTaskCompleted,
+  setTaskStage,
+  type ActionResult,
+} from "./actions";
 
 export type DashboardTask = {
   gid: string;
@@ -33,7 +53,8 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "undated", label: "No date" },
 ];
 
-const dayAfter = (date: string, days: number) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+const dayAfter = (date: string, days: number) =>
+  new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
 
 function matches(t: DashboardTask, filter: Filter, search: string, today: string): boolean {
   if (search && !t.name.toLowerCase().includes(search)) return false;
@@ -105,9 +126,11 @@ export function TaskViews({
   if (tasks.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="card-special space-y-2">
+        <div className="space-y-2 card-special">
           <h3 className="text-lg font-semibold">Nothing here yet</h3>
-          <p className="text-sm text-white/90">Type a task below, or paste a list of chapters and each line becomes a task.</p>
+          <p className="text-sm text-white/90">
+            Type a task below, or paste a list of chapters and each line becomes a task.
+          </p>
         </div>
         <List project={project} groups={groups} shownIds={null} today={today} tomorrow={tomorrow} />
       </div>
@@ -140,18 +163,38 @@ export function TaskViews({
         </div>
       </div>
 
-      {narrowed && shown.length === 0 && <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">No tasks match. Try another filter.</p>}
+      {narrowed && shown.length === 0 && (
+        <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">No tasks match. Try another filter.</p>
+      )}
 
       {view === "board" ? (
         <Board project={project} section={firstSection} tasks={shown} today={today} />
       ) : (
-        <List project={project} groups={groups} shownIds={narrowed ? new Set(shown.map((t) => t.gid)) : null} today={today} tomorrow={tomorrow} />
+        <List
+          project={project}
+          groups={groups}
+          shownIds={narrowed ? new Set(shown.map((t) => t.gid)) : null}
+          today={today}
+          tomorrow={tomorrow}
+        />
       )}
     </div>
   );
 }
 
-function List({ project, groups, shownIds, today, tomorrow }: { project: string; groups: Group[]; shownIds: Set<string> | null; today: string; tomorrow: string }) {
+function List({
+  project,
+  groups,
+  shownIds,
+  today,
+  tomorrow,
+}: {
+  project: string;
+  groups: Group[];
+  shownIds: Set<string> | null;
+  today: string;
+  tomorrow: string;
+}) {
   return (
     <div className="space-y-8">
       {groups.map((g) => (
@@ -169,7 +212,19 @@ function List({ project, groups, shownIds, today, tomorrow }: { project: string;
   );
 }
 
-function SectionBlock({ project, group, narrowed, today, tomorrow }: { project: string; group: Group; narrowed: boolean; today: string; tomorrow: string }) {
+function SectionBlock({
+  project,
+  group,
+  narrowed,
+  today,
+  tomorrow,
+}: {
+  project: string;
+  group: Group;
+  narrowed: boolean;
+  today: string;
+  tomorrow: string;
+}) {
   const { pending, run } = useRun();
   const [over, setOver] = useState(false);
   const open = group.tasks.filter((t) => !t.completed);
@@ -207,7 +262,12 @@ function SectionBlock({ project, group, narrowed, today, tomorrow }: { project: 
           {group.name} <span className="ml-1 text-sm font-normal text-neutral-400 tabular-nums">{open.length}</span>
         </h3>
         {group.gid && !narrowed && (
-          <button onClick={remove} disabled={pending} aria-busy={pending} className="cursor-pointer text-xs text-neutral-400 hover:text-white disabled:opacity-50">
+          <button
+            onClick={remove}
+            disabled={pending}
+            aria-busy={pending}
+            className="cursor-pointer text-xs text-neutral-400 hover:text-white disabled:opacity-50"
+          >
             Delete section
           </button>
         )}
@@ -249,7 +309,10 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         return setTaskCompleted(task.gid, done);
       },
       () => {
-        if (done) toast(`Finished ${task.name}.`, { action: { label: "Undo", onClick: () => run(() => setTaskCompleted(task.gid, false)) } });
+        if (done)
+          toast(`Finished ${task.name}.`, {
+            action: { label: "Undo", onClick: () => run(() => setTaskCompleted(task.gid, false)) },
+          });
       },
     );
   const changeStage = (next: string) =>
@@ -271,48 +334,89 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
         <input
           type="checkbox"
           checked={completed}
-          disabled={pending} aria-busy={pending}
+          disabled={pending}
+          aria-busy={pending}
           onChange={(e) => complete(e.target.checked)}
           aria-label={`Mark ${task.name} ${completed ? "not done" : "done"}`}
           className="h-5 w-5 shrink-0 cursor-pointer accent-mint"
         />
-        <Link href={href(task.gid)} scroll={false} className={`min-w-40 flex-1 text-sm hover:underline ${completed ? "text-neutral-400 line-through" : ""}`}>
-          {task.milestone && <span className="mr-1 text-lavender" title="Milestone">◆</span>}
+        <Link
+          href={href(task.gid)}
+          scroll={false}
+          className={`min-w-40 flex-1 text-sm hover:underline ${completed ? "text-neutral-400 line-through" : ""}`}
+        >
+          {task.milestone && (
+            <span className="mr-1 text-lavender" title="Milestone">
+              ◆
+            </span>
+          )}
           {task.name}
-          
         </Link>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <DueDate dueOn={completed ? null : task.dueOn} today={today} />
           {overdue && (
             <>
-              <button disabled={pending} aria-busy={pending} onClick={() => run(() => rescheduleTask(task.gid, today))} className="cursor-pointer text-aqua hover:underline">Today</button>
-              <button disabled={pending} aria-busy={pending} onClick={() => run(() => rescheduleTask(task.gid, tomorrow))} className="cursor-pointer text-aqua hover:underline">Tomorrow</button>
+              <button
+                disabled={pending}
+                aria-busy={pending}
+                onClick={() => run(() => rescheduleTask(task.gid, today))}
+                className="cursor-pointer text-aqua hover:underline"
+              >
+                Today
+              </button>
+              <button
+                disabled={pending}
+                aria-busy={pending}
+                onClick={() => run(() => rescheduleTask(task.gid, tomorrow))}
+                className="cursor-pointer text-aqua hover:underline"
+              >
+                Tomorrow
+              </button>
             </>
           )}
-          {task.hours > 0 && <span className="text-neutral-400"><Hours value={task.hours} /></span>}
+          {task.hours > 0 && (
+            <span className="text-neutral-400">
+              <Hours value={task.hours} />
+            </span>
+          )}
         </span>
         {!completed && (
           <span className="flex items-center gap-1 transition md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
             <StartSessionButton gid={task.gid} name={task.name} className="btn-ghost px-2.5 py-0.5 text-xs" />
-            <Link href={`/log?task=${task.gid}`} className="btn-ghost px-2.5 py-0.5 text-xs">Log</Link>
+            <Link href={`/log?task=${task.gid}`} className="btn-ghost px-2.5 py-0.5 text-xs">
+              Log
+            </Link>
           </span>
         )}
-        <label className="sr-only" htmlFor={`stage-${task.gid}`}>Stage of {task.name}</label>
+        <label className="sr-only" htmlFor={`stage-${task.gid}`}>
+          Stage of {task.name}
+        </label>
         <select
           id={`stage-${task.gid}`}
           value={stage}
-          disabled={pending} aria-busy={pending}
+          disabled={pending}
+          aria-busy={pending}
           onChange={(e) => changeStage(e.target.value)}
           className="w-28 rounded-md border border-transparent bg-transparent px-1 py-1 text-xs text-neutral-300 hover:border-white/10 focus:border-white/20"
         >
-          {STAGES.map((s) => <option key={s}>{s}</option>)}
+          {STAGES.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
         </select>
       </div>
     </li>
   );
 }
 
-function AddTask({ project, section, placeholder = "Add a task" }: { project: string; section?: string; placeholder?: string }) {
+function AddTask({
+  project,
+  section,
+  placeholder = "Add a task",
+}: {
+  project: string;
+  section?: string;
+  placeholder?: string;
+}) {
   const { pending, run } = useRun();
   const [name, setName] = useState("");
   const [dueOn, setDueOn] = useState("");
@@ -361,12 +465,25 @@ function AddTask({ project, section, placeholder = "Add a task" }: { project: st
       />
       {name.trim() && (
         <>
-          <input type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due date" className="min-h-9 rounded-md border border-white/10 bg-white/5 px-2 text-sm" />
+          <input
+            type="date"
+            value={dueOn}
+            onChange={(e) => setDueOn(e.target.value)}
+            aria-label="Due date"
+            className="min-h-9 rounded-md border border-white/10 bg-white/5 px-2 text-sm"
+          />
           <label className="flex items-center gap-1.5 text-xs text-neutral-300">
-            <input type="checkbox" checked={milestone} onChange={(e) => setMilestone(e.target.checked)} className="accent-lavender" />
+            <input
+              type="checkbox"
+              checked={milestone}
+              onChange={(e) => setMilestone(e.target.checked)}
+              className="accent-lavender"
+            />
             Milestone
           </label>
-          <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5">Add</button>
+          <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5">
+            Add
+          </button>
         </>
       )}
     </form>
@@ -378,7 +495,10 @@ function AddSection({ project }: { project: string }) {
   const [name, setName] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(() => addSection(project, name), () => setName(""));
+    run(
+      () => addSection(project, name),
+      () => setName(""),
+    );
   };
   return (
     <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
@@ -390,12 +510,24 @@ function AddSection({ project }: { project: string }) {
         maxLength={120}
         className="min-h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-neutral-400"
       />
-      <button disabled={pending || !name.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">Add section</button>
+      <button disabled={pending || !name.trim()} aria-busy={pending} className="btn-ghost px-4 py-1.5">
+        Add section
+      </button>
     </form>
   );
 }
 
-function Board({ project, section, tasks, today }: { project: string; section?: string; tasks: DashboardTask[]; today: string }) {
+function Board({
+  project,
+  section,
+  tasks,
+  today,
+}: {
+  project: string;
+  section?: string;
+  tasks: DashboardTask[];
+  today: string;
+}) {
   const { pending, run } = useRun();
   const [over, setOver] = useState<string | null>(null);
   const href = useTaskHref();
@@ -436,24 +568,40 @@ function Board({ project, section, tasks, today }: { project: string; section?: 
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", t.gid)}
                   className="cursor-grab space-y-2 rounded-xl bg-indigo p-3 ring-1 ring-white/5 hover:ring-white/20 active:cursor-grabbing"
                 >
-                  <Link href={href(t.gid)} scroll={false} className={`block text-sm hover:underline ${t.completed ? "text-neutral-400 line-through" : ""}`}>
-                    {t.milestone && <span className="mr-1 text-lavender" title="Milestone">◆</span>}
+                  <Link
+                    href={href(t.gid)}
+                    scroll={false}
+                    className={`block text-sm hover:underline ${t.completed ? "text-neutral-400 line-through" : ""}`}
+                  >
+                    {t.milestone && (
+                      <span className="mr-1 text-lavender" title="Milestone">
+                        ◆
+                      </span>
+                    )}
                     {t.name}
-                    
                   </Link>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <DueDate dueOn={t.completed ? null : t.dueOn} today={today} />
-                    {t.hours > 0 && <span className="text-neutral-400"><Hours value={t.hours} /></span>}
+                    {t.hours > 0 && (
+                      <span className="text-neutral-400">
+                        <Hours value={t.hours} />
+                      </span>
+                    )}
                   </div>
-                  <label className="sr-only" htmlFor={`board-stage-${t.gid}`}>Stage of {t.name}</label>
+                  <label className="sr-only" htmlFor={`board-stage-${t.gid}`}>
+                    Stage of {t.name}
+                  </label>
                   <select
                     id={`board-stage-${t.gid}`}
                     value={t.stage}
-                    disabled={pending} aria-busy={pending}
+                    disabled={pending}
+                    aria-busy={pending}
                     onChange={(e) => run(() => setTaskStage(t.gid, e.target.value))}
                     className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs"
                   >
-                    {STAGES.map((s) => <option key={s}>{s}</option>)}
+                    {STAGES.map((s) => (
+                      <option key={s}>{s}</option>
+                    ))}
                   </select>
                 </article>
               ))}

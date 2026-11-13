@@ -29,7 +29,7 @@ function pad(n: number): string {
 
 /** The next time a day comes round, never today: "fri" on a Friday means next week. */
 function nextWeekday(today: string, index: number): string {
-  return addDays(today, ((index - weekdayIndex(today) + 7) % 7) || 7);
+  return addDays(today, (index - weekdayIndex(today) + 7) % 7 || 7);
 }
 
 function validDate(iso: string): boolean {
@@ -56,7 +56,12 @@ function trailingDate(words: string[], today: string): { used: number; date: str
   if (/^\d{4}-\d{2}-\d{2}$/.test(last)) return validDate(last) ? { used: 1, date: last } : null;
 
   const weekday = WEEKDAYS.indexOf(last.slice(0, 3));
-  const isWeekday = weekday >= 0 && [last.slice(0, 3), `${["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][weekday]}`].includes(last);
+  const isWeekday =
+    weekday >= 0 &&
+    [
+      last.slice(0, 3),
+      `${["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][weekday]}`,
+    ].includes(last);
   if (isWeekday) {
     if (before === "next") return { used: 2, date: addDays(nextWeekday(today, weekday), 7) };
     return { used: 1, date: nextWeekday(today, weekday) };
@@ -102,4 +107,3 @@ export function pastedLines(text: string): string[] {
     .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ x]\])\s+/i, "").trim())
     .filter(Boolean);
 }
-

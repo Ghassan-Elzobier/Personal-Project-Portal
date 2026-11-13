@@ -74,7 +74,15 @@ export function SessionLogger({
     start(async () => {
       setLogged({ id: `${item.key}:${position}`, value });
       if (value && !finished) setRest({ until: Date.now() + item.rest * 1000, total: item.rest, name: item.name });
-      const r = await logSet({ day, workout, exercise: item.key, position, kg: value?.kg ?? null, reps: value ? value.reps : null, rir: value?.rir ?? null });
+      const r = await logSet({
+        day,
+        workout,
+        exercise: item.key,
+        position,
+        kg: value?.kg ?? null,
+        reps: value ? value.reps : null,
+        rir: value?.rir ?? null,
+      });
       if (r.error) toast(r.error, { tone: "error" });
     });
 
@@ -82,8 +90,18 @@ export function SessionLogger({
     <>
       <div className="sticky top-14 z-10 -mx-5 bg-primary/90 px-5 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:px-3">
         <div className="flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Sets done">
-            <div className="h-full rounded-full bg-mint transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+          <div
+            className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={done}
+            aria-label="Sets done"
+          >
+            <div
+              className="h-full rounded-full bg-mint transition-all"
+              style={{ width: `${total ? (done / total) * 100 : 0}%` }}
+            />
           </div>
           <span className="text-xs text-neutral-300 tabular-nums">
             {done}/{total} sets
@@ -91,7 +109,7 @@ export function SessionLogger({
         </div>
       </div>
 
-      <section className="card-life space-y-2" aria-labelledby="warmup-title">
+      <section className="space-y-2 card-life" aria-labelledby="warmup-title">
         <h2 id="warmup-title" className="font-semibold">
           Warm-up · 10 minutes
         </h2>
@@ -99,7 +117,12 @@ export function SessionLogger({
           {warmup.map((w, i) => (
             <li key={w}>
               <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm">
-                <input type="checkbox" checked={warm[i]} onChange={() => setWarm((x) => x.map((v, j) => (j === i ? !v : v)))} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-mint)]" />
+                <input
+                  type="checkbox"
+                  checked={warm[i]}
+                  onChange={() => setWarm((x) => x.map((v, j) => (j === i ? !v : v)))}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-mint)]"
+                />
                 <span className={warm[i] ? "text-neutral-500 line-through" : ""}>{w}</span>
               </label>
             </li>
@@ -109,7 +132,7 @@ export function SessionLogger({
 
       {blocks.map((b) => (
         <section key={b.title} className="space-y-3" aria-label={b.title}>
-          <h2 className="eyebrow px-1">
+          <h2 className="px-1 eyebrow">
             {b.title}
             {b.superset ? " · alternate between these" : ""}
           </h2>
@@ -119,7 +142,7 @@ export function SessionLogger({
         </section>
       ))}
 
-      <section className="card-life space-y-3" aria-labelledby="finish-title">
+      <section className="space-y-3 card-life" aria-labelledby="finish-title">
         <h2 id="finish-title" className="font-semibold">
           {finished ? "Session done" : "Finish"}
         </h2>
@@ -154,7 +177,11 @@ export function SessionLogger({
             {finished ? "Save" : "Finish session"}
           </button>
           {finished && (
-            <button type="button" onClick={() => start(async () => void (await gymSession({ day, workout, finished: false })))} className="btn-soft">
+            <button
+              type="button"
+              onClick={() => start(async () => void (await gymSession({ day, workout, finished: false })))}
+              className="btn-soft"
+            >
               Reopen
             </button>
           )}
@@ -166,18 +193,31 @@ export function SessionLogger({
   );
 }
 
-function Exercise({ item, logged, onSave }: { item: ItemView; logged: Logged; onSave: (item: ItemView, position: number, value: Logged[string] | null) => void }) {
+function Exercise({
+  item,
+  logged,
+  onSave,
+}: {
+  item: ItemView;
+  logged: Logged;
+  onSave: (item: ItemView, position: number, value: Logged[string] | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [extra, setExtra] = useState(0);
   const positions = Math.max(item.target.length, ...item.logged.map((l) => l.position), 0) + extra;
   const range = item.range[0] === item.range[1] ? `${item.range[0]}` : `${item.range[0]}–${item.range[1]}`;
   const unitLabel = item.unit === "reps" ? "reps" : item.unit;
   return (
-    <article className="card-life space-y-3">
+    <article className="space-y-3 card-life">
       <header className="space-y-1">
         <div className="flex items-start justify-between gap-3">
           <h3 className="min-w-0 text-lg font-semibold">{item.name}</h3>
-          <button type="button" onClick={() => setOpen((o) => !o)} className="shrink-0 text-xs text-mint" aria-expanded={open}>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="shrink-0 text-xs text-mint"
+            aria-expanded={open}
+          >
             {open ? "Hide tips" : "How"}
           </button>
         </div>
@@ -185,12 +225,23 @@ function Exercise({ item, logged, onSave }: { item: ItemView; logged: Logged; on
           {item.note ?? `${item.target.length} × ${range} ${unitLabel}${item.perSide ? " a side" : ""}`}
           {item.scheme !== "power" && item.scheme !== "timed" ? ` · stop with ${item.rir} in the tank` : ""}
         </p>
-        <p className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-neutral-400"}`}>{item.why}</p>
-        {item.swappedFrom && <p className="text-xs text-neutral-500">In place of {item.swappedFrom}, which your gym lacks.</p>}
+        <p
+          className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-neutral-400"}`}
+        >
+          {item.why}
+        </p>
+        {item.swappedFrom && (
+          <p className="text-xs text-neutral-500">In place of {item.swappedFrom}, which your gym lacks.</p>
+        )}
         {open && (
           <div className="space-y-2 pt-1 text-sm text-neutral-300">
             {item.demo.frames && <Movement frames={item.demo.frames} name={item.name} />}
-            <a href={item.demo.video} target="_blank" rel="noreferrer noopener" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white/5 px-4 text-sm text-mint ring-1 ring-mint/25 hover:bg-white/10">
+            <a
+              href={item.demo.video}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white/5 px-4 text-sm text-mint ring-1 ring-mint/25 hover:bg-white/10"
+            >
               <span aria-hidden>▶</span> Watch a short demo
             </a>
             <ul className="list-disc space-y-0.5 pl-5">
@@ -215,7 +266,11 @@ function Exercise({ item, logged, onSave }: { item: ItemView; logged: Logged; on
           />
         ))}
       </ol>
-      <button type="button" onClick={() => setExtra((n) => n + 1)} className="text-xs text-neutral-400 hover:text-white">
+      <button
+        type="button"
+        onClick={() => setExtra((n) => n + 1)}
+        className="text-xs text-neutral-400 hover:text-white"
+      >
         + Add a set
       </button>
     </article>
@@ -231,7 +286,8 @@ function suggestKg(item: ItemView, position: number, logged: Logged): number | n
   for (let p = position - 1; p >= 1; p--) {
     const prev = logged[`${item.key}:${p}`]?.kg;
     if (prev == null) continue;
-    if (item.scheme === "top-backoff" && p === 1) return item.step ? Math.floor((prev * 0.9) / item.step) * item.step : prev;
+    if (item.scheme === "top-backoff" && p === 1)
+      return item.step ? Math.floor((prev * 0.9) / item.step) * item.step : prev;
     return prev;
   }
   return null;
@@ -254,14 +310,26 @@ function Movement({ frames, name }: { frames: [string, string]; name: string }) 
   const [frame, setFrame] = useState(0);
   // Read from the browser, not copied into state, so it also follows a change
   // to the setting while the page is open. The server renders the moving version.
-  const still = useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(REDUCED_MOTION).matches, () => false);
+  const still = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
   useEffect(() => {
     if (still) return;
     const id = window.setInterval(() => setFrame((f) => 1 - f), 1000);
     return () => window.clearInterval(id);
   }, [still]);
   const picture = (src: string, label: string, shown: boolean) => (
-    <Image key={src} src={src} alt={label} fill unoptimized sizes="20rem" className={`object-contain p-2 invert transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`} />
+    <Image
+      key={src}
+      src={src}
+      alt={label}
+      fill
+      unoptimized
+      sizes="20rem"
+      className={`object-contain p-2 invert transition-opacity duration-200 ${shown ? "opacity-100" : "opacity-0"}`}
+    />
   );
   return (
     <figure className="space-y-1">
@@ -274,10 +342,16 @@ function Movement({ frames, name }: { frames: [string, string]; name: string }) 
           ))}
         </div>
       ) : (
-        <div className="relative mx-auto aspect-square w-full max-w-[16rem] overflow-hidden rounded-xl bg-black" role="img" aria-label={`${name}: the movement from start to end`}>
+        <div
+          className="relative mx-auto aspect-square w-full max-w-[16rem] overflow-hidden rounded-xl bg-black"
+          role="img"
+          aria-label={`${name}: the movement from start to end`}
+        >
           {picture(frames[0], "", frame === 0)}
           {picture(frames[1], "", frame === 1)}
-          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-neutral-300">{frame === 0 ? "Start" : "End"}</span>
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-neutral-300">
+            {frame === 0 ? "Start" : "End"}
+          </span>
         </div>
       )}
       <figcaption className="text-center text-[10px] text-neutral-500">
@@ -294,29 +368,65 @@ function Movement({ frames, name }: { frames: [string, string]; name: string }) 
   );
 }
 
-function SetRow({ item, position, target, suggest, logged, onSave }: { item: ItemView; position: number; target: { kg: number | null; reps: number }; suggest: number | null; logged?: Logged[string]; onSave: (item: ItemView, position: number, value: Logged[string] | null) => void }) {
+function SetRow({
+  item,
+  position,
+  target,
+  suggest,
+  logged,
+  onSave,
+}: {
+  item: ItemView;
+  position: number;
+  target: { kg: number | null; reps: number };
+  suggest: number | null;
+  logged?: Logged[string];
+  onSave: (item: ItemView, position: number, value: Logged[string] | null) => void;
+}) {
   // Untouched, the weight follows the suggestion; once typed in, it is yours.
   const [typed, setKg] = useState<string | null>(logged?.kg != null ? logged.kg.toString() : null);
   const kg = typed ?? suggest?.toString() ?? "";
   const [reps, setReps] = useState((logged?.reps ?? target.reps).toString());
-  const [rir, setRir] = useState(logged?.rir?.toString() ?? (item.scheme === "power" || item.scheme === "timed" ? "" : item.rir.toString()));
+  const [rir, setRir] = useState(
+    logged?.rir?.toString() ?? (item.scheme === "power" || item.scheme === "timed" ? "" : item.rir.toString()),
+  );
   const done = Boolean(logged);
   const step = item.step || 2.5;
   const bump = (d: number) => setKg(String(Math.max(0, Math.round(((Number(kg) || 0) + d) * 100) / 100)));
   return (
-    <li className={`flex flex-wrap items-center gap-2 rounded-xl p-2 ${done ? "bg-mint/10 ring-1 ring-mint/25" : "bg-white/5"}`}>
+    <li
+      className={`flex flex-wrap items-center gap-2 rounded-xl p-2 ${done ? "bg-mint/10 ring-1 ring-mint/25" : "bg-white/5"}`}
+    >
       <span className="w-6 text-center text-xs text-neutral-400 tabular-nums">{position}</span>
       {item.weighted && (
         <div className="flex items-center">
-          <button type="button" onClick={() => bump(-step)} className="tap h-11 w-9 text-lg text-neutral-400" aria-label="Less weight">
+          <button
+            type="button"
+            onClick={() => bump(-step)}
+            className="tap h-11 w-9 text-lg text-neutral-400"
+            aria-label="Less weight"
+          >
             −
           </button>
           <label className="flex items-baseline gap-1">
-            <span className="sr-only">{item.added ? "Added weight" : "Weight"} in kg, set {position}</span>
-            <input inputMode="decimal" value={kg} onChange={(e) => setKg(e.target.value.replace(",", "."))} placeholder={item.added ? "+0" : "kg"} className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums" />
+            <span className="sr-only">
+              {item.added ? "Added weight" : "Weight"} in kg, set {position}
+            </span>
+            <input
+              inputMode="decimal"
+              value={kg}
+              onChange={(e) => setKg(e.target.value.replace(",", "."))}
+              placeholder={item.added ? "+0" : "kg"}
+              className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums"
+            />
             <span className="text-xs text-neutral-400">{item.added ? "+kg" : "kg"}</span>
           </label>
-          <button type="button" onClick={() => bump(step)} className="tap h-11 w-9 text-lg text-neutral-400" aria-label="More weight">
+          <button
+            type="button"
+            onClick={() => bump(step)}
+            className="tap h-11 w-9 text-lg text-neutral-400"
+            aria-label="More weight"
+          >
             +
           </button>
         </div>
@@ -325,13 +435,23 @@ function SetRow({ item, position, target, suggest, logged, onSave }: { item: Ite
         <span className="sr-only">
           {item.unit === "reps" ? "Reps" : item.unit === "s" ? "Seconds" : "Metres"}, set {position}
         </span>
-        <input inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} className="h-11 w-14 rounded-lg bg-white/10 text-center text-base tabular-nums" />
+        <input
+          inputMode="numeric"
+          value={reps}
+          onChange={(e) => setReps(e.target.value)}
+          className="h-11 w-14 rounded-lg bg-white/10 text-center text-base tabular-nums"
+        />
         <span className="text-xs text-neutral-400">{item.unit === "reps" ? "reps" : item.unit}</span>
       </label>
       {item.scheme !== "power" && item.scheme !== "timed" && (
         <label className="flex items-center gap-1 text-xs text-neutral-400">
           <span className="sr-only">Reps left in the tank</span>
-          <select value={rir} onChange={(e) => setRir(e.target.value)} className="h-11 rounded-lg bg-white/10 px-2 text-sm text-white" aria-label={`Reps left in the tank, set ${position}`}>
+          <select
+            value={rir}
+            onChange={(e) => setRir(e.target.value)}
+            className="h-11 rounded-lg bg-white/10 px-2 text-sm text-white"
+            aria-label={`Reps left in the tank, set ${position}`}
+          >
             <option value="">left?</option>
             {[0, 1, 2, 3, 4].map((n) => (
               <option key={n} value={n}>
@@ -353,7 +473,7 @@ function SetRow({ item, position, target, suggest, logged, onSave }: { item: Ite
         }}
         aria-pressed={done}
         aria-label={done ? `Undo set ${position}` : `Done set ${position}`}
-        className={`tap ml-auto h-11 w-11 rounded-full text-lg ring-1 ${done ? "bg-mint text-primary ring-mint" : "text-mint ring-mint/40 hover:bg-mint/10"}`}
+        className={`ml-auto tap h-11 w-11 rounded-full text-lg ring-1 ${done ? "bg-mint text-primary ring-mint" : "text-mint ring-mint/40 hover:bg-mint/10"}`}
       >
         ✓
       </button>
@@ -378,7 +498,11 @@ function RestBar({ rest, onDone }: { rest: { until: number; total: number; name:
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, "0");
   return (
-    <div className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-2xl bg-fern px-4 py-3 shadow-2xl ring-1 ring-mint/30 md:inset-x-auto md:right-6 md:bottom-6 md:w-80" role="timer" aria-live="off">
+    <div
+      className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-2xl bg-fern px-4 py-3 shadow-2xl ring-1 ring-mint/30 md:inset-x-auto md:right-6 md:bottom-6 md:w-80"
+      role="timer"
+      aria-live="off"
+    >
       <div className="min-w-0 flex-1">
         <p className="text-xs text-neutral-300">{left === 0 ? "Go: next set" : `Rest after ${rest.name}`}</p>
         <p className="text-2xl font-bold tabular-nums">{left === 0 ? "Now" : `${mm}:${ss}`}</p>

@@ -65,7 +65,7 @@ body {
 }
 
 @utility card-link {
-  @apply card block transition duration-200 hover:-translate-y-1 hover:ring-white/15;
+  @apply block card transition duration-200 hover:-translate-y-1 hover:ring-white/15;
 }
 
 @utility text-heading {

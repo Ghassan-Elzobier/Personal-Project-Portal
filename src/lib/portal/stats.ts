@@ -31,7 +31,10 @@ export type WeekHours = { start: string; hours: number };
 /** Hours per week, oldest first, ending with the week containing now. */
 export function hoursByWeek(comments: Comment[], weeks: number, now: Date, tz: string): WeekHours[] {
   const current = weekOf(now, tz).start;
-  const buckets: WeekHours[] = Array.from({ length: weeks }, (_, i) => ({ start: addDays(current, (i - weeks + 1) * 7), hours: 0 }));
+  const buckets: WeekHours[] = Array.from({ length: weeks }, (_, i) => ({
+    start: addDays(current, (i - weeks + 1) * 7),
+    hours: 0,
+  }));
   for (const c of comments) {
     const hours = sessionHours(c.text);
     if (!hours) continue;

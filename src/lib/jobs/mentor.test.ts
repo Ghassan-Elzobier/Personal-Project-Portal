@@ -3,10 +3,27 @@ import test from "node:test";
 import type { Requirement } from "./extract.ts";
 import { mentorJobView, type MentorSource } from "./mentor.ts";
 
-const need = (skill: string, level: Requirement["level"] = "required", group = skill.length * 100 + skill.charCodeAt(0)): Requirement => ({ skill, level, quote: "", group });
-const posting = (gid: string, over: Partial<MentorSource["postings"][number]> = {}): MentorSource["postings"][number] => ({
-  gid, title: `Role ${gid}`, company: "Co", location_tier: "london", family: "graphics", seniority: "any", closed_at: null, stage: "new", interest: null, details: {},
-  requirements: [need("cpp"), need("python"), need("vulkan")], ...over,
+const need = (
+  skill: string,
+  level: Requirement["level"] = "required",
+  group = skill.length * 100 + skill.charCodeAt(0),
+): Requirement => ({ skill, level, quote: "", group });
+const posting = (
+  gid: string,
+  over: Partial<MentorSource["postings"][number]> = {},
+): MentorSource["postings"][number] => ({
+  gid,
+  title: `Role ${gid}`,
+  company: "Co",
+  location_tier: "london",
+  family: "graphics",
+  seniority: "any",
+  closed_at: null,
+  stage: "new",
+  interest: null,
+  details: {},
+  requirements: [need("cpp"), need("python"), need("vulkan")],
+  ...over,
 });
 
 const source: MentorSource = {
@@ -40,7 +57,13 @@ test("roles you passed on or ruled out are not in scope", () => {
 
 test("the closest roles come first, by fit", () => {
   const view = mentorJobView(source);
-  assert.deepEqual(view.closest.map((r) => [r.title, r.fit.band]), [["Role 1", "ready"], ["Role 3", "one_gap"]]);
+  assert.deepEqual(
+    view.closest.map((r) => [r.title, r.fit.band]),
+    [
+      ["Role 1", "ready"],
+      ["Role 3", "one_gap"],
+    ],
+  );
 });
 
 test("the skills gap uses the same matching as your own pages", () => {

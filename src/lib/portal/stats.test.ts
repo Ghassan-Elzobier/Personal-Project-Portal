@@ -33,7 +33,12 @@ test("studyTotals uses the portal's zone for the day", () => {
 
 test("hoursByWeek fills empty weeks and ignores older ones", () => {
   const weeks = hoursByWeek(
-    [log(1, "2026-11-03T09:00:00Z"), log(2, "2026-11-04T09:00:00Z"), log(3, "2026-10-20T09:00:00Z"), log(9, "2026-01-01T09:00:00Z")],
+    [
+      log(1, "2026-11-03T09:00:00Z"),
+      log(2, "2026-11-04T09:00:00Z"),
+      log(3, "2026-10-20T09:00:00Z"),
+      log(9, "2026-01-01T09:00:00Z"),
+    ],
     3,
     now,
     tz,

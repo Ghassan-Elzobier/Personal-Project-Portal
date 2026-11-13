@@ -27,8 +27,14 @@ const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : unde
 const repo = opt("--repo");
 
 async function fileAt(ref, file) {
-  if (repo) return execFileSync("git", ["-C", repo, "show", `${ref}:${PATHS[file]}`], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
-  const res = await fetch(`https://raw.githubusercontent.com/${REPO}/${ref}/${PATHS[file]}`, { signal: AbortSignal.timeout(10000) });
+  if (repo)
+    return execFileSync("git", ["-C", repo, "show", `${ref}:${PATHS[file]}`], {
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    });
+  const res = await fetch(`https://raw.githubusercontent.com/${REPO}/${ref}/${PATHS[file]}`, {
+    signal: AbortSignal.timeout(10000),
+  });
   if (!res.ok) throw new Error(`Could not read ${PATHS[file]} at ${ref}: ${res.status}`);
   return res.text();
 }
@@ -67,7 +73,9 @@ async function check() {
   const ref = opt("--ref") ?? "main";
   const saved = JSON.parse(readFileSync(OUT, "utf8"));
   if (saved.commit !== RENDERER.commit) {
-    console.error(`anchors.json is for ${saved.commit.slice(0, 7)}, but guide.ts pins ${RENDERER.short}. Run npm run lab:anchors first.`);
+    console.error(
+      `anchors.json is for ${saved.commit.slice(0, 7)}, but guide.ts pins ${RENDERER.short}. Run npm run lab:anchors first.`,
+    );
     process.exit(1);
   }
   const files = {};
@@ -91,9 +99,13 @@ async function check() {
     return;
   }
   console.log(`At ${ref}, compared with ${RENDERER.short}:`);
-  for (const m of moved) console.log(`  moved   ${m.key.padEnd(18)} ${m.by > 0 ? "+" : ""}${m.by} lines, now starts at ${m.to}`);
-  for (const m of missing) console.log(`  missing ${m.key.padEnd(18)} "${m.a.text.slice(0, 60)}" is no longer in the file`);
-  console.log(`${moved.length} moved, ${missing.length} missing, ${total - moved.length - missing.length} unchanged. Update the line numbers in src/lib/lab/guide.ts, set RENDERER.commit, then run npm run lab:anchors.`);
+  for (const m of moved)
+    console.log(`  moved   ${m.key.padEnd(18)} ${m.by > 0 ? "+" : ""}${m.by} lines, now starts at ${m.to}`);
+  for (const m of missing)
+    console.log(`  missing ${m.key.padEnd(18)} "${m.a.text.slice(0, 60)}" is no longer in the file`);
+  console.log(
+    `${moved.length} moved, ${missing.length} missing, ${total - moved.length - missing.length} unchanged. Update the line numbers in src/lib/lab/guide.ts, set RENDERER.commit, then run npm run lab:anchors.`,
+  );
   process.exit(1);
 }
 

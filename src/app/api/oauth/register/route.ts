@@ -7,7 +7,9 @@ import { clientLabel, noStore, redirectAllowed } from "@/lib/connector/oauth";
 // only Claude's callback is accepted, so the id is just a label.
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { redirect_uris?: unknown; client_name?: unknown } | null;
-  const uris = Array.isArray(body?.redirect_uris) ? body.redirect_uris.filter((u): u is string => typeof u === "string") : [];
+  const uris = Array.isArray(body?.redirect_uris)
+    ? body.redirect_uris.filter((u): u is string => typeof u === "string")
+    : [];
   if (!uris.length || !uris.every(redirectAllowed)) {
     return NextResponse.json(
       { error: "invalid_redirect_uri", error_description: "Only Claude's connector callback can register." },

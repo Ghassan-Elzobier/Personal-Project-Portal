@@ -4,8 +4,14 @@ import { excerptForClaude, planSearch, splitExcerpt } from "./query.ts";
 
 test("a Vulkan word also searches for the book's CUDA word", () => {
   const plan = planSearch("subgroup ballot");
-  assert.deepEqual(plan.groups, [["subgroup", "warp"], ["ballot", "vote"]]);
-  assert.deepEqual(plan.translated.map((t) => t.from), ["subgroup", "ballot"]);
+  assert.deepEqual(plan.groups, [
+    ["subgroup", "warp"],
+    ["ballot", "vote"],
+  ]);
+  assert.deepEqual(
+    plan.translated.map((t) => t.from),
+    ["subgroup", "ballot"],
+  );
 });
 
 test("multi-word terms are matched before single words", () => {

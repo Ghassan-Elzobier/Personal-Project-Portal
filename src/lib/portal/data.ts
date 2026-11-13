@@ -215,8 +215,12 @@ export async function weekSummary(
 async function weekPractice(key: ProjectKey, week: Week, inWeek: (iso: string) => boolean): Promise<string | null> {
   const [study, tasks] = await Promise.all([studySnapshot(), listTasks(key)]);
   const gids = new Set(tasks.map((t) => t.gid));
-  const solved = study.exercises.filter((e) => gids.has(e.task_gid) && e.status === "solved" && inWeek(e.updated_at)).length;
-  const reviewed = study.reviews.filter((r) => gids.has(r.task_gid) && r.last_reviewed_at && inWeek(r.last_reviewed_at)).length;
+  const solved = study.exercises.filter(
+    (e) => gids.has(e.task_gid) && e.status === "solved" && inWeek(e.updated_at),
+  ).length;
+  const reviewed = study.reviews.filter(
+    (r) => gids.has(r.task_gid) && r.last_reviewed_at && inWeek(r.last_reviewed_at),
+  ).length;
   if (!solved && !reviewed) return null;
   const parts = [];
   if (solved) parts.push(`${solved} ${solved === 1 ? "exercise" : "exercises"} solved`);

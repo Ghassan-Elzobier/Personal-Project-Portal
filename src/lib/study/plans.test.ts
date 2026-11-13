@@ -42,7 +42,11 @@ test("every unit fits what the database accepts, so loading a plan cannot fail h
       assert.ok(u.steps.length > 0, `${u.ref} has no steps`);
       for (const step of u.steps) assert.ok(step.length <= 300, `${u.ref} step too long: ${step}`);
       for (const r of u.reviews ?? []) assert.ok(r.prompt.length <= 500, `${u.ref} prompt too long: ${r.prompt}`);
-      assert.equal(new Set((u.reviews ?? []).map((r) => r.prompt)).size, (u.reviews ?? []).length, `${u.ref} repeats a prompt`);
+      assert.equal(
+        new Set((u.reviews ?? []).map((r) => r.prompt)).size,
+        (u.reviews ?? []).length,
+        `${u.ref} repeats a prompt`,
+      );
     }
   }
 });
@@ -51,14 +55,20 @@ test("Axler has the 4th edition's nine chapters and every section", () => {
   assert.equal(AXLER.sections.length, 9);
   const units = planUnits(AXLER);
   assert.equal(units.length, 35);
-  assert.equal(units.reduce((sum, u) => sum + (u.exercises ?? 0), 0), 732);
+  assert.equal(
+    units.reduce((sum, u) => sum + (u.exercises ?? 0), 0),
+    732,
+  );
   assert.equal(units.find((u) => u.ref === "axler-3B")?.page, 59);
   assert.ok(units.find((u) => u.ref === "axler-3B")?.reviews?.some((r) => r.prompt.includes("3.21")));
 });
 
 test("Axler's pages rise through the book and open at the right PDF page", () => {
   const pages = planUnits(AXLER).map((u) => u.page!);
-  assert.deepEqual(pages, [...pages].sort((a, b) => a - b));
+  assert.deepEqual(
+    pages,
+    [...pages].sort((a, b) => a - b),
+  );
   assert.equal(AXLER.sourceUrl!(133), "https://linear.axler.net/LADR4e.pdf#page=147");
 });
 
@@ -102,15 +112,26 @@ test("PMPP has the 5th edition's 24 chapters, each with its title, page and exer
     assert.equal(u.exercises ?? 0, exercises, `chapter ${n}`);
     assert.ok((u.reviews ?? []).length > 0, `chapter ${n} has nothing to recall`);
   }
-  assert.equal(units.reduce((sum, u) => sum + (u.exercises ?? 0), 0), 117);
+  assert.equal(
+    units.reduce((sum, u) => sum + (u.exercises ?? 0), 0),
+    117,
+  );
 });
 
 test("PMPP's main path follows the book, apart from the part it says it reorders", () => {
-  const core = planUnits(PMPP).filter((u) => !u.optional).map((u) => u.ref);
+  const core = planUnits(PMPP)
+    .filter((u) => !u.optional)
+    .map((u) => u.ref);
   assert.deepEqual(core, [
     "pmpp-setup",
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => `pmpp-${n}`),
-    "pmpp-17", "pmpp-18", "pmpp-21", "pmpp-22", "pmpp-app-b", "pmpp-19", "pmpp-24",
+    "pmpp-17",
+    "pmpp-18",
+    "pmpp-21",
+    "pmpp-22",
+    "pmpp-app-b",
+    "pmpp-19",
+    "pmpp-24",
   ]);
 });
 
@@ -188,8 +209,18 @@ test("the import payload carries steps, reviews and exercise counts", () => {
   assert.equal(b3.exercise_count, 33);
   assert.equal(b3.subtasks.length, 4);
   assert.ok(b3.reviews.length >= 1);
-  assert.equal(planPayload(RENDERING).flatMap((s) => s.tasks).find((t) => t.ref === "r-gs-paper")!.exercise_count, null);
-  assert.equal(planPayload(PMPP).flatMap((s) => s.tasks).find((t) => t.ref === "pmpp-11")!.exercise_count, 7);
+  assert.equal(
+    planPayload(RENDERING)
+      .flatMap((s) => s.tasks)
+      .find((t) => t.ref === "r-gs-paper")!.exercise_count,
+    null,
+  );
+  assert.equal(
+    planPayload(PMPP)
+      .flatMap((s) => s.tasks)
+      .find((t) => t.ref === "pmpp-11")!.exercise_count,
+    7,
+  );
 });
 
 test("planFor finds plans by project", () => {

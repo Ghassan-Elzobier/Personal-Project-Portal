@@ -7,7 +7,15 @@ import { LIFE_KINDS, REPEATS, type LifeKind, type Repeat } from "@/lib/calendar/
 import type { Block, Unscheduled } from "@/lib/portal/schedule";
 import { clock, parseClock, shortDate } from "@/lib/dates/week";
 import { TaskLink } from "@/components/ui";
-import { addLifeBlock, addStudySession, moveBlock, removeLifeBlock, scheduleTask, unscheduleTask, type ActionResult } from "./actions";
+import {
+  addLifeBlock,
+  addStudySession,
+  moveBlock,
+  removeLifeBlock,
+  scheduleTask,
+  unscheduleTask,
+  type ActionResult,
+} from "./actions";
 
 // From 05:00, so an early weigh-in, breakfast and gym session fit on the grid.
 const DAY_START = 5 * 60;
@@ -22,8 +30,7 @@ type Dialog =
   | { mode: "plan"; block: Block };
 
 type DragData =
-  | { type: "task"; gid: string }
-  | { type: "block"; source: Movable; id: string; duration: number; grab: number };
+  { type: "task"; gid: string } | { type: "block"; source: Movable; id: string; duration: number; grab: number };
 
 /** Blocks the grid can move. The Life plan's items move with the plan, in Life. */
 type Movable = Exclude<Block["source"], "plan">;
@@ -33,7 +40,8 @@ const rawId = (block: Block) => block.id.split(":")[0];
 const isStudy = (block: Block) => block.source === "asana" || block.source === "session";
 
 /** What a tap on a block opens: the Life plan's items explain themselves, the rest can be edited. */
-const dialogFor = (block: Block): Dialog => (block.source === "plan" ? { mode: "plan", block } : { mode: "edit", block });
+const dialogFor = (block: Block): Dialog =>
+  block.source === "plan" ? { mode: "plan", block } : { mode: "edit", block };
 
 /** A day's planned study, such as "3.5 h". Life blocks do not count. */
 function plannedHours(blocks: Block[]): string {
@@ -110,7 +118,13 @@ export function WeekPlanner({
       run(() => scheduleTask({ gid: data.gid, date, start, duration: 60 }));
     } else {
       run(() =>
-        moveBlock({ source: data.source, id: data.id, date, start, duration: Math.min(data.duration, DAY_END - start) }),
+        moveBlock({
+          source: data.source,
+          id: data.id,
+          date,
+          start,
+          duration: Math.min(data.duration, DAY_END - start),
+        }),
       );
     }
   };
@@ -136,13 +150,18 @@ export function WeekPlanner({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
         {/* Week grid, tablet and up */}
-        <div className="card hidden overflow-hidden p-0 md:block">
+        <div className="hidden overflow-hidden card p-0 md:block">
           <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-white/5">
             <div />
             {days.map((d, i) => (
-              <div key={d} className={`px-2 py-3 text-center text-sm ${d === today ? "text-white" : "text-neutral-400"}`}>
+              <div
+                key={d}
+                className={`px-2 py-3 text-center text-sm ${d === today ? "text-white" : "text-neutral-400"}`}
+              >
                 <span className="block text-xs tracking-wider uppercase">{WEEKDAY[i]}</span>
-                <span className={`mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-semibold ${d === today ? "bg-lavender" : ""}`}>
+                <span
+                  className={`mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 font-semibold ${d === today ? "bg-lavender" : ""}`}
+                >
                   {Number(d.slice(8))}
                 </span>
                 <span className="mt-1 block h-4 text-[11px] text-neutral-400 tabular-nums" title="Planned study time">
@@ -173,7 +192,9 @@ export function WeekPlanner({
                   isToday={d === today}
                   nowMinutes={nowMinutes}
                   onDrop={(e) => onDrop(d, e)}
-                  onEmptyClick={(start) => setDialog({ mode: "new", date: d, start, tab: googleReady ? "life" : "work" })}
+                  onEmptyClick={(start) =>
+                    setDialog({ mode: "new", date: d, start, tab: googleReady ? "life" : "work" })
+                  }
                   onBlockClick={(block) => setDialog(dialogFor(block))}
                 />
               ))}
@@ -209,7 +230,9 @@ export function WeekPlanner({
           </ul>
           <button
             className="btn-primary w-full"
-            onClick={() => setDialog({ mode: "new", date: mobileDay, start: 9 * 60, tab: googleReady ? "life" : "work" })}
+            onClick={() =>
+              setDialog({ mode: "new", date: mobileDay, start: 9 * 60, tab: googleReady ? "life" : "work" })
+            }
           >
             Add to {shortDate(mobileDay)}
           </button>
@@ -228,40 +251,46 @@ export function WeekPlanner({
             {planGroups(unscheduled, days[6]).map((g) => (
               <li key={g.title}>
                 <details open={g.title !== "No date"}>
-                <summary className="mb-1 cursor-pointer text-xs font-semibold text-neutral-300">{g.title} <span className="font-normal text-neutral-400">{g.tasks.length}</span></summary>
-                <ul className="space-y-2">
-            {g.tasks.map((t) => (
-              <li
-                key={t.gid}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("application/x-portal", JSON.stringify({ type: "task", gid: t.gid } satisfies DragData));
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                className="group cursor-grab rounded-xl bg-white/5 p-3 text-sm ring-1 ring-white/5 transition hover:ring-lavender/40 active:cursor-grabbing"
-              >
-                <p className="text-[11px] tracking-wider text-neutral-400 uppercase">{t.project}</p>
-                <p className="font-medium">{t.title}</p>
-                <div className="mt-1 flex items-center justify-between text-xs text-neutral-400">
-                  <span>{t.dueOn ? `Due ${shortDate(t.dueOn)}` : "No date"}</span>
-                  <button
-                    className="cursor-pointer text-aqua hover:text-white"
-                    onClick={() =>
-                      setDialog({
-                        mode: "new",
-                        date: t.dueOn && days.includes(t.dueOn) ? t.dueOn : days.includes(today) ? today : days[0],
-                        start: 9 * 60,
-                        tab: "work",
-                        gid: t.gid,
-                      })
-                    }
-                  >
-                    Plan
-                  </button>
-                </div>
-              </li>
-            ))}
-                          </ul>
+                  <summary className="mb-1 cursor-pointer text-xs font-semibold text-neutral-300">
+                    {g.title} <span className="font-normal text-neutral-400">{g.tasks.length}</span>
+                  </summary>
+                  <ul className="space-y-2">
+                    {g.tasks.map((t) => (
+                      <li
+                        key={t.gid}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData(
+                            "application/x-portal",
+                            JSON.stringify({ type: "task", gid: t.gid } satisfies DragData),
+                          );
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        className="group cursor-grab rounded-xl bg-white/5 p-3 text-sm ring-1 ring-white/5 transition hover:ring-lavender/40 active:cursor-grabbing"
+                      >
+                        <p className="text-[11px] tracking-wider text-neutral-400 uppercase">{t.project}</p>
+                        <p className="font-medium">{t.title}</p>
+                        <div className="mt-1 flex items-center justify-between text-xs text-neutral-400">
+                          <span>{t.dueOn ? `Due ${shortDate(t.dueOn)}` : "No date"}</span>
+                          <button
+                            className="cursor-pointer text-aqua hover:text-white"
+                            onClick={() =>
+                              setDialog({
+                                mode: "new",
+                                date:
+                                  t.dueOn && days.includes(t.dueOn) ? t.dueOn : days.includes(today) ? today : days[0],
+                                start: 9 * 60,
+                                tab: "work",
+                                gid: t.gid,
+                              })
+                            }
+                          >
+                            Plan
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </details>
               </li>
             ))}
@@ -296,7 +325,9 @@ export function WeekPlanner({
                 run(() => addStudySession({ gid: dialog.block.taskGid ?? rawId(dialog.block), date, start, duration }))
               }
               onMove={(date, start, duration) =>
-                run(() => moveBlock({ source: dialog.block.source as Movable, id: rawId(dialog.block), date, start, duration }))
+                run(() =>
+                  moveBlock({ source: dialog.block.source as Movable, id: rawId(dialog.block), date, start, duration }),
+                )
               }
               onUnschedule={() => run(() => unscheduleTask({ gid: rawId(dialog.block), date: dialog.block.date }))}
               onDelete={(wholeSeries) => run(() => removeLifeBlock({ id: rawId(dialog.block), wholeSeries }))}
@@ -359,7 +390,10 @@ function DayColumn({
         />
       ))}
       {isToday && nowMinutes >= DAY_START && (
-        <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-coral" style={{ top: (nowMinutes - DAY_START) * PX_PER_MIN }}>
+        <div
+          className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-coral"
+          style={{ top: (nowMinutes - DAY_START) * PX_PER_MIN }}
+        >
           <span className="absolute -top-1.5 -left-1 h-3 w-3 rounded-full bg-coral" />
         </div>
       )}
@@ -407,7 +441,8 @@ function blockStyle(block: Block): string {
       ? "bg-royal/20 ring-royal/30 text-neutral-300"
       : "bg-gradient-to-b from-royal/60 to-lavender/50 ring-lavender/40 text-white";
   }
-  if (block.source === "plan" && block.clash) return `${LIFE_KINDS[(block.kind ?? "other") as LifeKind]?.className ?? LIFE_KINDS.other.className} !ring-2 !ring-coral`;
+  if (block.source === "plan" && block.clash)
+    return `${LIFE_KINDS[(block.kind ?? "other") as LifeKind]?.className ?? LIFE_KINDS.other.className} !ring-2 !ring-coral`;
   if (block.kind && block.kind in LIFE_KINDS) return LIFE_KINDS[block.kind as LifeKind].className;
   return "bg-white/5 ring-white/15 text-neutral-400 [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
 }
@@ -418,7 +453,9 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
     <span
       className={`flex h-full w-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
-      <span className={`font-semibold ${compact ? (short ? "truncate" : "line-clamp-2") : ""} ${block.completed ? "line-through" : ""}`}>
+      <span
+        className={`font-semibold ${compact ? (short ? "truncate" : "line-clamp-2") : ""} ${block.completed ? "line-through" : ""}`}
+      >
         {block.title}
       </span>
       {(!compact || !short) && (
@@ -427,7 +464,9 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
           {block.project ? ` · ${block.project}` : ""}
         </span>
       )}
-      {!compact && block.note && <span className={`mt-0.5 ${block.clash ? "text-coral" : "opacity-75"}`}>{block.note}</span>}
+      {!compact && block.note && (
+        <span className={`mt-0.5 ${block.clash ? "text-coral" : "opacity-75"}`}>{block.note}</span>
+      )}
     </span>
   );
 }
@@ -442,7 +481,8 @@ function Legend() {
         <span className="h-3 w-3 rounded bg-gradient-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
       </p>
       <p className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around study when they clash
+        <span className="h-3 w-3 rounded bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around study
+        when they clash
       </p>
       <p className="flex items-center gap-2">
         <span className="h-3 w-3 rounded bg-sand/25 ring-2 ring-coral" /> Life item with nowhere to move to
@@ -463,9 +503,13 @@ function Modal({ children, onClose }: { children: ReactNode; onClose: () => void
       role="dialog"
       aria-modal="true"
     >
-      <div className="card w-full max-w-md p-6">
+      <div className="w-full max-w-md card p-6">
         <div className="mb-2 flex justify-end">
-          <button className="cursor-pointer text-sm text-neutral-400 hover:text-white" onClick={onClose} aria-label="Close">
+          <button
+            className="cursor-pointer text-sm text-neutral-400 hover:text-white"
+            onClick={onClose}
+            aria-label="Close"
+          >
             Close
           </button>
         </div>
@@ -545,7 +589,14 @@ function NewBlockForm({
   unscheduled: Unscheduled[];
   googleReady: boolean;
   pending: boolean;
-  onSubmitLife: (input: { kind: string; title: string; date: string; start: number; duration: number; repeat: string }) => void;
+  onSubmitLife: (input: {
+    kind: string;
+    title: string;
+    date: string;
+    start: number;
+    duration: number;
+    repeat: string;
+  }) => void;
   onSubmitWork: (input: { gid: string; date: string; start: number; duration: number }) => void;
 }) {
   const [tab, setTab] = useState(dialog.tab);
@@ -720,7 +771,9 @@ function EditBlockForm({
         </p>
       )}
 
-      {isWork && block.editable && googleReady && <AddSessionForm block={block} days={days} pending={pending} onAdd={onAddSession} />}
+      {isWork && block.editable && googleReady && (
+        <AddSessionForm block={block} days={days} pending={pending} onAdd={onAddSession} />
+      )}
 
       <div className="flex flex-wrap gap-2">
         {isWork && !block.completed && (
@@ -734,17 +787,32 @@ function EditBlockForm({
           </button>
         )}
         {isSession && block.editable && (
-          <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(false)}>
+          <button
+            className="btn-ghost text-coral"
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() => onDelete(false)}
+          >
             Delete this session
           </button>
         )}
         {block.source === "google" && block.editable && (
           <>
-            <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(false)}>
+            <button
+              className="btn-ghost text-coral"
+              disabled={pending}
+              aria-busy={pending}
+              onClick={() => onDelete(false)}
+            >
               {block.seriesId ? "Delete this one" : "Delete"}
             </button>
             {block.seriesId && (
-              <button className="btn-ghost text-coral" disabled={pending} aria-busy={pending} onClick={() => onDelete(true)}>
+              <button
+                className="btn-ghost text-coral"
+                disabled={pending}
+                aria-busy={pending}
+                onClick={() => onDelete(true)}
+              >
                 Delete all repeats
               </button>
             )}
@@ -770,14 +838,16 @@ function PlanBlockInfo({ block }: { block: Block }) {
         </p>
       </div>
       {block.note && (
-        <p className={`rounded-xl p-3 text-sm ${block.clash ? "bg-coral/10 text-coral" : "bg-white/5 text-neutral-300"}`}>
+        <p
+          className={`rounded-xl p-3 text-sm ${block.clash ? "bg-coral/10 text-coral" : "bg-white/5 text-neutral-300"}`}
+        >
           {block.note}.{block.clash ? " Move the other event, or change the plan in Life." : ""}
         </p>
       )}
       <p className="text-sm text-neutral-400">
-        This follows your meal plan and gym days. When study or an event takes its time, it moves to the nearest free time
-        that still works (lunch stays at lunchtime, the shake after the gym). Change the plan in Life and it moves here and in
-        Google Calendar.
+        This follows your meal plan and gym days. When study or an event takes its time, it moves to the nearest free
+        time that still works (lunch stays at lunchtime, the shake after the gym). Change the plan in Life and it moves
+        here and in Google Calendar.
       </p>
       <Link href={block.url} className="btn-primary w-full">
         Open in Life
@@ -786,7 +856,12 @@ function PlanBlockInfo({ block }: { block: Block }) {
   );
 }
 
-const INVITE_LABEL = { accepted: "going", tentative: "maybe", needsAction: "not answered", declined: "declined" } as const;
+const INVITE_LABEL = {
+  accepted: "going",
+  tentative: "maybe",
+  needsAction: "not answered",
+  declined: "declined",
+} as const;
 
 /** Another block of time on the same task, the next day at the same time by default. */
 function AddSessionForm({
@@ -822,7 +897,9 @@ function AddSessionForm({
     >
       <p className="text-sm font-semibold">Another session</p>
       <TimeFields {...{ days, date, setDate, start, setStart, duration, setDuration }} />
-      <p className="text-xs text-neutral-400">Sessions go to Google Calendar. The task stays due when its own block ends.</p>
+      <p className="text-xs text-neutral-400">
+        Sessions go to Google Calendar. The task stays due when its own block ends.
+      </p>
       <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>
         Add session
       </button>

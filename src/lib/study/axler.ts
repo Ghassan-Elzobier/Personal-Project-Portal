@@ -10,16 +10,17 @@ const READING_STEPS = [
   "Read with a pencil: try each result before reading its proof",
   "Recall: close the book and write the definitions and key results from memory",
   "Exercises: attempt them before looking anything up, and mark each one below",
-  "Explain the main idea out loud, without notes"
+  "Explain the main idea out loud, without notes",
 ];
 
 const QUICK_STEPS = [
   "Read quickly, looking for the facts about zeros of polynomials",
   "Recall: state the fundamental theorem of algebra from memory",
-  "Exercises: pick a few and mark each one below"
+  "Exercises: pick a few and mark each one below",
 ];
 
-const DONE = "Done when you can write the key results from a blank page and have worked a mix of the exercises, including some near the end of the set.";
+const DONE =
+  "Done when you can write the key results from a blank page and have worked a mix of the exercises, including some near the end of the set.";
 
 export const AXLER: StudyPlan = {
   project: "axler",
@@ -45,7 +46,7 @@ export const AXLER: StudyPlan = {
           exercises: 15,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "idea", "prompt": "Explain from memory what makes Rⁿ and Cⁿ alike and where they differ."}],
+          reviews: [{ kind: "idea", prompt: "Explain from memory what makes Rⁿ and Cⁿ alike and where they differ." }],
         },
         {
           ref: "axler-1B",
@@ -55,7 +56,12 @@ export const AXLER: StudyPlan = {
           exercises: 8,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "idea", "prompt": "State the definition of a vector space from memory, then prove the additive identity is unique."}],
+          reviews: [
+            {
+              kind: "idea",
+              prompt: "State the definition of a vector space from memory, then prove the additive identity is unique.",
+            },
+          ],
         },
         {
           ref: "axler-1C",
@@ -65,7 +71,9 @@ export const AXLER: StudyPlan = {
           exercises: 24,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 1.45: state and prove “condition for a direct sum” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 1.45: state and prove “condition for a direct sum” on blank paper." },
+          ],
         },
       ],
     },
@@ -80,7 +88,14 @@ export const AXLER: StudyPlan = {
           exercises: 20,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 2.19: state and prove “linear dependence lemma” on blank paper."}, {"kind": "result", "prompt": "Axler 2.22: state and prove “length of a linearly independent list is at most the length of a spanning list” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 2.19: state and prove “linear dependence lemma” on blank paper." },
+            {
+              kind: "result",
+              prompt:
+                "Axler 2.22: state and prove “length of a linearly independent list is at most the length of a spanning list” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-2B",
@@ -90,7 +105,17 @@ export const AXLER: StudyPlan = {
           exercises: 11,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 2.30: state and prove “every spanning list contains a basis” on blank paper."}, {"kind": "result", "prompt": "Axler 2.32: state and prove “every linearly independent list extends to a basis” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 2.30: state and prove “every spanning list contains a basis” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt:
+                "Axler 2.32: state and prove “every linearly independent list extends to a basis” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-2C",
@@ -100,7 +125,13 @@ export const AXLER: StudyPlan = {
           exercises: 20,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 2.34: state and prove “basis length does not depend on basis” on blank paper."}, {"kind": "result", "prompt": "Axler 2.43: state and prove “dimension of a sum” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 2.34: state and prove “basis length does not depend on basis” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 2.43: state and prove “dimension of a sum” on blank paper." },
+          ],
         },
       ],
     },
@@ -115,7 +146,7 @@ export const AXLER: StudyPlan = {
           exercises: 17,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 3.4: state and prove “linear map lemma” on blank paper."}],
+          reviews: [{ kind: "result", prompt: "Axler 3.4: state and prove “linear map lemma” on blank paper." }],
         },
         {
           ref: "axler-3B",
@@ -125,7 +156,12 @@ export const AXLER: StudyPlan = {
           exercises: 33,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 3.21: state and prove “fundamental theorem of linear maps” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 3.21: state and prove “fundamental theorem of linear maps” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-3C",
@@ -135,7 +171,13 @@ export const AXLER: StudyPlan = {
           exercises: 17,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 3.43: state and prove “matrix of product of linear maps” on blank paper."}, {"kind": "result", "prompt": "Axler 3.57: state and prove “column rank equals row rank” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 3.43: state and prove “matrix of product of linear maps” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 3.57: state and prove “column rank equals row rank” on blank paper." },
+          ],
         },
         {
           ref: "axler-3D",
@@ -145,7 +187,19 @@ export const AXLER: StudyPlan = {
           exercises: 24,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 3.65: state and prove “injectivity is equivalent to surjectivity when dim V = dim W” on blank paper."}, {"kind": "result", "prompt": "Axler 3.70: state and prove “dimension shows whether vector spaces are isomorphic” on blank paper."}, {"kind": "result", "prompt": "Axler 3.84: state and prove “change-of-basis formula” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 3.65: state and prove “injectivity is equivalent to surjectivity when dim V = dim W” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt:
+                "Axler 3.70: state and prove “dimension shows whether vector spaces are isomorphic” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 3.84: state and prove “change-of-basis formula” on blank paper." },
+          ],
         },
         {
           ref: "axler-3E",
@@ -155,7 +209,13 @@ export const AXLER: StudyPlan = {
           exercises: 19,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 3.94: state and prove “a sum is a direct sum if and only if dimensions add up” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 3.94: state and prove “a sum is a direct sum if and only if dimensions add up” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-3F",
@@ -166,7 +226,10 @@ export const AXLER: StudyPlan = {
           notes: "Axler lists duality among the material to skip on a fast path. Marked optional here. " + DONE,
           steps: READING_STEPS,
           optional: true,
-          reviews: [{"kind": "result", "prompt": "Axler 3.125: state and prove “dimension of the annihilator” on blank paper."}, {"kind": "result", "prompt": "Axler 3.133: state and prove “column rank equals row rank” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 3.125: state and prove “dimension of the annihilator” on blank paper." },
+            { kind: "result", prompt: "Axler 3.133: state and prove “column rank equals row rank” on blank paper." },
+          ],
         },
       ],
     },
@@ -180,9 +243,16 @@ export const AXLER: StudyPlan = {
           page: 119,
           exercises: 14,
           hours: 2,
-          notes: "Axler suggests this chapter can go quickly, about half an hour, if you are pressed for time. It is mostly background you can return to. " + DONE,
+          notes:
+            "Axler suggests this chapter can go quickly, about half an hour, if you are pressed for time. It is mostly background you can return to. " +
+            DONE,
           steps: QUICK_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 4.13: state and prove “fundamental theorem of algebra, second version” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 4.13: state and prove “fundamental theorem of algebra, second version” on blank paper.",
+            },
+          ],
         },
       ],
     },
@@ -197,7 +267,16 @@ export const AXLER: StudyPlan = {
           exercises: 43,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 5.7: state and prove “equivalent conditions to be an eigenvalue” on blank paper."}, {"kind": "result", "prompt": "Axler 5.11: state and prove “linearly independent eigenvectors” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 5.7: state and prove “equivalent conditions to be an eigenvalue” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt: "Axler 5.11: state and prove “linearly independent eigenvectors” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-5B",
@@ -207,7 +286,19 @@ export const AXLER: StudyPlan = {
           exercises: 29,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 5.19: state and prove “existence of eigenvalues” on blank paper."}, {"kind": "result", "prompt": "Axler 5.22: state and prove “existence, uniqueness, and degree of minimal polynomial” on blank paper."}, {"kind": "result", "prompt": "Axler 5.27: state and prove “eigenvalues are the zeros of the minimal polynomial” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 5.19: state and prove “existence of eigenvalues” on blank paper." },
+            {
+              kind: "result",
+              prompt:
+                "Axler 5.22: state and prove “existence, uniqueness, and degree of minimal polynomial” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt:
+                "Axler 5.27: state and prove “eigenvalues are the zeros of the minimal polynomial” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-5C",
@@ -217,7 +308,18 @@ export const AXLER: StudyPlan = {
           exercises: 14,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 5.44: state and prove “necessary and sufficient condition for an upper-triangular matrix” on blank paper."}, {"kind": "result", "prompt": "Axler 5.47: state and prove “over C, every operator has an upper-triangular matrix” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 5.44: state and prove “necessary and sufficient condition for an upper-triangular matrix” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt:
+                "Axler 5.47: state and prove “over C, every operator has an upper-triangular matrix” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-5D",
@@ -227,7 +329,16 @@ export const AXLER: StudyPlan = {
           exercises: 23,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 5.54: state and prove “sum of eigenspaces is a direct sum” on blank paper."}, {"kind": "result", "prompt": "Axler 5.55: state and prove “conditions equivalent to diagonalizability” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 5.54: state and prove “sum of eigenspaces is a direct sum” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt: "Axler 5.55: state and prove “conditions equivalent to diagonalizability” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-5E",
@@ -238,7 +349,12 @@ export const AXLER: StudyPlan = {
           notes: "Axler lists this section as one to skip on a fast path. Marked optional here. " + DONE,
           steps: READING_STEPS,
           optional: true,
-          reviews: [{"kind": "result", "prompt": "Axler 5.76: state and prove “simultaneous diagonalizability ⟺ commutativity” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 5.76: state and prove “simultaneous diagonalizability ⟺ commutativity” on blank paper.",
+            },
+          ],
         },
       ],
     },
@@ -253,7 +369,10 @@ export const AXLER: StudyPlan = {
           exercises: 35,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 6.14: state and prove “Cauchy–Schwarz inequality” on blank paper."}, {"kind": "result", "prompt": "Axler 6.17: state and prove “triangle inequality” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 6.14: state and prove “Cauchy–Schwarz inequality” on blank paper." },
+            { kind: "result", prompt: "Axler 6.17: state and prove “triangle inequality” on blank paper." },
+          ],
         },
         {
           ref: "axler-6B",
@@ -263,7 +382,11 @@ export const AXLER: StudyPlan = {
           exercises: 23,
           notes: "Renderer: orthonormal bases are how a shader builds tangent frames and cameras. " + DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 6.32: state and prove “Gram–Schmidt procedure” on blank paper."}, {"kind": "result", "prompt": "Axler 6.38: state and prove “Schur’s theorem” on blank paper."}, {"kind": "result", "prompt": "Axler 6.42: state and prove “Riesz representation theorem” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 6.32: state and prove “Gram–Schmidt procedure” on blank paper." },
+            { kind: "result", prompt: "Axler 6.38: state and prove “Schur’s theorem” on blank paper." },
+            { kind: "result", prompt: "Axler 6.42: state and prove “Riesz representation theorem” on blank paper." },
+          ],
         },
         {
           ref: "axler-6C",
@@ -273,7 +396,17 @@ export const AXLER: StudyPlan = {
           exercises: 23,
           notes: "Renderer: orthogonal projection is the idea behind least-squares fitting. " + DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 6.49: state and prove “direct sum of a subspace and its orthogonal complement” on blank paper."}, {"kind": "result", "prompt": "Axler 6.61: state and prove “minimizing distance to a subspace” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 6.49: state and prove “direct sum of a subspace and its orthogonal complement” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt: "Axler 6.61: state and prove “minimizing distance to a subspace” on blank paper.",
+            },
+          ],
         },
       ],
     },
@@ -288,7 +421,13 @@ export const AXLER: StudyPlan = {
           exercises: 32,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.5: state and prove “properties of the adjoint” on blank paper."}, {"kind": "result", "prompt": "Axler 7.22: state and prove “orthogonal eigenvectors for normal operators” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 7.5: state and prove “properties of the adjoint” on blank paper." },
+            {
+              kind: "result",
+              prompt: "Axler 7.22: state and prove “orthogonal eigenvectors for normal operators” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-7B",
@@ -296,9 +435,14 @@ export const AXLER: StudyPlan = {
           short: "Axler 7B",
           page: 243,
           exercises: 25,
-          notes: "Renderer: a Gaussian splat's 3×3 covariance is symmetric, so this theorem gives its axes. See the splat rasterising milestone. " + DONE,
+          notes:
+            "Renderer: a Gaussian splat's 3×3 covariance is symmetric, so this theorem gives its axes. See the splat rasterising milestone. " +
+            DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.29: state and prove “real spectral theorem” on blank paper."}, {"kind": "result", "prompt": "Axler 7.31: state and prove “complex spectral theorem” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 7.29: state and prove “real spectral theorem” on blank paper." },
+            { kind: "result", prompt: "Axler 7.31: state and prove “complex spectral theorem” on blank paper." },
+          ],
         },
         {
           ref: "axler-7C",
@@ -308,7 +452,17 @@ export const AXLER: StudyPlan = {
           exercises: 25,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.38: state and prove “characterizations of positive operators” on blank paper."}, {"kind": "result", "prompt": "Axler 7.39: state and prove “each positive operator has only one positive square root” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 7.38: state and prove “characterizations of positive operators” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt:
+                "Axler 7.39: state and prove “each positive operator has only one positive square root” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-7D",
@@ -318,7 +472,11 @@ export const AXLER: StudyPlan = {
           exercises: 20,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.49: state and prove “characterizations of isometries” on blank paper."}, {"kind": "result", "prompt": "Axler 7.58: state and prove “QR factorization” on blank paper."}, {"kind": "result", "prompt": "Axler 7.63: state and prove “Cholesky factorization” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 7.49: state and prove “characterizations of isometries” on blank paper." },
+            { kind: "result", prompt: "Axler 7.58: state and prove “QR factorization” on blank paper." },
+            { kind: "result", prompt: "Axler 7.63: state and prove “Cholesky factorization” on blank paper." },
+          ],
         },
         {
           ref: "axler-7E",
@@ -328,7 +486,9 @@ export const AXLER: StudyPlan = {
           exercises: 17,
           notes: "Renderer: the SVD turns a splat's linear transform into its axes and scales. " + DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.70: state and prove “singular value decomposition” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 7.70: state and prove “singular value decomposition” on blank paper." },
+          ],
         },
         {
           ref: "axler-7F",
@@ -336,9 +496,23 @@ export const AXLER: StudyPlan = {
           short: "Axler 7F",
           page: 280,
           exercises: 32,
-          notes: "Renderer: the volume result explains how a transform scales a splat. The best-approximation result is the idea behind low-rank compression. " + DONE,
+          notes:
+            "Renderer: the volume result explains how a transform scales a splat. The best-approximation result is the idea behind low-rank compression. " +
+            DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 7.92: state and prove “best approximation by a linear map of rank at most k” on blank paper."}, {"kind": "result", "prompt": "Axler 7.93: state and prove “polar decomposition” on blank paper."}, {"kind": "result", "prompt": "Axler 7.111: state and prove “volume changes by the product of the singular values” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 7.92: state and prove “best approximation by a linear map of rank at most k” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 7.93: state and prove “polar decomposition” on blank paper." },
+            {
+              kind: "result",
+              prompt:
+                "Axler 7.111: state and prove “volume changes by the product of the singular values” on blank paper.",
+            },
+          ],
         },
       ],
     },
@@ -353,7 +527,13 @@ export const AXLER: StudyPlan = {
           exercises: 25,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 8.3: state and prove “null spaces stop growing” on blank paper."}, {"kind": "result", "prompt": "Axler 8.9: state and prove “a basis of generalized eigenvectors” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 8.3: state and prove “null spaces stop growing” on blank paper." },
+            {
+              kind: "result",
+              prompt: "Axler 8.9: state and prove “a basis of generalized eigenvectors” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-8B",
@@ -363,7 +543,13 @@ export const AXLER: StudyPlan = {
           exercises: 23,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 8.22: state and prove “generalized eigenspace decomposition” on blank paper."}, {"kind": "result", "prompt": "Axler 8.29: state and prove “Cayley–Hamilton theorem” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 8.22: state and prove “generalized eigenspace decomposition” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 8.29: state and prove “Cayley–Hamilton theorem” on blank paper." },
+          ],
         },
         {
           ref: "axler-8C",
@@ -373,7 +559,7 @@ export const AXLER: StudyPlan = {
           exercises: 14,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 8.46: state and prove “Jordan form” on blank paper."}],
+          reviews: [{ kind: "result", prompt: "Axler 8.46: state and prove “Jordan form” on blank paper." }],
         },
         {
           ref: "axler-8D",
@@ -383,7 +569,14 @@ export const AXLER: StudyPlan = {
           exercises: 13,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 8.49: state and prove “trace of AB equals trace of BA” on blank paper."}, {"kind": "result", "prompt": "Axler 8.52: state and prove “on complex vector spaces, trace equals sum of eigenvalues” on blank paper."}],
+          reviews: [
+            { kind: "result", prompt: "Axler 8.49: state and prove “trace of AB equals trace of BA” on blank paper." },
+            {
+              kind: "result",
+              prompt:
+                "Axler 8.52: state and prove “on complex vector spaces, trace equals sum of eigenvalues” on blank paper.",
+            },
+          ],
         },
       ],
     },
@@ -398,7 +591,16 @@ export const AXLER: StudyPlan = {
           exercises: 10,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 9.12: state and prove “symmetric bilinear forms are diagonalizable” on blank paper."}, {"kind": "result", "prompt": "Axler 9.23: state and prove “diagonalization of quadratic form” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 9.12: state and prove “symmetric bilinear forms are diagonalizable” on blank paper.",
+            },
+            {
+              kind: "result",
+              prompt: "Axler 9.23: state and prove “diagonalization of quadratic form” on blank paper.",
+            },
+          ],
         },
         {
           ref: "axler-9B",
@@ -408,7 +610,13 @@ export const AXLER: StudyPlan = {
           exercises: 7,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "idea", "prompt": "From a blank page, explain what makes a multilinear form alternating and why that leads to determinants."}],
+          reviews: [
+            {
+              kind: "idea",
+              prompt:
+                "From a blank page, explain what makes a multilinear form alternating and why that leads to determinants.",
+            },
+          ],
         },
         {
           ref: "axler-9C",
@@ -418,7 +626,13 @@ export const AXLER: StudyPlan = {
           exercises: 21,
           notes: DONE,
           steps: READING_STEPS,
-          reviews: [{"kind": "result", "prompt": "Axler 9.46: state and prove “formula for determinant of a matrix” on blank paper."}, {"kind": "result", "prompt": "Axler 9.49: state and prove “determinant is multiplicative” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt: "Axler 9.46: state and prove “formula for determinant of a matrix” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 9.49: state and prove “determinant is multiplicative” on blank paper." },
+          ],
         },
         {
           ref: "axler-9D",
@@ -429,7 +643,14 @@ export const AXLER: StudyPlan = {
           notes: DONE,
           steps: READING_STEPS,
           optional: true,
-          reviews: [{"kind": "result", "prompt": "Axler 9.72: state and prove “dimension of the tensor product of two vector spaces” on blank paper."}, {"kind": "result", "prompt": "Axler 9.74: state and prove “basis of a tensor product” on blank paper."}],
+          reviews: [
+            {
+              kind: "result",
+              prompt:
+                "Axler 9.72: state and prove “dimension of the tensor product of two vector spaces” on blank paper.",
+            },
+            { kind: "result", prompt: "Axler 9.74: state and prove “basis of a tensor product” on blank paper." },
+          ],
         },
       ],
     },

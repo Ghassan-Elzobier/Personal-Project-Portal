@@ -29,7 +29,9 @@ export async function signInWithGoogle(formData: FormData): Promise<void> {
 export async function sendMagicLink(_prev: LoginState, formData: FormData): Promise<LoginState> {
   if (!supabaseConfigured()) return { error: "Supabase is not configured yet. See docs/SETUP.md." };
 
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
 
   const next = safeNext(formData.get("next"));

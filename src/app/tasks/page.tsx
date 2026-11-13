@@ -85,13 +85,19 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">{projectDef(key).title}</h2>
         <div className="flex gap-2" role="group" aria-label="View">
-          <Link href={hrefFor({})} aria-current={view === "list" ? "true" : undefined} className={`px-4 py-1.5 ${view === "list" ? "btn-primary" : "btn-ghost"}`}>
+          <Link
+            href={hrefFor({})}
+            aria-current={view === "list" ? "true" : undefined}
+            className={`px-4 py-1.5 ${view === "list" ? "btn-primary" : "btn-ghost"}`}
+          >
             List
-            
           </Link>
-          <Link href={hrefFor({ view: "board" })} aria-current={view === "board" ? "true" : undefined} className={`px-4 py-1.5 ${view === "board" ? "btn-primary" : "btn-ghost"}`}>
+          <Link
+            href={hrefFor({ view: "board" })}
+            aria-current={view === "board" ? "true" : undefined}
+            className={`px-4 py-1.5 ${view === "board" ? "btn-primary" : "btn-ghost"}`}
+          >
             Board
-            
           </Link>
         </div>
       </div>
@@ -102,10 +108,20 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       {!sections.ok && <ErrorNote title="Could not load the sections" message={sections.error} />}
 
       {current.tasks.ok && sections.ok && (
-        <TaskViews key={key} project={key} view={view} groups={groups} tasks={dashboardTasks} today={date} tomorrow={addDays(date, 1)} />
+        <TaskViews
+          key={key}
+          project={key}
+          view={view}
+          groups={groups}
+          tasks={dashboardTasks}
+          today={date}
+          tomorrow={addDays(date, 1)}
+        />
       )}
 
-      {params.task && !selected && current.tasks.ok && <ErrorNote message="That task is not in this project any more." />}
+      {params.task && !selected && current.tasks.ok && (
+        <ErrorNote message="That task is not in this project any more." />
+      )}
 
       {selected && (
         <TaskPane
@@ -125,7 +141,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
             sectionGid: selected.sectionGid,
           }}
           sections={sections.ok ? sections.value : []}
-          comments={comments?.ok ? comments.value.map((c) => ({ gid: c.gid, text: c.text, createdAt: c.created_at })) : []}
+          comments={
+            comments?.ok ? comments.value.map((c) => ({ gid: c.gid, text: c.text, createdAt: c.created_at })) : []
+          }
           loadError={comments && !comments.ok ? comments.error : null}
         >
           {study?.ok && <StudyPanel data={panelFor({ task: selected }, study.value)} />}
@@ -135,10 +153,23 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function ProjectTab({ href, title, active, stats }: { href: string; title: string; active: boolean; stats: ProjectStats | null }) {
+function ProjectTab({
+  href,
+  title,
+  active,
+  stats,
+}: {
+  href: string;
+  title: string;
+  active: boolean;
+  stats: ProjectStats | null;
+}) {
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}>
-      
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`block rounded-xl p-3 ring-1 transition hover:ring-white/25 ${active ? "bg-lavender/15 ring-lavender" : "bg-white/5 ring-white/5"}`}
+    >
       <span className="block text-sm font-semibold">{title}</span>
       {!stats ? (
         <span className="text-xs text-neutral-400">Could not load</span>
@@ -149,7 +180,11 @@ function ProjectTab({ href, title, active, stats }: { href: string; title: strin
           <span className="block text-xs text-neutral-300 tabular-nums">
             {stats.open} open{stats.overdue > 0 && `, ${stats.overdue} overdue`} · {formatHours(stats.hours)} h
           </span>
-          <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10" role="img" aria-label={`${stats.percent}% done`}>
+          <span
+            className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10"
+            role="img"
+            aria-label={`${stats.percent}% done`}
+          >
             <span className="block h-full rounded-full bg-mint" style={{ width: `${stats.percent}%` }} />
           </span>
         </>
@@ -162,9 +197,18 @@ function ProjectTab({ href, title, active, stats }: { href: string; title: strin
 function StageBar({ stats }: { stats: ProjectStats }) {
   return (
     <div className="space-y-2">
-      <div className="flex h-2.5 gap-0.5" role="img" aria-label={stats.stages.map((s) => `${s.stage}: ${s.count}`).join(", ")}>
+      <div
+        className="flex h-2.5 gap-0.5"
+        role="img"
+        aria-label={stats.stages.map((s) => `${s.stage}: ${s.count}`).join(", ")}
+      >
         {stats.stages.map((s) => (
-          <span key={s.stage} title={`${s.stage}: ${s.count}`} className={`first:rounded-l last:rounded-r ${STAGE_MARKS[s.stage]}`} style={{ flexGrow: s.count, flexBasis: 0 }} />
+          <span
+            key={s.stage}
+            title={`${s.stage}: ${s.count}`}
+            className={`first:rounded-l last:rounded-r ${STAGE_MARKS[s.stage]}`}
+            style={{ flexGrow: s.count, flexBasis: 0 }}
+          />
         ))}
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">

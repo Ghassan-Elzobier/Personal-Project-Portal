@@ -2,7 +2,14 @@ import "server-only";
 import { cache } from "react";
 import { asanaToken, asanaWorkspaceGid, projectGid } from "../config/env";
 import { PROJECTS, type ProjectKey } from "../config/projects";
-import { AsanaError, type AsanaStatusUpdate, type AsanaStory, type AsanaTask, type SessionComment, type VerifiedProject } from "./model";
+import {
+  AsanaError,
+  type AsanaStatusUpdate,
+  type AsanaStory,
+  type AsanaTask,
+  type SessionComment,
+  type VerifiedProject,
+} from "./model";
 
 // A small Asana REST client. The token never leaves the server: this module
 // imports "server-only", so a client component importing it fails the build.

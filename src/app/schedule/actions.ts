@@ -9,13 +9,23 @@ export type ActionResult = { error?: string };
 
 const plain = ({ error }: ActionResult): ActionResult => (error ? { error } : {});
 
-export async function scheduleTask(input: { gid: string; date: string; start: number; duration: number }): Promise<ActionResult> {
+export async function scheduleTask(input: {
+  gid: string;
+  date: string;
+  start: number;
+  duration: number;
+}): Promise<ActionResult> {
   await requireOwner();
   const result = await ops.scheduleTask(input);
   return result.error ? { error: result.error } : result.warning ? { error: result.warning } : {};
 }
 
-export async function addStudySession(input: { gid: string; date: string; start: number; duration: number }): Promise<ActionResult> {
+export async function addStudySession(input: {
+  gid: string;
+  date: string;
+  start: number;
+  duration: number;
+}): Promise<ActionResult> {
   await requireOwner();
   return plain(await ops.addStudySession(input));
 }

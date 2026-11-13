@@ -53,13 +53,21 @@ export default async function SchedulePage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={`/schedule?week=${addDays(week.start, -7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Previous week">
+          <Link
+            href={`/schedule?week=${addDays(week.start, -7)}${keep}`}
+            className="btn-ghost px-4 py-1.5"
+            aria-label="Previous week"
+          >
             ←
           </Link>
           <Link href={`/schedule${showInvites ? "?invites=show" : ""}`} className="btn-ghost px-4 py-1.5">
             This week
           </Link>
-          <Link href={`/schedule?week=${addDays(week.start, 7)}${keep}`} className="btn-ghost px-4 py-1.5" aria-label="Next week">
+          <Link
+            href={`/schedule?week=${addDays(week.start, 7)}${keep}`}
+            className="btn-ghost px-4 py-1.5"
+            aria-label="Next week"
+          >
             →
           </Link>
         </div>

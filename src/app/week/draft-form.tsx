@@ -29,7 +29,11 @@ export function DraftForm({
   const [open, setOpen] = useState(!alreadyPosted);
 
   if (state.posted) {
-    return <p className="rounded-xl bg-mint/10 p-4 text-sm text-mint ring-1 ring-mint/30">Posted. Mentors will see it now.</p>;
+    return (
+      <p className="rounded-xl bg-mint/10 p-4 text-sm text-mint ring-1 ring-mint/30">
+        Posted. Mentors will see it now.
+      </p>
+    );
   }
 
   if (!open) {

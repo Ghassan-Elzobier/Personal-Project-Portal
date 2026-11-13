@@ -82,7 +82,14 @@ export const DEFAULT_PROFILE: LifeProfile = {
   shopping: { budgetPence: null, deliveryWeekday: 5 },
 };
 
-const CUISINES: Cuisine[] = ["Italian", "Middle Eastern", "Chinese & SE Asian", "Indian", "Caribbean & West African", "British & American"];
+const CUISINES: Cuisine[] = [
+  "Italian",
+  "Middle Eastern",
+  "Chinese & SE Asian",
+  "Indian",
+  "Caribbean & West African",
+  "British & American",
+];
 const KIT: Kit[] = ["oven", "hob", "air fryer", "blender"];
 
 function num(v: unknown, min: number, max: number, fallback: number): number;
@@ -134,13 +141,16 @@ export function parseProfile(raw: unknown): LifeProfile {
       proteinPerKg: num(goal.proteinPerKg, 0.8, 3, d.goal.proteinPerKg),
       fatShare: num(goal.fatShare, 0.15, 0.45, d.goal.fatShare),
       kcalOverride: num(goal.kcalOverride, 1200, 6000, null),
-      startedOn: typeof goal.startedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(goal.startedOn) ? goal.startedOn : null,
+      startedOn:
+        typeof goal.startedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(goal.startedOn) ? goal.startedOn : null,
     },
     activity: num(r.activity, 1.2, 2.2, d.activity),
     learnedMaintenance: num(r.learnedMaintenance, 1200, 6000, null),
     food: parseRules(r.food),
     cuisines: Array.isArray(r.cuisines) ? r.cuisines.filter((c): c is Cuisine => CUISINES.includes(c as Cuisine)) : [],
-    favourites: Array.isArray(r.favourites) ? r.favourites.filter((f): f is string => typeof f === "string").slice(0, 50) : [],
+    favourites: Array.isArray(r.favourites)
+      ? r.favourites.filter((f): f is string => typeof f === "string").slice(0, 50)
+      : [],
     hidden: Array.isArray(r.hidden) ? r.hidden.filter((f): f is string => typeof f === "string").slice(0, 100) : [],
     spiceMax: num(r.spiceMax, 0, 3, d.spiceMax),
     kit: Array.isArray(r.kit) ? r.kit.filter((k): k is Kit => KIT.includes(k as Kit)) : d.kit,
@@ -160,7 +170,9 @@ export function parseProfile(raw: unknown): LifeProfile {
       minutes: num(gym.minutes, 30, 150, d.gym.minutes),
       benchGoalKg: num(gym.benchGoalKg, 20, 300, null),
       returning: typeof gym.returning === "boolean" ? gym.returning : d.gym.returning,
-      missing: Array.isArray(gym.missing) ? gym.missing.filter((m): m is string => typeof m === "string").slice(0, 20) : [],
+      missing: Array.isArray(gym.missing)
+        ? gym.missing.filter((m): m is string => typeof m === "string").slice(0, 20)
+        : [],
     },
     shopping: {
       budgetPence: num(shopping.budgetPence, 0, 100_000, null),

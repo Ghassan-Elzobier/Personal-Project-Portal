@@ -6,7 +6,13 @@ import { divergenceNotes, efficiencyOf, parseDivergence } from "@/lib/lab/result
 import * as ops from "@/lib/portal/operations";
 
 /** Records a measured divergence run as one SIMD efficiency result, with its counts in the notes. */
-export async function recordDivergence(input: { line: string; gpu: string; scene: string; commit: string; notes: string }): Promise<{ error?: string; overall?: number }> {
+export async function recordDivergence(input: {
+  line: string;
+  gpu: string;
+  scene: string;
+  commit: string;
+  notes: string;
+}): Promise<{ error?: string; overall?: number }> {
   await requireOwner();
   const parsed = parseDivergence(input.line);
   if (!parsed.ok) return { error: parsed.error };

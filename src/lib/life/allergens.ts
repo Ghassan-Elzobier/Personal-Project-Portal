@@ -74,7 +74,10 @@ export const TAG_LABELS: Record<Tag, string> = {
 /** Groups people say out loud: "no legumes" is nine tags. */
 export const GROUPS: Record<string, { label: string; tags: Tag[] }> = {
   nuts: { label: "Nuts", tags: ["peanut", "tree-nut", "nut-oil"] },
-  legumes: { label: "Legumes", tags: ["peanut", "soy", "lupin", "pea", "chickpea", "lentil", "bean", "fenugreek", "tamarind"] },
+  legumes: {
+    label: "Legumes",
+    tags: ["peanut", "soy", "lupin", "pea", "chickpea", "lentil", "bean", "fenugreek", "tamarind"],
+  },
 };
 
 /**
@@ -135,12 +138,30 @@ export function judge(rules: FoodRules, tag: Tag, form: Form, item: string): Fin
   const rule = ruleFor(rules, tag);
   if (!rule) return null;
   if (rule.allowForms?.includes(form)) {
-    return { tag, item, form, verdict: "allowed", why: `${cap(TAG_LABELS[tag])} ${FORM_LABELS[form]} is fine for you.` };
+    return {
+      tag,
+      item,
+      form,
+      verdict: "allowed",
+      why: `${cap(TAG_LABELS[tag])} ${FORM_LABELS[form]} is fine for you.`,
+    };
   }
   if (rule.level === "flag") {
-    return { tag, item, form, verdict: "flagged", why: `Contains ${TAG_LABELS[tag]}${rule.note ? `: ${rule.note}` : ""}.` };
+    return {
+      tag,
+      item,
+      form,
+      verdict: "flagged",
+      why: `Contains ${TAG_LABELS[tag]}${rule.note ? `: ${rule.note}` : ""}.`,
+    };
   }
-  return { tag, item, form, verdict: "blocked", why: `${cap(item)} has ${TAG_LABELS[tag]}${form === "cooked" ? "" : ` ${FORM_LABELS[form]}`}.` };
+  return {
+    tag,
+    item,
+    form,
+    verdict: "blocked",
+    why: `${cap(item)} has ${TAG_LABELS[tag]}${form === "cooked" ? "" : ` ${FORM_LABELS[form]}`}.`,
+  };
 }
 
 /** A tag some brands add, optionally with the form it would be in: "egg:baked". */
@@ -201,7 +222,8 @@ export function parseRules(raw: unknown): FoodRules {
       note: typeof x.note === "string" ? x.note.slice(0, 200) : undefined,
     });
   }
-  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 60)) : []);
+  const strings = (v: unknown) =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 60)) : [];
   return {
     rules,
     mayContainOk: Array.isArray(r.mayContainOk) ? r.mayContainOk.filter(isTag) : [],

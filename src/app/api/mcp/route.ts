@@ -18,7 +18,11 @@ type RpcRequest = { jsonrpc: "2.0"; id?: string | number | null; method: string;
 
 function unauthorized(request: Request) {
   return NextResponse.json(
-    { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Sign in to the portal from Claude's connector settings." } },
+    {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32001, message: "Sign in to the portal from Claude's connector settings." },
+    },
     {
       status: 401,
       headers: {
@@ -39,7 +43,16 @@ async function caller(request: Request) {
     console.error("mcp_session failed", error.message);
     return null;
   }
-  const row = (data as { account_id: string; google_refresh_token: string | null; google_email: string | null; google_connected_at: string | null }[] | null)?.[0];
+  const row = (
+    data as
+      | {
+          account_id: string;
+          google_refresh_token: string | null;
+          google_email: string | null;
+          google_connected_at: string | null;
+        }[]
+      | null
+  )?.[0];
   if (!row) return null;
   return {
     accountId: row.account_id,
@@ -84,11 +97,16 @@ async function handle(msg: RpcRequest, base: string): Promise<object | null> {
       if (!tool) return fail(-32602, `Unknown tool: ${String(msg.params?.name)}`);
       const args = msg.params?.arguments;
       try {
-        const result = await tool.run(args && typeof args === "object" ? (args as Record<string, unknown>) : {}, { base });
+        const result = await tool.run(args && typeof args === "object" ? (args as Record<string, unknown>) : {}, {
+          base,
+        });
         return reply({ content: [{ type: "text", text: result.text }], isError: result.isError ?? false });
       } catch (err) {
         console.error(`tool ${tool.name} failed`, err);
-        return reply({ content: [{ type: "text", text: "The portal hit an error running that. Try again, or use the page." }], isError: true });
+        return reply({
+          content: [{ type: "text", text: "The portal hit an error running that. Try again, or use the page." }],
+          isError: true,
+        });
       }
     }
     default:
@@ -104,14 +122,20 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 });
+    return NextResponse.json(
+      { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } },
+      { status: 400 },
+    );
   }
 
   const base = origin(request);
   const batch = Array.isArray(body);
   const messages = (batch ? body : [body]) as RpcRequest[];
   if (!messages.length || messages.some((m) => !m || typeof m !== "object" || typeof m.method !== "string")) {
-    return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } }, { status: 400 });
+    return NextResponse.json(
+      { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } },
+      { status: 400 },
+    );
   }
 
   const replies = await runAsConnector(who, async () => {

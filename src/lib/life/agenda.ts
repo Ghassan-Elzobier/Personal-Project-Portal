@@ -135,7 +135,13 @@ export function lifeAgenda(s: LifeState, days: string[]): AgendaItem[] {
       const fresh = p?.source === "fresh" && r ? r : null;
       const from = p?.cookId ? cooksToday.find((c) => c.id === p.cookId) : undefined;
       // A meal cooked fresh starts when the cooking does.
-      const duration = fresh ? Math.max(30, Math.ceil(fresh.totalMin / 15) * 15) : slot === "shake" ? 15 : slot === "breakfast" ? 20 : 30;
+      const duration = fresh
+        ? Math.max(30, Math.ceil(fresh.totalMin / 15) * 15)
+        : slot === "shake"
+          ? 15
+          : slot === "breakfast"
+            ? 20
+            : 30;
       const start = fresh ? at - (duration - 30) : at;
       const window: [number, number] =
         slot === "breakfast"
@@ -184,7 +190,10 @@ function rotation(s: LifeState, last: string): (date: string) => string {
     ahead.set(d, key);
     next = nextWorkout([{ day: d, workout: key, finished: true, feel: null, notes: "" }]);
   }
-  return (date) => s.sessions.find((x) => x.day === date)?.workout ?? ahead.get(date) ?? nextWorkout(s.sessions.filter((x) => x.day < date));
+  return (date) =>
+    s.sessions.find((x) => x.day === date)?.workout ??
+    ahead.get(date) ??
+    nextWorkout(s.sessions.filter((x) => x.day < date));
 }
 
 const overlaps = (a0: number, a1: number, b0: number, b1: number) => a0 < b1 && b0 < a1;
@@ -196,7 +205,12 @@ const overlaps = (a0: number, a1: number, b0: number, b1: number) => a0 < b1 && 
  * its cook is done, and on today nothing still to come moves into time already
  * gone. An item with nowhere to go stays put and says what it clashes with.
  */
-export function arrange(items: AgendaItem[], busy: Busy[], step = 15, now?: { date: string; minutes: number }): AgendaItem[] {
+export function arrange(
+  items: AgendaItem[],
+  busy: Busy[],
+  step = 15,
+  now?: { date: string; minutes: number },
+): AgendaItem[] {
   const out: AgendaItem[] = [];
   const byDay = new Map<string, AgendaItem[]>();
   for (const i of items) byDay.set(i.date, [...(byDay.get(i.date) ?? []), i]);
@@ -206,7 +220,8 @@ export function arrange(items: AgendaItem[], busy: Busy[], step = 15, now?: { da
     const conflict = (start: number, item: AgendaItem): string | null => {
       const end = start + item.duration;
       const dep = item.after && placed.find((p) => p.key === item.after!.key);
-      if (dep && start < dep.start + item.after!.ready) return `its cook is not done until ${clockOf(dep.start + item.after!.ready)}`;
+      if (dep && start < dep.start + item.after!.ready)
+        return `its cook is not done until ${clockOf(dep.start + item.after!.ready)}`;
       const hit = fixed.find((b) => overlaps(start, end, b.start, b.end));
       if (hit) return `clashes with ${hit.title}`;
       const mine = placed.find((p) => overlaps(start, end, p.start, p.start + p.duration));
@@ -223,9 +238,15 @@ export function arrange(items: AgendaItem[], busy: Busy[], step = 15, now?: { da
       const [lo0, hi] = item.window;
       const dep = item.after && placed.find((p) => p.key === item.after!.key);
       const upcoming = now && now.date === date && item.preferred >= now.minutes;
-      const lo = Math.max(lo0, dep ? dep.start + item.after!.ready : 0, upcoming ? Math.ceil(now!.minutes / step) * step : 0);
+      const lo = Math.max(
+        lo0,
+        dep ? dep.start + item.after!.ready : 0,
+        upcoming ? Math.ceil(now!.minutes / step) * step : 0,
+      );
       for (let d = step; d <= 24 * 60 && found === null; d += step) {
-        const order = item.preferLater ? [item.preferred + d, item.preferred - d] : [item.preferred - d, item.preferred + d];
+        const order = item.preferLater
+          ? [item.preferred + d, item.preferred - d]
+          : [item.preferred - d, item.preferred + d];
         for (const t of order) {
           if (t < lo || t + item.duration > hi) continue;
           if (!conflict(t, item)) {

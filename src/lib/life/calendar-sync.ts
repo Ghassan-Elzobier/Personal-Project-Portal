@@ -18,7 +18,8 @@ import { now as clockNow } from "@/lib/dates/clock";
 const DAYS_AHEAD = 14;
 const DEADLINE_MS = 40_000;
 
-export type SyncResult = { written: number; removed: number; unchanged: number; partial: boolean } | { skipped: string } | { error: string };
+export type SyncResult =
+  { written: number; removed: number; unchanged: number; partial: boolean } | { skipped: string } | { error: string };
 
 // One at a time per server: a second change while a sync runs waits for it.
 let queue: Promise<unknown> = Promise.resolve();
@@ -88,7 +89,15 @@ async function sync(): Promise<SyncResult> {
     const end = Math.min(24 * 60, i.start + i.duration);
     if (m && kept.has(i.key) && m.title === i.title && m.start === i.start && m.end === end) continue;
     if (late()) return { written, removed, unchanged, partial: true };
-    await putMirror({ key: i.key, title: i.title, date: i.date, start: i.start, end, colour: i.colour, note: i.moved ?? i.clash });
+    await putMirror({
+      key: i.key,
+      title: i.title,
+      date: i.date,
+      start: i.start,
+      end,
+      colour: i.colour,
+      note: i.moved ?? i.clash,
+    });
     written++;
   }
   return { written, removed, unchanged, partial: false };

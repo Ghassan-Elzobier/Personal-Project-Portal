@@ -36,7 +36,18 @@ export type DayItem = {
 
 export type Day = { items: DayItem[]; nextKey: string | null; summary: string | null; planStart: string | null };
 
-const ORDER: DayItem["kind"][] = ["shop", "weigh", "meal", "gym", "study", "event", "life", "cook", "freeze", "defrost"];
+const ORDER: DayItem["kind"][] = [
+  "shop",
+  "weigh",
+  "meal",
+  "gym",
+  "study",
+  "event",
+  "life",
+  "cook",
+  "freeze",
+  "defrost",
+];
 
 /**
  * The day, from the Schedule's blocks for it and the Life state. Without blocks
@@ -55,7 +66,17 @@ export function yourDay(date: string, blocks: Block[] | null, s: LifeState | nul
   // Life's reminders are not on the Schedule: they take no time.
   for (const r of routine) if (r.kind === "defrost" || r.kind === "freeze") items.push(fromRoutine(r));
   if (s?.setUp && !v?.plan) {
-    items.push({ key: "plan", start: -1, end: -1, kind: "shop", title: "Plan this week's meals", detail: "One tap picks the recipes and builds the shopping list", done: false, skipped: false, href: "/life" });
+    items.push({
+      key: "plan",
+      start: -1,
+      end: -1,
+      kind: "shop",
+      title: "Plan this week's meals",
+      detail: "One tap picks the recipes and builds the shopping list",
+      done: false,
+      skipped: false,
+      href: "/life",
+    });
   }
   items.sort((a, b) => a.start - b.start || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 
@@ -65,10 +86,17 @@ export function yourDay(date: string, blocks: Block[] | null, s: LifeState | nul
   const protein = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.protein ?? 0), 0);
   const study = items.filter((i) => i.kind === "study").reduce((t, i) => t + (i.end - i.start), 0);
   const parts = [
-    meals.length && s ? `${kcal.toLocaleString("en-GB")} of ${s.kcal.toLocaleString("en-GB")} kcal · ${protein} g protein` : "",
+    meals.length && s
+      ? `${kcal.toLocaleString("en-GB")} of ${s.kcal.toLocaleString("en-GB")} kcal · ${protein} g protein`
+      : "",
     study ? `${Math.round((study / 60) * 10) / 10} h study` : "",
   ].filter(Boolean);
-  return { items, nextKey: next?.key ?? null, summary: parts.length ? parts.join(" · ") : null, planStart: v?.plan?.start ?? null };
+  return {
+    items,
+    nextKey: next?.key ?? null,
+    summary: parts.length ? parts.join(" · ") : null,
+    planStart: v?.plan?.start ?? null,
+  };
 }
 
 function fromRoutine(r: RoutineItem): DayItem {
@@ -89,20 +117,52 @@ function fromRoutine(r: RoutineItem): DayItem {
 }
 
 function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState | null): DayItem {
-  const base = { key: b.id, start: b.start, end: b.end, title: b.title, done: false, skipped: false, href: b.url, note: b.note, clash: b.clash };
+  const base = {
+    key: b.id,
+    start: b.start,
+    end: b.end,
+    title: b.title,
+    done: false,
+    skipped: false,
+    href: b.url,
+    note: b.note,
+    clash: b.clash,
+  };
   const until = `until ${clock(Math.min(b.end, 24 * 60 - 1))}`;
   if (b.source === "asana" || b.source === "session") {
-    return { ...base, kind: "study", detail: [b.project, until].filter(Boolean).join(" · "), done: Boolean(b.completed), taskGid: b.taskGid ?? b.id.split(":")[0] };
+    return {
+      ...base,
+      kind: "study",
+      detail: [b.project, until].filter(Boolean).join(" · "),
+      done: Boolean(b.completed),
+      taskGid: b.taskGid ?? b.id.split(":")[0],
+    };
   }
   if (b.source === "google") {
     const life = b.kind ? LIFE_KINDS[b.kind as LifeKind] : undefined;
-    return { ...base, kind: life ? "life" : "event", detail: `${life?.label ?? "Calendar"} · ${until}`, external: true };
+    return {
+      ...base,
+      kind: life ? "life" : "event",
+      detail: `${life?.label ?? "Calendar"} · ${until}`,
+      external: true,
+    };
   }
   // The Life plan: its key says what it is ("2026-11-12:meal:lunch").
   const [, type, rest] = b.id.slice("plan-".length).split(":");
   if (type === "meal") {
     const r = routine.find((x) => x.kind === "meal" && x.slot === rest);
-    return r ? { ...base, kind: "meal", title: r.title, detail: r.detail, done: r.done, skipped: Boolean(r.skipped), href: r.href, slot: r.placement?.recipe ? r.slot : undefined } : { ...base, kind: "meal", detail: "" };
+    return r
+      ? {
+          ...base,
+          kind: "meal",
+          title: r.title,
+          detail: r.detail,
+          done: r.done,
+          skipped: Boolean(r.skipped),
+          href: r.href,
+          slot: r.placement?.recipe ? r.slot : undefined,
+        }
+      : { ...base, kind: "meal", detail: "" };
   }
   if (type === "gym" || type === "weigh") {
     const r = routine.find((x) => x.kind === type);
@@ -122,7 +182,13 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
           : cooks.length === 1
             ? `${cooks[0].portions} portions · ${minutes} min`
             : `${cooks.length} recipes · about ${minutes} min`;
-    return { ...base, kind: "cook", detail, done: cooks.length > 0 && left.length === 0, cookIds: left.map((c) => c.id) };
+    return {
+      ...base,
+      kind: "cook",
+      detail,
+      done: cooks.length > 0 && left.length === 0,
+      cookIds: left.map((c) => c.id),
+    };
   }
   return { ...base, kind: "life", detail: until };
 }

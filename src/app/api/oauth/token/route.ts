@@ -55,9 +55,19 @@ export async function POST(request: Request) {
     return oauthError("unsupported_grant_type", "Use authorization_code or refresh_token.");
   }
 
-  if (!ok) return oauthError("invalid_grant", "The code or refresh token is invalid, used or expired. Connect again from Claude.");
+  if (!ok)
+    return oauthError(
+      "invalid_grant",
+      "The code or refresh token is invalid, used or expired. Connect again from Claude.",
+    );
   return NextResponse.json(
-    { access_token: access, token_type: "Bearer", expires_in: ACCESS_TTL_SECONDS, refresh_token: refresh, scope: SCOPE },
+    {
+      access_token: access,
+      token_type: "Bearer",
+      expires_in: ACCESS_TTL_SECONDS,
+      refresh_token: refresh,
+      scope: SCOPE,
+    },
     { headers: noStore },
   );
 }

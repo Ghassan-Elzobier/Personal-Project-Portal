@@ -21,9 +21,16 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
   const client = connector ? anonClient() : await createClient();
   const { data, error } = await client.rpc(name, connector ? { ...args, p_access_hash: connector.accessHash } : args);
   if (error) {
-    if (error.code === "PGRST202") throw new LifeError("The Life tables are not in the database yet. Run the latest migration.");
+    if (error.code === "PGRST202")
+      throw new LifeError("The Life tables are not in the database yet. Run the latest migration.");
     if (!READABLE.has(error.code)) console.error(name, error.code, error.message);
-    throw new LifeError(READABLE.has(error.code) ? error.message : ["23514", "22P02", "22007", "22008"].includes(error.code) ? "Those values are not valid." : "The database did not answer. Try again in a minute.");
+    throw new LifeError(
+      READABLE.has(error.code)
+        ? error.message
+        : ["23514", "22P02", "22007", "22008"].includes(error.code)
+          ? "Those values are not valid."
+          : "The database did not answer. Try again in a minute.",
+    );
   }
   return data as T;
 }
@@ -59,9 +66,18 @@ export async function readLife(since: string): Promise<LifeRaw> {
       planStart: (b.plan_start as string) ?? null,
       cookId: (b.cook_id as string) ?? null,
     })),
-    ratings: list("ratings").map((r) => ({ recipe: String(r.recipe), stars: Number(r.stars), note: (r.note as string) ?? null })),
+    ratings: list("ratings").map((r) => ({
+      recipe: String(r.recipe),
+      stars: Number(r.stars),
+      note: (r.note as string) ?? null,
+    })),
     lastHad: (raw.last_had as Record<string, string>) ?? {},
-    stock: list("stock").map((s) => ({ item: String(s.item), qty: Number(s.qty), status: (s.status as StockRow["status"]) ?? null, goodUntil: (s.good_until as string) ?? null })),
+    stock: list("stock").map((s) => ({
+      item: String(s.item),
+      qty: Number(s.qty),
+      status: (s.status as StockRow["status"]) ?? null,
+      goodUntil: (s.good_until as string) ?? null,
+    })),
     products: list("products").map((p) => ({
       item: String(p.item),
       url: String(p.url),
@@ -71,7 +87,13 @@ export async function readLife(since: string): Promise<LifeRaw> {
       pence: n(p.pence),
       checked: (p.checked as Tag[]) ?? [],
     })),
-    sessions: list("sessions").map((s) => ({ day: String(s.day), workout: String(s.workout), finished: Boolean(s.finished), feel: n(s.feel), notes: String(s.notes ?? "") })),
+    sessions: list("sessions").map((s) => ({
+      day: String(s.day),
+      workout: String(s.workout),
+      finished: Boolean(s.finished),
+      feel: n(s.feel),
+      notes: String(s.notes ?? ""),
+    })),
     sets: list("sets").map((s) => ({
       day: String(s.day),
       workout: String(s.workout),
@@ -86,10 +108,21 @@ export async function readLife(since: string): Promise<LifeRaw> {
 
 export const saveProfile = (data: unknown) => rpc<void>("life_save_profile", { p_data: data });
 export const logWeight = (day: string, kg: number | null) => rpc<void>("life_log_weight", { p_day: day, p_kg: kg });
-export const savePlan = (start: string, data: WeekPlan | null) => rpc<void>("life_save_plan", { p_start: start, p_data: data });
-export const rate = (recipe: string, stars: number | null, note?: string) => rpc<void>("life_rate", { p_recipe: recipe, p_stars: stars, p_note: note ?? null });
+export const savePlan = (start: string, data: WeekPlan | null) =>
+  rpc<void>("life_save_plan", { p_start: start, p_data: data });
+export const rate = (recipe: string, stars: number | null, note?: string) =>
+  rpc<void>("life_rate", { p_recipe: recipe, p_stars: stars, p_note: note ?? null });
 
-export const logMeal = (m: { day: string; slot: Slot; status: MealLog["status"] | null; recipe?: string | null; batch?: string | null; kcal?: number | null; protein?: number | null; note?: string | null }) =>
+export const logMeal = (m: {
+  day: string;
+  slot: Slot;
+  status: MealLog["status"] | null;
+  recipe?: string | null;
+  batch?: string | null;
+  kcal?: number | null;
+  protein?: number | null;
+  note?: string | null;
+}) =>
   rpc<void>("life_log_meal", {
     p_day: m.day,
     p_slot: m.slot,
@@ -101,7 +134,16 @@ export const logMeal = (m: { day: string; slot: Slot; status: MealLog["status"] 
     p_note: m.note ?? null,
   });
 
-export const cook = (c: { recipe: string; day: string; portions: number; scale: number; freeze: number; used: { item: string; qty: number }[]; planStart?: string | null; cookId?: string | null }) =>
+export const cook = (c: {
+  recipe: string;
+  day: string;
+  portions: number;
+  scale: number;
+  freeze: number;
+  used: { item: string; qty: number }[];
+  planStart?: string | null;
+  cookId?: string | null;
+}) =>
   rpc<string>("life_cook", {
     p_recipe: c.recipe,
     p_day: c.day,
@@ -114,15 +156,57 @@ export const cook = (c: { recipe: string; day: string; portions: number; scale: 
   });
 
 export const uncook = (batch: string) => rpc<void>("life_uncook", { p_batch: batch });
-export const setBatch = (batch: string, remaining: number | null, location: "fridge" | "freezer" | null) => rpc<void>("life_set_batch", { p_batch: batch, p_remaining: remaining, p_location: location });
-export const changeStock = (changes: { item: string; qty?: number; status?: StockRow["status"]; good_until?: string | null }[], mode: "add" | "set") => rpc<void>("life_stock", { p_changes: changes, p_mode: mode });
+export const setBatch = (batch: string, remaining: number | null, location: "fridge" | "freezer" | null) =>
+  rpc<void>("life_set_batch", { p_batch: batch, p_remaining: remaining, p_location: location });
+export const changeStock = (
+  changes: { item: string; qty?: number; status?: StockRow["status"]; good_until?: string | null }[],
+  mode: "add" | "set",
+) => rpc<void>("life_stock", { p_changes: changes, p_mode: mode });
 
 export const saveProduct = (p: Product) =>
-  rpc<void>("life_save_product", { p_item: p.item, p_url: p.url, p_name: p.name, p_pack_qty: p.packQty, p_pack_unit: p.packUnit, p_pence: p.pence, p_checked: p.checked });
+  rpc<void>("life_save_product", {
+    p_item: p.item,
+    p_url: p.url,
+    p_name: p.name,
+    p_pack_qty: p.packQty,
+    p_pack_unit: p.packUnit,
+    p_pence: p.pence,
+    p_checked: p.checked,
+  });
 export const removeProduct = (item: string) => rpc<void>("life_save_product", { p_item: item, p_url: null });
 
-export const logSet = (s: { day: string; workout: string; exercise: string; position: number; kg: number | null; reps: number | null; rir: number | null }) =>
-  rpc<void>("gym_log_set", { p_day: s.day, p_workout: s.workout, p_exercise: s.exercise, p_position: s.position, p_kg: s.kg, p_reps: s.reps, p_rir: s.rir });
+export const logSet = (s: {
+  day: string;
+  workout: string;
+  exercise: string;
+  position: number;
+  kg: number | null;
+  reps: number | null;
+  rir: number | null;
+}) =>
+  rpc<void>("gym_log_set", {
+    p_day: s.day,
+    p_workout: s.workout,
+    p_exercise: s.exercise,
+    p_position: s.position,
+    p_kg: s.kg,
+    p_reps: s.reps,
+    p_rir: s.rir,
+  });
 
-export const gymSession = (s: { day: string; workout: string; finished?: boolean; feel?: number | null; notes?: string | null; remove?: boolean }) =>
-  rpc<void>("gym_session", { p_day: s.day, p_workout: s.workout, p_finished: s.finished ?? false, p_feel: s.feel ?? null, p_notes: s.notes ?? null, p_delete: s.remove ?? false });
+export const gymSession = (s: {
+  day: string;
+  workout: string;
+  finished?: boolean;
+  feel?: number | null;
+  notes?: string | null;
+  remove?: boolean;
+}) =>
+  rpc<void>("gym_session", {
+    p_day: s.day,
+    p_workout: s.workout,
+    p_finished: s.finished ?? false,
+    p_feel: s.feel ?? null,
+    p_notes: s.notes ?? null,
+    p_delete: s.remove ?? false,
+  });

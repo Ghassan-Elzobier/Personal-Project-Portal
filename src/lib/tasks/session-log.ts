@@ -55,8 +55,7 @@ export function parseSessionForm(raw: {
     if (evidence.length > 1000) return { ok: false, error: "That evidence link is too long." };
   }
 
-  const notes =
-    typeof raw.notes === "string" && raw.notes.trim() ? raw.notes.replace(/\r\n?/g, "\n").trim() : null;
+  const notes = typeof raw.notes === "string" && raw.notes.trim() ? raw.notes.replace(/\r\n?/g, "\n").trim() : null;
   if (notes && notes.length > 4000) return { ok: false, error: "Notes must be under 4000 characters." };
 
   return { ok: true, value: { hours, stage, evidence, notes } };

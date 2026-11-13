@@ -10,7 +10,8 @@ export type Pace = {
   thenHoursPerWeek?: number;
 };
 
-const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+const daysBetween = (from: string, to: string) =>
+  Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 
 /** The day a given number of hours of study is reached, counting from start. */
 export function dayAfterHours(start: string, hours: number, pace: Pace): string {
@@ -19,7 +20,10 @@ export function dayAfterHours(start: string, hours: number, pace: Pace): string 
   if (!pace.until || !pace.thenHoursPerWeek || pace.until <= start) return onFirstPace(hours);
   const available = (daysBetween(start, pace.until) * first) / 7;
   if (hours <= available) return onFirstPace(hours);
-  return addDays(pace.until, Math.max(Math.ceil(((hours - available) * 7) / Math.max(pace.thenHoursPerWeek, 0.1)) - 1, 0));
+  return addDays(
+    pace.until,
+    Math.max(Math.ceil(((hours - available) * 7) / Math.max(pace.thenHoursPerWeek, 0.1)) - 1, 0),
+  );
 }
 
 /** Whole weeks a number of hours takes, for the sentence under the form. */

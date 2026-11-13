@@ -25,7 +25,12 @@ const STAGES = [
   { value: "rejected", label: "Rejected" },
   { value: "passed", label: "Passed on" },
 ];
-const DOT: Record<SkillStatus, string> = { evidenced: "bg-mint", in_plan: "bg-aqua", near: "bg-sand", missing: "bg-coral" };
+const DOT: Record<SkillStatus, string> = {
+  evidenced: "bg-mint",
+  in_plan: "bg-aqua",
+  near: "bg-sand",
+  missing: "bg-coral",
+};
 const field = "min-h-9 w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm";
 
 function Standing({ view }: { view: RequirementView }) {
@@ -35,16 +40,38 @@ function Standing({ view }: { view: RequirementView }) {
     return (
       <>
         {LEVELS[standing.level].name}:{" "}
-        {top?.href ? <a href={top.href} target={top.href.startsWith("/") ? undefined : "_blank"} rel="noreferrer" className="text-aqua hover:underline">{top.label}</a> : top?.label}
+        {top?.href ? (
+          <a
+            href={top.href}
+            target={top.href.startsWith("/") ? undefined : "_blank"}
+            rel="noreferrer"
+            className="text-aqua hover:underline"
+          >
+            {top.label}
+          </a>
+        ) : (
+          top?.label
+        )}
       </>
     );
   }
   if (standing.status === "in_plan" && standing.next) {
-    const when = standing.next.dueOn ? `by ${shortDate(standing.next.dueOn)}` : standing.next.phase !== null ? `phase ${standing.next.phase + 1}` : "not dated";
+    const when = standing.next.dueOn
+      ? `by ${shortDate(standing.next.dueOn)}`
+      : standing.next.phase !== null
+        ? `phase ${standing.next.phase + 1}`
+        : "not dated";
     return (
       <>
         In your plan:{" "}
-        {standing.next.href ? <Link href={standing.next.href} className="text-aqua hover:underline">{standing.next.name}</Link> : standing.next.name}, {when}
+        {standing.next.href ? (
+          <Link href={standing.next.href} className="text-aqua hover:underline">
+            {standing.next.name}
+          </Link>
+        ) : (
+          standing.next.name
+        )}
+        , {when}
         {standing.next.optional ? ", optional" : ""}
       </>
     );
@@ -67,7 +94,9 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
                 <span className="font-medium">{item.name}</span>
                 {item.orElse.length > 0 && <span className="text-neutral-400"> or {item.orElse.join(", ")}</span>}
               </p>
-              <p className="text-xs text-neutral-300"><Standing view={item} /></p>
+              <p className="text-xs text-neutral-300">
+                <Standing view={item} />
+              </p>
               <p className="mt-0.5 text-xs text-neutral-400 italic">“{item.quote}”</p>
             </div>
           </li>
@@ -78,7 +107,19 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
 }
 
 /** One role: how you match it, what you decided and what is next. Every change saves itself. */
-export function RolePane({ role, body, events, closeHref, loadError }: { role: RoleView; body: string; events: { stage: string; created_at: string }[]; closeHref: string; loadError: string | null }) {
+export function RolePane({
+  role,
+  body,
+  events,
+  closeHref,
+  loadError,
+}: {
+  role: RoleView;
+  body: string;
+  events: { stage: string; created_at: string }[];
+  closeHref: string;
+  loadError: string | null;
+}) {
   const router = useRouter();
   const panel = useRef<HTMLElement>(null);
   const [pending, start] = useTransition();
@@ -114,30 +155,55 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
 
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-primary/50 lg:bg-transparent" onClick={() => router.push(closeHref, { scroll: false })} aria-hidden />
-      <aside ref={panel} tabIndex={-1} aria-label={`Role: ${role.title}`} className="fixed inset-y-0 right-0 z-40 w-full max-w-xl space-y-5 overflow-y-auto bg-navy p-6 pb-24 shadow-2xl ring-1 ring-white/10 focus:outline-none md:pb-6">
+      <div
+        className="fixed inset-0 z-30 bg-primary/50 lg:bg-transparent"
+        onClick={() => router.push(closeHref, { scroll: false })}
+        aria-hidden
+      />
+      <aside
+        ref={panel}
+        tabIndex={-1}
+        aria-label={`Role: ${role.title}`}
+        className="fixed inset-y-0 right-0 z-40 w-full max-w-xl space-y-5 overflow-y-auto bg-navy p-6 pb-24 shadow-2xl ring-1 ring-white/10 focus:outline-none md:pb-6"
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{role.title}</h2>
             <p className="text-sm text-neutral-300">
               {role.company}, {role.location || "place not stated"}
-              {role.alsoIn.length > 0 && <span className="text-neutral-400">, also listed for {role.alsoIn.join("; ")}</span>}
+              {role.alsoIn.length > 0 && (
+                <span className="text-neutral-400">, also listed for {role.alsoIn.join("; ")}</span>
+              )}
             </p>
             {role.salary && <p className="text-sm text-neutral-300">{role.salary}</p>}
           </div>
-          <Link href={closeHref} scroll={false} className="btn-ghost shrink-0 px-3 py-1 text-sm">Close</Link>
+          <Link href={closeHref} scroll={false} className="btn-ghost shrink-0 px-3 py-1 text-sm">
+            Close
+          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          {role.url && <a href={role.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">Open the advert</a>}
-          {role.closed_at && <span className="text-coral">No longer listed since {shortDate(role.closed_at.slice(0, 10))}</span>}
-          {role.legacy_rating !== null && <span className="text-neutral-400">Rated {role.legacy_rating} in your old sheet</span>}
+          {role.url && (
+            <a href={role.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+              Open the advert
+            </a>
+          )}
+          {role.closed_at && (
+            <span className="text-coral">No longer listed since {shortDate(role.closed_at.slice(0, 10))}</span>
+          )}
+          {role.legacy_rating !== null && (
+            <span className="text-neutral-400">Rated {role.legacy_rating} in your old sheet</span>
+          )}
         </div>
 
         <section className="rounded-xl bg-white/5 p-3">
           <p className="text-sm font-semibold">{BANDS[role.fit.band].name}</p>
           <p className="text-sm text-neutral-300">{role.fit.reason}</p>
-          {role.fit.readyBy && <p className="mt-1 text-sm text-aqua">Your plan reaches everything it needs by {shortDate(role.fit.readyBy)}.</p>}
+          {role.fit.readyBy && (
+            <p className="mt-1 text-sm text-aqua">
+              Your plan reaches everything it needs by {shortDate(role.fit.readyBy)}.
+            </p>
+          )}
           {flags.length > 0 && <p className="mt-1 text-xs text-neutral-400">{flags.join(". ")}.</p>}
         </section>
 
@@ -149,7 +215,8 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
                 <button
                   key={option.value}
                   type="button"
-                  disabled={pending} aria-busy={pending}
+                  disabled={pending}
+                  aria-busy={pending}
                   aria-pressed={interest === option.value}
                   onClick={() => {
                     const next = interest === option.value ? null : option.value;
@@ -174,14 +241,24 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
               }}
               className={field}
             >
-              {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {STAGES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
             </select>
           </label>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <label className="block text-sm">
               <span className="mb-1 block font-semibold">Next action</span>
-              <input value={action} onChange={(e) => setAction(e.target.value)} onBlur={() => action !== role.next_action && save({ next_action: action })} placeholder="Ask X for a referral" className={field} />
+              <input
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+                onBlur={() => action !== role.next_action && save({ next_action: action })}
+                placeholder="Ask X for a referral"
+                className={field}
+              />
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-semibold">By</span>
@@ -199,21 +276,43 @@ export function RolePane({ role, body, events, closeHref, loadError }: { role: R
 
           <label className="block text-sm">
             <span className="mb-1 block font-semibold">Notes</span>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== role.notes && save({ notes })} rows={3} className={field} />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() => notes !== role.notes && save({ notes })}
+              rows={3}
+              className={field}
+            />
           </label>
         </section>
 
         {loadError && <p className="text-sm text-coral">{loadError}</p>}
 
-        <Requirements title="Requires" note={unstated ? "This advert does not separate requirements from duties, so these are read from what it says the job involves." : undefined} items={role.fit.must} />
+        <Requirements
+          title="Requires"
+          note={
+            unstated
+              ? "This advert does not separate requirements from duties, so these are read from what it says the job involves."
+              : undefined
+          }
+          items={role.fit.must}
+        />
         <Requirements title="Also wanted, or part of the job" items={role.fit.soft} />
-        {!role.has_body && <p className="text-sm text-neutral-300">The advert text is not on file. Open the advert, or add it again by hand with its text, to compare it.</p>}
+        {!role.has_body && (
+          <p className="text-sm text-neutral-300">
+            The advert text is not on file. Open the advert, or add it again by hand with its text, to compare it.
+          </p>
+        )}
 
         {events.length > 0 && (
           <section>
             <h3 className="mb-1 text-sm font-semibold">History</h3>
             <ul className="space-y-1 text-xs text-neutral-300">
-              {events.map((e, i) => <li key={i}>{shortDate(e.created_at.slice(0, 10))}: {STAGES.find((s) => s.value === e.stage)?.label ?? e.stage}</li>)}
+              {events.map((e, i) => (
+                <li key={i}>
+                  {shortDate(e.created_at.slice(0, 10))}: {STAGES.find((s) => s.value === e.stage)?.label ?? e.stage}
+                </li>
+              ))}
             </ul>
           </section>
         )}

@@ -26,8 +26,27 @@ const raw: LifeRaw = {
   sets: [],
 };
 const week = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"];
-const study = (date: string, start: number, end: number, title = "PMPP 4.5"): Block => ({ id: `t-${date}-${start}`, source: "asana", title, date, start, end, url: "", editable: true });
-const lifeBlock = (date: string, start: number, end: number, kind: string, title: string): Block => ({ id: `g-${date}-${start}`, source: "google", title, date, start, end, url: "", editable: true, kind });
+const study = (date: string, start: number, end: number, title = "PMPP 4.5"): Block => ({
+  id: `t-${date}-${start}`,
+  source: "asana",
+  title,
+  date,
+  start,
+  end,
+  url: "",
+  editable: true,
+});
+const lifeBlock = (date: string, start: number, end: number, kind: string, title: string): Block => ({
+  id: `g-${date}-${start}`,
+  source: "google",
+  title,
+  date,
+  start,
+  end,
+  url: "",
+  editable: true,
+  kind,
+});
 
 test("the plan shows from this meal week on, and earlier days stay empty", () => {
   const s = buildState(raw, "2026-11-14");
@@ -48,7 +67,10 @@ test("study pushes lunch along, and the block says why", () => {
 
 test("a life block you added for the same thing stands in for the plan's, and still holds its time", () => {
   const s = buildState(raw, "2026-11-14");
-  const others = [lifeBlock("2026-11-14", 400, 470, "gym", "Gym"), lifeBlock("2026-11-15", s.profile.routine.breakfast - 15, s.profile.routine.breakfast, "other", "Weigh in")];
+  const others = [
+    lifeBlock("2026-11-14", 400, 470, "gym", "Gym"),
+    lifeBlock("2026-11-15", s.profile.routine.breakfast - 15, s.profile.routine.breakfast, "other", "Weigh in"),
+  ];
   const { blocks } = lifeBlocks(s, week, others);
   assert.ok(!blocks.some((b) => b.id === "plan-2026-11-14:gym"), "your Gym block stands in");
   assert.ok(!blocks.some((b) => b.id === "plan-2026-11-15:weigh"), "same name stands in");

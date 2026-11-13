@@ -12,7 +12,7 @@ export function WeighIn({ today, todays, last }: { today: string; todays: number
   const valid = kg.trim() !== "" && Number.isFinite(n) && n >= 30 && n <= 250;
   const bump = (d: number) => setKg((v) => (Math.round(((Number(v) || last || 0) + d) * 10) / 10).toFixed(1));
   return (
-    <section className="card-life space-y-3" aria-labelledby="weigh-title">
+    <section className="space-y-3 card-life" aria-labelledby="weigh-title">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="weigh-title" className="text-lg font-semibold">
           {todays !== null ? "Today's weigh-in" : "Weigh in"}
@@ -26,7 +26,12 @@ export function WeighIn({ today, todays, last }: { today: string; todays: number
           if (valid) void run(() => logWeight(today, Math.round(n * 10) / 10), "Weigh-in saved.");
         }}
       >
-        <button type="button" onClick={() => bump(-0.1)} className="tap h-14 w-12 rounded-xl bg-white/5 text-2xl" aria-label="0.1 kg less">
+        <button
+          type="button"
+          onClick={() => bump(-0.1)}
+          className="tap h-14 w-12 rounded-xl bg-white/5 text-2xl"
+          aria-label="0.1 kg less"
+        >
           −
         </button>
         <label className="flex items-baseline gap-2">
@@ -40,10 +45,15 @@ export function WeighIn({ today, todays, last }: { today: string; todays: number
           />
           <span className="text-neutral-400">kg</span>
         </label>
-        <button type="button" onClick={() => bump(0.1)} className="tap h-14 w-12 rounded-xl bg-white/5 text-2xl" aria-label="0.1 kg more">
+        <button
+          type="button"
+          onClick={() => bump(0.1)}
+          className="tap h-14 w-12 rounded-xl bg-white/5 text-2xl"
+          aria-label="0.1 kg more"
+        >
           +
         </button>
-        <button type="submit" disabled={!valid || pending} aria-busy={pending} className="btn-life ml-auto h-14 px-6">
+        <button type="submit" disabled={!valid || pending} aria-busy={pending} className="ml-auto btn-life h-14 px-6">
           {todays !== null ? "Update" : "Save"}
         </button>
       </form>

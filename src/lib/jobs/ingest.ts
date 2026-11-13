@@ -1,6 +1,14 @@
 // Turns what a feed said into a row to store, and decides what is worth storing.
 
-import { advertText, EXTRACT_VERSION, extractRequirements, seniorityOf, type Details, type Requirement, type Seniority } from "./extract.ts";
+import {
+  advertText,
+  EXTRACT_VERSION,
+  extractRequirements,
+  seniorityOf,
+  type Details,
+  type Requirement,
+  type Seniority,
+} from "./extract.ts";
 import { familyOf, isCoreFamily, locationTier, type LocationTier } from "./classify.ts";
 import type { RawJob } from "./feeds.ts";
 import { skillByKey } from "./skills.ts";
@@ -45,7 +53,11 @@ const squash = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** The names an employer you already follow might appear under in a general feed. */
 export function followedNames(sources: readonly { kind: string; token: string; name: string }[]): Set<string> {
-  return new Set(sources.filter((s) => !DISCOVERY.has(s.kind) && s.kind !== "rse" && s.kind !== "manual").flatMap((s) => [squash(s.token), squash(s.name)]));
+  return new Set(
+    sources
+      .filter((s) => !DISCOVERY.has(s.kind) && s.kind !== "rse" && s.kind !== "manual")
+      .flatMap((s) => [squash(s.token), squash(s.name)]),
+  );
 }
 
 /** A role to keep, or null. An employer you chose gets more benefit of the doubt. */
@@ -64,7 +76,10 @@ export function toPosting(job: RawJob, kind: string, followed: ReadonlySet<strin
   // Most of a general feed is nothing to do with you. A role stays if its title is in
   // your fields, or if its advert requires at least two specialist skills.
   if (DISCOVERY.has(kind)) {
-    const specialist = read.requirements.filter((r) => skillByKey(r.skill)?.core && !TOO_GENERAL.has(r.skill) && (r.level === "required" || r.level === "unstated")).length;
+    const specialist = read.requirements.filter(
+      (r) =>
+        skillByKey(r.skill)?.core && !TOO_GENERAL.has(r.skill) && (r.level === "required" || r.level === "unstated"),
+    ).length;
     if (!SPECIFIC_FAMILIES.has(resolved) && specialist < 2) return null;
     if (tier === "abroad" || tier === "unknown") return null;
   }
@@ -73,7 +88,16 @@ export function toPosting(job: RawJob, kind: string, followed: ReadonlySet<strin
     source_job_id: job.id,
     title: job.title.slice(0, 300),
     company: job.company.slice(0, 200),
-    location: job.locations.map((l) => l.replace(/\s*\n\s*/g, ", ").replace(/\bBLANK,\s*/g, "").trim()).filter(Boolean).join("; ").slice(0, 500),
+    location: job.locations
+      .map((l) =>
+        l
+          .replace(/\s*\n\s*/g, ", ")
+          .replace(/\bBLANK,\s*/g, "")
+          .trim(),
+      )
+      .filter(Boolean)
+      .join("; ")
+      .slice(0, 500),
     location_tier: tier,
     url: job.url,
     posted_on: job.postedOn,

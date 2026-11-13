@@ -11,7 +11,9 @@ export function lifeToday(): string {
 }
 
 /** The Life state for today, or a message saying why it could not be read. */
-export async function loadLife(): Promise<{ state: LifeState; error?: undefined } | { state?: undefined; error: string }> {
+export async function loadLife(): Promise<
+  { state: LifeState; error?: undefined } | { state?: undefined; error: string }
+> {
   const today = lifeToday();
   try {
     const raw = await readLife(addDays(today, -28));

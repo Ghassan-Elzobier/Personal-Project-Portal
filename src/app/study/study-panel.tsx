@@ -4,7 +4,16 @@ import { useEffect, useOptimistic, useRef, useState, useTransition, type FormEve
 import Link from "next/link";
 import { toast } from "@/components/toaster";
 import { nextExerciseStatus, tallyExercises, type ExerciseStatus } from "@/lib/study/review";
-import { addReview, addSubtask, removeReview, removeSubtask, setExercise, setExerciseCount, setSubtask, type ActionResult } from "./actions";
+import {
+  addReview,
+  addSubtask,
+  removeReview,
+  removeSubtask,
+  setExercise,
+  setExerciseCount,
+  setSubtask,
+  type ActionResult,
+} from "./actions";
 
 export type PanelData = {
   taskGid: string;
@@ -40,7 +49,9 @@ function useRun() {
 export function StudyPanel({ data }: { data: PanelData }) {
   return (
     <div className="space-y-5 border-b border-white/10 pb-5">
-      {(data.links.length > 0 || data.pdfPage !== null || data.needs.length > 0 || data.feeds.length > 0) && <References data={data} />}
+      {(data.links.length > 0 || data.pdfPage !== null || data.needs.length > 0 || data.feeds.length > 0) && (
+        <References data={data} />
+      )}
       {data.connections.length > 0 && <Connections items={data.connections} />}
       {data.market && data.market.length > 0 && <JobMarket items={data.market} />}
       <Steps taskGid={data.taskGid} steps={data.steps} />
@@ -61,7 +72,9 @@ function JobMarket({ items }: { items: NonNullable<PanelData["market"]> }) {
           </li>
         ))}
       </ul>
-      <Link href="/jobs?view=skills" className="text-sm text-aqua underline-offset-4 hover:underline">See skills against the market</Link>
+      <Link href="/jobs?view=skills" className="text-sm text-aqua underline-offset-4 hover:underline">
+        See skills against the market
+      </Link>
     </div>
   );
 }
@@ -108,7 +121,9 @@ function References({ data }: { data: PanelData }) {
       )}
       {data.needs.length > 0 && (
         <p className="text-neutral-300">
-          <span className={unfinished.length ? "text-sand" : "text-neutral-400"}>{unfinished.length ? "Do these first: " : "Builds on: "}</span>
+          <span className={unfinished.length ? "text-sand" : "text-neutral-400"}>
+            {unfinished.length ? "Do these first: " : "Builds on: "}
+          </span>
           <RefLinks items={unfinished.length ? unfinished : data.needs} />
         </p>
       )}
@@ -147,12 +162,20 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
   const done = shown.filter((s) => s.done).length;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(() => addSubtask(taskGid, name), () => setName(""));
+    run(
+      () => addSubtask(taskGid, name),
+      () => setName(""),
+    );
   };
   return (
     <section aria-label="Steps">
       <h3 className="font-semibold">
-        Steps {shown.length > 0 && <span className="text-sm font-normal text-neutral-400 tabular-nums">{done} of {shown.length}</span>}
+        Steps{" "}
+        {shown.length > 0 && (
+          <span className="text-sm font-normal text-neutral-400 tabular-nums">
+            {done} of {shown.length}
+          </span>
+        )}
       </h3>
       <ul className="mt-2 space-y-1">
         {shown.map((s) => (
@@ -161,7 +184,8 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
               <input
                 type="checkbox"
                 checked={s.done}
-                disabled={pending} aria-busy={pending}
+                disabled={pending}
+                aria-busy={pending}
                 onChange={(e) => {
                   const next = e.target.checked;
                   run(() => {
@@ -192,7 +216,11 @@ function Steps({ taskGid, steps }: { taskGid: string; steps: PanelData["steps"] 
           maxLength={300}
           className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
         />
-        {name.trim() && <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
+        {name.trim() && (
+          <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">
+            Add
+          </button>
+        )}
       </form>
     </section>
   );
@@ -254,9 +282,21 @@ function Exercises({ data }: { data: PanelData }) {
             run(() => setExerciseCount(data.taskGid, Number(count)));
           }}
         >
-          <label htmlFor="exercise-count" className="text-neutral-300">How many in this chapter?</label>
-          <input id="exercise-count" type="number" min={1} max={1000} value={count} onChange={(e) => setCount(e.target.value)} className="min-h-9 w-20 rounded-md border border-white/10 bg-white/5 px-2" />
-          <button disabled={pending || !count} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Track them</button>
+          <label htmlFor="exercise-count" className="text-neutral-300">
+            How many in this chapter?
+          </label>
+          <input
+            id="exercise-count"
+            type="number"
+            min={1}
+            max={1000}
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            className="min-h-9 w-20 rounded-md border border-white/10 bg-white/5 px-2"
+          />
+          <button disabled={pending || !count} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">
+            Track them
+          </button>
         </form>
       </section>
     );
@@ -266,7 +306,10 @@ function Exercises({ data }: { data: PanelData }) {
   return (
     <section aria-label="Exercises">
       <h3 className="font-semibold">
-        Exercises <span className="text-sm font-normal text-neutral-400 tabular-nums">{tally.solved} of {data.exerciseCount} solved</span>
+        Exercises{" "}
+        <span className="text-sm font-normal text-neutral-400 tabular-nums">
+          {tally.solved} of {data.exerciseCount} solved
+        </span>
       </h3>
       <p className="mt-1 text-xs text-neutral-400">
         Tap to change: ✓ solved, ? needed a hint, ! stuck, – skipped. Hints and stuck ones come back to redo.
@@ -284,7 +327,11 @@ function Exercises({ data }: { data: PanelData }) {
                 className={`flex h-10 w-full cursor-pointer items-center justify-center gap-0.5 rounded-lg text-sm tabular-nums ring-1 transition hover:ring-white/40 ${style?.className ?? "bg-white/5 text-neutral-200 ring-white/10"}`}
               >
                 {n}
-                {style && <span aria-hidden className="text-xs">{style.mark}</span>}
+                {style && (
+                  <span aria-hidden className="text-xs">
+                    {style.mark}
+                  </span>
+                )}
               </button>
             </li>
           );
@@ -299,7 +346,10 @@ function Reviews({ data }: { data: PanelData }) {
   const [prompt, setPrompt] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(() => addReview(data.taskGid, prompt), () => setPrompt(""));
+    run(
+      () => addReview(data.taskGid, prompt),
+      () => setPrompt(""),
+    );
   };
   return (
     <section aria-label="Recall later">
@@ -316,7 +366,8 @@ function Reviews({ data }: { data: PanelData }) {
             </span>
             <button
               onClick={() => run(() => removeReview(r.gid))}
-              disabled={pending} aria-busy={pending}
+              disabled={pending}
+              aria-busy={pending}
               aria-label={`Delete review: ${r.prompt}`}
               className="cursor-pointer px-1 text-xs text-neutral-400 hover:text-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
             >
@@ -334,7 +385,11 @@ function Reviews({ data }: { data: PanelData }) {
           maxLength={500}
           className="min-h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm placeholder-neutral-400 hover:border-white/10 focus:border-white/20"
         />
-        {prompt.trim() && <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">Add</button>}
+        {prompt.trim() && (
+          <button disabled={pending} aria-busy={pending} className="btn-ghost px-3 py-1 text-xs">
+            Add
+          </button>
+        )}
       </form>
     </section>
   );

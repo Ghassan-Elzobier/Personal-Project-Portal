@@ -4,7 +4,21 @@ import { planUnits } from "../study/plan-types";
 import { phaseOf, PHASES } from "../study/roadmap";
 import { loadStudy, type StudyOverview } from "../study/load";
 import { FAMILIES, isCoreFamily } from "./classify";
-import { branchImpact, buildStandings, isTarget, isVisible, marketRows, roleFit, unknownTerms, type Band, type Fit, type MarketRow, type Standing, type StoredEvidence, type UnitFact } from "./match";
+import {
+  branchImpact,
+  buildStandings,
+  isTarget,
+  isVisible,
+  marketRows,
+  roleFit,
+  unknownTerms,
+  type Band,
+  type Fit,
+  type MarketRow,
+  type Standing,
+  type StoredEvidence,
+  type UnitFact,
+} from "./match";
 import { SKILLS } from "./skills";
 import { listEvidence, listPostings, listSources, type JobRow, type JobSource } from "./store";
 
@@ -107,7 +121,10 @@ export async function loadJobBoard(study?: StudyOverview): Promise<JobBoard> {
       const tracked = pool.filter((r) => r.stage !== "new" || r.interest !== null);
       const sorted = [...pool].sort((a, b) => (TIER_ORDER[a.location_tier] ?? 9) - (TIER_ORDER[b.location_tier] ?? 9));
       const keep = tracked.length ? tracked : sorted.slice(0, 1);
-      const others = sorted.filter((r) => !keep.includes(r)).map((r) => r.location).filter(Boolean);
+      const others = sorted
+        .filter((r) => !keep.includes(r))
+        .map((r) => r.location)
+        .filter(Boolean);
       return keep.map((row) => {
         const fit = roleFit(row.requirements, standings);
         return {
@@ -135,7 +152,10 @@ export async function loadJobBoard(study?: StudyOverview): Promise<JobBoard> {
     };
   }).filter((f) => f.roles > 0);
 
-  const reads = sources.map((s) => s.last_ok_at).filter((d): d is string => Boolean(d)).sort();
+  const reads = sources
+    .map((s) => s.last_ok_at)
+    .filter((d): d is string => Boolean(d))
+    .sort();
 
   return {
     today: overview.today,
@@ -189,7 +209,8 @@ export function hubFrom(board: JobBoard, overview: StudyOverview): Hub {
   const open = board.roles.filter((r) => !r.closed_at);
   const near = (r: RoleView) => r.location_tier === "london" || r.location_tier === "remote";
   const fresh = open.filter((r) => r.fresh && r.visible);
-  const closest = open.filter((r) => r.target && near(r) && r.fit.band !== "unread" && r.fit.band !== "stretch")[0] ?? null;
+  const closest =
+    open.filter((r) => r.target && near(r) && r.fit.band !== "unread" && r.fit.band !== "stretch")[0] ?? null;
   const actions = board.roles
     .filter((r) => r.next_action && r.next_action_on && !["rejected", "passed"].includes(r.stage))
     .sort((a, b) => (a.next_action_on ?? "").localeCompare(b.next_action_on ?? ""));
@@ -202,11 +223,17 @@ export function hubFrom(board: JobBoard, overview: StudyOverview): Hub {
     closest,
     biggestGap: board.market.find((m) => m.standing.status === "missing" || m.standing.status === "near") ?? null,
     nextSkill: board.market.find((m) => m.standing.status === "in_plan") ?? null,
-    active: board.roles.filter((r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at).length,
+    active: board.roles.filter((r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at)
+      .length,
     actions,
     lastRead: board.lastRead,
-    nextUnit: nextRef && found ? { name: found.unit.short, href: nextRef.href, skills: unitMarket(board, nextRef.ref).slice(0, 3) } : null,
-    failing: board.sources.filter((s) => s.active && s.kind !== "link" && s.last_error && (!s.last_ok_at || s.last_read_at !== s.last_ok_at)).length,
+    nextUnit:
+      nextRef && found
+        ? { name: found.unit.short, href: nextRef.href, skills: unitMarket(board, nextRef.ref).slice(0, 3) }
+        : null,
+    failing: board.sources.filter(
+      (s) => s.active && s.kind !== "link" && s.last_error && (!s.last_ok_at || s.last_read_at !== s.last_ok_at),
+    ).length,
   };
 }
 
@@ -217,7 +244,9 @@ export function mentorSummary(board: JobBoard): string {
   const top = targets.filter((r) => r.fit.band !== "unread" && r.fit.band !== "stretch").slice(0, 5);
   const gaps = board.market.filter((m) => m.standing.status === "missing" || m.standing.status === "near").slice(0, 6);
   const coming = board.market.filter((m) => m.standing.status === "in_plan").slice(0, 6);
-  const active = board.roles.filter((r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at);
+  const active = board.roles.filter(
+    (r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at,
+  );
   const stage = (s: string) => active.filter((r) => r.stage === s).length;
   return [
     `Job hunt, ${board.today}`,
@@ -227,10 +256,17 @@ export function mentorSummary(board: JobBoard): string {
     ...(top.length ? top.map(line) : ["- None yet."]),
     "",
     "Most-asked skills not in my plan:",
-    ...(gaps.length ? gaps.map((m) => `- ${m.skill.name}: required by ${m.must}, wanted by ${m.soft}`) : ["- None yet."]),
+    ...(gaps.length
+      ? gaps.map((m) => `- ${m.skill.name}: required by ${m.must}, wanted by ${m.soft}`)
+      : ["- None yet."]),
     "",
     "Most-asked skills coming in my plan:",
-    ...(coming.length ? coming.map((m) => `- ${m.skill.name}: required by ${m.must}${m.standing.next ? `, comes with ${m.standing.next.name}` : ""}`) : ["- None yet."]),
+    ...(coming.length
+      ? coming.map(
+          (m) =>
+            `- ${m.skill.name}: required by ${m.must}${m.standing.next ? `, comes with ${m.standing.next.name}` : ""}`,
+        )
+      : ["- None yet."]),
     "",
     "Next direction after phase 3:",
     ...board.branches.map((b) => `- ${b.name}: asked for by ${b.asking} roles, would move ${b.unlocks} up a band`),

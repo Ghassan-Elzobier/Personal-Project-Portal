@@ -19,7 +19,11 @@ import { CupboardView, FridgeView, ShopView, type ShopLine } from "./views";
 export const metadata: Metadata = { title: "Kitchen" };
 export const dynamic = "force-dynamic";
 
-export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ tab?: string; week?: string }> }) {
+export default async function KitchenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; week?: string }>;
+}) {
   const [, loaded, { tab = "shop", week }] = await Promise.all([requireOwner(), loadLife(), searchParams]);
   if (loaded.error !== undefined) {
     return (
@@ -44,7 +48,10 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
         title="Kitchen"
         action={
           current !== "cupboard" && (
-            <Link href={`/life/kitchen?tab=${current}${which === "next" ? "" : "&week=next"}`} className="text-sm text-mint hover:underline">
+            <Link
+              href={`/life/kitchen?tab=${current}${which === "next" ? "" : "&week=next"}`}
+              className="text-sm text-mint hover:underline"
+            >
               {which === "next" ? "← This week" : "Next week →"}
             </Link>
           )
@@ -80,7 +87,11 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
       </p>
     );
   const delivered = plan.shop?.deliveredOn ?? null;
-  const deliveryDay = delivered ?? (s.profile.shopping.deliveryWeekday !== null ? nextWeekday(s.today, s.profile.shopping.deliveryWeekday, plan.start) : s.today);
+  const deliveryDay =
+    delivered ??
+    (s.profile.shopping.deliveryWeekday !== null
+      ? nextWeekday(s.today, s.profile.shopping.deliveryWeekday, plan.start)
+      : s.today);
   const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, deliveryDay);
   const total = listTotal(lines);
   const view: ShopLine[] = lines.map((l) => ({
@@ -96,9 +107,21 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
     estimate: l.priced === "estimate",
     spare: l.spare > 0 && !l.item.staple ? amount(l.item, l.spare) : null,
     link: l.link,
-    product: l.product ? { name: l.product.name, url: l.product.url, packQty: l.product.packQty, packUnit: l.product.packUnit, pence: l.product.pence, checked: l.product.checked } : null,
+    product: l.product
+      ? {
+          name: l.product.name,
+          url: l.product.url,
+          packQty: l.product.packQty,
+          packUnit: l.product.packUnit,
+          pence: l.product.pence,
+          checked: l.product.checked,
+        }
+      : null,
     checks: l.checks.map((t) => ({ tag: t, label: TAG_LABELS[t] })),
-    allChecks: (l.item.watch ?? []).map((w) => w.split(":")[0]).filter((t, i, a) => a.indexOf(t) === i && t in TAG_LABELS).map((t) => ({ tag: t, label: TAG_LABELS[t as keyof typeof TAG_LABELS] })),
+    allChecks: (l.item.watch ?? [])
+      .map((w) => w.split(":")[0])
+      .filter((t, i, a) => a.indexOf(t) === i && t in TAG_LABELS)
+      .map((t) => ({ tag: t, label: TAG_LABELS[t as keyof typeof TAG_LABELS] })),
     freeze: l.freezeOnArrival,
     firstUse: dayLabel(l.firstUse, s.today),
     uses: l.uses,
@@ -120,7 +143,9 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
         budget: s.profile.shopping.budgetPence ? money(s.profile.shopping.budgetPence) : null,
         over: s.profile.shopping.budgetPence !== null && total.food > s.profile.shopping.budgetPence,
       }}
-      unchecked={lines.filter((l) => l.item.staple && l.packs > 0 && !s.stock.some((x) => x.item === l.item.key && x.status)).map((l) => ({ item: l.item.key, name: l.item.name }))}
+      unchecked={lines
+        .filter((l) => l.item.staple && l.packs > 0 && !s.stock.some((x) => x.item === l.item.key && x.status))
+        .map((l) => ({ item: l.item.key, name: l.item.name }))}
       ordered={plan.shop?.orderedOn ? shortDate(plan.shop.orderedOn) : null}
       delivered={delivered ? shortDate(delivered) : null}
       deliveryDay={dayLabel(deliveryDay, s.today)}
@@ -149,11 +174,15 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
   // The Schedule's weeks these cooks fall in, arranged around study and events.
   const weeks = [...new Set(left.map((c) => resolveWeek(c.date).start))];
   const arranged = new Map<string, AgendaItem>();
-  for (const w of await Promise.all(weeks.map((start) => attempt(() => loadScheduleWeek(resolveWeek(start), { life: { state: s } }))))) {
+  for (const w of await Promise.all(
+    weeks.map((start) => attempt(() => loadScheduleWeek(resolveWeek(start), { life: { state: s } }))),
+  )) {
     if (w.ok) for (const i of w.value.life) if (i.kind === "cook") arranged.set(i.key, i);
   }
   // The sessions the routine has this week; one that isn't is a catch-up for days planned too late.
-  const routineSessions = plan ? sessionDates(plan.start, s.profile.routine.cooks).map((x) => `${x.date}:${x.start}`) : [];
+  const routineSessions = plan
+    ? sessionDates(plan.start, s.profile.routine.cooks).map((x) => `${x.date}:${x.start}`)
+    : [];
   const groups = new Map<string, typeof left>();
   for (const c of [...left].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)) {
     const key = `${c.date}:${c.start}`;
@@ -161,7 +190,8 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
   }
   const lastDay = plan ? addDays(plan.start, 6) : s.today;
   const days: { date: string; label: string }[] = [];
-  for (let d = s.today > (plan?.start ?? s.today) ? s.today : (plan?.start ?? s.today); d <= lastDay; d = addDays(d, 1)) days.push({ date: d, label: dayLabel(d, s.today) });
+  for (let d = s.today > (plan?.start ?? s.today) ? s.today : (plan?.start ?? s.today); d <= lastDay; d = addDays(d, 1))
+    days.push({ date: d, label: dayLabel(d, s.today) });
   const sessions = [...groups.entries()].map(([key, cooks]) => {
     const { date, start } = cooks[0];
     const a = arranged.get(`${date}:cook:${start}`);
@@ -212,7 +242,15 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
   const recipes = eligible(s.profile, "main")
     .concat(eligible(s.profile, "breakfast").filter((r) => !r.daily))
     .map((r) => ({ key: r.key, name: r.name }));
-  return <FridgeView start={plan?.start ?? null} sessions={sessions} days={days} batches={batches} recipes={recipes.length ? recipes : RECIPES.map((r) => ({ key: r.key, name: r.name }))} />;
+  return (
+    <FridgeView
+      start={plan?.start ?? null}
+      sessions={sessions}
+      days={days}
+      batches={batches}
+      recipes={recipes.length ? recipes : RECIPES.map((r) => ({ key: r.key, name: r.name }))}
+    />
+  );
 }
 
 function Cupboard({ s, soon }: { s: S; soon: string[] }) {
@@ -233,6 +271,11 @@ function Cupboard({ s, soon }: { s: S; soon: string[] }) {
         known: Boolean(st),
       };
     })
-    .sort((a, b) => Number(b.soon) - Number(a.soon) || AISLES.indexOf(a.aisle) - AISLES.indexOf(b.aisle) || a.name.localeCompare(b.name));
+    .sort(
+      (a, b) =>
+        Number(b.soon) - Number(a.soon) ||
+        AISLES.indexOf(a.aisle) - AISLES.indexOf(b.aisle) ||
+        a.name.localeCompare(b.name),
+    );
   return <CupboardView rows={rows} />;
 }

@@ -72,7 +72,8 @@ export function verdict(r: Recipe, rules: FoodRules): Verdict {
     }
     const tags = labelChecks(rules, item.watch);
     if (tags.length) checks.push({ item: item.name, tags });
-    if (rules.dislikes.includes(item.key) || item.traits?.some((trait) => rules.avoidTraits.includes(trait))) disliked.push(item.name);
+    if (rules.dislikes.includes(item.key) || item.traits?.some((trait) => rules.avoidTraits.includes(trait)))
+      disliked.push(item.name);
   }
   return { ok: blocked.length === 0, blocked, notes, checks, disliked };
 }
@@ -103,7 +104,14 @@ export function bmr(b: Body): number {
  */
 export const KCAL_PER_KG_GAINED = 5500;
 
-export type Targets = { kcal: number; protein: number; fat: number; carbs: number; maintenance: number; source: "estimate" | "learned" };
+export type Targets = {
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  maintenance: number;
+  source: "estimate" | "learned";
+};
 
 /** Rounded to tidy numbers, since false precision helps nobody. */
 export function targetsFor(b: Body, goal: Goal, activity: number, maintenanceOverride?: number): Targets {
@@ -113,7 +121,14 @@ export function targetsFor(b: Body, goal: Goal, activity: number, maintenanceOve
   const protein = round(goal.proteinPerKg * b.kg, 5);
   const fat = round((kcal * goal.fatShare) / 9, 5);
   const carbs = round((kcal - protein * 4 - fat * 9) / 4, 5);
-  return { kcal, protein, fat, carbs, maintenance: round(maintenance, 10), source: maintenanceOverride ? "learned" : "estimate" };
+  return {
+    kcal,
+    protein,
+    fat,
+    carbs,
+    maintenance: round(maintenance, 10),
+    source: maintenanceOverride ? "learned" : "estimate",
+  };
 }
 
 function round(n: number, step: number): number {
@@ -154,7 +169,9 @@ export function trend(weights: Weight[], alpha = 0.1): { day: string; kg: number
 /** kg a week, by least squares over the weigh-ins in the window. Null with too few. */
 export function weeklyRate(weights: Weight[], today: string, days = 21, minPoints = 8): number | null {
   const from = t(today) - days * DAY;
-  const pts = weights.filter((w) => t(w.day) > from && t(w.day) <= t(today)).map((w) => ({ x: (t(w.day) - from) / DAY, y: w.kg }));
+  const pts = weights
+    .filter((w) => t(w.day) > from && t(w.day) <= t(today))
+    .map((w) => ({ x: (t(w.day) - from) / DAY, y: w.kg }));
   if (pts.length < minPoints) return null;
   const n = pts.length;
   const mx = pts.reduce((s, p) => s + p.x, 0) / n;
@@ -180,7 +197,14 @@ export type Adjustment = {
  * If you ate well under plan, it says so instead of raising a target you are not
  * eating.
  */
-export function adjust(weights: Weight[], today: string, kg: number, goal: Goal, eatenShare: number | null, startedOn: string | null): Adjustment {
+export function adjust(
+  weights: Weight[],
+  today: string,
+  kg: number,
+  goal: Goal,
+  eatenShare: number | null,
+  startedOn: string | null,
+): Adjustment {
   const wanted = (goal.ratePct / 100) * kg;
   const rate = weeklyRate(weights, today, 21);
   const days = startedOn ? (t(today) - t(startedOn)) / DAY : 0;
@@ -205,7 +229,10 @@ export function adjust(weights: Weight[], today: string, kg: number, goal: Goal,
     change,
     rate,
     wanted,
-    why: gap > 0 ? `Gaining ${fmt(rate)} kg a week against ${fmt(wanted)}: adding ${change} kcal a day.` : `Gaining ${fmt(rate)} kg a week, faster than ${fmt(wanted)}: taking ${-change} kcal a day off.`,
+    why:
+      gap > 0
+        ? `Gaining ${fmt(rate)} kg a week against ${fmt(wanted)}: adding ${change} kcal a day.`
+        : `Gaining ${fmt(rate)} kg a week, faster than ${fmt(wanted)}: taking ${-change} kcal a day off.`,
   };
 }
 

@@ -42,7 +42,10 @@ export function configProblems(): string[] {
   const problems: string[] = [];
   if (!usesAsana()) return problems;
   if (!asanaToken()) problems.push("ASANA_TOKEN is not set, so nothing can be read from Asana.");
-  if (!asanaWorkspaceGid()) problems.push("ASANA_WORKSPACE_GID is not set, so the portal cannot check projects belong to your personal workspace.");
+  if (!asanaWorkspaceGid())
+    problems.push(
+      "ASANA_WORKSPACE_GID is not set, so the portal cannot check projects belong to your personal workspace.",
+    );
   for (const p of PROJECTS) {
     if (!projectGid(p.key)) problems.push(`${p.envVar} is not set, so ${p.title} is hidden.`);
   }

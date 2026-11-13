@@ -4,7 +4,19 @@ import { useMemo, useState } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
-import { confirmDelivery, cookExtra, cookPlanned, markOrdered, moveCookSession, removeProduct, saveProduct, setBatch, setStock, uncook, undoDelivery } from "../actions";
+import {
+  confirmDelivery,
+  cookExtra,
+  cookPlanned,
+  markOrdered,
+  moveCookSession,
+  removeProduct,
+  saveProduct,
+  setBatch,
+  setStock,
+  uncook,
+  undoDelivery,
+} from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
 
 // ---------------------------------------------------------------------------
@@ -48,7 +60,15 @@ export function ShopView({
   start: string;
   lines: ShopLine[];
   aisles: Aisle[];
-  total: { price: string; food: string; cupboard: string | null; estimated: boolean; packs: number; budget: string | null; over: boolean };
+  total: {
+    price: string;
+    food: string;
+    cupboard: string | null;
+    estimated: boolean;
+    packs: number;
+    budget: string | null;
+    over: boolean;
+  };
   ordered: string | null;
   delivered: string | null;
   deliveryDay: string;
@@ -59,11 +79,16 @@ export function ShopView({
   const [arrive, setArrive] = useState(false);
   const buying = lines.filter((l) => l.packs > 0);
   const covered = lines.filter((l) => l.packs === 0);
-  const byAisle = useMemo(() => aisles.map((a) => ({ aisle: a, lines: buying.filter((l) => l.aisle === a) })).filter((g) => g.lines.length), [aisles, buying]);
+  const byAisle = useMemo(
+    () => aisles.map((a) => ({ aisle: a, lines: buying.filter((l) => l.aisle === a) })).filter((g) => g.lines.length),
+    [aisles, buying],
+  );
   const { run } = useAction();
 
   const copy = async () => {
-    const text = byAisle.map((g) => `${g.aisle}\n${g.lines.map((l) => `- ${l.product?.name ?? l.name} x${l.packs}`).join("\n")}`).join("\n\n");
+    const text = byAisle
+      .map((g) => `${g.aisle}\n${g.lines.map((l) => `- ${l.product?.name ?? l.name} x${l.packs}`).join("\n")}`)
+      .join("\n\n");
     try {
       await navigator.clipboard.writeText(text);
       toast("List copied. Paste it into Sainsbury's SmartLists or a note.");
@@ -74,7 +99,7 @@ export function ShopView({
 
   return (
     <div className="space-y-4">
-      <section className="card-life space-y-3">
+      <section className="space-y-3 card-life">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-2xl font-bold tabular-nums">
             {total.estimated ? "≈ " : ""}
@@ -86,8 +111,12 @@ export function ShopView({
         </div>
         <p className="text-sm text-neutral-300 tabular-nums">
           Food this week {total.food}
-          {total.budget && <span className={total.over ? "text-sand" : "text-neutral-400"}> of your {total.budget}</span>}
-          {total.cupboard && <span className="text-neutral-400"> · cupboard stock-up {total.cupboard}, lasts weeks</span>}
+          {total.budget && (
+            <span className={total.over ? "text-sand" : "text-neutral-400"}> of your {total.budget}</span>
+          )}
+          {total.cupboard && (
+            <span className="text-neutral-400"> · cupboard stock-up {total.cupboard}, lasts weeks</span>
+          )}
         </p>
         <p className="text-sm text-neutral-300">
           {delivered
@@ -113,7 +142,11 @@ export function ShopView({
             </ActionButton>
           )}
           {delivered && (
-            <ActionButton action={() => undoDelivery(start)} className="btn-soft" confirm="Take this delivery back out of stock?">
+            <ActionButton
+              action={() => undoDelivery(start)}
+              className="btn-soft"
+              confirm="Take this delivery back out of stock?"
+            >
               Undo delivery
             </ActionButton>
           )}
@@ -121,15 +154,19 @@ export function ShopView({
             Copy list
           </button>
         </div>
-        {total.estimated && <p className="text-xs text-neutral-500">Prices marked ≈ are typical ones until you pick the product and its price.</p>}
+        {total.estimated && (
+          <p className="text-xs text-neutral-500">
+            Prices marked ≈ are typical ones until you pick the product and its price.
+          </p>
+        )}
       </section>
 
       {unchecked.length > 0 && !delivered && <HaveThese items={unchecked} />}
 
       {byAisle.map((g) => (
         <section key={g.aisle} className="space-y-2" aria-label={g.aisle}>
-          <h2 className="eyebrow px-1">{g.aisle}</h2>
-          <ul className="card-life divide-y divide-white/5 p-0">
+          <h2 className="px-1 eyebrow">{g.aisle}</h2>
+          <ul className="divide-y divide-white/5 card-life p-0">
             {g.lines.map((l) => {
               const seen = opened.has(l.item);
               return (
@@ -149,12 +186,17 @@ export function ShopView({
                       {l.product?.name ?? l.name} <span className="text-neutral-400">× {l.packs}</span>
                     </p>
                     <p className="text-xs text-neutral-400 tabular-nums">
-                      {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack} packs · {l.estimate ? "≈" : ""}
+                      {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack} packs
+                      · {l.estimate ? "≈" : ""}
                       {l.price}
                       {l.spare ? ` · ${l.spare} spare` : ""}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {l.freeze && <span className="chip bg-sky-400/10 text-sky-300 ring-sky-400/25">Freeze on arrival · for {l.firstUse}</span>}
+                      {l.freeze && (
+                        <span className="chip bg-sky-400/10 text-sky-300 ring-sky-400/25">
+                          Freeze on arrival · for {l.firstUse}
+                        </span>
+                      )}
                       {l.checks.map((c) => (
                         <span key={c.tag} className="chip bg-sand/10 text-sand ring-sand/25">
                           Check label: {c.label.split(" (")[0]}
@@ -162,7 +204,11 @@ export function ShopView({
                       ))}
                     </div>
                   </div>
-                  <button type="button" onClick={() => setPick(l)} className="shrink-0 text-xs text-mint hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => setPick(l)}
+                    className="shrink-0 text-xs text-mint hover:underline"
+                  >
                     {l.product ? "Product" : "Pick"}
                   </button>
                 </li>
@@ -186,7 +232,11 @@ export function ShopView({
         </details>
       )}
 
-      <Sheet open={pick !== null} onClose={() => setPick(null)} title={pick ? `Sainsbury's product for ${pick.name.toLowerCase()}` : ""}>
+      <Sheet
+        open={pick !== null}
+        onClose={() => setPick(null)}
+        title={pick ? `Sainsbury's product for ${pick.name.toLowerCase()}` : ""}
+      >
         {pick && <ProductForm line={pick} onDone={() => setPick(null)} />}
       </Sheet>
 
@@ -210,12 +260,14 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
   const [have, setHave] = useState<Set<string>>(new Set());
   const { pending, run } = useAction();
   return (
-    <section className="card-life space-y-3" aria-labelledby="have-title">
+    <section className="space-y-3 card-life" aria-labelledby="have-title">
       <div>
         <h2 id="have-title" className="font-semibold">
           Already have any of these?
         </h2>
-        <p className="text-sm text-neutral-400">Cupboard staples are tracked as have, low or out, not weighed. Tick what you have and it comes off the list.</p>
+        <p className="text-sm text-neutral-400">
+          Cupboard staples are tracked as have, low or out, not weighed. Tick what you have and it comes off the list.
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
         {items.map((i) => (
@@ -239,8 +291,18 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
       </div>
       <button
         type="button"
-        disabled={pending || have.size === 0} aria-busy={pending}
-        onClick={() => void run(() => setStock([...have].map((item) => ({ item, status: "have" as const })), "set"), "Taken off the list.")}
+        disabled={pending || have.size === 0}
+        aria-busy={pending}
+        onClick={() =>
+          void run(
+            () =>
+              setStock(
+                [...have].map((item) => ({ item, status: "have" as const })),
+                "set",
+              ),
+            "Taken off the list.",
+          )
+        }
         className="btn-life"
       >
         I have {have.size || "these"}
@@ -254,7 +316,9 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-3">
-      <p className="text-sm text-neutral-300">Everything is ticked. Untick what was missing or substituted with something you won&apos;t use.</p>
+      <p className="text-sm text-neutral-300">
+        Everything is ticked. Untick what was missing or substituted with something you won&apos;t use.
+      </p>
       <ul className="max-h-[50dvh] space-y-1 overflow-y-auto">
         {lines.map((l) => (
           <li key={l.item}>
@@ -280,7 +344,8 @@ function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: str
       </ul>
       <button
         type="button"
-        disabled={busy} aria-busy={busy}
+        disabled={busy}
+        aria-busy={busy}
         onClick={async () => {
           setBusy(true);
           await onConfirm([...got]);
@@ -311,7 +376,13 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
       setQty(String(m[2] === "kg" || m[2] === "l" ? n * 1000 : n));
       setUnit(m[2] === "ml" || m[2] === "l" ? "ml" : "g");
     }
-    if (!name) setName(slug.replace(/-/g, " ").replace(/^sainsburys /, "Sainsbury's ").replace(/^\w/, (c) => c.toUpperCase()));
+    if (!name)
+      setName(
+        slug
+          .replace(/-/g, " ")
+          .replace(/^sainsburys /, "Sainsbury's ")
+          .replace(/^\w/, (c) => c.toUpperCase()),
+      );
   };
   return (
     <form
@@ -336,7 +407,16 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
     >
       <ol className="list-decimal space-y-1 pl-5 text-sm text-neutral-300">
         <li>
-          <a href={line.link.includes("/product/") ? `https://www.sainsburys.co.uk/gol-ui/SearchResults/${encodeURIComponent(line.name)}` : line.link} target="_blank" rel="noreferrer noopener" className="text-mint underline">
+          <a
+            href={
+              line.link.includes("/product/")
+                ? `https://www.sainsburys.co.uk/gol-ui/SearchResults/${encodeURIComponent(line.name)}`
+                : line.link
+            }
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-mint underline"
+          >
             Search Sainsbury&apos;s
           </a>{" "}
           and open the product you want.
@@ -364,7 +444,13 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
       <div className="grid grid-cols-3 gap-2">
         <label className="col-span-1 block">
           <span className="field-label">Pack</span>
-          <input className="field-input" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} required />
+          <input
+            className="field-input"
+            inputMode="decimal"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            required
+          />
         </label>
         <label className="col-span-1 block">
           <span className="field-label">Unit</span>
@@ -376,7 +462,13 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
         </label>
         <label className="col-span-1 block">
           <span className="field-label">Price £</span>
-          <input className="field-input" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="optional" />
+          <input
+            className="field-input"
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="optional"
+          />
         </label>
       </div>
       {line.allChecks.length > 0 && (
@@ -452,7 +544,20 @@ export function FridgeView({
   start: string | null;
   sessions: CookSessionRow[];
   days: { date: string; label: string }[];
-  batches: { gid: string; name: string; recipe: string; cooked: string; remaining: number; portions: number; location: "fridge" | "freezer"; eatBy: string; late: boolean; soon: boolean; canFreeze: boolean; rice: boolean }[];
+  batches: {
+    gid: string;
+    name: string;
+    recipe: string;
+    cooked: string;
+    remaining: number;
+    portions: number;
+    location: "fridge" | "freezer";
+    eatBy: string;
+    late: boolean;
+    soon: boolean;
+    canFreeze: boolean;
+    rice: boolean;
+  }[];
   recipes: { key: string; name: string }[];
 }) {
   const [extra, setExtra] = useState(false);
@@ -463,25 +568,29 @@ export function FridgeView({
     <div className="space-y-4">
       {sessions.length > 0 && start && (
         <section className="space-y-2" aria-label="To cook">
-          <h2 className="eyebrow px-1">To cook this week</h2>
+          <h2 className="px-1 eyebrow">To cook this week</h2>
           {sessions.map((x) => (
             <CookSession key={x.key} start={start} session={x} days={days} />
           ))}
-          <p className="px-1 text-xs text-neutral-500">Cooked it takes the ingredients out of the cupboard and puts the portions in the fridge, the later ones in the freezer.</p>
+          <p className="px-1 text-xs text-neutral-500">
+            Cooked it takes the ingredients out of the cupboard and puts the portions in the fridge, the later ones in
+            the freezer.
+          </p>
         </section>
       )}
 
       <section className="space-y-2" aria-label="Cooked food">
-        <h2 className="eyebrow px-1">Cooked food</h2>
+        <h2 className="px-1 eyebrow">Cooked food</h2>
         {batches.length ? (
-          <ul className="card-life divide-y divide-white/5 p-0">
+          <ul className="divide-y divide-white/5 card-life p-0">
             {batches.map((b) => (
               <li key={b.gid} className="space-y-2 p-3">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{b.name}</p>
                     <p className={`text-xs ${b.late ? "text-coral" : b.soon ? "text-sand" : "text-neutral-400"}`}>
-                      {b.location === "fridge" ? "Fridge" : "Freezer"} · cooked {b.cooked.toLowerCase()} · {b.late ? "past its fridge time: bin it" : `eat by ${b.eatBy.toLowerCase()}`}
+                      {b.location === "fridge" ? "Fridge" : "Freezer"} · cooked {b.cooked.toLowerCase()} ·{" "}
+                      {b.late ? "past its fridge time: bin it" : `eat by ${b.eatBy.toLowerCase()}`}
                       {b.rice && b.location === "fridge" ? " (rice: one day)" : ""}
                     </p>
                   </div>
@@ -491,23 +600,42 @@ export function FridgeView({
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <ActionButton action={() => setBatch(b.gid, Math.max(0, b.remaining - 1), null)} className="btn-soft px-3 py-1.5 text-xs" label={`One less ${b.name}`}>
+                  <ActionButton
+                    action={() => setBatch(b.gid, Math.max(0, b.remaining - 1), null)}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    label={`One less ${b.name}`}
+                  >
                     − 1
                   </ActionButton>
-                  <ActionButton action={() => setBatch(b.gid, b.remaining + 1, null)} className="btn-soft px-3 py-1.5 text-xs" disabled={b.remaining >= b.portions} label={`One more ${b.name}`}>
+                  <ActionButton
+                    action={() => setBatch(b.gid, b.remaining + 1, null)}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    disabled={b.remaining >= b.portions}
+                    label={`One more ${b.name}`}
+                  >
                     + 1
                   </ActionButton>
                   {b.location === "fridge" && b.canFreeze && (
-                    <ActionButton action={() => setBatch(b.gid, null, "freezer")} className="btn-soft px-3 py-1.5 text-xs">
+                    <ActionButton
+                      action={() => setBatch(b.gid, null, "freezer")}
+                      className="btn-soft px-3 py-1.5 text-xs"
+                    >
                       Moved to freezer
                     </ActionButton>
                   )}
                   {b.location === "freezer" && (
-                    <ActionButton action={() => setBatch(b.gid, null, "fridge")} className="btn-soft px-3 py-1.5 text-xs">
+                    <ActionButton
+                      action={() => setBatch(b.gid, null, "fridge")}
+                      className="btn-soft px-3 py-1.5 text-xs"
+                    >
                       Moved to fridge
                     </ActionButton>
                   )}
-                  <ActionButton action={() => uncook(b.gid)} className="px-3 py-1.5 text-xs text-neutral-500 hover:text-coral" confirm={`Undo cooking ${b.name}? Its ingredients go back in the cupboard.`}>
+                  <ActionButton
+                    action={() => uncook(b.gid)}
+                    className="px-3 py-1.5 text-xs text-neutral-500 hover:text-coral"
+                    confirm={`Undo cooking ${b.name}? Its ingredients go back in the cupboard.`}
+                  >
                     Undo cook
                   </ActionButton>
                 </div>
@@ -519,7 +647,7 @@ export function FridgeView({
         )}
       </section>
 
-      <section className="card-life space-y-3">
+      <section className="space-y-3 card-life">
         <button type="button" onClick={() => setExtra((x) => !x)} className="text-sm text-mint" aria-expanded={extra}>
           {extra ? "Never mind" : "Cooked something off the plan?"}
         </button>
@@ -563,11 +691,25 @@ export function FridgeView({
 export function CupboardView({
   rows,
 }: {
-  rows: { item: string; name: string; aisle: string; unit: Unit; staple: boolean; qty: number; amount: string | null; status: "have" | "low" | "out" | null; goodUntil: string | null; soon: boolean; known: boolean }[];
+  rows: {
+    item: string;
+    name: string;
+    aisle: string;
+    unit: Unit;
+    staple: boolean;
+    qty: number;
+    amount: string | null;
+    status: "have" | "low" | "out" | null;
+    goodUntil: string | null;
+    soon: boolean;
+    known: boolean;
+  }[];
 }) {
   const [filter, setFilter] = useState<"have" | "staples" | "all">("have");
   const [edit, setEdit] = useState<(typeof rows)[number] | null>(null);
-  const shown = rows.filter((r) => (filter === "all" ? true : filter === "staples" ? r.staple : !r.staple && r.qty > 0));
+  const shown = rows.filter((r) =>
+    filter === "all" ? true : filter === "staples" ? r.staple : !r.staple && r.qty > 0,
+  );
   return (
     <div className="space-y-4">
       <div className="flex gap-1 rounded-2xl bg-white/5 p-1" role="group" aria-label="Show">
@@ -578,25 +720,45 @@ export function CupboardView({
             ["all", "Everything"],
           ] as const
         ).map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setFilter(k)} aria-pressed={filter === k} className={`min-h-10 flex-1 rounded-xl text-sm ${filter === k ? "bg-fern font-semibold" : "text-neutral-400"}`}>
+          <button
+            key={k}
+            type="button"
+            onClick={() => setFilter(k)}
+            aria-pressed={filter === k}
+            className={`min-h-10 flex-1 rounded-xl text-sm ${filter === k ? "bg-fern font-semibold" : "text-neutral-400"}`}
+          >
             {label}
           </button>
         ))}
       </div>
-      {filter === "staples" && <p className="px-1 text-xs text-neutral-400">Staples aren&apos;t weighed. Mark one low or out and it goes on the next list.</p>}
+      {filter === "staples" && (
+        <p className="px-1 text-xs text-neutral-400">
+          Staples aren&apos;t weighed. Mark one low or out and it goes on the next list.
+        </p>
+      )}
       {shown.length ? (
-        <ul className="card-life divide-y divide-white/5 p-0">
+        <ul className="divide-y divide-white/5 card-life p-0">
           {shown.map((r) => (
             <li key={r.item} className="flex min-w-0 items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
                 <p className={`font-medium ${r.soon ? "text-sand" : ""}`}>{r.name}</p>
                 <p className="text-xs text-neutral-400">
-                  {r.staple ? (r.status === "have" ? "Have it" : r.status === "low" ? "Running low" : r.status === "out" ? "Out" : "Not checked") : r.amount ?? "None"}
+                  {r.staple
+                    ? r.status === "have"
+                      ? "Have it"
+                      : r.status === "low"
+                        ? "Running low"
+                        : r.status === "out"
+                          ? "Out"
+                          : "Not checked"
+                    : (r.amount ?? "None")}
                   {r.goodUntil ? ` · good until ${r.goodUntil.toLowerCase()}` : ""}
                   {r.soon ? " · use soon" : ""}
                 </p>
               </div>
-              {r.staple ? <StapleToggle item={r.item} status={r.status} /> : (
+              {r.staple ? (
+                <StapleToggle item={r.item} status={r.status} />
+              ) : (
                 <button type="button" onClick={() => setEdit(r)} className="btn-soft shrink-0 px-3 py-1.5 text-xs">
                   Edit
                 </button>
@@ -605,7 +767,9 @@ export function CupboardView({
           ))}
         </ul>
       ) : (
-        <p className="card-life text-sm text-neutral-400">{filter === "have" ? "Nothing counted in yet. Confirming a delivery fills this in." : "Nothing here."}</p>
+        <p className="card-life text-sm text-neutral-400">
+          {filter === "have" ? "Nothing counted in yet. Confirming a delivery fills this in." : "Nothing here."}
+        </p>
       )}
       <Sheet open={edit !== null} onClose={() => setEdit(null)} title={edit ? edit.name : ""}>
         {edit && <StockForm row={edit} onDone={() => setEdit(null)} />}
@@ -622,7 +786,8 @@ function StapleToggle({ item, status }: { item: string; status: "have" | "low" |
         <button
           key={s}
           type="button"
-          disabled={pending} aria-busy={pending}
+          disabled={pending}
+          aria-busy={pending}
           aria-pressed={status === s}
           onClick={() => void run(() => setStock([{ item, status: s }], "set"))}
           className={`min-h-9 rounded-lg px-2.5 text-xs ${status === s ? (s === "have" ? "bg-mint text-primary" : s === "low" ? "bg-sand text-primary" : "bg-coral text-white") : "bg-white/5 text-neutral-400"}`}
@@ -642,19 +807,36 @@ function StockForm({ row, onDone }: { row: { item: string; unit: Unit; qty: numb
       className="space-y-3"
       onSubmit={async (e) => {
         e.preventDefault();
-        const ok = await run(() => setStock([{ item: row.item, qty: Math.max(0, Number(qty) || 0) }], "set"), "Updated.");
+        const ok = await run(
+          () => setStock([{ item: row.item, qty: Math.max(0, Number(qty) || 0) }], "set"),
+          "Updated.",
+        );
         if (ok) onDone();
       }}
     >
       <label className="block">
         <span className="field-label">How much is left ({row.unit === "each" ? "count" : row.unit})</span>
-        <input className="field-input text-lg" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+        <input
+          className="field-input text-lg"
+          inputMode="decimal"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+        />
       </label>
       <div className="flex gap-2">
         <button type="submit" disabled={pending} aria-busy={pending} className="btn-life">
           Save
         </button>
-        <button type="button" disabled={pending} aria-busy={pending} onClick={async () => (await run(() => setStock([{ item: row.item, qty: 0, good_until: null }], "set"), "Marked as used up.")) && onDone()} className="btn-soft">
+        <button
+          type="button"
+          disabled={pending}
+          aria-busy={pending}
+          onClick={async () =>
+            (await run(() => setStock([{ item: row.item, qty: 0, good_until: null }], "set"), "Marked as used up.")) &&
+            onDone()
+          }
+          className="btn-soft"
+        >
           Used it up
         </button>
       </div>
@@ -663,13 +845,21 @@ function StockForm({ row, onDone }: { row: { item: string; unit: Unit; qty: numb
 }
 
 /** One cook session: when the Schedule has it, why, what it makes, and a way to move it. */
-function CookSession({ start, session: x, days }: { start: string; session: CookSessionRow; days: { date: string; label: string }[] }) {
+function CookSession({
+  start,
+  session: x,
+  days,
+}: {
+  start: string;
+  session: CookSessionRow;
+  days: { date: string; label: string }[];
+}) {
   const [moving, setMoving] = useState(false);
   const [date, setDate] = useState(x.date);
   const [time, setTime] = useState(clockOf(x.start));
   const { pending, run } = useAction();
   return (
-    <div className="card-life space-y-2 p-0">
+    <div className="space-y-2 card-life p-0">
       <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold">
@@ -678,11 +868,17 @@ function CookSession({ start, session: x, days }: { start: string; session: Cook
           {x.note && <p className={`text-xs ${x.clash ? "text-coral" : "text-neutral-400"}`}>{x.note}</p>}
           {x.catchUp && (
             <p className="text-xs text-neutral-400">
-              Catch-up: this week was planned after its cook days had gone, so they became this one. Move it if the time doesn&apos;t work.
+              Catch-up: this week was planned after its cook days had gone, so they became this one. Move it if the time
+              doesn&apos;t work.
             </p>
           )}
         </div>
-        <button type="button" className="btn-soft px-3 py-1.5 text-xs" onClick={() => setMoving((m) => !m)} aria-expanded={moving}>
+        <button
+          type="button"
+          className="btn-soft px-3 py-1.5 text-xs"
+          onClick={() => setMoving((m) => !m)}
+          aria-expanded={moving}
+        >
           {moving ? "Cancel" : "Move"}
         </button>
       </div>
@@ -692,12 +888,19 @@ function CookSession({ start, session: x, days }: { start: string; session: Cook
           onSubmit={(e) => {
             e.preventDefault();
             const [h, m] = time.split(":").map(Number);
-            void run(() => moveCookSession(start, { date: x.date, at: x.start }, { date, at: h * 60 + m }), "Moved. The Schedule and your calendar follow.").then((ok) => ok && setMoving(false));
+            void run(
+              () => moveCookSession(start, { date: x.date, at: x.start }, { date, at: h * 60 + m }),
+              "Moved. The Schedule and your calendar follow.",
+            ).then((ok) => ok && setMoving(false));
           }}
         >
           <label className="text-xs text-neutral-400">
             Day
-            <select value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10">
+            <select
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10"
+            >
               {days.map((d) => (
                 <option key={d.date} value={d.date}>
                   {d.label}
@@ -707,7 +910,15 @@ function CookSession({ start, session: x, days }: { start: string; session: Cook
           </label>
           <label className="text-xs text-neutral-400">
             Time
-            <input type="time" value={time} min="06:00" max="22:00" step={900} onChange={(e) => setTime(e.target.value)} className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10" />
+            <input
+              type="time"
+              value={time}
+              min="06:00"
+              max="22:00"
+              step={900}
+              onChange={(e) => setTime(e.target.value)}
+              className="mt-1 block rounded-lg bg-white/5 px-2 py-2 text-sm text-white ring-1 ring-white/10"
+            />
           </label>
           <button className="btn-life px-4 py-2" disabled={pending} aria-busy={pending}>
             Move
@@ -723,7 +934,11 @@ function CookSession({ start, session: x, days }: { start: string; session: Cook
                 {c.portions} portions{c.freeze ? `, ${c.freeze} to freeze` : ""}
               </p>
             </div>
-            <ActionButton action={() => cookPlanned(start, c.id)} className={x.due ? "btn-life px-4 py-2" : "btn-soft"} done={c.freeze ? `In the fridge. Freeze ${c.freeze} once cool.` : "In the fridge."}>
+            <ActionButton
+              action={() => cookPlanned(start, c.id)}
+              className={x.due ? "btn-life px-4 py-2" : "btn-soft"}
+              done={c.freeze ? `In the fridge. Freeze ${c.freeze} once cool.` : "In the fridge."}
+            >
               Cooked it
             </ActionButton>
           </li>

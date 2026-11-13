@@ -22,7 +22,8 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <LifeHeader eyebrow="Life" title="Settings">
-        Everything here stays in your private database. Nothing about your body or food rules is in the portal&apos;s code.
+        Everything here stays in your private database. Nothing about your body or food rules is in the portal&apos;s
+        code.
       </LifeHeader>
       <SettingsForm
         profile={loaded.state.profile}

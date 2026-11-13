@@ -87,7 +87,9 @@ export function SessionPill() {
   return (
     <span className="flex items-center gap-2 rounded-full bg-mint/10 py-1 pr-1 pl-3 text-sm ring-1 ring-mint/30">
       <span className="h-2 w-2 rounded-full bg-mint motion-safe:animate-pulse" aria-hidden />
-      <span className="max-w-32 truncate" title={running.name}>{running.name}</span>
+      <span className="max-w-32 truncate" title={running.name}>
+        {running.name}
+      </span>
       <span className="font-semibold tabular-nums">{timerClock(elapsed)}</span>
       <button
         className="cursor-pointer rounded-full bg-white/10 px-3 py-1 text-xs font-medium hover:bg-white/20"

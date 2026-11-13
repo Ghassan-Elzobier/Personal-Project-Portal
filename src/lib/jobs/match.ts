@@ -17,7 +17,14 @@ export type Standing = {
   status: SkillStatus;
   evidence: EvidenceItem[];
   /** The next unit that teaches it, if it is still to do. */
-  next: { ref: string; name: string; href: string | null; dueOn: string | null; phase: number | null; optional: boolean } | null;
+  next: {
+    ref: string;
+    name: string;
+    href: string | null;
+    dueOn: string | null;
+    phase: number | null;
+    optional: boolean;
+  } | null;
   /** The skill you already have that makes this quicker to learn. */
   nearName: string | null;
 };
@@ -40,8 +47,14 @@ export type UnitFact = {
 export type StoredEvidence = { gid: string; skill: string; level: number; note: string; url: string | null };
 
 /** Your standing on one skill, from the plans' progress and evidence you added. */
-function standingOf(skill: Skill, units: ReadonlyMap<string, UnitFact>, stored: readonly StoredEvidence[]): Omit<Standing, "status" | "nearName"> {
-  const evidence: EvidenceItem[] = stored.filter((e) => e.skill === skill.key).map((e) => ({ level: e.level, label: e.note, href: e.url }));
+function standingOf(
+  skill: Skill,
+  units: ReadonlyMap<string, UnitFact>,
+  stored: readonly StoredEvidence[],
+): Omit<Standing, "status" | "nearName"> {
+  const evidence: EvidenceItem[] = stored
+    .filter((e) => e.skill === skill.key)
+    .map((e) => ({ level: e.level, label: e.note, href: e.url }));
   let next: Standing["next"] = null;
   for (const ref of skill.taughtBy ?? []) {
     const unit = units.get(ref);
@@ -60,13 +73,17 @@ function standingOf(skill: Skill, units: ReadonlyMap<string, UnitFact>, stored: 
 /** Practised or better counts as evidence. Reading a chapter does not, on its own. */
 const EVIDENCED_FROM = 2;
 
-export function buildStandings(units: ReadonlyMap<string, UnitFact>, stored: readonly StoredEvidence[]): Map<string, Standing> {
+export function buildStandings(
+  units: ReadonlyMap<string, UnitFact>,
+  stored: readonly StoredEvidence[],
+): Map<string, Standing> {
   const raw = new Map(SKILLS.map((s) => [s.key, standingOf(s, units, stored)]));
   return new Map(
     SKILLS.map((skill) => {
       const r = raw.get(skill.key)!;
       const nearSkill = (skill.near ?? []).find((k) => (raw.get(k)?.level ?? 0) >= EVIDENCED_FROM);
-      const status: SkillStatus = r.level >= EVIDENCED_FROM ? "evidenced" : r.next ? "in_plan" : nearSkill ? "near" : "missing";
+      const status: SkillStatus =
+        r.level >= EVIDENCED_FROM ? "evidenced" : r.next ? "in_plan" : nearSkill ? "near" : "missing";
       return [skill.key, { ...r, status, nearName: nearSkill ? (skillByKey(nearSkill)?.name ?? null) : null }];
     }),
   );
@@ -79,7 +96,10 @@ export const BANDS: Record<Band, { name: string; meaning: string }> = {
   by_date: { name: "On your plan", meaning: "Everything it requires is either evidenced or coming in your plan." },
   one_gap: { name: "One gap", meaning: "One requirement is neither evidenced nor in your plan." },
   stretch: { name: "Stretch", meaning: "Two or more requirements are neither evidenced nor in your plan." },
-  unread: { name: "Too little to judge", meaning: "Too few skills on your list were found in the advert to say how close you are." },
+  unread: {
+    name: "Too little to judge",
+    meaning: "Too few skills on your list were found in the advert to say how close you are.",
+  },
 };
 
 export type RequirementView = {
@@ -122,8 +142,20 @@ export function roleFit(requirements: readonly Requirement[], standings: Readonl
   const views: RequirementView[] = requirements.flatMap((r) => {
     const standing = standings.get(r.skill);
     if (!standing) return [];
-    const orElse = requirements.filter((o) => o.group === r.group && o.skill !== r.skill).map((o) => skillByKey(o.skill)?.name ?? o.skill);
-    return [{ skill: r.skill, name: standing.name, level: r.level, quote: r.quote, status: standing.status, standing, orElse }];
+    const orElse = requirements
+      .filter((o) => o.group === r.group && o.skill !== r.skill)
+      .map((o) => skillByKey(o.skill)?.name ?? o.skill);
+    return [
+      {
+        skill: r.skill,
+        name: standing.name,
+        level: r.level,
+        quote: r.quote,
+        status: standing.status,
+        standing,
+        orElse,
+      },
+    ];
   });
   const must = views.filter((v) => v.level === "required" || v.level === "unstated");
   const soft = views.filter((v) => v.level === "preferred" || v.level === "responsibility");
@@ -134,17 +166,25 @@ export function roleFit(requirements: readonly Requirement[], standings: Readonl
     const view = must.find((v) => v.skill === r.skill);
     if (view) groups.set(r.group, [...(groups.get(r.group) ?? []), view]);
   });
-  const bestOf = [...groups.values()].map((g) => [...g].sort((a, b) => STATUS_RANK[b.status] - STATUS_RANK[a.status])[0]);
+  const bestOf = [...groups.values()].map(
+    (g) => [...g].sort((a, b) => STATUS_RANK[b.status] - STATUS_RANK[a.status])[0],
+  );
 
   const gaps = bestOf.filter((v) => v.status === "near" || v.status === "missing").map((v) => v.name);
   const planned = bestOf.filter((v) => v.status === "in_plan");
-  const coming = planned.map((v) => ({ name: v.name, dueOn: v.standing.next?.dueOn ?? null, phase: v.standing.next?.phase ?? null }));
+  const coming = planned.map((v) => ({
+    name: v.name,
+    dueOn: v.standing.next?.dueOn ?? null,
+    phase: v.standing.next?.phase ?? null,
+  }));
   const showing = bestOf.filter((v) => v.status === "evidenced").map((v) => v.name);
   const dates = coming.map((c) => c.dueOn);
   const readyBy = dates.length && dates.every(Boolean) ? (dates as string[]).sort().at(-1)! : null;
 
   const softGaps = soft.filter((v) => v.status === "near" || v.status === "missing").map((v) => v.name);
-  const specialist = views.filter((v) => skillByKey(v.skill)?.core && (v.status === "evidenced" || v.status === "in_plan")).length;
+  const specialist = views.filter(
+    (v) => skillByKey(v.skill)?.core && (v.status === "evidenced" || v.status === "in_plan"),
+  ).length;
   const enough = bestOf.length >= MIN_MUST_GROUPS && bestOf.length + soft.length >= MIN_ALL_REQUIREMENTS;
 
   let band: Band;
@@ -154,7 +194,17 @@ export function roleFit(requirements: readonly Requirement[], standings: Readonl
   else if (planned.length) band = "by_date";
   else band = "ready";
 
-  return { band, must, soft, gaps, coming, showing, readyBy, specialist, reason: reasonFor({ band, gaps, coming, showing, softGaps, recognised: views.map((v) => v.name) }) };
+  return {
+    band,
+    must,
+    soft,
+    gaps,
+    coming,
+    showing,
+    readyBy,
+    specialist,
+    reason: reasonFor({ band, gaps, coming, showing, softGaps, recognised: views.map((v) => v.name) }),
+  };
 }
 
 const list = (names: string[], max = 3) => {
@@ -164,13 +214,30 @@ const list = (names: string[], max = 3) => {
   return extra > 0 ? `${joined} and ${extra} more` : joined;
 };
 
-function reasonFor({ band, gaps, coming, showing, softGaps, recognised }: { band: Band; gaps: string[]; coming: Fit["coming"]; showing: string[]; softGaps: string[]; recognised: string[] }): string {
+function reasonFor({
+  band,
+  gaps,
+  coming,
+  showing,
+  softGaps,
+  recognised,
+}: {
+  band: Band;
+  gaps: string[];
+  coming: Fit["coming"];
+  showing: string[];
+  softGaps: string[];
+  recognised: string[];
+}): string {
   if (band === "unread") {
-    return recognised.length ? `Only ${list(recognised)} from your skill list ${recognised.length === 1 ? "appears" : "appear"} in this advert, which is too little to judge it. Read the advert.` : "No advert on file, or nothing in it is on your skill list.";
+    return recognised.length
+      ? `Only ${list(recognised)} from your skill list ${recognised.length === 1 ? "appears" : "appear"} in this advert, which is too little to judge it. Read the advert.`
+      : "No advert on file, or nothing in it is on your skill list.";
   }
   const parts: string[] = [];
   if (showing.length) parts.push(`You can show ${list(showing)}.`);
-  if (coming.length) parts.push(`${list(coming.map((c) => c.name))} ${coming.length === 1 ? "is" : "are"} coming in your plan.`);
+  if (coming.length)
+    parts.push(`${list(coming.map((c) => c.name))} ${coming.length === 1 ? "is" : "are"} coming in your plan.`);
   if (gaps.length) parts.push(`Not in your plan: ${list(gaps)}.`);
   if (softGaps.length && band !== "stretch") parts.push(`Also wanted, and not in your plan: ${list(softGaps, 2)}.`);
   if (!parts.length) parts.push("Its requirements are not ones you can show yet.");
@@ -195,7 +262,8 @@ export type RoleInput = {
 export function isVisible(role: RoleInput, fit: Fit): boolean {
   if (role.stage !== "new" || (role.interest ?? 0) >= 2) return true;
   const strong = fit.band === "ready" || fit.band === "by_date";
-  if (role.location_tier === "abroad") return strong && isCoreFamily(role.family) && role.seniority !== "lead" && role.seniority !== "senior";
+  if (role.location_tier === "abroad")
+    return strong && isCoreFamily(role.family) && role.seniority !== "lead" && role.seniority !== "senior";
   if (!isCoreFamily(role.family)) return strong || fit.band === "one_gap";
   return true;
 }
@@ -264,7 +332,8 @@ export function branchImpact(roles: readonly RoleInput[], standings: ReadonlyMap
       if (!relevant) continue;
       asking++;
       if ((role.interest ?? 0) >= 2) askingWanted++;
-      if (BAND_RANK[roleFit(role.requirements, improved).band] > BAND_RANK[roleFit(role.requirements, standings).band]) unlocks++;
+      if (BAND_RANK[roleFit(role.requirements, improved).band] > BAND_RANK[roleFit(role.requirements, standings).band])
+        unlocks++;
     }
     return { ...branch, asking, askingWanted, unlocks };
   });

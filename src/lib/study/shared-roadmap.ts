@@ -33,7 +33,10 @@ export type SharedRoadmap = {
   undated: number;
 };
 
-export function shareRoadmap(roadmap: Roadmap, input: { projects: readonly string[]; dueOn: ReadonlyMap<string, string | null>; today: string }): SharedRoadmap {
+export function shareRoadmap(
+  roadmap: Roadmap,
+  input: { projects: readonly string[]; dueOn: ReadonlyMap<string, string | null>; today: string },
+): SharedRoadmap {
   const visible = new Set(input.projects);
   const projectOf = (ref: string) => findUnit(ref)?.plan.project;
 
@@ -58,7 +61,9 @@ export function shareRoadmap(roadmap: Roadmap, input: { projects: readonly strin
         exit: phase.phase.exit,
         tracks,
         // A link is only shown when the mentor can see both of its ends.
-        links: phase.links.filter((l) => visible.has(projectOf(l.a) ?? "") && visible.has(projectOf(l.b) ?? "")).map((l) => ({ aShort: l.aShort, bShort: l.bShort, why: l.why })),
+        links: phase.links
+          .filter((l) => visible.has(projectOf(l.a) ?? "") && visible.has(projectOf(l.b) ?? ""))
+          .map((l) => ({ aShort: l.aShort, bShort: l.bShort, why: l.why })),
         done: core.filter((u) => u.done).length,
         total: core.length,
         hoursLeft: core.filter((u) => !u.done).reduce((sum, u) => sum + u.hours, 0),
@@ -67,7 +72,10 @@ export function shareRoadmap(roadmap: Roadmap, input: { projects: readonly strin
   });
 
   const nowIndex = shaped.findIndex((p) => p.done < p.total);
-  const phases: SharedPhase[] = shaped.map((p, i) => ({ ...p, state: p.done === p.total ? "done" : i === nowIndex ? "now" : "later" }));
+  const phases: SharedPhase[] = shaped.map((p, i) => ({
+    ...p,
+    state: p.done === p.total ? "done" : i === nowIndex ? "now" : "later",
+  }));
   const remaining = phases.flatMap((p) => p.tracks.flatMap((t) => t.units)).filter((u) => !u.optional && !u.done);
   const dates = remaining.map((u) => u.dueOn);
 
@@ -86,7 +94,11 @@ export function shareRoadmap(roadmap: Roadmap, input: { projects: readonly strin
 const DAY_MS = 86400000;
 
 /** How recall practice has gone over the last two weeks. */
-export function recallSummary(reviews: readonly Pick<ReviewRow, "last_rating" | "last_reviewed_at">[], today: string, days = 14) {
+export function recallSummary(
+  reviews: readonly Pick<ReviewRow, "last_rating" | "last_reviewed_at">[],
+  today: string,
+  days = 14,
+) {
   const since = Date.parse(`${today}T00:00:00Z`) - (days - 1) * DAY_MS;
   const recent = reviews.filter((r) => r.last_reviewed_at && Date.parse(r.last_reviewed_at) >= since);
   const count = (rating: string) => recent.filter((r) => r.last_rating === rating).length;

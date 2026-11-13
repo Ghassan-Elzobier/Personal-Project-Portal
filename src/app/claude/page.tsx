@@ -44,14 +44,17 @@ export default async function ClaudePage({ searchParams }: { searchParams: Promi
         your Claude subscription and asks you before each change.
       </PageHeader>
 
-      {linkError && <ErrorNote message="That connect link was not valid. Start again from Claude's connector settings." />}
+      {linkError && (
+        <ErrorNote message="That connect link was not valid. Start again from Claude's connector settings." />
+      )}
 
       <section className="space-y-4">
         <SectionTitle>Set it up once</SectionTitle>
-        <ol className="card list-decimal space-y-3 pl-10 text-sm">
+        <ol className="list-decimal space-y-3 card pl-10 text-sm">
           <li>
-            In Claude, open <span className="text-white">Settings</span>, then <span className="text-white">Connectors</span>,
-            then <span className="text-white">Add custom connector</span>.
+            In Claude, open <span className="text-white">Settings</span>, then{" "}
+            <span className="text-white">Connectors</span>, then{" "}
+            <span className="text-white">Add custom connector</span>.
           </li>
           <li>
             Name it <span className="text-white">Portal</span> and paste this URL:
@@ -93,7 +96,7 @@ export default async function ClaudePage({ searchParams }: { searchParams: Promi
           <div className="space-y-3">
             <ul className="space-y-3">
               {connections.map((c) => (
-                <li key={c.id} className="card flex flex-wrap items-center justify-between gap-2 text-sm">
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 card text-sm">
                   <span className="font-semibold">{c.client_name ?? "Claude"}</span>
                   <span className="text-neutral-400">
                     Connected {when(c.created_at)} · last used {when(c.last_used_at)}

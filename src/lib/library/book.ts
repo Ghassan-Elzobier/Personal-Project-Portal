@@ -19,7 +19,10 @@ export const BOOK = {
 } as const;
 
 export class BookError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
   }
 }
@@ -52,7 +55,10 @@ export type Hit = {
 
 export type SearchResult = SearchPlan & { query: string; results: Hit[]; matchedEvery: number };
 
-export async function searchBook(query: string, opts: { chapter?: string | null; limit?: number } = {}): Promise<SearchResult> {
+export async function searchBook(
+  query: string,
+  opts: { chapter?: string | null; limit?: number } = {},
+): Promise<SearchResult> {
   const plan = planSearch(query);
   if (!plan.groups.length) return { ...plan, query, results: [], matchedEvery: 0 };
   const data = await rpc<{ results: Hit[]; matched_every_term: number }>("library_search", {
@@ -73,7 +79,12 @@ export type Reading = {
 };
 
 export function readBook(at: { page?: number; section?: string; count?: number }): Promise<Reading> {
-  return rpc<Reading>("library_read", { p_book: BOOK.id, p_page: at.page ?? null, p_section: at.section ?? null, p_count: at.count ?? 3 });
+  return rpc<Reading>("library_read", {
+    p_book: BOOK.id,
+    p_page: at.page ?? null,
+    p_section: at.section ?? null,
+    p_count: at.count ?? 3,
+  });
 }
 
 export type Section = { number: string; chapter: string; title: string; first_page: number; last_page: number };
@@ -86,7 +97,10 @@ export function bookOutline(): Promise<Outline> {
 /** Chapters with their sections, in the book's page order. */
 export function chaptersOf(outline: Outline) {
   const chapters = outline.sections.filter((s) => !s.number.includes("."));
-  return chapters.map((c) => ({ ...c, sections: outline.sections.filter((s) => s.chapter === c.chapter && s.number.includes(".")) }));
+  return chapters.map((c) => ({
+    ...c,
+    sections: outline.sections.filter((s) => s.chapter === c.chapter && s.number.includes(".")),
+  }));
 }
 
 /** "PMPP 6.1 Global memory access coalescing, p. 351", from a heading the loader wrote. */

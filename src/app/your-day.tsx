@@ -47,7 +47,7 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
     });
 
   return (
-    <section aria-labelledby="day-title" className="card space-y-3">
+    <section aria-labelledby="day-title" className="space-y-3 card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id="day-title" className="text-lg font-semibold">
           Your day
@@ -59,7 +59,9 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
       </div>
       {error && <p className="rounded-xl bg-coral/10 p-3 text-sm text-coral">{error}</p>}
       {day.items.length === 0 ? (
-        <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">Nothing planned today. Drag a task onto a time on the Schedule.</p>
+        <p className="rounded-xl bg-white/5 p-4 text-sm text-neutral-400">
+          Nothing planned today. Drag a task onto a time on the Schedule.
+        </p>
       ) : (
         <ol className="space-y-1">
           {day.items.map((i) => {
@@ -69,15 +71,33 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
             const tappable = (i.kind === "meal" && i.slot) || (i.kind === "cook" && i.cookIds?.length && !isDone);
             const body = (
               <>
-                <span className={`block truncate text-sm font-medium ${isDone ? "text-neutral-500 line-through" : i.skipped ? "text-neutral-500" : ""}`}>{i.title}</span>
+                <span
+                  className={`block truncate text-sm font-medium ${isDone ? "text-neutral-500 line-through" : i.skipped ? "text-neutral-500" : ""}`}
+                >
+                  {i.title}
+                </span>
                 {i.detail && <span className="block truncate text-xs text-neutral-400">{i.detail}</span>}
-                {i.note && <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-neutral-500"}`}>{i.note}</span>}
+                {i.note && (
+                  <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-neutral-500"}`}>
+                    {i.note}
+                  </span>
+                )}
               </>
             );
             return (
-              <li key={i.key} className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-1.5 ${next ? "bg-lavender/10 ring-1 ring-lavender/40" : ""}`}>
-                <span className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-neutral-500" : "text-neutral-300"}`}>{i.start >= 0 ? clock(i.start) : ""}</span>
-                <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`} aria-hidden />
+              <li
+                key={i.key}
+                className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-1.5 ${next ? "bg-lavender/10 ring-1 ring-lavender/40" : ""}`}
+              >
+                <span
+                  className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-neutral-500" : "text-neutral-300"}`}
+                >
+                  {i.start >= 0 ? clock(i.start) : ""}
+                </span>
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
+                  aria-hidden
+                />
                 {i.external ? (
                   <a href={i.href} target="_blank" rel="noreferrer" className="min-w-0 flex-1">
                     {body}
@@ -87,7 +107,14 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
                     {body}
                   </Link>
                 )}
-                <Action item={i} isDone={isDone} next={next} past={past} tappable={Boolean(tappable)} onTick={() => tick(i)} />
+                <Action
+                  item={i}
+                  isDone={isDone}
+                  next={next}
+                  past={past}
+                  tappable={Boolean(tappable)}
+                  onTick={() => tick(i)}
+                />
               </li>
             );
           })}
@@ -97,9 +124,26 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
   );
 }
 
-function Action({ item: i, isDone, next, past, tappable, onTick }: { item: DayItem; isDone: boolean; next: boolean; past: boolean; tappable: boolean; onTick: () => void }) {
+function Action({
+  item: i,
+  isDone,
+  next,
+  past,
+  tappable,
+  onTick,
+}: {
+  item: DayItem;
+  isDone: boolean;
+  next: boolean;
+  past: boolean;
+  tappable: boolean;
+  onTick: () => void;
+}) {
   const pill = (href: string, label: string) => (
-    <Link href={href} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${next ? "bg-lavender text-white" : "bg-white/5 text-neutral-200"}`}>
+    <Link
+      href={href}
+      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${next ? "bg-lavender text-white" : "bg-white/5 text-neutral-200"}`}
+    >
       {label}
     </Link>
   );

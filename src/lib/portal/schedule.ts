@@ -181,7 +181,14 @@ export async function loadScheduleWeek(
           if (e.mirror) {
             const a = zonedParts(new Date(e.start), tz);
             const b = zonedParts(new Date(e.end), tz);
-            mirrors.push({ id: e.id, key: e.mirror, title: e.title, date: a.date, start: a.minutes, end: b.date === a.date ? b.minutes : 24 * 60 });
+            mirrors.push({
+              id: e.id,
+              key: e.mirror,
+              title: e.title,
+              date: a.date,
+              start: a.minutes,
+              end: b.date === a.date ? b.minutes : 24 * 60,
+            });
             continue;
           }
           if (e.study?.role === "slot") continue;

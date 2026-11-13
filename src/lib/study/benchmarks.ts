@@ -57,9 +57,21 @@ export function groupBenchmarks(rows: BenchmarkRow[]): BenchmarkSeries[] {
     const values = list.map((r) => Number(r.value));
     const first = values[0];
     const last = values[values.length - 1];
-    const changePercent = list.length > 1 && first !== 0 ? Math.round(((last - first) / Math.abs(first)) * 1000) / 10 : null;
+    const changePercent =
+      list.length > 1 && first !== 0 ? Math.round(((last - first) / Math.abs(first)) * 1000) / 10 : null;
     const known = METRICS.find((m) => m.name === list[0].metric);
-    const improved = changePercent === null || changePercent === 0 || !known ? null : known.higherIsBetter === changePercent > 0;
-    return { key, metric: list[0].metric, unit: list[0].unit, scene: list[0].scene, gpu: list[0].gpu, values, latest: list[list.length - 1], changePercent, improved };
+    const improved =
+      changePercent === null || changePercent === 0 || !known ? null : known.higherIsBetter === changePercent > 0;
+    return {
+      key,
+      metric: list[0].metric,
+      unit: list[0].unit,
+      scene: list[0].scene,
+      gpu: list[0].gpu,
+      values,
+      latest: list[list.length - 1],
+      changePercent,
+      improved,
+    };
   });
 }
