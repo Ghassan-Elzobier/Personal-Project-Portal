@@ -262,7 +262,7 @@ export function DivergenceExplorer() {
                   role="img"
                   aria-label={`The subgroup ran ${run.trips} trips. Lanes did work on ${work} of ${size * run.trips} lane-trips, ${Math.round(run.efficiency * 100)}% SIMD efficiency.`}
                 >
-                  <text x={0} y={14} className="fill-muted text-[11px]">
+                  <text x={0} y={14} className="fill-muted text-2xs">
                     lanes →
                   </text>
                   {size <= 16 &&
@@ -272,7 +272,7 @@ export function DivergenceExplorer() {
                         x={l.lane * cell + cell / 2}
                         y={28}
                         textAnchor="middle"
-                        className="fill-faint text-[10px] tabular-nums"
+                        className="fill-faint text-3xs tabular-nums"
                       >
                         {l.lane}
                       </text>
@@ -318,12 +318,12 @@ export function DivergenceExplorer() {
                           x={gridW + 8}
                           y={y + 17}
                           opacity={k < shown ? 1 : 0.35}
-                          className={`text-[11px] tabular-nums ${t ? "fill-body" : "fill-neutral-600"}`}
+                          className={`text-2xs tabular-nums ${t ? "fill-body" : "fill-neutral-600"}`}
                         >
                           {t ? `trip ${k + 1}: ${t.active}/${size}` : `trip ${k + 1}`}
                         </text>
                         {t?.both && k < shown && (
-                          <text x={gridW + 88} y={y + 17} className="fill-coral text-[11px] font-semibold">
+                          <text x={gridW + 88} y={y + 17} className="fill-coral text-2xs font-semibold">
                             both
                           </text>
                         )}
@@ -345,7 +345,7 @@ export function DivergenceExplorer() {
                       strokeDasharray="4 3"
                     />
                   </m.g>
-                  <text x={0} y={top + MAX_BOUNCES * rowH + 20} className="fill-muted text-[11px]">
+                  <text x={0} y={top + MAX_BOUNCES * rowH + 20} className="fill-muted text-2xs">
                     Dashed line: where the subgroup leaves the loop, with its slowest lane.
                   </text>
                   {walking && shown < run.trips && (
