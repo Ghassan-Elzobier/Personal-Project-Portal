@@ -22,7 +22,10 @@
     "test:e2e:update": "bash scripts/e2e.sh --update-snapshots",
     "load:book": "node --experimental-strip-types --no-warnings scripts/load-book.mjs",
     "lab:anchors": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs write",
-    "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check"
+    "lab:check": "node --experimental-strip-types --no-warnings scripts/lab-anchors.mjs check",
+    "guard": "node scripts/guard.mjs",
+    "health": "node scripts/health.mjs",
+    "factory:metrics": "node scripts/factory-metrics.mjs"
   },
   "engines": {
     "node": "24.x"

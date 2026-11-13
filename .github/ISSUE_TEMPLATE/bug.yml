@@ -1,0 +1,22 @@
+name: Bug
+description: Something that works differently from how it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to see it
+      description: Page, screen size (phone or desktop), and the taps that lead there.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Never paste private data; this repository is public.

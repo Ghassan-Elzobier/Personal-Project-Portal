@@ -1,0 +1,54 @@
+# @claude in an issue, a pull request comment or a review: Claude does the work
+# in this repository, following AGENTS.md and the /ship workflow, and answers
+# in the thread. Runs on the owner's Claude subscription (CLAUDE_CODE_OAUTH_TOKEN
+# from `claude setup-token`), so each run counts toward the plan's usage.
+#
+# Only accounts with write access can trigger it (the action checks), and this
+# repository is public, so that means the owner. Text written by anyone else in
+# a thread is still read as data, not instructions.
+name: Claude
+
+on:
+  # The documented @claude trigger. The action runs only for accounts with write access,
+  # no comment text reaches a shell, and checkout keeps no credentials.
+  issue_comment: # zizmor: ignore[dangerous-triggers]
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: --max-turns 80

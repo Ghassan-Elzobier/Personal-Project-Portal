@@ -1,0 +1,32 @@
+# Dependency updates, grouped so they arrive as at most two pull requests a
+# week. CI, the guard and the screenshots check each one like any other PR.
+# Security fixes come as soon as they are published, outside the schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    # Majors change behaviour (Next.js, ESLint, the Supabase CLI): one PR each,
+    # so each can be read and tested on its own.
+    commit-message:
+      prefix: deps
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/London
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

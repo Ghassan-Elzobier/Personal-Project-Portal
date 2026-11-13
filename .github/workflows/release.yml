@@ -1,0 +1,49 @@
+# Migrations reach production before the code that needs them.
+#
+# A merge to main starts two things at once: Vercel builds the new deployment,
+# and this workflow applies any new migrations to the live database. Vercel's
+# Deployment Checks hold the new deployment back from the live domain until the
+# "Migrate production database" check passes (docs/FACTORY.md, one-time setup).
+# If a migration fails, the old deployment keeps serving and nothing breaks.
+#
+# The job is skipped until the repository variable SUPABASE_PROJECT_REF is set.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate production database
+    if: vars.SUPABASE_PROJECT_REF != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Environment secrets, limited to main in the environment's settings.
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx supabase link --project-ref "$PROJECT_REF"
+      - name: Pending migrations
+        run: npx supabase migration list --remote
+      - name: Apply them
+        run: npx supabase db push --remote --yes
