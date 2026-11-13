@@ -145,13 +145,13 @@ export function Objects() {
       h={600}
       label="Setup builds three groups of objects: the device chain, the display chain and the shader's bindings, plus per-frame tools. Each box gives its CUDA counterpart."
     >
-      <Text x={col[0]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[0]} y={28} className="fill-muted eyebrow text-xs tracking-wider uppercase">
         Talk to the GPU
       </Text>
-      <Text x={col[1]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[1]} y={28} className="fill-muted eyebrow text-xs tracking-wider uppercase">
         Show pixels
       </Text>
-      <Text x={col[2]} y={28} className="fill-muted eyebrow text-[12px] tracking-wider uppercase">
+      <Text x={col[2]} y={28} className="fill-muted eyebrow text-xs tracking-wider uppercase">
         Tell the shader where its data is
       </Text>
 
@@ -332,7 +332,7 @@ export function Objects() {
       />
       <Box x={col[1]} y={row(4)} w={140} h={64} tone="gpu" title="Query pool" sub="2 timestamps" />
       <Box x={col[1] + 150} y={row(4)} w={140} h={64} tone="cpu" title="Fence" sub="starts signalled" />
-      <Text x={20} y={584} className="fill-muted text-[12px]">
+      <Text x={20} y={584} className="fill-muted text-xs">
         Everything below the logical device is created from it. Arrows show what each object is made from or points at.
       </Text>
     </Figure>
@@ -356,12 +356,7 @@ export function Timeline() {
         strokeWidth={1.2}
       />
       {w > 34 && (
-        <Text
-          x={x + w / 2}
-          y={y + 27}
-          anchor="middle"
-          className={faint ? "fill-muted text-[12px]" : "fill-white text-[12px]"}
-        >
+        <Text x={x + w / 2} y={y + 27} anchor="middle" className={faint ? "fill-muted text-xs" : "fill-white text-xs"}>
           {text}
         </Text>
       )}
@@ -387,13 +382,13 @@ export function Timeline() {
       h={360}
       label="Two frames on three lanes. The CPU records and submits, then sleeps on the fence while the GPU runs the dispatch and copy; the display shows each frame once the GPU signals renderFinished."
     >
-      <Text x={20} y={lane.cpu + 27} className="fill-sand text-[13px] font-semibold">
+      <Text x={20} y={lane.cpu + 27} className="fill-sand text-sm font-semibold">
         CPU
       </Text>
-      <Text x={20} y={lane.gpu + 27} className={`${TONES.gpu.text} text-[13px] font-semibold`}>
+      <Text x={20} y={lane.gpu + 27} className={`${TONES.gpu.text} text-sm font-semibold`}>
         GPU queue
       </Text>
-      <Text x={20} y={lane.display + 27} className={`${TONES.display.text} text-[13px] font-semibold`}>
+      <Text x={20} y={lane.display + 27} className={`${TONES.display.text} text-sm font-semibold`}>
         Display
       </Text>
       {frame(110, "frame N")}
@@ -408,19 +403,19 @@ export function Timeline() {
       <Badge n={4} x={245} y={lane.cpu - 14} tone="cpu" />
       <Badge n={5} x={408} y={lane.gpu - 14} tone="shader" />
       <Badge n={6} x={298} y={lane.cpu - 14} tone="cpu" />
-      <Text x={165} y={lane.cpu + 60} anchor="end" className="fill-muted text-[11px]">
+      <Text x={165} y={lane.cpu + 60} anchor="end" className="fill-muted text-2xs">
         read
       </Text>
-      <Text x={182} y={lane.cpu + 74} anchor="start" className="fill-muted text-[11px]">
+      <Text x={182} y={lane.cpu + 74} anchor="start" className="fill-muted text-2xs">
         acquire
       </Text>
-      <Text x={316} y={lane.cpu + 60} anchor="end" className="fill-muted text-[11px]">
+      <Text x={316} y={lane.cpu + 60} anchor="end" className="fill-muted text-2xs">
         present
       </Text>
-      <Text x={284} y={lane.gpu + 27} anchor="end" className="fill-muted text-[11px]">
+      <Text x={284} y={lane.gpu + 27} anchor="end" className="fill-muted text-2xs">
         barriers
       </Text>
-      <Text x={521} y={lane.gpu + 62} anchor="middle" className="fill-muted text-[11px]">
+      <Text x={521} y={lane.gpu + 62} anchor="middle" className="fill-muted text-2xs">
         copy
       </Text>
 
@@ -457,7 +452,7 @@ export function Timeline() {
         at={[318, 246]}
         labelAnchor="start"
       />
-      <Text x={20} y={348} className="fill-muted text-[12px]">
+      <Text x={20} y={348} className="fill-muted text-xs">
         Not to scale, except that the dispatch is most of the GPU&apos;s time. The CPU&apos;s own work takes
         microseconds.
       </Text>
@@ -500,6 +495,8 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
     { name: "Swapchain image", y: 310, tone: "display" as const },
   ];
   const X = SYNC_X;
+  // Where the lanes start: room for the longest lane name at the title size.
+  const LANE_START = 142;
   const seg = (
     y: number,
     from: number,
@@ -518,7 +515,7 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
         className={faint ? "fill-white/5 stroke-white/15" : TONES[tone].box}
         strokeWidth={1}
       />
-      <Text x={from + 10} y={y + 4} className={faint ? "fill-muted text-[11px]" : "fill-white text-[11px]"}>
+      <Text x={from + 10} y={y + 4} className={faint ? "fill-muted text-2xs" : "fill-white text-2xs"}>
         {text}
       </Text>
     </g>
@@ -533,7 +530,7 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
         className={problem ? "stroke-coral" : "stroke-lavender"}
         strokeWidth={3}
       />
-      <Label x={x} y={y - 27} tone={problem ? "problem" : "gpu"} size={10.5}>
+      <Label x={x} y={y - 27} tone={problem ? "problem" : "gpu"} size={10}>
         {label}
       </Label>
     </g>
@@ -541,7 +538,7 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
   const use = (x: number, y: number, text: string) => (
     <g key={`u-${x}-${y}`}>
       <circle cx={x} cy={y} r={11} className="fill-primary stroke-aqua" strokeWidth={1.5} />
-      <Text x={x} y={y + 4} anchor="middle" className="fill-aqua text-[10px] font-semibold">
+      <Text x={x} y={y + 4} anchor="middle" className="fill-aqua text-3xs font-semibold">
         {text}
       </Text>
     </g>
@@ -554,16 +551,16 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
       label="Command order left to right. The acquire semaphore starts a chain through the dispatch, the storage barrier and the copy. The swapchain image's first barrier uses TOP_OF_PIPE as its source stage, so it is not on that chain: its layout transition can run before the display has released the image."
     >
       {lanes.map((l) => (
-        <Text key={l.name} x={20} y={l.y + 4} className="fill-white text-[13px] font-semibold">
+        <Text key={l.name} x={20} y={l.y + 4} className="fill-white text-sm font-semibold">
           {l.name}
         </Text>
       ))}
-      {seg(150, 130, X.b1, "TRANSFER_SRC", "memory", true)}
+      {seg(150, LANE_START, X.b1, "TRANSFER_SRC", "memory", true)}
       {seg(150, X.b1, X.b3, "GENERAL", "memory")}
       {seg(150, X.b3, 990, "TRANSFER_SRC", "memory")}
-      {seg(230, 130, X.b2, "GENERAL", "memory", true)}
+      {seg(230, LANE_START, X.b2, "GENERAL", "memory", true)}
       {seg(230, X.b2, 990, "GENERAL", "memory")}
-      {seg(310, 130, X.b4, "the display's, UNDEFINED to you", "display", true)}
+      {seg(310, LANE_START, X.b4, "the display's, UNDEFINED to you", "display", true)}
       {seg(310, X.b4, X.b5, "TRANSFER_DST", "display")}
       {seg(310, X.b5, 990, "PRESENT_SRC", "display")}
 
@@ -643,10 +640,10 @@ export function SyncLanes({ children }: { children?: ReactNode }) {
         className="fill-coral/10 stroke-coral"
         strokeWidth={1.2}
       />
-      <Text x={X.b4 + 20} y={393} anchor="middle" className="fill-coral text-[12.5px] font-semibold">
+      <Text x={X.b4 + 20} y={393} anchor="middle" className="fill-coral text-xs font-semibold">
         Not on the chain: can start before the display lets go
       </Text>
-      <Text x={X.b4 + 20} y={412} anchor="middle" className="fill-bright text-[12px]">
+      <Text x={X.b4 + 20} y={412} anchor="middle" className="fill-bright text-xs">
         Fix: source stage COMPUTE_SHADER at line 804
       </Text>
       <circle cx={X.signal} cy={60} r={9} className="fill-fuchsia/20 stroke-fuchsia" strokeWidth={1.5} />

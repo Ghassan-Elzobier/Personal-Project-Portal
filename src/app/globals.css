@@ -3,6 +3,10 @@
 /* Palette and type follow Ghassan's portfolio site. */
 @theme {
   --font-sans: var(--font-funnel), ui-sans-serif, system-ui, sans-serif;
+  /* Two steps below Tailwind's xs, for dense captions: figure notes and axis
+     ticks, calendar labels. Figures use 3xs, 2xs, xs (labels) and sm (titles). */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-3xs: 0.625rem; /* 10px */
   --color-primary: #030412;
   --color-midnight: #06091f;
   --color-navy: #161a31;
@@ -15,6 +19,8 @@
   /* Lavender light enough for text on dark surfaces (WCAG AA). */
   --color-lilac: #a58bf0;
   --color-fuchsia: #ca2f8c;
+  /* Fuchsia light enough for text on dark surfaces. */
+  --color-orchid: #e05aa8;
   --color-orange: #cc6033;
   --color-sand: #d6995c;
   --color-coral: #ea4884;
