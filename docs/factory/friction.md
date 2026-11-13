@@ -9,6 +9,7 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 
 ## Open
 
+- 2026-11-13 · ci · first CI run failed `npm ci`: the lockfile came from npm 11.6 locally, CI runs npm 11.19, which wants optional @emnapi packages recorded · devEngines in package.json now warns on an older npm; upgrade local Node 24 (`fnm install 24`)
 - 2026-11-13 · lint · eslint-config-next 16 found setState in effects in nav-links and the divergence explorer; suppressed for now · characterisation tests for the Work/Life switch, then fix (refactor queue)
 - 2026-11-13 · database · the access test assumed an empty members table and broke when seed data arrived · every pgTAP file starts from a known state (done for 01; check the others when they next change)
 - 2026-11-13 · architecture · tasks, life and library import database-client helpers from the Claude connector, a folder-level cycle · move connectorCaller and anonClient to src/lib/supabase (refactor queue)
