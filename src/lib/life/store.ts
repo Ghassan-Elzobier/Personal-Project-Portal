@@ -1,7 +1,5 @@
 import "server-only";
-import { anonClient } from "../connector/oauth";
-import { connectorCaller } from "../connector/context";
-import { createClient } from "../supabase/server";
+import { rpcAsCaller } from "../supabase/caller";
 import type { Tag } from "./allergens";
 import type { Unit } from "./ingredients";
 import type { Slot } from "./nutrition";
@@ -17,9 +15,7 @@ export class LifeError extends Error {}
 const READABLE = new Set(["42501", "P0002", "22023"]);
 
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-  const connector = connectorCaller();
-  const client = connector ? anonClient() : await createClient();
-  const { data, error } = await client.rpc(name, connector ? { ...args, p_access_hash: connector.accessHash } : args);
+  const { data, error } = await rpcAsCaller(name, args);
   if (error) {
     if (error.code === "PGRST202")
       throw new LifeError("The Life tables are not in the database yet. Run the latest migration.");

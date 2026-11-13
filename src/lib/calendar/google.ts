@@ -12,7 +12,7 @@ import {
   type InviteResponse,
   type StudyRole,
 } from "./study-events";
-import { connectorCaller } from "../connector/context";
+import { connectorCaller } from "../supabase/caller";
 import { createClient } from "../supabase/server";
 import { decryptToken } from "./token-crypto";
 

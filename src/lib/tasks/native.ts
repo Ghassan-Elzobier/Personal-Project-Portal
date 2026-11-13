@@ -1,9 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import { connectorCaller } from "../connector/context";
-import { anonClient } from "../connector/oauth";
 import { PROJECTS, type ProjectKey } from "../config/projects";
-import { createClient } from "../supabase/server";
+import { rpcAsCaller } from "../supabase/caller";
 import type { BenchmarkRow } from "../study/benchmarks";
 import { now } from "@/lib/dates/clock";
 import {
@@ -39,9 +37,7 @@ const ERROR_STATUS: Record<string, number> = {
 
 /** Browser calls use the session. Connector calls prove themselves with their token's hash. */
 async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-  const connector = connectorCaller();
-  const client = connector ? anonClient() : await createClient();
-  const { data, error } = await client.rpc(name, connector ? { ...args, p_access_hash: connector.accessHash } : args);
+  const { data, error } = await rpcAsCaller(name, args);
   if (error) {
     const status = ERROR_STATUS[error.code];
     if (!status) console.error(name, error.message);

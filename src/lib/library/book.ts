@@ -1,6 +1,5 @@
 import "server-only";
-import { connectorCaller } from "../connector/context";
-import { anonClient } from "../connector/oauth";
+import { rpcAsCaller } from "../supabase/caller";
 import { createClient } from "../supabase/server";
 import { planSearch, type SearchPlan } from "./query";
 
@@ -30,9 +29,7 @@ export class BookError extends Error {
 const ERROR_STATUS: Record<string, number> = { "42501": 403, P0002: 404, "22023": 400 };
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
-  const connector = connectorCaller();
-  const client = connector ? anonClient() : await createClient();
-  const { data, error } = await client.rpc(name, connector ? { ...args, p_access_hash: connector.accessHash } : args);
+  const { data, error } = await rpcAsCaller(name, args);
   if (error) {
     const status = ERROR_STATUS[error.code];
     if (!status) console.error(name, error.message);
