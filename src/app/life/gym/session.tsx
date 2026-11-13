@@ -345,12 +345,12 @@ function Movement({ frames, name }: { frames: [string, string]; name: string }) 
         >
           {picture(frames[0], "", frame === 0)}
           {picture(frames[1], "", frame === 1)}
-          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-body">
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/10 px-2 py-0.5 text-3xs text-body">
             {frame === 0 ? "Start" : "End"}
           </span>
         </div>
       )}
-      <figcaption className="text-center text-[10px] text-faint">
+      <figcaption className="text-center text-3xs text-faint">
         Drawing:{" "}
         <a href={DRAWING_CREDIT.source} target="_blank" rel="noreferrer noopener" className="underline">
           {DRAWING_CREDIT.by}

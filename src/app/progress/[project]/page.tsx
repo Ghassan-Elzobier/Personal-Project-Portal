@@ -242,7 +242,7 @@ function WeeklyHours({ weeks }: { weeks: WeekHours[] }) {
         </div>
         <div className="mt-2 flex gap-1 border-t border-white/10 pt-2">
           {weeks.map((w, i) => (
-            <span key={w.start} className="flex-1 text-center text-[11px] text-muted">
+            <span key={w.start} className="flex-1 text-center text-2xs text-muted">
               {i % 2 === (weeks.length - 1) % 2 ? shortDate(w.start) : ""}
             </span>
           ))}

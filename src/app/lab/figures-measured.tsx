@@ -45,18 +45,18 @@ export function MeasuredVsModel({ results }: { results: Results }) {
       {[0, 0.25, 0.5, 0.75, 1].map((v) => (
         <g key={v}>
           <line x1={X(1)} y1={Y(v)} x2={X(8)} y2={Y(v)} className="stroke-white/5" />
-          <Text x={X(1) - 10} y={Y(v) + 4} anchor="end" className="fill-muted text-[11px]">{`${v * 100}%`}</Text>
+          <Text x={X(1) - 10} y={Y(v) + 4} anchor="end" className="fill-muted text-2xs">{`${v * 100}%`}</Text>
         </g>
       ))}
       {Array.from({ length: 8 }, (_, k) => (
-        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-muted text-[11px]">
+        <Text key={k} x={X(k + 1)} y={Y(0) + 20} anchor="middle" className="fill-muted text-2xs">
           {String(k + 1)}
         </Text>
       ))}
-      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-muted text-[11.5px]">
+      <Text x={(X(1) + X(8)) / 2} y={Y(0) + 40} anchor="middle" className="fill-muted text-2xs">
         trip through the bounce loop
       </Text>
-      <Text x={20} y={24} className="fill-white text-[14px] font-semibold">
+      <Text x={20} y={24} className="fill-white text-sm font-semibold">
         Lanes still working, trip by trip
       </Text>
 
@@ -96,18 +96,18 @@ export function MeasuredVsModel({ results }: { results: Results }) {
         rx={10}
         className="fill-white/5 stroke-white/15"
       />
-      <Text x={776} y={84} className="fill-white text-[13px] font-semibold">
+      <Text x={776} y={84} className="fill-white text-sm font-semibold">
         Over the whole loop
       </Text>
       <Text
         x={776}
         y={108}
-        className="fill-aqua text-[12.5px]"
+        className="fill-aqua text-xs"
       >{`Iris Xe model: ${Math.round(MODEL.efficiency[16] * 100)}%`}</Text>
       <Text
         x={776}
         y={128}
-        className="fill-lilac text-[12.5px]"
+        className="fill-lilac text-xs"
       >{`RX 5700 XT model: ${Math.round(MODEL.efficiency[64] * 100)}%`}</Text>
       {measured.length ? (
         measured.map(({ g, d }, i) => (
@@ -115,15 +115,15 @@ export function MeasuredVsModel({ results }: { results: Results }) {
             key={g}
             x={776}
             y={156 + i * 20}
-            className={`${GPU_STYLE[g].text} text-[12.5px] font-semibold`}
+            className={`${GPU_STYLE[g].text} text-xs font-semibold`}
           >{`${GPU_STYLE[g].name} measured: ${Math.round(d.overall * 100)}% at ${d.subgroup}`}</Text>
         ))
       ) : (
-        <Text x={776} y={156} className="fill-muted text-[12px]">
+        <Text x={776} y={156} className="fill-muted text-xs">
           Nothing measured yet
         </Text>
       )}
-      <Text x={776} y={measured.length ? 204 : 180} className="fill-muted text-[11px]">
+      <Text x={776} y={measured.length ? 204 : 180} className="fill-muted text-2xs">
         Dashed: model. Solid with dots: yours.
       </Text>
     </Figure>
