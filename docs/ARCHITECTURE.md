@@ -43,6 +43,24 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
   The issues those groups become are public, so scrubbing happens before anything
   is stored.
 
+## State
+
+Where each kind of state lives, and the checks that hold it there. From an audit of all 38 client
+components: most already followed this, and the exceptions are in the friction log.
+
+| Kind | Lives in | Why |
+| --- | --- | --- |
+| Data (tasks, meals, weigh-ins) | The database, read by Server Components, changed by Server Actions that `revalidatePath` | One source of truth: a page can only be stale if a read is cached. |
+| Which view, project, task or filter | The address (`?view=board&project=pmpp&task=12`) | Links, Back and reload all work. Every link names the view it goes to (`src/lib/tasks/tasks-href.ts`): the Tasks List button once copied the current view into its address and never switched back. |
+| What a tap just did, before the server answers | `useOptimistic` | The screen changes at once, and snaps to the server's answer. |
+| Form text and open/closed panels | Local `useState` in the component that owns it, keyed to its data (`key={task.gid}`) | A different record gets a fresh component, so nothing leaks between them. |
+| Space (Work or Life), last pages | A cookie and `localStorage`, read with `useSyncExternalStore` | External stores are read, not copied into state by an effect. |
+
+Rules that follow, enforced where a tool can:
+- **No setState in an effect** (`react-hooks/set-state-in-effect`, no longer suppressed anywhere). Derive the value instead; reset state when a value changes by adjusting it while rendering, or key the component; read external stores with `useSyncExternalStore`.
+- **Never copy props into state** without a key tied to the prop (reviewed: the three spots found are keyed).
+- **A tap that changes data must be tested by tapping.** `e2e/state-fresh.spec.ts` taps each switch and save (Tasks views, search, add, tick, the open task, Work/Life, the Schedule's space, a weigh-in, Ignore) and checks the page at once and after a reload. It runs last and alone, creates uniquely named data, and deletes it again, because other suites' screenshots show that data. Add to it whenever a new switch or save is added.
+
 ## Rules
 
 | Rule | Why | Enforced |

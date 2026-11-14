@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { QuickAddButton, openQuickAdd } from "./quick-add";
 
 type NavLink = { href: string; title: string };
@@ -33,13 +33,17 @@ function useSpace(initial: SpaceKey): SpaceKey {
   const pathname = usePathname();
   const own = spaceOf(pathname);
   const [last, setLast] = useState<SpaceKey>(initial);
+  // Listens first, so the arrival below (which announces the space) is heard on the very first load too.
+  useEffect(() => {
+    const on = (e: Event) => setLast((e as CustomEvent<SpaceKey>).detail);
+    window.addEventListener(EVENT, on);
+    return () => window.removeEventListener(EVENT, on);
+  }, []);
   // Arriving on a page that belongs to a space makes it the last one used. Only
   // on arrival: this must not run again when the switch changes, or a tap on Work
   // from a Life page would be undone before the Work page loads.
   useEffect(() => {
-    if (!own) return;
-    setLast(own);
-    remember(own);
+    if (own) remember(own);
   }, [own]);
   // Remember the page you were on in this space, so switching back returns to it.
   useEffect(() => {
@@ -50,12 +54,27 @@ function useSpace(initial: SpaceKey): SpaceKey {
       // Private mode or blocked storage: the switch falls back to the space's home.
     }
   }, [own, pathname]);
-  useEffect(() => {
-    const on = (e: Event) => setLast((e as CustomEvent<SpaceKey>).detail);
-    window.addEventListener(EVENT, on);
-    return () => window.removeEventListener(EVENT, on);
-  }, []);
   return own ?? last;
+}
+
+// Where each space was last left, kept in localStorage: an external store, read
+// with useSyncExternalStore so the server renders the homes and the browser
+// swaps in the remembered pages without an effect.
+const subscribeToStorage = (notify: () => void) => {
+  window.addEventListener("storage", notify);
+  return () => window.removeEventListener("storage", notify);
+};
+const readLastPages = () => {
+  try {
+    return `${localStorage.getItem(LAST + "work") || HOME.work}\n${localStorage.getItem(LAST + "life") || HOME.life}`;
+  } catch {
+    return `${HOME.work}\n${HOME.life}`;
+  }
+};
+function useLastPages(): Record<SpaceKey, string> {
+  const both = useSyncExternalStore(subscribeToStorage, readLastPages, () => `${HOME.work}\n${HOME.life}`);
+  const [work, life] = both.split("\n");
+  return { work, life };
 }
 
 /** The most specific link a path is under, so /life/gym lights Gym and not Meals. */
@@ -92,20 +111,11 @@ function useMenu() {
  */
 export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
   const space = useSpace(initial);
-  const [targets, setTargets] = useState<Record<SpaceKey, string>>(HOME);
-  const [tapped, setTapped] = useState<SpaceKey | null>(null);
+  const targets = useLastPages();
   const pathname = usePathname();
-  useEffect(() => {
-    setTapped(null);
-    try {
-      setTargets({
-        work: localStorage.getItem(LAST + "work") || HOME.work,
-        life: localStorage.getItem(LAST + "life") || HOME.life,
-      });
-    } catch {
-      setTargets(HOME);
-    }
-  }, [pathname]);
+  // A tap belongs to the page it was made on: once another page arrives it no longer counts.
+  const [tap, setTap] = useState<{ space: SpaceKey; on: string } | null>(null);
+  const tapped = tap && tap.on === pathname ? tap.space : null;
   // Each history entry keeps the space it was seen in, so Back shows Today or the
   // Schedule as you left them, not in whichever space you were in since. Not while
   // a tap is on its way to another page: that space belongs to the page arriving.
@@ -137,10 +147,10 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
           onClick={(e) => {
             remember(s);
             // The space you are in, even mid-way through switching away, puts the switch back on it.
-            if (s === space) return setTapped(null);
+            if (s === space) return setTap(null);
             // Already on the page it opens (Today, say): only the space changes.
             const href = e.currentTarget.getAttribute("href");
-            setTapped(href === window.location.pathname + window.location.search ? null : s);
+            setTap(href === window.location.pathname + window.location.search ? null : { space: s, on: pathname });
           }}
           className={`flex min-h-9 items-center rounded-full px-3.5 font-medium transition ${shown === s ? (s === "life" ? "bg-mint text-primary" : "bg-lavender text-white") : "text-muted hover:text-white"}`}
         >

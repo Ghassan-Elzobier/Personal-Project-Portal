@@ -38,7 +38,7 @@ export function DivergenceExplorer() {
   const [progress, setProgress] = useState(0);
   // Trips shown so far. All of them unless the walkthrough is running.
   const [shown, setShown] = useState(MAX_BOUNCES);
-  const [playing, setPlaying] = useState(false);
+  const [wantsToPlay, setPlaying] = useState(false);
 
   // Trace the preview a few rows at a time, so the page stays responsive.
   useEffect(() => {
@@ -68,21 +68,22 @@ export function DivergenceExplorer() {
 
   const run = useMemo(() => runSubgroup(pick.x, pick.y, size, W, H, 0), [pick, size]);
 
-  // A new subgroup starts fully shown.
-  useEffect(() => {
+  // A new subgroup starts fully shown: adjusted while rendering, as React advises for state
+  // that depends on a changed value, rather than in an effect that renders the old state first.
+  const [shownRun, setShownRun] = useState(run);
+  if (shownRun !== run) {
+    setShownRun(run);
     setPlaying(false);
     setShown(MAX_BOUNCES);
-  }, [run]);
+  }
 
+  // The walkthrough stops by itself when the trips run out: derived, not set.
+  const playing = wantsToPlay && shown < run.trips;
   useEffect(() => {
     if (!playing) return;
-    if (shown >= run.trips) {
-      setPlaying(false);
-      return;
-    }
     const t = window.setTimeout(() => setShown((s) => s + 1), shown === 0 ? 250 : 900);
     return () => window.clearTimeout(t);
-  }, [playing, shown, run.trips]);
+  }, [playing, shown]);
 
   // Redraw the preview with the chosen subgroup outlined.
   useEffect(() => {
