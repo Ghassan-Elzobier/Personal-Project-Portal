@@ -37,6 +37,8 @@ per step; don't narrate commands.
 
 ## 4. Build, test-first where it's logic
 
+- **A bug fix starts with `/debug`:** reproduce it as a failing end-to-end test first, look at the
+  failure, fix the app, and prove the test fails without the fix.
 - Domain logic goes in `src/lib/<domain>/` as pure functions, with a test beside
   it (`*.test.ts`, node:test) written before or with the code.
 - A page or flow the owner uses gets a check in `e2e/`. If the design changes on

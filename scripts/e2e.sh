@@ -16,27 +16,8 @@ cd "$(dirname "$0")/.."
 
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v$(node -p 'require("@playwright/test/package.json").version')-noble"
 
-# 1. The local database, with migrations and supabase/seed.sql applied.
-if ! npx supabase status >/dev/null 2>&1; then
-  npm run db:start
-fi
-
-# 2. Blank every portal setting first, so live values in .env.local never reach
-#    the test server (Next.js never overrides a variable that is already set).
-while IFS= read -r name; do
-  export "$name="
-done < <(sed -nE 's/^([A-Z_][A-Z0-9_]*)=.*/\1/p' .env.example)
-
-eval "$(npx supabase status -o env | sed -nE 's/^([A-Z_]+)=(.*)$/export SB_\1=\2/p')"
-export NEXT_PUBLIC_SUPABASE_URL="$SB_API_URL"
-export NEXT_PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
-export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
-export NEXT_PUBLIC_SITE_URL="http://localhost:3100"
-export PORTAL_TIMEZONE="Europe/London"
-export PORTAL_FIXED_NOW="${PORTAL_FIXED_NOW:-2026-11-16T09:30:00Z}"
-# Report errors as production does, so e2e/errors.spec.ts can see them stored.
-export ERROR_REPORTING=on
-export NEXT_TELEMETRY_DISABLED=1
+# 1 and 2. The local database and the test environment (shared with `npm run debug`).
+source scripts/e2e-env.sh
 
 # 3. A production build pointed at the local stack, made as Vercel makes it (npm run build).
 if [ "${E2E_SKIP_BUILD:-}" != "1" ]; then

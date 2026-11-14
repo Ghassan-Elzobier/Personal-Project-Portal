@@ -154,6 +154,34 @@ appends to its end, and the resolution is always to keep every line.
 Fork pull requests are never touched, and the log is read as data. The Integration job also retries
 starting the database itself, since a port clash there failed two pull requests in a row.
 
+## Debugging like a person
+
+A bug is fixed by seeing it fail, not by guessing. `/debug` (and the `debugger` agent) set the order:
+reproduce it as a failing end-to-end test, stop at the failure and look, find the cause, fix the app,
+prove the test fails without the fix. The tools, chosen from what each is best at:
+
+| Tool | Used for |
+| --- | --- |
+| **Playwright test MCP** (`playwright-test`) | Run tests; `test_debug` pauses at the failure, then read the page, state (`browser_evaluate`), console and network. Its planner, generator and healer agents live in `.claude/agents/`. |
+| **Chrome DevTools MCP** (`chrome-devtools`, pinned) | Runtime detail Playwright lacks: source-mapped logpoints, performance traces at Pixel 7 emulation, heap snapshots, Lighthouse. Your phone runs Chrome, so it is the right engine. |
+| **Next.js DevTools MCP** (`next-devtools`) | The dev server's errors, with source-mapped stacks. |
+
+`npm run debug` starts the app on the seeded local database (the dev server: source maps and hot
+reload), and `npm run debug:link` prints a one-time signed-in link for the debugging browser. Both
+are local only; the link script refuses any database that is not local. Chrome DevTools MCP runs
+isolated and headless, without usage statistics, and cannot open `file:` URLs.
+
+**The healer cannot cheat.** Playwright's healer edits failing tests until they pass, or marks them
+`test.fixme()`. Here the guard fails any added `fixme`, `only` or unconditional skip in an e2e spec
+unless you add `approved-test-change`, whether the test is old or new, and editing an existing test
+already needed that label. So an agent can only get to green by fixing the app. Regenerate the
+agent files after a Playwright upgrade (`npx playwright init-agents --loop=claude`; it rewrites
+`.mcp.json`, so merge it).
+
+Not used, on purpose: Replay.io (time travel; a cloud service, its MCP is experimental), Firefox
+DevTools MCP and agent-browser (Playwright already covers Firefox and WebKit), and server step
+debuggers (community-built and alpha for JavaScript). Revisit Replay if a bug resists all of this.
+
 ## Refactoring, every week
 
 Structure decays unless something pushes back, so refactoring is part of the
