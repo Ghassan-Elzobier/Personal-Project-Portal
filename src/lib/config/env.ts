@@ -51,3 +51,10 @@ export function configProblems(): string[] {
   }
   return problems;
 }
+
+/** The GitHub repository the deployment was built from ("owner/name"), from Vercel's system variables. */
+export function githubRepo(): string | null {
+  const owner = process.env.VERCEL_GIT_REPO_OWNER?.trim();
+  const slug = process.env.VERCEL_GIT_REPO_SLUG?.trim();
+  return owner && slug ? `${owner}/${slug}` : null;
+}

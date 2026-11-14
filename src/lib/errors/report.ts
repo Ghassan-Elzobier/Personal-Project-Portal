@@ -40,7 +40,7 @@ export type ErrorReport = {
 };
 
 /** Pages with a dynamic segment. A test checks this against src/app, so a new one cannot leak its slugs. */
-export const DYNAMIC_PAGES = ["/lab/[view]", "/life/recipes/[key]", "/progress/[project]"];
+export const DYNAMIC_PAGES = ["/errors/[fingerprint]", "/lab/[view]", "/life/recipes/[key]", "/progress/[project]"];
 
 const LIMITS = { input: 4000, message: 500, route: 200, context: 60, line: 300, frames: 12, stack: 4000 };
 
@@ -202,7 +202,7 @@ export function buildReport(input: ReportInput): ErrorReport {
   return { fingerprint, source: input.source, name, message, route, context, stack: stackFrames(input.stack), release };
 }
 
-const BROWSER_CONTEXTS: BrowserContext[] = ["uncaught", "rejection", "boundary"];
+const BROWSER_CONTEXTS: BrowserContext[] = ["uncaught", "rejection", "boundary", "test"];
 
 /** The body the browser posts to /api/errors, if it has exactly the right shape. */
 export function readBrowserReport(body: unknown): BrowserReport | null {

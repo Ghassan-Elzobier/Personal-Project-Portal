@@ -173,6 +173,23 @@ for (const group of groups) {
       ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo, latest));
     } else if (action.kind === "reopen") {
       ghOrFail(["issue", "reopen", String(number), "--repo", repo, "--comment", reopenComment(group, repo)]);
+    } else if (action.kind === "close") {
+      ghOrFail(
+        ["issue", "close", String(number), "--repo", repo, "--reason", "not planned"].concat([
+          "--comment",
+          "Ignored from the portal's errors page.",
+        ]),
+      );
+    } else if (action.kind === "restore") {
+      ghOrFail([
+        "issue",
+        "reopen",
+        String(number),
+        "--repo",
+        repo,
+        "--comment",
+        "Restored from the portal's errors page.",
+      ]);
     }
   }
 
@@ -181,7 +198,7 @@ for (const group of groups) {
     usedToday += 1;
     if (number) fix.push(number);
   }
-  record(group.fingerprint, action.kind === "ignore" ? "ignored" : "filed", number, autofix);
+  record(group.fingerprint, action.kind === "ignore" || action.kind === "close" ? "ignored" : "filed", number, autofix);
   console.log(
     `${dryRun ? "[dry run] " : ""}${action.kind} ${number ? `#${number}` : "(new issue)"}: ` +
       `${issueTitle(group)}${autofix ? " -> Claude" : ""}`,
