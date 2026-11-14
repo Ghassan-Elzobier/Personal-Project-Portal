@@ -34,7 +34,7 @@ In `src/app/globals.css`, under `@theme` (colours, the font) and `@utility`
 | Text roles | `text-white` (headings), `bright`, `body`, `muted`, `faint` (as `text-`, `fill-`, `placeholder-`) |
 | Type | `text-heading`, `subtext`, `eyebrow`, `field-label`, Tailwind's scale plus `text-2xs` (11 px) and `text-3xs` (10 px) |
 | Containers | `card`, `card-special`, `card-link`, `card-life`, `dialog.sheet` |
-| Actions | `btn-primary`, `btn-ghost`, `btn-soft`, `btn-life`, `tap` (44 px target) |
+| Actions | `btn-primary`, `btn-ghost`, `btn-soft`, `btn-life`, `tap` (44 px target), `link` (in running text) |
 | Forms | `field-input` |
 | Status | `Chip` in eight tones: `neutral`, `quiet`, `aqua`, `mint`, `sand`, `coral`, `lilac`, `ice` |
 
@@ -56,7 +56,7 @@ one-off.
 
 `src/components/ui.tsx`: `PageHeader`, `SectionTitle`, `Chip` (and `StagePill`,
 `StatusPill` built on it), `DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`,
-`TaskLink`, `Tabs`, `Ring`. `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
+`TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
 
 A chip is a few words in a tone: `<Chip tone="sand">Due Fri</Chip>`. Never write a
 chip's colours by hand; a chip that is also a link takes `toneClass(tone)`. The

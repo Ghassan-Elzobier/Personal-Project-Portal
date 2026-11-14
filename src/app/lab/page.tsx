@@ -149,7 +149,7 @@ export default async function LabPage() {
                   <td className="py-1.5">
                     <span className="flex flex-wrap gap-x-3">
                       {c.views.map((id) => (
-                        <Link key={id} href={`/lab/${id}`} className="hover:underline">
+                        <Link key={id} href={`/lab/${id}`} className="inline-flex min-h-6 items-center hover:underline">
                           {VIEWS.find((v) => v.id === id)?.title}
                         </Link>
                       ))}
