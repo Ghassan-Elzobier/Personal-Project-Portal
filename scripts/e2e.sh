@@ -38,9 +38,9 @@ export PORTAL_FIXED_NOW="${PORTAL_FIXED_NOW:-2026-11-16T09:30:00Z}"
 export ERROR_REPORTING=on
 export NEXT_TELEMETRY_DISABLED=1
 
-# 3. A production build pointed at the local stack.
+# 3. A production build pointed at the local stack, made as Vercel makes it (npm run build).
 if [ "${E2E_SKIP_BUILD:-}" != "1" ]; then
-  npx next build
+  npm run build
 fi
 
 mkdir -p e2e/.auth

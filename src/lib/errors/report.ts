@@ -12,7 +12,7 @@
 // Used by the server (src/lib/errors/store.ts) and the triage script, so it is
 // pure apart from hashing.
 import { createHash } from "node:crypto";
-import type { BrowserContext, BrowserReport } from "./browser.ts";
+import type { Breadcrumb, BrowserContext, BrowserReport } from "./browser.ts";
 
 export type ErrorSource = "server" | "browser" | "connector";
 
@@ -53,6 +53,8 @@ const TOKEN_BODY = String.raw`(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[\w-]{24,}`;
 const TOKEN = new RegExp(String.raw`\b${TOKEN_BODY}\b`, "g");
 const IS_TOKEN = new RegExp(`^${TOKEN_BODY}$`);
 const LONG_NUMBER = /\b\d{4,}\b/g;
+// Postgres lists the offending values after the columns: Key (title)=(Chicken curry).
+const VALUE_LIST = /\)=\(([^()\n]{0,300})\)/g;
 const QUOTED = [
   /(?<!\w)'([^'\n]{0,200})'/g,
   /"([^"\n]{0,200})"/g,
@@ -113,6 +115,17 @@ export function scrubText(text: string): string {
     }
   });
   s = s.replace(EMAIL, "‹email›").replace(UUID, "‹id›").replace(DATE, "‹date›").replace(TOKEN, "‹token›");
+  s = s.replace(
+    VALUE_LIST,
+    (_, values: string) =>
+      ")=(" +
+      values
+        .split(",")
+        .map((v) => v.trim())
+        .map((v) => (keepQuoted(v) || /^\d{1,3}$/.test(v) ? v : "‹text›"))
+        .join(", ") +
+      ")",
+  );
   for (const re of QUOTED) {
     s = s.replace(re, (whole, content: string) =>
       keepQuoted(content) ? whole : whole.replace(content, () => "‹text›"),
@@ -199,6 +212,9 @@ export function readBrowserReport(body: unknown): BrowserReport | null {
   if (!fits(b.name, 200) || !fits(b.message, 4000) || !fits(b.stack, 10_000)) return null;
   if (!fits(b.path, 2000) || !b.path.startsWith("/") || !fits(b.release, 64)) return null;
   if (!BROWSER_CONTEXTS.includes(b.context as BrowserContext)) return null;
+  // Optional, and only passed on when sent: their contents are checked by readBreadcrumbs.
+  if (b.breadcrumbs !== undefined && (!Array.isArray(b.breadcrumbs) || b.breadcrumbs.length > 30)) return null;
+  if (b.viewport !== undefined && !fits(b.viewport, 11)) return null;
   return {
     name: b.name,
     message: b.message,
@@ -206,5 +222,7 @@ export function readBrowserReport(body: unknown): BrowserReport | null {
     path: b.path,
     context: b.context as BrowserContext,
     release: b.release,
+    ...(b.viewport !== undefined && { viewport: b.viewport as string }),
+    ...(b.breadcrumbs !== undefined && { breadcrumbs: b.breadcrumbs as Breadcrumb[] }),
   };
 }
