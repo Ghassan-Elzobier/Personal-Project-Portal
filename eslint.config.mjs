@@ -14,6 +14,46 @@ const NOT_TAILWIND = ["sheet", "nav-progress", "^group/.+$", "^peer/.+$"];
 
 const DOMAINS = ["auth", "calendar", "config", "dates", "errors", "jobs", "lab", "library", "life", "study", "tasks"];
 
+// Production errors become public GitHub issues, and the error tracker can only
+// remove values that sit in quotes (src/lib/errors/report.ts). So a value in an
+// error message goes in quotes, unless it passes along another error's message
+// or a status code, which carry nothing personal.
+const PASSES_ON = /(message|error|status|code)$/i;
+const passesOn = (node) => {
+  if (node.type === "Literal") return true;
+  if (node.type === "Identifier") return PASSES_ON.test(node.name);
+  if (node.type === "MemberExpression") return !node.computed && PASSES_ON.test(node.property.name);
+  if (node.type === "ChainExpression") return passesOn(node.expression);
+  if (node.type === "LogicalExpression") return passesOn(node.left) && passesOn(node.right);
+  return false;
+};
+const quotedErrorValues = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      unquoted:
+        "Put {{value}} in quotes ('${…}'): production errors become public GitHub issues, and the error tracker only removes values in quotes (src/lib/errors/report.ts).",
+    },
+  },
+  create(context) {
+    const check = (node) => {
+      const name = node.callee.type === "Identifier" ? node.callee.name : "";
+      const message = node.arguments[0];
+      if (!/Error$/.test(name) || message?.type !== "TemplateLiteral") return;
+      message.expressions.forEach((value, i) => {
+        const before = message.quasis[i].value.cooked ?? "";
+        const after = message.quasis[i + 1].value.cooked ?? "";
+        const quoted = /['"‘“`]$/.test(before) && /^['"’”`]/.test(after);
+        if (!quoted && !passesOn(value)) {
+          context.report({ node: value, messageId: "unquoted", data: { value: context.sourceCode.getText(value) } });
+        }
+      });
+    };
+    return { NewExpression: check, CallExpression: check };
+  },
+};
+
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -106,6 +146,12 @@ export default defineConfig([
       // A file-level import cycle makes load order matter and hides coupling.
       "import/no-cycle": ["error", { ignoreExternal: true }],
     },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.ts"],
+    plugins: { portal: { rules: { "quoted-error-values": quotedErrorValues } } },
+    rules: { "portal/quoted-error-values": "error" },
   },
 
   globalIgnores([

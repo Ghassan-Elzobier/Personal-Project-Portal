@@ -72,6 +72,7 @@ act on the local stack unless given `--remote`.
 - Production errors become public bug issues (`src/lib/errors`). Put variable values
   in error messages in quotes (`` `No recipe '${key}'` ``): the tracker removes quoted
   free text and keeps code-like keys, but cannot tell unquoted values from wording.
+  The lint rule `portal/quoted-error-values` checks it.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

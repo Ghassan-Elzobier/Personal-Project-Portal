@@ -36,9 +36,12 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
 - **Errors are tracked in production.** `src/instrumentation.ts` (server errors),
   `src/instrumentation-client.ts` and `app/error.tsx` (browser errors, through
   `/api/errors`) and the connector's tool handler all report to `src/lib/errors`.
-  It scrubs anything that could be personal, groups occurrences by fingerprint, and
-  stores them with `report_error` in `portal.error_groups`. The issues those groups
-  become are public, so scrubbing happens before anything is stored.
+  It maps stack frames back to source lines (`symbolicate.ts`, with the build's
+  source maps read from disk), scrubs anything that could be personal, groups
+  occurrences by fingerprint, and stores each one with its device and breadcrumbs
+  through `record_error` (`portal.error_groups`, `error_events`, `error_daily`).
+  The issues those groups become are public, so scrubbing happens before anything
+  is stored.
 
 ## Rules
 

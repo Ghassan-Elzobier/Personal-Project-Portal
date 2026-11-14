@@ -2,7 +2,7 @@
 // The error triage: turns the production errors the portal recorded
 // (portal.error_groups) into GitHub issues, keeps their counts current, reopens
 // a fixed bug that came back, and says which issues to hand to Claude for a
-// fix. .github/workflows/error-triage.yml runs it every hour; the decisions
+// fix. .github/workflows/error-triage.yml runs it every 30 minutes; the decisions
 // themselves are in src/lib/errors/issue.ts, with tests beside them.
 //
 //   node --experimental-strip-types --no-warnings scripts/error-triage.mjs [--local] [--dry-run]
@@ -130,6 +130,8 @@ let labelsReady = false;
 for (const group of groups) {
   if (!FINGERPRINT.test(group.fingerprint)) continue;
   const issue = group.issue_number ? viewIssue(group.issue_number) : null;
+  // The newest occurrence: its device and breadcrumbs go into the issue.
+  const latest = sql(`select * from portal.latest_error_event('${group.fingerprint}')`)[0] ?? null;
   const closedAsDone = issue?.state === "CLOSED" && issue.stateReason !== "NOT_PLANNED";
   const action = decide(group, issue, closedAsDone ? releaseHasFix(group.issue_number, group.release) : null);
   let number = group.issue_number;
@@ -146,7 +148,7 @@ for (const group of groups) {
       const filed = existingIssue(group.fingerprint);
       if (filed) {
         number = filed;
-        ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo));
+        ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo, latest));
       } else {
         const url = ghOrFail(
           ["issue", "create", "--repo", repo, "--title", issueTitle(group), "--body-file", "-"].concat([
@@ -155,12 +157,12 @@ for (const group of groups) {
             "--label",
             "error-report",
           ]),
-          issueBody(group, repo),
+          issueBody(group, repo, latest),
         );
         number = Number(/\/issues\/(\d+)/.exec(url)?.[1]);
       }
     } else if (action.kind === "update" && fingerprintIn(issue.body) === group.fingerprint) {
-      ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo));
+      ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo, latest));
     } else if (action.kind === "reopen") {
       ghOrFail(["issue", "reopen", String(number), "--repo", repo, "--comment", reopenComment(group, repo)]);
     }
@@ -176,7 +178,7 @@ for (const group of groups) {
     `${dryRun ? "[dry run] " : ""}${action.kind} ${number ? `#${number}` : "(new issue)"}: ` +
       `${issueTitle(group)}${autofix ? " -> Claude" : ""}`,
   );
-  if (dryRun && action.kind === "file") console.log(issueBody(group, repo));
+  if (dryRun && action.kind === "file") console.log(issueBody(group, repo, latest));
 }
 
 console.log(`${groups.length} error groups triaged; ${fix.length} handed to Claude (${usedToday} of ${perDay} today).`);

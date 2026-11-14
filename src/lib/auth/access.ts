@@ -66,8 +66,8 @@ export async function getAccess(): Promise<Access | null> {
  * button instead of telling the owner they are not set up.
  */
 export async function requireAccess(): Promise<Access> {
-  const { access, failed } = await checkAccess();
-  if (failed) throw new Error(`Could not check your access to the portal: ${failed}`);
+  const { access, failed: failedMessage } = await checkAccess();
+  if (failedMessage) throw new Error(`Could not check your access to the portal: ${failedMessage}`);
   if (!access) redirect("/no-access");
   return access;
 }

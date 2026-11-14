@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
+import { buildEvent } from "@/lib/errors/events";
 import { buildReport, isNoise, readBrowserReport } from "@/lib/errors/report";
-import { saveReport } from "@/lib/errors/store";
+import { readableStack, saveReport } from "@/lib/errors/store";
 
-// Where the browser reports its errors (src/lib/errors/browser.ts). Signed-in
-// members only: the proxy sends anyone else to /login, and report_error checks
-// access again. 204 means stored; 202 means accepted but not kept (noise, not
-// production, or no access), which the browser treats the same.
+// Where the browser reports its errors (src/lib/errors/browser.ts), with the
+// breadcrumbs that led up to them. Signed-in members only: the proxy sends
+// anyone else to /login, and record_error checks access again. 204 means
+// stored; 202 means accepted but not kept (noise, not production, or no
+// access), which the browser treats the same.
 
-const MAX_BYTES = 16_384;
+const MAX_BYTES = 32_768;
 
 export async function POST(request: Request) {
   const text = await request.text();
@@ -27,11 +29,16 @@ export async function POST(request: Request) {
     source: "browser",
     name: sent.name,
     message: sent.message,
-    stack: sent.stack,
+    stack: readableStack(sent.stack),
     route: sent.path,
     context: sent.context,
     release: sent.release || process.env.VERCEL_GIT_COMMIT_SHA,
   });
-  const stored = await saveReport(report);
+  const event = buildEvent({
+    userAgent: request.headers.get("user-agent"),
+    viewport: sent.viewport,
+    breadcrumbs: sent.breadcrumbs,
+  });
+  const stored = await saveReport(report, event);
   return new NextResponse(null, { status: stored ? 204 : 202 });
 }

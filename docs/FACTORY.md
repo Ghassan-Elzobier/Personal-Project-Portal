@@ -20,7 +20,7 @@ hooks and checks, because all of them live in this repository.
 | Phone or browser | Start a task at claude.ai/code or in the Claude app's Code tab. | A cloud session does the same, then turns on auto-fix for its PR. |
 | GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work and answers in the thread. |
 | Nothing | The weekly routines run on their own (setup below). | A refactor PR and a factory-improvement PR, when there is something worth doing. |
-| Nothing: the live portal hits an error | The error triage runs every hour. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
+| Nothing: the live portal hits an error | The error triage runs every 30 minutes. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
 
 You review and merge. Merging deploys: the release workflow migrates the
 database, and Vercel waits for it before the new version goes live.
@@ -82,18 +82,33 @@ the portal reports its own errors, and the factory turns them into fixes:
    errors (`src/instrumentation-client.ts` and the error pages) and connector tools
    that fail are reported to `src/lib/errors`. Noise is dropped: network failures,
    chunks from an old deployment, browser extensions, aborted requests.
-2. **Scrub and group.** The issues are public, so anything that could be personal
+2. **Context, as Sentry gives it.** Each occurrence keeps:
+   - its stack, mapped back to source lines by the build's own source maps
+   - the browser, system and kind of device (the raw user agent is not kept)
+   - the last thirty breadcrumbs: navigations, clicks (the element and its
+     design class, never its text), requests and console errors
+
+   The source maps are never served. After the build, `scripts/pack-source-maps.mjs`
+   moves the browser's maps out of the public files and adds every map to the
+   server functions that need it; `src/proxy.ts` refuses any `.map` request as
+   well, and an e2e check holds it there. So frames stay readable even if the
+   repository goes private.
+3. **Scrub and group.** The issues are public, so anything that could be personal
    is removed before a report is stored: quoted free text, emails, ids, dates,
-   tokens, long numbers, hosts and query strings. The error type, its wording, code
-   identifiers, the route pattern and the stack frames stay. Each bug is one row in
-   `portal.error_groups`, however often it happens. This is why error messages put
-   variable values in quotes.
-3. **Triage, hourly** (`.github/workflows/error-triage.yml`, running
+   tokens, long numbers, hosts, query strings and Postgres value lists. The error
+   type, its wording, code identifiers, the route pattern and the stack frames
+   stay. Each bug is one row in `portal.error_groups`, with its last 30
+   occurrences in `portal.error_events` and daily counts in `portal.error_daily`.
+   Error messages put variable values in quotes so the scrubber can find them, and
+   a lint rule (`portal/quoted-error-values`) enforces it.
+4. **Triage, every 30 minutes** (`.github/workflows/error-triage.yml`, running
    `scripts/error-triage.mjs`, no AI). A new bug becomes an issue labelled
-   `error-report`. An open issue gets its counts updated. A closed issue reopens
-   when the error comes back on code that contains the fix; an old tab still
-   running old code does not count.
-4. **Fix.** New and returning bugs go to Claude, one at a time and at most two a
+   `error-report`, with links to the source lines at that release, the device,
+   and the breadcrumbs. An open issue gets its counts updated. A closed issue
+   reopens when the error comes back on code that contains the fix; an old tab
+   still running old code does not count. GitHub's notifications bring each new
+   issue to your phone.
+5. **Fix.** New and returning bugs go to Claude, one at a time and at most two a
    day. It follows `/ship` and opens a PR saying `Fixes #N`, which then goes through
    CI, the guard and the review like any other. If there's nothing to fix in the
    code (an outage, say), it says why on the issue and closes it as not planned.
@@ -102,6 +117,10 @@ You stay in charge with two labels and the close button. `no-autofix` keeps an
 issue from Claude, and closing an issue as not planned stops the triage reporting
 that error. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit;
 `0` turns auto-fixing off.
+
+If the repository goes private, change the triage's schedule back to hourly
+(`17 * * * *`). Private repositories get 2,000 free Actions minutes a month, and
+running every 30 minutes uses about 1,440 of them. Nothing else changes.
 
 ## Refactoring, every week
 
@@ -166,7 +185,7 @@ free, deterministic tools for everything else:
 - **One AI review per PR**, on opening, not on every push. Ask for another with
   `@claude review`. Label a PR `skip-review` to skip it.
 - **Two weekly routines**, not daily ones. Each run counts like a session.
-- **At most two error fixes a day.** The hourly triage is a script and costs
+- **At most two error fixes a day.** The triage is a script and costs
   nothing; each fix it hands to Claude counts like a session
   (`ERROR_AUTOFIX_PER_DAY`, default 2).
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the

@@ -1340,7 +1340,7 @@ export const INGREDIENTS: ReadonlyMap<string, Ingredient> = new Map(LIST.map((i)
 
 export function ingredient(key: string): Ingredient {
   const found = INGREDIENTS.get(key);
-  if (!found) throw new Error(`Unknown ingredient ${key}`);
+  if (!found) throw new Error(`Unknown ingredient '${key}'`);
   return found;
 }
 

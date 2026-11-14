@@ -104,7 +104,7 @@ async function getAll<T>(path: string, params: Record<string, string>): Promise<
 export const verifiedProject = cache(async (key: ProjectKey): Promise<VerifiedProject> => {
   const gid = projectGid(key);
   const title = PROJECTS.find((p) => p.key === key)?.title ?? key;
-  if (!gid) throw new AsanaError(`No Asana project is configured for ${title}.`, 404);
+  if (!gid) throw new AsanaError(`No Asana project is configured for '${title}'.`, 404);
   const workspace = asanaWorkspaceGid();
   if (!workspace) throw new AsanaError("ASANA_WORKSPACE_GID is not set.", 500);
 
@@ -113,7 +113,7 @@ export const verifiedProject = cache(async (key: ProjectKey): Promise<VerifiedPr
   );
   if (project.workspace.gid !== workspace) {
     throw new AsanaError(
-      `The Asana project set for ${title} is not in your personal workspace, so the portal will not read it. Check its gid.`,
+      `The Asana project set for '${title}' is not in your personal workspace, so the portal will not read it. Check its gid.`,
       403,
     );
   }
