@@ -12,7 +12,7 @@ import betterTailwind from "eslint-plugin-better-tailwindcss";
 // globals.css, and named groups and peers.
 const NOT_TAILWIND = ["sheet", "nav-progress", "^group/.+$", "^peer/.+$"];
 
-const DOMAINS = ["auth", "calendar", "config", "dates", "jobs", "lab", "library", "life", "study", "tasks"];
+const DOMAINS = ["auth", "calendar", "config", "dates", "errors", "jobs", "lab", "library", "life", "study", "tasks"];
 
 export default defineConfig([
   ...nextVitals,

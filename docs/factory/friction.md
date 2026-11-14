@@ -18,6 +18,8 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-14 · pull requests · stacked PRs were merged within minutes, and the auto-mode classifier blocks force-pushes, so a rebased branch had to go up under a new name (a stale `claude/lab-type-scale` is left on the remote) · open the next PR in a stack only after its base merges, or merge the base in instead of rebasing
 - 2026-11-14 · design · renaming a colour token can change which class wins, because Tailwind orders same-property utilities alphabetically; `no-conflicting-classes` only sees static strings · checked by hand this time; a codemod check that lists elements with two text colours would catch it
 - 2026-11-14 · accessibility · axe can't measure text on gradient cards, so `text-faint` (about 2.9:1 on a card) never shows up as a finding · a contrast unit test over the token pairs in globals.css
+- 2026-11-14 · database · `npm run test:db` pulled the pg_prove image with no output and stalled for 8 minutes on a slow link; the same files passed when piped through psql in the db container · a test:db fallback that runs each file with psql when pg_prove is missing
+- 2026-11-14 · e2e · `next build` failed outright when fonts.gstatic.com timed out once (next/font/google downloads at build time) · self-host Funnel Display with next/font/local so builds need no network
 
 ## Done
 

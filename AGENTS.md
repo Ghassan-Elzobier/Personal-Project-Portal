@@ -69,6 +69,9 @@ act on the local stack unless given `--remote`.
 - Pages must change the moment a tap changes data: key client state to its data,
   never copy props into state, and no router caching or streaming on pages with saves.
 - Server code asks the time from `src/lib/dates/clock.ts`, never `new Date()` for "today".
+- Production errors become public bug issues (`src/lib/errors`). Put variable values
+  in error messages in quotes (`` `No recipe '${key}'` ``): the tracker removes quoted
+  free text and keeps code-like keys, but cannot tell unquoted values from wording.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
