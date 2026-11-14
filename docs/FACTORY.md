@@ -171,6 +171,11 @@ reload), and `npm run debug:link` prints a one-time signed-in link for the debug
 are local only; the link script refuses any database that is not local. Chrome DevTools MCP runs
 isolated and headless, without usage statistics, and cannot open `file:` URLs.
 
+The servers are started through `scripts/mcp.sh`, which puts the Node in `.nvmrc` on the path first
+(the same lookup the session hooks use). Claude Code launches MCP servers with the host's own `node`,
+often the system's Node 18, and all three servers need Node 20 or newer: without the wrapper each one
+shows "Connection closed". If a server fails to connect, run its command from `.mcp.json` by hand.
+
 **The healer cannot cheat.** Playwright's healer edits failing tests until they pass, or marks them
 `test.fixme()`. Here the guard fails any added `fixme`, `only` or unconditional skip in an e2e spec
 unless you add `approved-test-change`, whether the test is old or new, and editing an existing test

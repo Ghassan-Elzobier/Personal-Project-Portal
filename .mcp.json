@@ -1,16 +1,18 @@
 {
   "mcpServers": {
     "next-devtools": {
-      "command": "npx",
-      "args": ["-y", "next-devtools-mcp@0.4.0"]
+      "command": "bash",
+      "args": ["scripts/mcp.sh", "npx", "-y", "next-devtools-mcp@0.4.0"]
     },
     "playwright-test": {
-      "command": "npx",
-      "args": ["playwright", "run-test-mcp-server", "--headless"]
+      "command": "bash",
+      "args": ["scripts/mcp.sh", "npx", "playwright", "run-test-mcp-server", "--headless"]
     },
     "chrome-devtools": {
-      "command": "npx",
+      "command": "bash",
       "args": [
+        "scripts/mcp.sh",
+        "npx",
         "-y",
         "chrome-devtools-mcp@1.12.0",
         "--isolated",
