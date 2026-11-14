@@ -1773,7 +1773,7 @@ const PART_OF: Record<ViewId, PartId> = {
 /** Every view, in reading order. */
 export const VIEWS: readonly View[] = (Object.keys(PART_OF) as ViewId[]).map((id) => {
   const v = [...BASE, ...ADDED].find((x) => x.id === id);
-  if (!v) throw new Error(`No view ${id}`);
+  if (!v) throw new Error(`No view '${id}'`);
   return { ...v, part: PART_OF[id] };
 });
 

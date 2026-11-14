@@ -52,6 +52,6 @@ export function isProjectKey(value: string): value is ProjectKey {
 
 export function projectDef(key: ProjectKey): ProjectDef {
   const def = PROJECTS.find((p) => p.key === key);
-  if (!def) throw new Error(`Unknown project ${key}`);
+  if (!def) throw new Error(`Unknown project '${key}'`);
   return def;
 }
