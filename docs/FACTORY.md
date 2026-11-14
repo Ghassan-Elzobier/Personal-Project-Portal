@@ -20,6 +20,7 @@ hooks and checks, because all of them live in this repository.
 | Phone or browser | Start a task at claude.ai/code or in the Claude app's Code tab. | A cloud session does the same, then turns on auto-fix for its PR. |
 | GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work and answers in the thread. |
 | Nothing | The weekly routines run on their own (setup below). | A refactor PR and a factory-improvement PR, when there is something worth doing. |
+| Nothing: the live portal hits an error | The error triage runs every hour. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
 
 You review and merge. Merging deploys: the release workflow migrates the
 database, and Vercel waits for it before the new version goes live.
@@ -45,6 +46,7 @@ and computational checks come before AI judgement:
 | Every PR, once | Claude review, in a fresh session that did not write the code | Logic and design problems the checks can't see |
 | Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until "Production database migrated" passes | Code going live before its database |
 | Weekly | Dependabot, CodeQL, secret scanning with push protection | Vulnerable dependencies, leaked keys |
+| Hourly | Error triage: production errors filed as issues and handed to Claude | Bugs no check caught, found by real use |
 
 Two rules make the checks trustworthy. Existing tests and screenshots are your
 acceptance checks: an agent may add them but not change them without your
@@ -70,6 +72,36 @@ The design system is code, and it is enforced:
 The `/design` skill tells agents to start from what exists and to promote a
 pattern used twice into a shared component on `/design`. `docs/DESIGN.md` holds
 the reasoning.
+
+## Errors become fixes
+
+The checks catch what someone thought to test, and production finds the rest. So
+the portal reports its own errors, and the factory turns them into fixes:
+
+1. **Capture.** In production, server errors (`src/instrumentation.ts`), browser
+   errors (`src/instrumentation-client.ts` and the error pages) and connector tools
+   that fail are reported to `src/lib/errors`. Noise is dropped: network failures,
+   chunks from an old deployment, browser extensions, aborted requests.
+2. **Scrub and group.** The issues are public, so anything that could be personal
+   is removed before a report is stored: quoted free text, emails, ids, dates,
+   tokens, long numbers, hosts and query strings. The error type, its wording, code
+   identifiers, the route pattern and the stack frames stay. Each bug is one row in
+   `portal.error_groups`, however often it happens. This is why error messages put
+   variable values in quotes.
+3. **Triage, hourly** (`.github/workflows/error-triage.yml`, running
+   `scripts/error-triage.mjs`, no AI). A new bug becomes an issue labelled
+   `error-report`. An open issue gets its counts updated. A closed issue reopens
+   when the error comes back on code that contains the fix; an old tab still
+   running old code does not count.
+4. **Fix.** New and returning bugs go to Claude, one at a time and at most two a
+   day. It follows `/ship` and opens a PR saying `Fixes #N`, which then goes through
+   CI, the guard and the review like any other. If there's nothing to fix in the
+   code (an outage, say), it says why on the issue and closes it as not planned.
+
+You stay in charge with two labels and the close button. `no-autofix` keeps an
+issue from Claude, and closing an issue as not planned stops the triage reporting
+that error. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit;
+`0` turns auto-fixing off.
 
 ## Refactoring, every week
 
@@ -134,6 +166,9 @@ free, deterministic tools for everything else:
 - **One AI review per PR**, on opening, not on every push. Ask for another with
   `@claude review`. Label a PR `skip-review` to skip it.
 - **Two weekly routines**, not daily ones. Each run counts like a session.
+- **At most two error fixes a day.** The hourly triage is a script and costs
+  nothing; each fix it hands to Claude counts like a session
+  (`ERROR_AUTOFIX_PER_DAY`, default 2).
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the
   build is right the first time; run parallel cloud sessions only when the
   tasks are truly separate, since each draws on the same limits.
@@ -143,8 +178,9 @@ free, deterministic tools for everything else:
 - The repository is public: secrets live in `.env.local` (never read by agents:
   the settings deny it) and in GitHub and Vercel settings. GitHub push protection
   blocks a commit that contains a known secret format.
-- Production database credentials are environment secrets, usable only by the
-  release job on main.
+- Production database credentials are environment secrets, usable only on main,
+  by the release job and the error triage. The triage's Claude job gets none of
+  them, and reads the error text in issues as data.
 - Workflows pin every action to a full commit, use read-only tokens by default,
   never put untrusted text into a shell, and are linted by zizmor.
 - `@claude` responds only to accounts with write access. Issue text from anyone
@@ -182,6 +218,10 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    - Sunday 21:00, "Improve the factory": `Run /improve-factory.`
 7. **Locally.** `git config blame.ignoreRevsFile .git-blame-ignore-revs`, so blame
    skips the formatting commit. `fnm` and `nvm` pick up `.nvmrc` (Node 24).
+8. **Error triage.** Nothing is required: it uses the release job's secrets and
+   creates its labels the first time it files an issue. To change the daily limit
+   on fixes, set the repository variable `ERROR_AUTOFIX_PER_DAY`. To try it, run
+   "Error triage" from the Actions tab.
 
 ## Sources
 
