@@ -35,6 +35,8 @@ label approved-test-change d93f0b "Owner approves changing an existing test or s
 label skip-review cfd3d7 "No automatic Claude review on this PR"
 label feature 0e8a16 "Something new the portal should do"
 label bug d73a4a "Works differently from how it should"
+label error-report b60205 "Filed automatically from an error in production"
+label no-autofix cfd3d7 "The error triage does not hand this issue to Claude"
 label refactor 5319e7 "Same behaviour, better structure; the weekly refactor run picks these up"
 label factory fbca04 "An improvement to the factory itself"
 label deps 0366d6 "Dependency updates"
