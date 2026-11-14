@@ -20,9 +20,12 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-14 · accessibility · axe can't measure text on gradient cards, so `text-faint` (about 2.9:1 on a card) never shows up as a finding · a contrast unit test over the token pairs in globals.css
 - 2026-11-14 · database · `npm run test:db` pulled the pg_prove image with no output and stalled for 8 minutes on a slow link; the same files passed when piped through psql in the db container · a test:db fallback that runs each file with psql when pg_prove is missing
 - 2026-11-14 · e2e · `next build` failed outright when fonts.gstatic.com timed out once (next/font/google downloads at build time) · self-host Funnel Display with next/font/local so builds need no network
+- 2026-11-14 · review · the Claude review on #38 passed in 5 seconds and 3 turns and posted nothing, while #36, #37 and #39 each got "No issues found"; a review that silently skips looks like a pass · the review job could fail when the run posts no review comment
+- 2026-11-14 · e2e · `npm run test:e2e:update e2e/visual.spec.ts` fails: Playwright reads the spec path as the update mode · pass `--update-snapshots=changed` with a path, or have the script take the mode first
 
 ## Done
 
+- 2026-11-14 · errors · browser stack frames stayed minified: Turbopack names a chunk's source map with its own hash, and a hand check "passed" because it built its frame from a map's name, a pairing that never occurs · the pack step follows each chunk's `sourceMappingURL`, e2e/error-maps-chunks.spec.ts checks every chunk, and e2e/errors-page.spec.ts sends a real browser error through the test button (this PR)
 - 2026-11-14 · build · `outputFileTracingIncludes` did nothing: Next applies it only in webpack's trace step, and Turbopack builds skip it, so source maps never reached the functions · scripts/pack-source-maps.mjs edits the traces, and e2e/error-maps-private.spec.ts checks the error intake's (this PR)
 - 2026-11-14 · build · the map loader's `join(process.cwd(), path)` made Turbopack deploy the whole project with every function; the warning sat in a passing build log and reached production · the read carries `turbopackIgnore`, and e2e/error-maps-private.spec.ts fails when any function trace includes the project's own files (this PR)
 - 2026-11-13 · ci · the Claude review failed on every Dependabot PR (no secrets for bots) · the review skips Dependabot (factory PR 2)
