@@ -1,7 +1,7 @@
 # Production errors become bug issues, and bug issues become fix PRs.
 #
 # The portal records its errors in portal.error_groups (src/lib/errors/),
-# scrubbed of anything personal. Every hour, the triage job (a script, no AI)
+# scrubbed of anything personal. Every 30 minutes, the triage job (a script, no AI)
 # files each new group as an issue, keeps open issues' counts current, and
 # reopens a fixed bug that came back on code containing the fix. New and
 # returning bugs then go to Claude, one at a time and at most
@@ -16,7 +16,9 @@ name: Error triage
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # Every 30 minutes. If the repository goes private, go back to hourly ("17 * * * *"):
+    # private repositories get 2,000 free Actions minutes a month, and this would use about 1,440.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:
