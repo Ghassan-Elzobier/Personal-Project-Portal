@@ -39,6 +39,10 @@ Use the `/ship` skill for any change; it holds the details. In short:
 6. Log friction: if the factory slowed you down or let a mistake through, add one
    line to `docs/factory/friction.md`. That is how the factory improves.
 
+For a bug, use `/debug` (or the `debugger` agent): reproduce it as a failing e2e test, stop at the
+failure with `npm run debug` and the Playwright and Chrome DevTools MCP servers, fix the app. Never
+switch a test off to get green (`test.fixme`, `.only`, an unconditional skip): the guard fails it.
+
 ## Commands
 
 | Command | What it does |

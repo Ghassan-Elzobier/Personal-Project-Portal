@@ -105,6 +105,17 @@ if (touched.length && !labels().includes(LABEL)) {
   );
 }
 
+// A test switched off or focused: new tests count too, which is where a healing agent adds fixme.
+import { addedSkips } from "../src/lib/ci/skipped-tests.ts";
+const skips = addedSkips(git("diff", "-U0", "--no-color", mergeBase, "--", "e2e/*.spec.ts"));
+if (skips.length && !labels().includes(LABEL)) {
+  failures.push(
+    `A test was switched off or focused (fixme, only, or an unconditional skip):\n${skips.map((l) => `    ${l}`).join("\n")}\n  ` +
+      `That is a way to get green without fixing anything, so it needs the owner's say-so: the PR label "${LABEL}". ` +
+      `Fix the app, or say in the PR description why the test is wrong.`,
+  );
+}
+
 function labels() {
   const path = process.env.GITHUB_EVENT_PATH;
   if (!path || !existsSync(path)) return (process.env.GUARD_LABELS ?? "").split(",").filter(Boolean);
