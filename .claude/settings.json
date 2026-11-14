@@ -5,6 +5,9 @@
   "env": { "NEXT_TELEMETRY_DISABLED": "1" },
   "permissions": {
     "allow": [
+      "mcp__playwright-test",
+      "mcp__chrome-devtools",
+      "mcp__next-devtools",
       "Bash(npm run *)",
       "Bash(npm test*)",
       "Bash(npm ci*)",
