@@ -1,0 +1,90 @@
+# When main moves (a pull request merged), every other open pull request is
+# checked for a merge conflict. The ones that now conflict are told which files
+# and, on the owner's own claude/ branches, Claude merges main in, resolves the
+# conflict and pushes to the same branch, at most twice per pull request.
+# Label a PR no-autofix to keep it for yourself. See docs/FACTORY.md.
+name: PR conflicts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-conflicts
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Find conflicting pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      fix: ${{ steps.check.outputs.fix }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - id: check
+        run: node --experimental-strip-types --no-warnings scripts/pr-conflicts.mjs
+
+  resolve:
+    name: Resolve the conflict on #${{ matrix.item.pr }}
+    needs: check
+    if: needs.check.outputs.fix != '' && needs.check.outputs.fix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        item: ${{ fromJSON(needs.check.outputs.fix) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.item.branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Pull request #${{ matrix.item.pr }} now conflicts with main. You are on its branch.
+
+            1. `git fetch origin main`, then `git merge origin/main` (a merge, never a rebase: the branch
+               is already pushed and force-pushing is blocked).
+            2. Resolve every conflict by keeping both sides' intent. In docs/factory/friction.md both
+               sides only add lines: keep every line from both. Never drop another pull request's
+               change, and never weaken, skip or delete a test to make it merge.
+            3. Run `npm run check` until it passes, commit the merge, and push to this branch
+               (`git push origin HEAD:${{ matrix.item.branch }}`).
+            4. Comment on the pull request in one or two sentences: which files conflicted and how you
+               resolved them. If you cannot resolve it safely, say why instead.
+
+            Never merge the pull request, never push to main.
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm run guard),Bash(npx prettier:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr view:*)"

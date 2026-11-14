@@ -12,7 +12,20 @@ import betterTailwind from "eslint-plugin-better-tailwindcss";
 // globals.css, and named groups and peers.
 const NOT_TAILWIND = ["sheet", "nav-progress", "^group/.+$", "^peer/.+$"];
 
-const DOMAINS = ["auth", "calendar", "config", "dates", "errors", "jobs", "lab", "library", "life", "study", "tasks"];
+const DOMAINS = [
+  "auth",
+  "calendar",
+  "ci",
+  "config",
+  "dates",
+  "errors",
+  "jobs",
+  "lab",
+  "library",
+  "life",
+  "study",
+  "tasks",
+];
 
 // Production errors become public GitHub issues, and the error tracker can only
 // remove values that sit in quotes (src/lib/errors/report.ts). So a value in an

@@ -131,6 +131,29 @@ If the repository goes private, change the triage's schedule back to hourly
 (`17 * * * *`). Private repositories get 2,000 free Actions minutes a month, and
 running every 30 minutes uses about 1,440 of them. Nothing else changes.
 
+## When CI fails, something looks into it
+
+A failed check on a pull request is investigated before you have to (`.github/workflows/ci-triage.yml`,
+`scripts/ci-triage.mjs`, no AI for the first step):
+
+1. **Read the log.** `src/lib/ci/failure.ts` names what failed (end-to-end, database, types,
+   lint, format, guard) or recognises an infrastructure flake: a port already in use on the runner,
+   a registry timeout, a rate limit. It is tested against logs that really failed.
+2. **Flake: rerun once,** and say why on the pull request.
+3. **Real failure: a comment** with what failed and the lines that show it.
+4. **On your own `claude/` branches, Claude repairs it** and pushes to the same branch, at most twice
+   per pull request, following `/debug`. It may not weaken, skip or re-record a test. The guard failing
+   is never auto-fixed: that needs your label. Label a pull request `no-autofix` to keep it for yourself.
+
+**When another pull request merges, the rest are checked for conflicts** (`.github/workflows/pr-conflicts.yml`).
+GitHub only shows a conflict on the pull request itself, so on every push to main the workflow looks at
+each open pull request, says which files now conflict, and on your own `claude/` branches has Claude merge
+main in, resolve it and push, twice at most. The friction log is the usual culprit: every pull request
+appends to its end, and the resolution is always to keep every line.
+
+Fork pull requests are never touched, and the log is read as data. The Integration job also retries
+starting the database itself, since a port clash there failed two pull requests in a row.
+
 ## Refactoring, every week
 
 Structure decays unless something pushes back, so refactoring is part of the

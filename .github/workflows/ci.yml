@@ -54,7 +54,15 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Start Supabase (migrations and seed)
-        run: npm run db:start
+        # Starting the database has failed on a runner whose port was taken, a
+        # transient clash; the second try on a clean slate has always worked.
+        run: |
+          for attempt in 1 2 3; do
+            npm run db:start && exit 0
+            npx supabase stop --no-backup || true
+            sleep 5
+          done
+          exit 1
       - name: Database tests (pgTAP)
         run: npm run test:db
       - name: End-to-end, accessibility and screenshots
