@@ -145,6 +145,12 @@ A failed check on a pull request is investigated before you have to (`.github/wo
    per pull request, following `/debug`. It may not weaken, skip or re-record a test. The guard failing
    is never auto-fixed: that needs your label. Label a pull request `no-autofix` to keep it for yourself.
 
+**When another pull request merges, the rest are checked for conflicts** (`.github/workflows/pr-conflicts.yml`).
+GitHub only shows a conflict on the pull request itself, so on every push to main the workflow looks at
+each open pull request, says which files now conflict, and on your own `claude/` branches has Claude merge
+main in, resolve it and push, twice at most. The friction log is the usual culprit: every pull request
+appends to its end, and the resolution is always to keep every line.
+
 Fork pull requests are never touched, and the log is read as data. The Integration job also retries
 starting the database itself, since a port clash there failed two pull requests in a row.
 
