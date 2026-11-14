@@ -16,7 +16,10 @@ import { mapFiles, symbolicateStack } from "./symbolicate";
 // its stack is mapped back to source lines first. The triage workflow files
 // the bugs as GitHub issues.
 
-const TIMEOUT_MS = 3000;
+// Nobody waits on a report (the browser sends and moves on), so the database
+// gets a generous while; under load, parsing a large source map can hold the
+// event loop for a moment.
+const TIMEOUT_MS = 8000;
 
 // The build's source maps, read from the server's own bundle, with the source
 // text stripped out. scripts/pack-source-maps.mjs decides which maps each
@@ -96,7 +99,10 @@ export async function saveReport(report: ErrorReport, event: ErrorEvent, cookieH
         : clientFromCookies(cookieHeader).rpc("record_error", args(report, event));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), TIMEOUT_MS));
     const result = await Promise.race([call, timeout]);
-    if (!result) return false;
+    if (!result) {
+      console.error(`record_error timed out after ${TIMEOUT_MS} ms`);
+      return false;
+    }
     if (result.error) {
       console.error("record_error failed", result.error.message);
       return false;
@@ -113,16 +119,16 @@ export async function reportServerError(
   value: unknown,
   where: Pick<ReportInput, "source" | "route" | "context">,
   from: { cookieHeader?: string; userAgent?: string } = {},
-): Promise<void> {
+): Promise<boolean> {
   const described = describeError(value);
-  if (isNoise(described)) return;
+  if (isNoise(described)) return false;
   const report = buildReport({
     ...described,
     stack: readableStack(described.stack),
     ...where,
     release: process.env.VERCEL_GIT_COMMIT_SHA,
   });
-  await saveReport(report, buildEvent({ userAgent: from.userAgent }), from.cookieHeader);
+  return saveReport(report, buildEvent({ userAgent: from.userAgent }), from.cookieHeader);
 }
 
 type RequestInfo = { path: string; headers: Record<string, string | string[] | undefined> };
