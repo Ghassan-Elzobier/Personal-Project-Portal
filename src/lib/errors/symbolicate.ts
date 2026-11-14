@@ -25,6 +25,19 @@ export function buildFile(location: string): string | null {
   return `.next/${match[1]}/${match[2]}`;
 }
 
+/**
+ * Where a build file's map may sit, in order. The browser's maps are packed into
+ * .next/server/source-maps by scripts/pack-source-maps.mjs; the server's sit beside
+ * their chunks. Vercel serves the browser's chunks under /_next/static/immutable/,
+ * which need not be where they sat in the build, so both places are tried.
+ */
+export function mapFiles(file: string): string[] {
+  if (!file.startsWith(".next/static/")) return [`${file}.map`];
+  const served = file.slice(".next/static/".length);
+  const built = served.startsWith("immutable/") ? served.slice("immutable/".length) : served;
+  return [...new Set([served, built])].map((path) => `.next/server/source-maps/static/${path}.map`);
+}
+
 /** A source path from a map (`turbopack:///[project]/src/…`, `../../src/…`) as a path in the repository. */
 export function sourcePath(fileName: string): string {
   const path = fileName.replace(/^[a-z]+:\/\/\/?/i, "");
