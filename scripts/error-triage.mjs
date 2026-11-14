@@ -54,28 +54,23 @@ function git(...args) {
   return spawnSync("git", args, { encoding: "utf8" });
 }
 
-/** Runs SQL on the production database (or the local stack) and returns its rows. */
-function sql(query, { write = false } = {}) {
+/**
+ * Runs SQL on the production database (or the local stack) and returns its rows.
+ * Every query is a fixed string in this file. They run as postgres, like the
+ * local stack: --read-only would run them as Supabase's read-only role, which
+ * can read the tables but not call the portal's functions (granted to no one).
+ * --yes confirms the hosted run; --agent no keeps the JSON plain, the same in a
+ * Claude session as in GitHub Actions.
+ */
+function sql(query) {
   const target = local
     ? process.env.SUPABASE_WORKDIR
       ? ["--workdir", process.env.SUPABASE_WORKDIR]
       : []
-    : ["--remote", ...(write ? ["--yes"] : [])];
+    : ["--remote", "--yes"];
   const out = execFileSync(
     "npx",
-    // --agent no: the same plain JSON in a Claude session as in GitHub Actions.
-    [
-      "supabase",
-      "db",
-      "query",
-      ...target,
-      ...(write ? [] : ["--read-only"]),
-      "--agent",
-      "no",
-      "--output-format",
-      "json",
-      query,
-    ],
+    ["supabase", "db", "query", ...target, "--agent", "no", "--output-format", "json", query],
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
   return queryRows(out);
@@ -130,7 +125,7 @@ function existingIssue(fingerprint) {
 function record(fingerprint, status, issue, autofix) {
   if (dryRun) return;
   const number = Number.isInteger(issue) && issue > 0 ? issue : "null";
-  sql(`select portal.record_triage('${fingerprint}', '${status}', ${number}, ${autofix})`, { write: true });
+  sql(`select portal.record_triage('${fingerprint}', '${status}', ${number}, ${autofix})`);
 }
 
 const perDay = autofixLimit(process.env.ERROR_AUTOFIX_PER_DAY);
