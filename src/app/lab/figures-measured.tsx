@@ -4,6 +4,7 @@ import { IRIS_XE, MODEL, RX_5700_XT } from "@/lib/lab/guide";
 import { achieved, type GpuResult } from "@/lib/lab/results";
 import { Figure, Label, Text } from "./kit";
 import { SourceChip } from "./shared";
+import { ScrollX } from "@/components/ui";
 
 // Where the model meets your measurements: the divergence curve trip by trip,
 // and the two GPUs side by side, from the results recorded in the portal.
@@ -143,7 +144,7 @@ export function GpuTable({ results }: { results: Results }) {
     rx: `wave${RX_5700_XT.subgroup.compiled}, ${RX_5700_XT.wave64.vgprs} vector registers, 1,951 instructions, no spills`,
   };
   return (
-    <div className="overflow-x-auto">
+    <ScrollX label="Measured results by GPU">
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="text-xs text-muted">
           <tr>
@@ -168,7 +169,7 @@ export function GpuTable({ results }: { results: Results }) {
               <td key={g} className={`${cell} tabular-nums`}>
                 {r.dispatch ? `${r.dispatch.ms} ms` : "not recorded"}
                 {r.dispatch?.commit && (
-                  <span className="block text-xs text-faint">
+                  <span className="block text-xs text-muted">
                     at {r.dispatch.commit}, {r.dispatch.date}
                   </span>
                 )}
@@ -199,7 +200,7 @@ export function GpuTable({ results }: { results: Results }) {
               <td key={g} className={`${cell} tabular-nums`}>
                 {a ? `${Math.round(a.gflops).toLocaleString("en-GB")} GFLOP/s, ${Math.round(a.gbs)} GB/s` : "—"}
                 {g === "rx" && a && (
-                  <span className="block text-xs text-faint">
+                  <span className="block text-xs text-muted">
                     {Math.round(a.ofRxRoof * 100)}% of its paper roof at 9 FLOP/B
                   </span>
                 )}
@@ -229,7 +230,7 @@ export function GpuTable({ results }: { results: Results }) {
             {rows.map(({ g, r }) => (
               <td key={g} className={`${cell} tabular-nums`}>
                 {`model ${Math.round(MODEL.efficiency[g === "iris" ? 16 : 64] * 100)}% at ${g === "iris" ? 16 : 64} wide`}
-                <span className="block text-xs text-faint">
+                <span className="block text-xs text-muted">
                   {r.divergence
                     ? `measured ${Math.round(r.divergence.overall * 100)}% at ${r.divergence.subgroup}`
                     : "not measured yet"}
@@ -242,6 +243,6 @@ export function GpuTable({ results }: { results: Results }) {
           </tr>
         </tbody>
       </table>
-    </div>
+    </ScrollX>
   );
 }

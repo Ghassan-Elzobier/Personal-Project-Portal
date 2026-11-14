@@ -26,7 +26,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
               <p className="text-sm text-body">
                 Next:{" "}
                 {hub.nextUnit.href ? (
-                  <Link href={hub.nextUnit.href} className="text-aqua underline-offset-2 hover:underline">
+                  <Link href={hub.nextUnit.href} className="link">
                     {hub.nextUnit.name}
                   </Link>
                 ) : (

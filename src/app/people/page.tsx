@@ -88,15 +88,15 @@ export default async function PeoplePage() {
 
       <p className="text-sm text-body">
         See what mentors see:{" "}
-        <Link href="/progress" className="text-aqua hover:underline">
+        <Link href="/progress" className="link">
           Progress
         </Link>
         ,{" "}
-        <Link href="/roadmap" className="text-aqua hover:underline">
+        <Link href="/roadmap" className="link">
           Roadmap
         </Link>{" "}
         and{" "}
-        <Link href="/job-hunt" className="text-aqua hover:underline">
+        <Link href="/job-hunt" className="link">
           Job hunt
         </Link>
         .

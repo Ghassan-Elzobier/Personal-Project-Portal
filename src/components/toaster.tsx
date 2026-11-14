@@ -43,7 +43,7 @@ export function Toaster() {
           <span>{t.message}</span>
           {t.action && (
             <button
-              className="cursor-pointer font-semibold text-aqua hover:underline"
+              className="cursor-pointer font-semibold link"
               onClick={() => {
                 t.action!.onClick();
                 setToasts((list) => list.filter((x) => x.id !== t.id));

@@ -618,7 +618,7 @@ function NewBlockForm({
       {tab === "life" && !googleReady ? (
         <p className="text-sm text-body">
           Life blocks are saved in Google Calendar.{" "}
-          <a href="/api/google/connect" className="text-aqua hover:underline">
+          <a href="/api/google/connect" className="link">
             Connect Google Calendar
           </a>{" "}
           to add them.

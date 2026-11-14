@@ -6,7 +6,7 @@ import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import { mentorJobView, type MentorSource } from "@/lib/jobs/mentor";
 import { createClient } from "@/lib/supabase/server";
-import { Chip, Empty, ErrorNote, PageHeader, SectionTitle } from "@/components/ui";
+import { Chip, Empty, ErrorNote, PageHeader, ScrollX, SectionTitle } from "@/components/ui";
 import { BandChip, SkillTable, TIER_NAMES } from "../jobs/views";
 
 export const metadata: Metadata = { title: "Job hunt" };
@@ -148,7 +148,7 @@ export default async function SharedJobHuntPage() {
         <SectionTitle>
           <span id="fields-title">By field</span>
         </SectionTitle>
-        <div className="overflow-x-auto">
+        <ScrollX label="Roles by field">
           <table className="w-full min-w-lg text-left text-sm">
             <thead className="text-xs text-muted">
               <tr>
@@ -173,7 +173,7 @@ export default async function SharedJobHuntPage() {
                 ))}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       </section>
 
       {view.applications.length > 0 && (

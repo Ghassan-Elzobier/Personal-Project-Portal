@@ -89,7 +89,7 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
                 disabled={pending}
                 aria-busy={pending}
                 onClick={() => moveTo(today, "today")}
-                className="min-h-6 cursor-pointer text-aqua hover:underline"
+                className="min-h-6 cursor-pointer link"
               >
                 Today
               </button>
@@ -97,7 +97,7 @@ function FocusRow({ task, overdue, today, tomorrow, canComplete }: Props & { tas
                 disabled={pending}
                 aria-busy={pending}
                 onClick={() => moveTo(tomorrow, "tomorrow")}
-                className="min-h-6 cursor-pointer text-aqua hover:underline"
+                className="min-h-6 cursor-pointer link"
               >
                 Tomorrow
               </button>

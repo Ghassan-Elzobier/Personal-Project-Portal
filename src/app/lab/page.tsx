@@ -6,7 +6,7 @@ import { latestResults } from "@/lib/lab/results";
 import { attempt } from "@/lib/portal/data";
 import { loadStudy } from "@/lib/study/load";
 import { GpuTable } from "./figures-measured";
-import { Chip, PageHeader, SectionTitle } from "@/components/ui";
+import { Chip, PageHeader, ScrollX, SectionTitle } from "@/components/ui";
 import { FrameMap } from "./figures-host";
 import { Legend } from "./kit";
 import { DriftBanner, FindingCard } from "./shared";
@@ -29,7 +29,7 @@ export default async function LabPage() {
           href={`${RENDERER.repo}/tree/${RENDERER.commit}`}
           target="_blank"
           rel="noreferrer"
-          className="font-mono text-aqua hover:underline"
+          className="font-mono link"
         >
           {RENDERER.short}
         </a>
@@ -116,7 +116,7 @@ export default async function LabPage() {
           Every line of main.cpp, raytrace.comp and CMakeLists.txt, and the view that explains it. A test checks that no
           line is left out.
         </p>
-        <div className="overflow-x-auto">
+        <ScrollX label="Every line and the view that explains it">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs text-muted">
               <tr>
@@ -139,7 +139,7 @@ export default async function LabPage() {
                       href={codeHref([c.file, c.from, c.to])}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-mono text-xs text-aqua hover:underline"
+                      className="font-mono text-xs link"
                     >
                       {c.file === "main" ? "main.cpp" : c.file === "shader" ? "raytrace.comp" : "CMakeLists.txt"}:
                       {c.from}–{c.to}
@@ -159,7 +159,7 @@ export default async function LabPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       </section>
 
       <section aria-labelledby="numbers-title" className="space-y-3">
@@ -176,7 +176,7 @@ export default async function LabPage() {
           Model, frame 0 at 800 × 600: {MODEL.meanTrips} trips per path, {pct(MODEL.escapeFirstTrip)} leaving on the
           first, about {MODEL.flopPerPath} FLOP over {MODEL.bytesPerPixel} bytes. If the desktop runs Windows,
           AMD&apos;s own driver compiles differently from RADV; Radeon GPU Profiler shows what it does.{" "}
-          <Link href="/study?project=rendering" className="text-aqua hover:underline">
+          <Link href="/study?project=rendering" className="link">
             Record a result
           </Link>
           .
@@ -186,11 +186,11 @@ export default async function LabPage() {
       <p className="text-sm text-muted">
         The lines linked here are the ones at {RENDERER.short}. When main.cpp is split into modules, the figures still
         hold but the line links need moving. The{" "}
-        <Link href="/study?project=rendering" className="text-aqua hover:underline">
+        <Link href="/study?project=rendering" className="link">
           Rendering lab plan
         </Link>{" "}
         and the{" "}
-        <Link href="/library" className="text-aqua hover:underline">
+        <Link href="/library" className="link">
           book
         </Link>{" "}
         link back here.

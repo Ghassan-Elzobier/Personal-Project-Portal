@@ -65,12 +65,7 @@ export function SourceButtons({ gid, active, canCheck = false }: { gid: string; 
       if (result.error) toast(result.error, { tone: "error" });
     });
   return canCheck ? (
-    <button
-      disabled={pending}
-      aria-busy={pending}
-      onClick={() => run(() => markSourceChecked(gid))}
-      className="text-aqua hover:underline"
-    >
+    <button disabled={pending} aria-busy={pending} onClick={() => run(() => markSourceChecked(gid))} className="link">
       Checked today
     </button>
   ) : (

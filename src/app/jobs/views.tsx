@@ -252,12 +252,7 @@ export function StandingNote({ standing, about = "you" }: { standing: Standing; 
       <span>
         {LEVELS[standing.level].name}:{" "}
         {top?.href ? (
-          <a
-            href={top.href}
-            target={top.href.startsWith("/") ? undefined : "_blank"}
-            rel="noreferrer"
-            className="text-aqua underline-offset-2 hover:underline"
-          >
+          <a href={top.href} target={top.href.startsWith("/") ? undefined : "_blank"} rel="noreferrer" className="link">
             {top.label}
           </a>
         ) : (
@@ -276,7 +271,7 @@ export function StandingNote({ standing, about = "you" }: { standing: Standing; 
       <span>
         {standing.level === 1 ? "Studied, not practised. " : ""}
         {standing.next.href ? (
-          <Link href={standing.next.href} className="text-aqua underline-offset-2 hover:underline">
+          <Link href={standing.next.href} className="link">
             {standing.next.name}
           </Link>
         ) : (
@@ -496,12 +491,7 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
                   <span className="font-medium">{SKILLS.find((s) => s.key === e.skill)?.name ?? e.skill}</span>
                   <span className="text-muted"> ({LEVELS[e.level]?.name}): </span>
                   {e.url ? (
-                    <a
-                      href={e.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-aqua underline-offset-2 hover:underline"
-                    >
+                    <a href={e.url} target="_blank" rel="noreferrer" className="link">
                       {e.note}
                     </a>
                   ) : (
@@ -742,12 +732,7 @@ export function SourcesView({ board }: { board: JobBoard }) {
               .map((s) => (
                 <li key={s.gid} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                   {s.careers_url ? (
-                    <a
-                      href={s.careers_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-aqua underline-offset-2 hover:underline"
-                    >
+                    <a href={s.careers_url} target="_blank" rel="noreferrer" className="link">
                       {s.name}
                     </a>
                   ) : (
