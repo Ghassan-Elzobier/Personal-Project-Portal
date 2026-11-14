@@ -4,8 +4,10 @@
 // maps stack frames back to source lines (src/lib/errors/symbolicate.ts).
 //
 //   1. Moves the browser's maps out of .next/static, which is served to anyone,
-//      into .next/server/source-maps/static, which is not. (src/proxy.ts also
-//      refuses any .map request, in case one is ever left behind.)
+//      into .next/server/source-maps/static, which is not, each named after the
+//      chunk it maps (`<chunk>.js.map`). Turbopack gives a chunk's map a hash of
+//      its own, so the chunk's `sourceMappingURL` says which map is whose.
+//      (src/proxy.ts also refuses any .map request, in case one is left behind.)
 //   2. Strips the source text (`sourcesContent`) from every map, browser and
 //      server. Mapping a frame needs only positions and file names, so no map
 //      carries a line of the project's code.
@@ -20,7 +22,7 @@
 // which is why this edits them. Prints what it did; changes nothing twice.
 //
 //   node scripts/pack-source-maps.mjs [distDir]   (default .next)
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 const dist = resolve(process.argv[2] ?? ".next");
@@ -46,13 +48,42 @@ if (!existsSync(server)) {
   process.exit(1);
 }
 
-// 1. Browser maps (scripts' and styles') out of the public folder.
+/** The map a script names in its last line (`//# sourceMappingURL=…`), as a path, if it is a file beside it. */
+function mapOf(script) {
+  const text = readFileSync(script, "utf8");
+  const ref = /\/\/# sourceMappingURL=(\S+)\s*$/.exec(text.slice(-1000))?.[1];
+  if (!ref || /^(?:data|https?):/.test(ref)) return null;
+  try {
+    return resolve(dirname(script), decodeURIComponent(ref));
+  } catch {
+    return null;
+  }
+}
+
+const place = (from, to) => {
+  mkdirSync(dirname(to), { recursive: true });
+  renameSync(from, to);
+};
+
+// 1. Browser maps out of the public folder, each under its chunk's name.
 let moved = 0;
+const placed = new Map();
+for (const script of walk(staticDir)) {
+  if (!script.endsWith(".js")) continue;
+  const map = mapOf(script);
+  const target = join(privateStatic, `${relative(staticDir, script)}.map`);
+  if (map && existsSync(map)) {
+    place(map, target);
+    placed.set(map, target);
+    moved += 1;
+  } else if (map && placed.has(map)) {
+    copyFileSync(placed.get(map), target);
+  }
+}
+// Whatever is left (style sheets' maps, maps no chunk names) leaves the public folder too.
 for (const file of walk(staticDir)) {
   if (!file.endsWith(".map")) continue;
-  const target = join(privateStatic, relative(staticDir, file));
-  mkdirSync(dirname(target), { recursive: true });
-  renameSync(file, target);
+  place(file, join(privateStatic, relative(staticDir, file)));
   moved += 1;
 }
 
@@ -87,6 +118,9 @@ for (const traceFile of walk(server)) {
     (f) => f.endsWith(".js") && f.startsWith(server + sep),
   );
   for (const script of scripts) {
+    // The server looks for `<chunk>.js.map`; a map named otherwise is copied to that name.
+    const named = mapOf(script);
+    if (!existsSync(`${script}.map`) && named && existsSync(named)) copyFileSync(named, `${script}.map`);
     if (existsSync(`${script}.map`)) files.add(posix(relative(base, `${script}.map`)));
   }
   if (traceFile === intakeTrace) {

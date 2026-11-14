@@ -56,7 +56,9 @@ one-off.
 
 `src/components/ui.tsx`: `PageHeader`, `SectionTitle`, `Chip` (and `StagePill`,
 `StatusPill` built on it), `DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`,
-`TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
+`TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone). `src/components/daily-bars.tsx`:
+`DailyBars`, a count per day (full size with its dates as text, or compact in a
+list row). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
 
 A chip is a few words in a tone: `<Chip tone="sand">Due Fri</Chip>`. Never write a
 chip's colours by hand; a chip that is also a link takes `toneClass(tone)`. The

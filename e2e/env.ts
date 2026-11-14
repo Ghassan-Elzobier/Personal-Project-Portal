@@ -31,6 +31,8 @@ export const OWNER_PAGES: { path: string; heading: RegExp }[] = [
   { path: "/people", heading: /People/i },
   { path: "/claude", heading: /Claude/i },
   { path: "/design", heading: /Design/i },
+  { path: "/errors", heading: /Errors/i },
+  { path: "/errors/5eed0000000000000000000000000001", heading: /TypeError/ },
   { path: "/life", heading: /./ },
   { path: "/life/gym", heading: /Gym/i },
   { path: "/life/kitchen", heading: /Kitchen/i },

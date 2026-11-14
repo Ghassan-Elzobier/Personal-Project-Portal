@@ -7,7 +7,7 @@
 // Breadcrumbs are built from parts, never from text on the page: a route, an
 // element type and its design class, a request's method and status.
 
-export type BrowserContext = "uncaught" | "rejection" | "boundary";
+export type BrowserContext = "uncaught" | "rejection" | "boundary" | "test";
 
 export type Breadcrumb =
   | { at: number; kind: "navigation"; how: "load" | "push" | "replace" | "traverse"; path: string }
@@ -187,31 +187,56 @@ export function startBreadcrumbs(): void {
 const sent = new Set<string>();
 const MAX_PER_PAGE = 10;
 
+/** The report the browser sends for an error, with the breadcrumbs so far. */
+function browserReport(value: unknown, context: BrowserContext): BrowserReport {
+  const { name, message, stack } = describeError(value);
+  return {
+    name: name.slice(0, 200),
+    message: message.slice(0, 4000),
+    stack: stack.slice(0, 10_000),
+    path: window.location.pathname.slice(0, 2000),
+    context,
+    release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? "",
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    breadcrumbs: crumbs.slice(),
+  };
+}
+
+function post(report: BrowserReport): Promise<Response> {
+  return plainFetch("/api/errors", {
+    method: "POST",
+    keepalive: true,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(report),
+  });
+}
+
 /** Reports an error from the browser. Never throws: reporting must not cause a second error. */
 export function sendErrorReport(value: unknown, context: BrowserContext): void {
   if (process.env.NODE_ENV !== "production") return;
   try {
-    const { name, message, stack } = describeError(value);
-    const key = `${name}:${message}`;
+    const report = browserReport(value, context);
+    const key = `${report.name}:${report.message}`;
     if (sent.has(key) || sent.size >= MAX_PER_PAGE) return;
     sent.add(key);
-    const report: BrowserReport = {
-      name: name.slice(0, 200),
-      message: message.slice(0, 4000),
-      stack: stack.slice(0, 10_000),
-      path: window.location.pathname.slice(0, 2000),
-      context,
-      release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ?? "",
-      viewport: `${window.innerWidth}x${window.innerHeight}`,
-      breadcrumbs: crumbs.slice(),
-    };
-    void plainFetch("/api/errors", {
-      method: "POST",
-      keepalive: true,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(report),
-    }).catch(() => {});
+    void post(report).catch(() => {});
   } catch {
     // Nothing to do: the error is still in the console.
+  }
+}
+
+/**
+ * Throws a real error here and sends it through the same pipeline, for the
+ * errors page's check. Says whether it was stored (only production stores).
+ */
+export async function sendTestError(): Promise<boolean> {
+  try {
+    throw new Error("Test error from the errors page (browser)");
+  } catch (error) {
+    try {
+      return (await post(browserReport(error, "test"))).status === 204;
+    } catch {
+      return false;
+    }
   }
 }

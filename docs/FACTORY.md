@@ -114,9 +114,17 @@ the portal reports its own errors, and the factory turns them into fixes:
    CI, the guard and the review like any other. If there's nothing to fix in the
    code (an outage, say), it says why on the issue and closes it as not planned.
 
-You stay in charge with two labels and the close button. `no-autofix` keeps an
-issue from Claude, and closing an issue as not planned stops the triage reporting
-that error. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit;
+**The errors page** (`/errors`, under More, owner only) shows it all without
+GitHub: every bug with its 14-day trend, and for each one its stack linked to the
+source at that release, the breadcrumbs, recent occurrences and the devices it
+hit. **Send a test error** throws a real error on the server or in the browser and
+sends it through the whole pipeline, so you can see a stack arrive mapped. Test
+errors stay on the page and are never filed.
+
+You stay in charge with two labels, the close button and the page. `no-autofix`
+keeps an issue from Claude. Closing an issue as not planned, or pressing Ignore on
+the errors page, stops the triage reporting that error; the triage closes or
+reopens the GitHub issue to match the page. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit;
 `0` turns auto-fixing off.
 
 If the repository goes private, change the triage's schedule back to hourly

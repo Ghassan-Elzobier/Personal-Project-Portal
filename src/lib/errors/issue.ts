@@ -5,6 +5,7 @@
 // Everything in a group was scrubbed before it was stored (report.ts), and the
 // app's own text still goes inside a fence marked as data, because Claude reads
 // these issues when it fixes them.
+import { appFrame, contextLabel, deviceLabel, sourceLabel, sourceUrl, toolOf } from "./display.ts";
 
 export type ErrorGroup = {
   fingerprint: string;
@@ -20,6 +21,8 @@ export type ErrorGroup = {
   last_seen: string;
   status: "new" | "filed" | "ignored";
   issue_number: number | null;
+  /** When the triage last updated the issue; null once the errors page has changed the bug since. */
+  synced_at?: string | null;
 };
 
 /** The parts of a GitHub issue the triage looks at (`gh issue view --json state,stateReason,labels`). */
@@ -30,32 +33,18 @@ export type Action =
   | { kind: "update" } // bring the open issue's counts up to date
   | { kind: "reopen" } // it came back on code that has the fix
   | { kind: "ignore" } // the owner closed it as not planned
-  | { kind: "stale" }; // its issue is closed and this came from older code, such as an old tab
+  | { kind: "stale" } // its issue is closed and this came from older code, such as an old tab
+  | { kind: "close" } // the owner ignored it on the errors page: close its issue as not planned
+  | { kind: "restore" }; // the owner restored it on the errors page: reopen its issue
 
 export const MARKER = "error-fingerprint";
 export const NO_AUTOFIX = "no-autofix";
 
 const DOCS = "docs/FACTORY.md#errors-become-fixes";
 
-const SOURCES: Record<ErrorGroup["source"], string> = {
-  server: "the server",
-  browser: "the browser",
-  connector: "the Claude connector",
-};
-
-const CONTEXTS: Record<string, string> = {
-  render: "while rendering",
-  action: "in a server action",
-  route: "in a route handler",
-  proxy: "in the proxy",
-  uncaught: "uncaught",
-  rejection: "an unhandled promise rejection",
-  boundary: "caught by the error page",
-};
-
 function where(group: ErrorGroup): string {
-  const tool = /^tool ([\w-]+)$/.exec(group.context)?.[1];
-  const context = tool ? `in the connector tool \`${tool}\`` : (CONTEXTS[group.context] ?? group.context);
+  const tool = toolOf(group.context);
+  const context = tool ? `in the connector tool \`${tool}\`` : contextLabel(group.context);
   return `\`${group.route}\`, ${context}`;
 }
 
@@ -93,28 +82,14 @@ export type LatestEvent = {
   breadcrumbs: { at: string; kind: string; text: string }[];
 };
 
-function device(event: LatestEvent): string | null {
-  const parts = [
-    [event.browser, event.os].filter(Boolean).join(" on "),
-    event.device === "unknown" ? "" : event.device,
-    event.viewport?.replace("x", "×") ?? "",
-  ].filter(Boolean);
-  return parts.length ? parts.join(", ") : null;
-}
-
-const URL_SAFE: Record<string, string> = { "[": "%5B", "]": "%5D", "(": "%28", ")": "%29" };
-
 /** The app's own frames (`src/…:line`), each linked to its line at the release: at most five, once each. */
 export function sourceLinks(stack: string, release: string | null, repo: string): string[] {
   if (!release) return [];
   const links: string[] = [];
   for (const line of stack.split("\n")) {
-    const match = /(?:^|[\s(@])(src\/[\w./[\]()@-]+):(\d+):\d+\)?$/.exec(line.trim());
-    if (!match) continue;
-    const [, path, row] = match;
-    const label = `${path}:${row}`;
-    const url = `https://github.com/${repo}/blob/${release}/${path.replace(/[[\]()]/g, (c) => URL_SAFE[c])}#L${row}`;
-    const link = `- [\`${label}\`](${url})`;
+    const frame = appFrame(line);
+    if (!frame) continue;
+    const link = `- [\`${frame.path}:${frame.line}\`](${sourceUrl(repo, release, frame)})`;
     if (!links.includes(link)) links.push(link);
     if (links.length === 5) break;
   }
@@ -125,7 +100,7 @@ const BREADCRUMBS_SHOWN = 10;
 
 export function issueBody(group: ErrorGroup, repo: string, latest?: LatestEvent | null): string {
   const text = [`${group.name}: ${group.message}`, group.stack].filter(Boolean).join("\n");
-  const lastSeenOn = latest ? device(latest) : null;
+  const lastSeenOn = latest ? deviceLabel(latest) : null;
   const links = sourceLinks(group.stack, group.release, repo);
   const crumbs = (latest?.breadcrumbs ?? [])
     .slice(-BREADCRUMBS_SHOWN)
@@ -140,7 +115,7 @@ export function issueBody(group: ErrorGroup, repo: string, latest?: LatestEvent 
     "| | |",
     "| --- | --- |",
     `| Where | ${where(group)} |`,
-    `| From | ${SOURCES[group.source]} |`,
+    `| From | ${sourceLabel(group.source)} |`,
     `| Seen | ${seen(group)} |`,
     `| Release | ${commit(group.release, repo)} |`,
     ...(lastSeenOn ? [`| Last seen on | ${lastSeenOn} |`] : []),
@@ -174,8 +149,11 @@ export function fingerprintIn(body: string): string | null {
  * the commit that closed the issue (null when that cannot be told).
  */
 export function decide(group: ErrorGroup, issue: IssueState | null, releaseHasFix: boolean | null): Action {
+  if (group.context === "test") return { kind: "ignore" };
+  if (group.status === "ignored") return issue?.state === "OPEN" ? { kind: "close" } : { kind: "ignore" };
   if (group.status === "new" || group.issue_number === null || !issue) return { kind: "file" };
   if (issue.state === "OPEN") return { kind: "update" };
+  if (group.synced_at === null) return { kind: "restore" };
   if (issue.stateReason === "NOT_PLANNED") return { kind: "ignore" };
   return releaseHasFix === true ? { kind: "reopen" } : { kind: "stale" };
 }
