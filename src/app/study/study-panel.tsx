@@ -72,7 +72,7 @@ function JobMarket({ items }: { items: NonNullable<PanelData["market"]> }) {
           </li>
         ))}
       </ul>
-      <Link href="/jobs?view=skills" className="text-sm text-aqua underline-offset-4 hover:underline">
+      <Link href="/jobs?view=skills" className="text-sm link">
         See skills against the market
       </Link>
     </div>
@@ -86,7 +86,7 @@ function Connections({ items }: { items: PanelData["connections"] }) {
       <ul className="space-y-2 text-sm text-body">
         {items.map((item) => (
           <li key={item.href}>
-            <Link href={item.href} scroll={false} className="text-aqua underline-offset-4 hover:underline">
+            <Link href={item.href} scroll={false} className="link">
               {item.short}
               {item.done ? " ✓" : ""}
             </Link>

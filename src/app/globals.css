@@ -97,6 +97,11 @@ body {
   @apply text-xs font-medium tracking-wider text-muted uppercase;
 }
 
+/* A link in running text: aqua, and underlined so colour is not the only cue. */
+@utility link {
+  @apply text-aqua underline decoration-aqua/40 underline-offset-2 transition-colors hover:decoration-aqua;
+}
+
 @utility btn {
   @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
 }

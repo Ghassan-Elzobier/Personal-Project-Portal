@@ -13,6 +13,7 @@ export function FrameMap({ links = false }: { links?: boolean }) {
       id={id}
       w={1000}
       h={470}
+      interactive={links}
       label="One frame: main.cpp records a command buffer, the compute queue runs raytrace.comp over 480,000 pixels into two images, and the result is copied to a swapchain image the display shows."
     >
       <Box

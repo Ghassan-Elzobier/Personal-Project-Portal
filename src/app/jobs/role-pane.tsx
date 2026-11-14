@@ -41,12 +41,7 @@ function Standing({ view }: { view: RequirementView }) {
       <>
         {LEVELS[standing.level].name}:{" "}
         {top?.href ? (
-          <a
-            href={top.href}
-            target={top.href.startsWith("/") ? undefined : "_blank"}
-            rel="noreferrer"
-            className="text-aqua hover:underline"
-          >
+          <a href={top.href} target={top.href.startsWith("/") ? undefined : "_blank"} rel="noreferrer" className="link">
             {top.label}
           </a>
         ) : (
@@ -65,7 +60,7 @@ function Standing({ view }: { view: RequirementView }) {
       <>
         In your plan:{" "}
         {standing.next.href ? (
-          <Link href={standing.next.href} className="text-aqua hover:underline">
+          <Link href={standing.next.href} className="link">
             {standing.next.name}
           </Link>
         ) : (
@@ -182,7 +177,7 @@ export function RolePane({
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           {role.url && (
-            <a href={role.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+            <a href={role.url} target="_blank" rel="noreferrer" className="link">
               Open the advert
             </a>
           )}

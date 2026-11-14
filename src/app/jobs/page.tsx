@@ -75,7 +75,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       {board.sources.length === 0 && view !== "sources" && (
         <Empty>
           Nothing to read yet.{" "}
-          <Link href="/jobs?view=sources" className="text-aqua hover:underline">
+          <Link href="/jobs?view=sources" className="link">
             Follow your first employer
           </Link>{" "}
           by pasting a job link from them.

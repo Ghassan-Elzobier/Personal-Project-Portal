@@ -193,7 +193,7 @@ if (subgroupElect()) {
                     href={codeHref([c.file, c.from, c.to])}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-mono text-xs text-aqua hover:underline"
+                    className="font-mono text-xs link"
                   >
                     {c.file === "main" ? "main.cpp" : c.file === "shader" ? "raytrace.comp" : "CMakeLists.txt"}:{c.from}
                     –{c.to}

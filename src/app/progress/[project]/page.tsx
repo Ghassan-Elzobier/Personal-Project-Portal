@@ -84,7 +84,7 @@ export default async function ProjectProgress({ params }: Params) {
         {isOwner && asana.ok && (
           <>
             {" "}
-            <TaskLink href={asana.value.url} className="text-aqua hover:underline">
+            <TaskLink href={asana.value.url} className="link">
               Open tasks
             </TaskLink>
           </>

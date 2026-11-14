@@ -127,7 +127,7 @@ function LoadCard() {
         The book&apos;s pages go from your own PDF into your private database, and nowhere else. Mentors cannot see
         them. From the portal&apos;s folder, after the migrations are pushed:
       </p>
-      <pre className="overflow-x-auto rounded-lg bg-primary/60 p-3 text-xs">
+      <pre tabIndex={0} className="overflow-x-auto rounded-lg bg-primary/60 p-3 text-xs">
         npm run load:book -- &quot;/path/to/Programming Massively Parallel Processors.pdf&quot;
       </pre>
       <p className="text-sm text-white/80">
