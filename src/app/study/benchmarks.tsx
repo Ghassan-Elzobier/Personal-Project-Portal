@@ -83,7 +83,7 @@ export function BenchmarkTable({ rows }: { rows: BenchmarkRow[] }) {
                     href={commitUrl(s.latest.commit_sha)}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-mono text-xs text-aqua hover:underline"
+                    className="font-mono text-xs link"
                   >
                     {s.latest.commit_sha.slice(0, 7)}
                   </a>

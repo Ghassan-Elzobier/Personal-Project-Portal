@@ -203,7 +203,7 @@ function PhaseCard({
                 .join(", ")}
               .
             </span>{" "}
-            <Link href="/jobs?view=skills" className="text-aqua underline-offset-4 hover:underline">
+            <Link href="/jobs?view=skills" className="link">
               See the market
             </Link>
           </p>

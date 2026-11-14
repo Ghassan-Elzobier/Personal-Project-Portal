@@ -84,6 +84,23 @@ export function Hours({ value }: { value: number }) {
   return <span className="tabular-nums">{formatHours(value)} h</span>;
 }
 
+/** A wide table or chart that scrolls sideways on a phone. It takes focus, so a keyboard can scroll it too. */
+export function ScrollX({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div role="region" aria-label={label} tabIndex={0} className={`overflow-x-auto ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export function DueDate({ dueOn, today }: { dueOn: string | null; today: string }) {
   if (!dueOn) return null;
   const overdue = dueOn < today;
@@ -94,7 +111,7 @@ export function DueDate({ dueOn, today }: { dueOn: string | null; today: string 
 export function EvidenceLink({ href }: { href: string | null }) {
   if (!href) return null;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="text-aqua underline-offset-4 hover:underline">
+    <a href={href} target="_blank" rel="noreferrer" className="link">
       Evidence
     </a>
   );

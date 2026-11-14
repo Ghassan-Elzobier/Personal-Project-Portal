@@ -358,7 +358,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
                 disabled={pending}
                 aria-busy={pending}
                 onClick={() => run(() => rescheduleTask(task.gid, today))}
-                className="cursor-pointer text-aqua hover:underline"
+                className="cursor-pointer link"
               >
                 Today
               </button>
@@ -366,7 +366,7 @@ function TaskRow({ task, today, tomorrow }: { task: DashboardTask; today: string
                 disabled={pending}
                 aria-busy={pending}
                 onClick={() => run(() => rescheduleTask(task.gid, tomorrow))}
-                className="cursor-pointer text-aqua hover:underline"
+                className="cursor-pointer link"
               >
                 Tomorrow
               </button>

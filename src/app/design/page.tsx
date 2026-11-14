@@ -8,6 +8,7 @@ import {
   ErrorNote,
   PageHeader,
   Ring,
+  ScrollX,
   SectionTitle,
   StagePill,
   StatusPill,
@@ -108,6 +109,13 @@ export default async function DesignPage() {
           <p className="text-xl font-semibold">Section heading</p>
           <p className="text-base">Body text for reading.</p>
           <p className="subtext">Subtext explains what a section is for.</p>
+          <p className="text-sm text-body">
+            Running text with{" "}
+            <a href="#type" className="link">
+              a link
+            </a>
+            , underlined so colour is not the only cue.
+          </p>
           <p className="text-xs text-faint tabular-nums">Fine print and numbers: 12.5 h · 3 of 8</p>
           <p className="flex flex-wrap items-baseline gap-x-3 text-muted">
             <span className="text-sm">Figure title</span>
@@ -220,6 +228,34 @@ export default async function DesignPage() {
             <DueDate dueOn="2026-11-20" today={today} />
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Wide content"
+        note="Tables and timelines scroll sideways on a phone, in a ScrollX a keyboard can focus."
+      >
+        <ScrollX label="Example table" className="card p-0">
+          <table className="w-full min-w-xl text-left text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                {["Week", "Planned", "Logged", "Done", "Note"].map((h) => (
+                  <th key={h} className="px-4 py-3 font-normal">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-body tabular-nums">
+              <tr>
+                <td className="px-4 py-3">16 Nov</td>
+                <td className="px-4 py-3">12 h</td>
+                <td className="px-4 py-3">9.5 h</td>
+                <td className="px-4 py-3">3 of 5</td>
+                <td className="px-4 py-3 text-muted">Chapter 4 exercises</td>
+              </tr>
+            </tbody>
+          </table>
+        </ScrollX>
       </Section>
 
       <Section title="Feedback" note="Say what happened and what to do next.">

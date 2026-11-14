@@ -185,22 +185,22 @@ function PlanView({
           </h2>
           <p className="flex flex-wrap gap-x-4 text-sm">
             {plan.sourceUrl && (
-              <a href={plan.sourceUrl()} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+              <a href={plan.sourceUrl()} target="_blank" rel="noreferrer" className="link">
                 {plan.mode === "lab" ? "Open the repo" : "Open the book"}
               </a>
             )}
             {plan.project === "rendering" && (
-              <Link href="/lab" className="text-aqua hover:underline">
+              <Link href="/lab" className="link">
                 How it works
               </Link>
             )}
             {plan.project === "pmpp" && (
-              <Link href="/library" className="text-aqua hover:underline">
+              <Link href="/library" className="link">
                 Read the book here
               </Link>
             )}
             {plan.extraLinks?.map((l) => (
-              <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+              <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="link">
                 {l.label}
               </a>
             ))}
@@ -364,7 +364,7 @@ function NextUp({
             .map((m) => `${m.name} (${m.must + m.soft} ${m.must + m.soft === 1 ? "role" : "roles"})`)
             .join(", ")}
           .{" "}
-          <Link href="/jobs?view=skills" className="text-aqua underline-offset-4 hover:underline">
+          <Link href="/jobs?view=skills" className="link">
             See the market
           </Link>
         </p>
@@ -469,7 +469,7 @@ function UnitRowView({
             href={plan.sourceUrl(unit.page)}
             target="_blank"
             rel="noreferrer"
-            className="text-aqua hover:underline"
+            className="link"
             aria-label={`Open ${task.name} at page ${unit.page}`}
           >
             p. {unit.page}
@@ -478,7 +478,7 @@ function UnitRowView({
         {!plan.sourceUrl && unit.page && (
           <Link
             href={bookHref.page(unit.page)}
-            className="text-aqua hover:underline"
+            className="link"
             aria-label={`Read ${task.name} from page ${unit.page}`}
           >
             p. {unit.page}

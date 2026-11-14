@@ -1,8 +1,1 @@
-{
-  "/library": ["scrollable-region-focusable"],
-  "/jobs": ["link-in-text-block"],
-  "/lab": ["color-contrast", "link-in-text-block", "nested-interactive", "scrollable-region-focusable", "target-size"],
-  "/timeline": ["scrollable-region-focusable"],
-  "/job-hunt": ["scrollable-region-focusable"],
-  "/people": ["link-in-text-block"]
-}
+{}

@@ -77,6 +77,7 @@ export function Figure({
   caption,
   children,
   minWidth = 720,
+  interactive = false,
 }: {
   id: string;
   w: number;
@@ -85,11 +86,19 @@ export function Figure({
   caption?: ReactNode;
   children: ReactNode;
   minWidth?: number;
+  /** True when the figure holds links: an image can't contain controls, a group can. */
+  interactive?: boolean;
 }) {
   return (
     <figure className="space-y-3">
       <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
-        <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label} className="h-auto w-full" style={{ minWidth }}>
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          role={interactive ? "group" : "img"}
+          aria-label={label}
+          className="h-auto w-full"
+          style={{ minWidth }}
+        >
           <defs>
             {ARROW_TONES.map((t) => (
               <marker

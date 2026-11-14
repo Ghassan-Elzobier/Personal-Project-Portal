@@ -5,7 +5,7 @@ import { allTasks, attempt, today, type TaskView } from "@/lib/portal/data";
 import { PROJECTS } from "@/lib/config/projects";
 import { addDays, shortDate, weekdayIndex } from "@/lib/dates/week";
 import Link from "next/link";
-import { Empty, ErrorNote, PageHeader, TaskLink } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, ScrollX, TaskLink } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Timeline" };
 export const dynamic = "force-dynamic";
@@ -71,7 +71,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
 
-      <div className="overflow-x-auto card p-0">
+      <ScrollX label="Timeline" className="card p-0">
         <div className="min-w-4xl">
           <div className="relative ml-56 h-8 border-b border-white/5">
             {Array.from({ length: weeks }, (_, i) => addDays(start, i * 7)).map((w) => (
@@ -100,7 +100,7 @@ export default async function TimelinePage({ searchParams }: { searchParams: Pro
             </section>
           ))}
         </div>
-      </div>
+      </ScrollX>
 
       <div className="flex flex-wrap gap-4 text-xs text-muted">
         {Object.entries(BAR).map(([stage, cls]) => (

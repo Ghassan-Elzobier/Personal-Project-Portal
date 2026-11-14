@@ -18,7 +18,7 @@ export function CodeLinks({ refs }: { refs: readonly CodeRef[] }) {
           href={codeHref(r)}
           target="_blank"
           rel="noreferrer"
-          className="font-mono text-xs text-aqua underline-offset-4 hover:underline"
+          className="inline-flex min-h-6 items-center font-mono text-xs link"
         >
           {codeLabel(r)}
         </a>
@@ -84,7 +84,10 @@ export function FindingCard({ finding, view }: { finding: Finding; view?: { id: 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {finding.code && <CodeLinks refs={finding.code} />}
         {view && (
-          <Link href={`/lab/${view.id}`} className="text-xs text-muted hover:text-white">
+          <Link
+            href={`/lab/${view.id}`}
+            className="inline-flex min-h-6 items-center text-xs text-muted hover:text-white"
+          >
             In {view.title}
           </Link>
         )}
@@ -103,7 +106,7 @@ export function DriftBanner({ drift }: { drift: Drift | null }) {
         {drift.commits} {drift.commits === 1 ? "commit" : "commits"} on main after {RENDERER.short} change{" "}
         {drift.files.join(", ")}. The figures and line links still describe {RENDERER.short}. Run{" "}
         <span className="font-mono text-xs">npm run lab:check</span> in the portal to see which references moved.{" "}
-        <a href={drift.url} target="_blank" rel="noreferrer" className="text-aqua hover:underline">
+        <a href={drift.url} target="_blank" rel="noreferrer" className="link">
           See the changes
         </a>
       </p>
@@ -115,7 +118,7 @@ export function DriftBanner({ drift }: { drift: Drift | null }) {
 export function BookLinks({ page }: { page: number }) {
   return (
     <span className="flex flex-wrap gap-x-3 text-xs">
-      <Link href={bookHref.page(page)} className="text-aqua underline-offset-4 hover:underline">
+      <Link href={bookHref.page(page)} className="link">
         Read p. {page}
       </Link>
       <a href={bookHref.pdf(page)} target="_blank" rel="noreferrer" className="text-muted hover:text-white">
