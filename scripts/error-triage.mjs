@@ -23,6 +23,7 @@ import {
   issueTitle,
   reopenComment,
   shouldAutofix,
+  queryRows,
   NO_AUTOFIX,
 } from "../src/lib/errors/issue.ts";
 
@@ -62,10 +63,22 @@ function sql(query, { write = false } = {}) {
     : ["--remote", ...(write ? ["--yes"] : [])];
   const out = execFileSync(
     "npx",
-    ["supabase", "db", "query", ...target, ...(write ? [] : ["--read-only"]), "--output-format", "json", query],
+    // --agent no: the same plain JSON in a Claude session as in GitHub Actions.
+    [
+      "supabase",
+      "db",
+      "query",
+      ...target,
+      ...(write ? [] : ["--read-only"]),
+      "--agent",
+      "no",
+      "--output-format",
+      "json",
+      query,
+    ],
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
-  return JSON.parse(out).rows ?? [];
+  return queryRows(out);
 }
 
 const repo =
