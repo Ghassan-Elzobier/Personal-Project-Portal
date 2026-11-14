@@ -99,6 +99,21 @@ function releaseHasFix(number, release) {
   return committed > Date.parse(closed.created_at);
 }
 
+/** The issue already filed for this fingerprint (its marker is in the body), if any. */
+function existingIssue(fingerprint) {
+  const found = ghOrFail(
+    ["issue", "list", "--repo", repo, "--state", "all", "--label", "error-report"].concat([
+      "--search",
+      `${fingerprint} in:body`,
+      "--json",
+      "number,body",
+      "--limit",
+      "5",
+    ]),
+  );
+  return JSON.parse(found).find((issue) => fingerprintIn(issue.body) === fingerprint)?.number ?? null;
+}
+
 function record(fingerprint, status, issue, autofix) {
   if (dryRun) return;
   const number = Number.isInteger(issue) && issue > 0 ? issue : "null";
@@ -127,16 +142,23 @@ for (const group of groups) {
         }
         labelsReady = true;
       }
-      const url = ghOrFail(
-        ["issue", "create", "--repo", repo, "--title", issueTitle(group), "--body-file", "-"].concat([
-          "--label",
-          "bug",
-          "--label",
-          "error-report",
-        ]),
-        issueBody(group, repo),
-      );
-      number = Number(/\/issues\/(\d+)/.exec(url)?.[1]);
+      // An issue may already exist if recording it failed last time: never file twice.
+      const filed = existingIssue(group.fingerprint);
+      if (filed) {
+        number = filed;
+        ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo));
+      } else {
+        const url = ghOrFail(
+          ["issue", "create", "--repo", repo, "--title", issueTitle(group), "--body-file", "-"].concat([
+            "--label",
+            "bug",
+            "--label",
+            "error-report",
+          ]),
+          issueBody(group, repo),
+        );
+        number = Number(/\/issues\/(\d+)/.exec(url)?.[1]);
+      }
     } else if (action.kind === "update" && fingerprintIn(issue.body) === group.fingerprint) {
       ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], issueBody(group, repo));
     } else if (action.kind === "reopen") {
