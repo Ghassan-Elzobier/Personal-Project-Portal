@@ -26,6 +26,7 @@ export type Tool = {
     | "people"
     | "claude"
     | "design"
+    | "errors"
     | "meals"
     | "gym"
     | "kitchen"
@@ -190,6 +191,15 @@ export const TOOLS: readonly Tool[] = [
     title: "Design",
     href: "/design",
     description: "The colours, type and shared components every page is built from.",
+    roles: ["owner"],
+    space: "work",
+    group: "more",
+  },
+  {
+    key: "errors",
+    title: "Errors",
+    href: "/errors",
+    description: "Errors the live portal hit, and the bug fixes they became.",
     roles: ["owner"],
     space: "work",
     group: "more",

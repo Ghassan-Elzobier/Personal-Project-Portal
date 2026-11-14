@@ -15,6 +15,7 @@ import {
   Tabs,
 } from "@/components/ui";
 import { LifeHeader } from "@/app/life/parts";
+import { DailyBars } from "@/components/daily-bars";
 
 export const metadata: Metadata = { title: "Design" };
 export const dynamic = "force-dynamic";
@@ -256,6 +257,43 @@ export default async function DesignPage() {
             </tbody>
           </table>
         </ScrollX>
+      </Section>
+
+      <Section
+        title="Trends"
+        note="DailyBars counts something per day: full size with its dates as text, compact in a list row, and empty."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="card">
+            <DailyBars
+              label="Example errors"
+              days={[0, 0, 1, 0, 3, 0, 0, 2, 5, 1, 0, 0, 2, 1].map((count, i) => ({
+                day: `2026-11-${String(i + 3).padStart(2, "0")}`,
+                count,
+              }))}
+            />
+          </div>
+          <div className="space-y-4 card">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-body">Compact, in a row</span>
+              <DailyBars
+                size="compact"
+                label="Example errors"
+                days={[0, 1, 0, 0, 4, 2, 0, 0, 0, 1, 3, 0, 0, 2].map((count, i) => ({
+                  day: `2026-11-${String(i + 3).padStart(2, "0")}`,
+                  count,
+                }))}
+              />
+            </div>
+            <DailyBars
+              label="Nothing yet"
+              days={Array.from({ length: 14 }, (_, i) => ({
+                day: `2026-11-${String(i + 3).padStart(2, "0")}`,
+                count: 0,
+              }))}
+            />
+          </div>
+        </div>
       </Section>
 
       <Section title="Feedback" note="Say what happened and what to do next.">
