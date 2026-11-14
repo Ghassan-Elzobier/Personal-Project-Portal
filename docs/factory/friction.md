@@ -31,3 +31,4 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-13 · phone layout · pages scrolled sideways on a Pixel 7 more than once · e2e/pages.spec.ts checks every page at 412 and 360 px (factory PR)
 - 2026-11-13 · pages · a second `next dev` wiped `.next` and broke the running server · Next.js 16 keeps dev output in `.next/dev` and locks it (factory PR)
 - 2026-11-13 · deploys · merging deployed code before its migration · release.yml migrates, Vercel Deployment Checks wait for it (factory PR)
+- 2026-11-14 · ci · the error triage passed every local run and crashed in GitHub Actions: `supabase db query` wraps its JSON when it detects an AI agent (as in a Claude session) and prints a plain list otherwise · the triage passes `--agent no` and reads both shapes, with a test (this PR)

@@ -191,3 +191,21 @@ export function autofixLimit(value: string | undefined): number {
   const n = Number.parseInt(value ?? "", 10);
   return Number.isNaN(n) ? 2 : Math.min(10, Math.max(0, n));
 }
+
+/**
+ * The rows `supabase db query --output-format json` printed. It prints a plain
+ * list, or, when it believes an AI agent is running it, the list wrapped with a
+ * warning; the triage asks for the plain one (`--agent no`) and reads both.
+ */
+export function queryRows(output: string): Record<string, unknown>[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    parsed = null;
+  }
+  if (Array.isArray(parsed)) return parsed;
+  const rows = (parsed as { rows?: unknown } | null)?.rows;
+  if (Array.isArray(rows)) return rows;
+  throw new Error(`Unexpected output from supabase db query: '${output.slice(0, 200)}'`);
+}
