@@ -88,9 +88,10 @@ the portal reports its own errors, and the factory turns them into fixes:
    - the last thirty breadcrumbs: navigations, clicks (the element and its
      design class, never its text), requests and console errors
 
-   The source maps are never served. After the build, `scripts/pack-source-maps.mjs`
-   moves the browser's maps out of the public files and adds every map to the
-   server functions that need it; `src/proxy.ts` refuses any `.map` request as
+   The source maps are never served, and hold no source code. After the build,
+   `scripts/pack-source-maps.mjs` moves the browser's maps out of the public
+   files, strips the source text from every map (a frame needs only positions
+   and file names), and adds each map to the server functions that need it; `src/proxy.ts` refuses any `.map` request as
    well, and an e2e check holds it there. So frames stay readable even if the
    repository goes private.
 3. **Scrub and group.** The issues are public, so anything that could be personal

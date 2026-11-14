@@ -8,7 +8,7 @@ import { supabaseConfigured } from "../supabase/server";
 import { describeError } from "./browser";
 import { buildEvent, type ErrorEvent } from "./events";
 import { buildReport, isNoise, reportingEnabled, serverRoute, type ErrorReport, type ReportInput } from "./report";
-import { symbolicateStack } from "./symbolicate";
+import { mapFiles, symbolicateStack } from "./symbolicate";
 
 // Where the portal's errors are kept: record_error, as the caller (a member's
 // session or connector token), so access is decided by the database as for
@@ -18,24 +18,20 @@ import { symbolicateStack } from "./symbolicate";
 
 const TIMEOUT_MS = 3000;
 
-// The build's source maps, read from the server's own bundle. After the build,
-// scripts/pack-source-maps.mjs moves the browser's into .next/server/source-maps
-// and adds them to the functions; the server's sit beside their chunks. Parsed
-// maps are kept for the life of the instance, a couple of dozen at most.
+// The build's source maps, read from the server's own bundle, with the source
+// text stripped out. scripts/pack-source-maps.mjs decides which maps each
+// function ships with, so the build must not trace these reads itself: without
+// the ignore comment, Turbopack would deploy the whole project with every
+// function. Parsed maps are kept for the life of the instance, a few dozen at most.
 const MAX_MAPS = 24;
 const MAX_MAP_BYTES = 40_000_000;
 const maps = new Map<string, SourceMap | null>();
-
-function mapPaths(file: string): string[] {
-  const packed = file.startsWith(".next/static/") ? [`.next/server/source-maps/${file.slice(6)}.map`] : [];
-  return [...packed, `${file}.map`].map((path) => join(process.cwd(), path));
-}
 
 function lookupMap(file: string): SourceMap | null {
   const cached = maps.get(file);
   if (cached !== undefined) return cached;
   let map: SourceMap | null = null;
-  for (const path of mapPaths(file)) {
+  for (const path of mapFiles(file).map((name) => join(/*turbopackIgnore: true*/ process.cwd(), name))) {
     try {
       if (statSync(path).size > MAX_MAP_BYTES) break;
       map = new SourceMap(JSON.parse(readFileSync(path, "utf8")));
