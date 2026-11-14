@@ -14,6 +14,8 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-13 · lint · eslint-config-next 16 found setState in effects in nav-links and the divergence explorer; suppressed for now · characterisation tests for the Work/Life switch, then fix (refactor queue)
 - 2026-11-13 · database · the access test assumed an empty members table and broke when seed data arrived · every pgTAP file starts from a known state (done for 01; check the others when they next change)
 - 2026-11-13 · architecture · tasks, life and library import database-client helpers from the Claude connector, a folder-level cycle · move connectorCaller and anonClient to src/lib/supabase (refactor queue)
+- 2026-11-14 · database · `npm run test:db` pulled the pg_prove image with no output and stalled for 8 minutes on a slow link; the same files passed when piped through psql in the db container · a test:db fallback that runs each file with psql when pg_prove is missing
+- 2026-11-14 · e2e · `next build` failed outright when fonts.gstatic.com timed out once (next/font/google downloads at build time) · self-host Funnel Display with next/font/local so builds need no network
 
 ## Done
 
