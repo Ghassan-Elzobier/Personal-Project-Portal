@@ -14,6 +14,7 @@ import { ErrorNote, PageHeader } from "@/components/ui";
 import { StudyPanel } from "../study/study-panel";
 import { TaskPane } from "./task-pane";
 import { TaskViews, type DashboardTask } from "./task-views";
+import { tasksHref } from "@/lib/tasks/tasks-href";
 
 export const metadata: Metadata = { title: "Tasks" };
 export const dynamic = "force-dynamic";
@@ -61,11 +62,6 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const comments = selected ? await attempt(() => listComments(selected.gid)) : null;
   const study = selected ? await attempt(() => studySnapshot()) : null;
 
-  const hrefFor = (next: Partial<Search>) => {
-    const q = new URLSearchParams({ project: key, ...(view === "board" ? { view } : {}), ...next });
-    return `/tasks?${q}`;
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader title="Tasks" />
@@ -74,7 +70,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         {perProject.map(({ p, tasks: result }) => (
           <ProjectTab
             key={p.key}
-            href={`/tasks?project=${p.key}${view === "board" ? "&view=board" : ""}`}
+            href={tasksHref({ project: p.key, view })}
             title={p.title}
             active={p.key === key}
             stats={result.ok ? projectStats(result.value, date) : null}
@@ -86,14 +82,14 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         <h2 className="text-xl font-semibold">{projectDef(key).title}</h2>
         <div className="flex gap-2" role="group" aria-label="View">
           <Link
-            href={hrefFor({})}
+            href={tasksHref({ project: key, view: "list" })}
             aria-current={view === "list" ? "true" : undefined}
             className={`px-4 py-1.5 ${view === "list" ? "btn-primary" : "btn-ghost"}`}
           >
             List
           </Link>
           <Link
-            href={hrefFor({ view: "board" })}
+            href={tasksHref({ project: key, view: "board" })}
             aria-current={view === "board" ? "true" : undefined}
             className={`px-4 py-1.5 ${view === "board" ? "btn-primary" : "btn-ghost"}`}
           >
@@ -126,7 +122,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       {selected && (
         <TaskPane
           key={selected.gid}
-          closeHref={hrefFor({})}
+          closeHref={tasksHref({ project: key, view })}
           timeZone={timeZone()}
           task={{
             gid: selected.gid,
