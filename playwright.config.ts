@@ -9,6 +9,8 @@ import { BASE_URL, OWNER_STATE, PORT } from "./e2e/env";
 // and every page must also hold at 360 px. Screenshots use a device scale of 1
 // so the baselines stay small; layout is the same at any pixel density.
 
+const STATE = /state-fresh\.spec\.ts/;
+
 const pixel7 = { ...devices["Pixel 7"], deviceScaleFactor: 1 };
 
 export default defineConfig({
@@ -35,17 +37,28 @@ export default defineConfig({
     {
       name: "pixel-7",
       use: { ...pixel7, storageState: OWNER_STATE },
+      testIgnore: STATE,
       dependencies: ["setup"],
     },
     {
       name: "small-phone",
       use: { ...pixel7, viewport: { width: 360, height: 780 }, storageState: OWNER_STATE },
+      testIgnore: STATE,
       dependencies: ["setup"],
     },
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 }, storageState: OWNER_STATE },
+      testIgnore: STATE,
       dependencies: ["setup"],
+    },
+    // Tests that tap through the app and change shared data (tasks, weigh-ins). They run
+    // last and alone, so the screenshots and layout checks never see their data.
+    {
+      name: "state",
+      testMatch: STATE,
+      use: { ...pixel7, storageState: OWNER_STATE },
+      dependencies: ["pixel-7", "small-phone", "desktop"],
     },
   ],
   webServer: {

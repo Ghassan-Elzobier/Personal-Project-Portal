@@ -1,9 +1,4 @@
 {
-  "src/app/lab/divergence-explorer.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 2
-    }
-  },
   "src/app/oauth/authorize/page.tsx": {
     "better-tailwindcss/no-conflicting-classes": {
       "count": 2
@@ -22,11 +17,6 @@
   "src/app/tasks/page.tsx": {
     "no-restricted-imports": {
       "count": 1
-    }
-  },
-  "src/components/nav-links.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 2
     }
   },
   "src/lib/life/calendar-sync.ts": {
