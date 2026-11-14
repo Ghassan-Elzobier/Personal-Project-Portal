@@ -34,6 +34,8 @@ export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
 export NEXT_PUBLIC_SITE_URL="http://localhost:3100"
 export PORTAL_TIMEZONE="Europe/London"
 export PORTAL_FIXED_NOW="${PORTAL_FIXED_NOW:-2026-11-16T09:30:00Z}"
+# Report errors as production does, so e2e/errors.spec.ts can see them stored.
+export ERROR_REPORTING=on
 export NEXT_TELEMETRY_DISABLED=1
 
 # 3. A production build pointed at the local stack.

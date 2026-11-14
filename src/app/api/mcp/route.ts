@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { noStore, origin, sha256Hex } from "@/lib/connector/oauth";
 import { INSTRUCTIONS, TOOLS } from "@/lib/connector/tools";
+import { reportServerError } from "@/lib/errors/store";
 import { anonClient } from "@/lib/supabase/anon";
 import { runAsConnector } from "@/lib/supabase/caller";
 import { supabaseConfigured } from "@/lib/supabase/server";
@@ -104,6 +105,7 @@ async function handle(msg: RpcRequest, base: string): Promise<object | null> {
         return reply({ content: [{ type: "text", text: result.text }], isError: result.isError ?? false });
       } catch (err) {
         console.error(`tool ${tool.name} failed`, err);
+        await reportServerError(err, { source: "connector", route: "/api/mcp", context: `tool ${tool.name}` });
         return reply({
           content: [{ type: "text", text: "The portal hit an error running that. Try again, or use the page." }],
           isError: true,
