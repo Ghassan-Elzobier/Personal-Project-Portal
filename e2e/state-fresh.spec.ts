@@ -54,6 +54,21 @@ test.describe("tasks", () => {
     await expect(page.getByRole("link", { name })).toBeVisible();
   });
 
+  test("quick add keeps a name that ends in a word starting like a month", async ({ page }) => {
+    // "decomposition" starts with "dec", "marginals" with "mar": neither is a date.
+    const name = `${unique("Quick")} 3 decomposition`;
+    created.push(name);
+    await page.goto("/tasks");
+    await page.keyboard.press("n");
+    const dialog = page.getByRole("dialog", { name: "Add a task" });
+    await dialog.getByLabel("New task").fill(name);
+    await expect(dialog.getByText(/^Due /)).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByRole("link", { name })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("link", { name })).toBeVisible();
+  });
+
   test("ticking a task flips at once and stays ticked after a reload", async ({ page }) => {
     const name = unique("Tick task");
     await addTask(page, name);

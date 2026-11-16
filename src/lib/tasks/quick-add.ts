@@ -9,6 +9,20 @@ export type QuickAdd = { name: string; project: ProjectKey | null; dueOn: string
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTH_NAMES = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
 
 const TAGS: Record<string, ProjectKey> = {
   pmpp: "pmpp",
@@ -68,7 +82,12 @@ function trailingDate(words: string[], today: string): { used: number; date: str
   }
 
   // "20 nov" and "nov 20".
-  const monthOf = (w: string | undefined) => (w && w.length >= 3 ? MONTHS.indexOf(w.slice(0, 3)) : -1);
+  // A month is its three letters, "sept" or its full name; "decomposition" is not "dec".
+  const monthOf = (w: string | undefined) => {
+    if (!w || w.length < 3) return -1;
+    const month = MONTHS.indexOf(w.slice(0, 3));
+    return month >= 0 && (w.length === 3 || w === "sept" || w === MONTH_NAMES[month]) ? month : -1;
+  };
   if (before && /^\d{1,2}$/.test(before) && monthOf(last) >= 0) {
     const date = dayMonth(Number(before), monthOf(last), today);
     return date ? { used: 2, date } : null;

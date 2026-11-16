@@ -44,6 +44,14 @@ test("reads day and month in either order, rolling past dates to next year", () 
   assert.equal(parseQuickAdd("x 2026-12-25", today).dueOn, "2026-12-25");
 });
 
+test("a word that only starts like a month is not a date", () => {
+  for (const word of ["decomposition", "marginals", "junction", "augment", "octal", "novel", "mayhem"]) {
+    assert.deepEqual(parseQuickAdd(`Axler 3 ${word}`, today), { name: `Axler 3 ${word}`, project: null, dueOn: null });
+  }
+  assert.equal(parseQuickAdd("x 20 november", today).dueOn, "2026-11-20");
+  assert.equal(parseQuickAdd("x sept 5", today).dueOn, "2027-09-05");
+});
+
 test("an impossible date stays part of the name", () => {
   assert.deepEqual(parseQuickAdd("x 31 feb", today), { name: "x 31 feb", project: null, dueOn: null });
   assert.equal(parseQuickAdd("x 2026-13-45", today).dueOn, null);
