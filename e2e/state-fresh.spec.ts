@@ -59,8 +59,12 @@ test.describe("tasks", () => {
     const name = `${unique("Quick")} 3 decomposition`;
     created.push(name);
     await page.goto("/tasks");
-    await page.keyboard.press("n");
     const dialog = page.getByRole("dialog", { name: "Add a task" });
+    // The shortcut only works once the page has hydrated, so press it until the dialog opens.
+    await expect(async () => {
+      await page.keyboard.press("n");
+      await expect(dialog).toBeVisible({ timeout: 1000 });
+    }).toPass();
     await dialog.getByLabel("New task").fill(name);
     await expect(dialog.getByText(/^Due /)).toHaveCount(0);
     await dialog.getByRole("button", { name: "Add", exact: true }).click();
