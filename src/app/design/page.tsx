@@ -1,3 +1,4 @@
+import { CopyButton } from "@/components/copy-button";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { requireOwner } from "@/lib/auth/access";
@@ -228,6 +229,16 @@ export default async function DesignPage() {
             <DueDate dueOn={today} today={today} />
             <DueDate dueOn="2026-11-20" today={today} />
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Copy"
+        note="CopyButton puts text on the clipboard and says Copied; on a phone that refuses it says so instead."
+      >
+        <div className="flex flex-wrap gap-2">
+          <CopyButton value="Example text to copy" />
+          <CopyButton value="Example prompt" label="Copy prompt" className="btn-primary" />
         </div>
       </Section>
 

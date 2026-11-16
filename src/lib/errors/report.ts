@@ -40,7 +40,13 @@ export type ErrorReport = {
 };
 
 /** Pages with a dynamic segment. A test checks this against src/app, so a new one cannot leak its slugs. */
-export const DYNAMIC_PAGES = ["/errors/[fingerprint]", "/lab/[view]", "/life/recipes/[key]", "/progress/[project]"];
+export const DYNAMIC_PAGES = [
+  "/errors/[fingerprint]",
+  "/lab/[view]",
+  "/life/recipes/[key]",
+  "/progress/[project]",
+  "/study/learn/[gid]",
+];
 
 const LIMITS = { input: 4000, message: 500, route: 200, context: 60, line: 300, frames: 12, stack: 4000 };
 
