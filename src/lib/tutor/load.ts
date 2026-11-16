@@ -1,4 +1,5 @@
 import "server-only";
+import { buildGraph, type GraphGroup } from "./graph-view";
 import { describe, summarize, type SessionStats } from "./stats";
 import * as store from "./store";
 import { parsePlan, type Plan } from "./plan";
@@ -78,4 +79,10 @@ export async function loadUnitSessions(
   return graph.sessions
     .slice(0, 5)
     .map((s) => ({ gid: s.gid, kind: s.kind, goal: s.goal, date: s.created_at.slice(0, 10) }));
+}
+
+/** Every claim, grouped by unit, with the chains that connect them. */
+export async function loadGraph(): Promise<GraphGroup[]> {
+  const [graph, units] = await Promise.all([store.readGraph(null), unitNames()]);
+  return buildGraph({ claims: graph.claims, chains: graph.chains, units });
 }
