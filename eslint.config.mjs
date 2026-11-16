@@ -25,6 +25,7 @@ const DOMAINS = [
   "life",
   "study",
   "tasks",
+  "tutor",
 ];
 
 // Production errors become public GitHub issues, and the error tracker can only
