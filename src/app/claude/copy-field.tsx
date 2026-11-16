@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { CopyButton } from "@/components/copy-button";
 
 export function CopyField({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
   return (
     <div className="flex gap-2">
       <input
@@ -13,17 +12,7 @@ export function CopyField({ value, label }: { value: string; label: string }) {
         className="field-input font-mono text-sm"
         onFocus={(e) => e.target.select()}
       />
-      <button
-        type="button"
-        className="btn-ghost shrink-0"
-        onClick={async () => {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }}
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
+      <CopyButton value={value} />
     </div>
   );
 }

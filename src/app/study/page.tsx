@@ -9,6 +9,7 @@ import { attempt } from "@/lib/portal/data";
 import { recentCommits } from "@/lib/study/github";
 import { loadStudy, panelFor, type PlanProgress, type StudyOverview, type UnitRow } from "@/lib/study/load";
 import { listComments } from "@/lib/tasks/native";
+import { loadUnitSessions } from "@/lib/tutor/load";
 import { bookHref } from "@/lib/library/links";
 import { formatHours } from "@/lib/tasks/session-log";
 import { StartSessionButton } from "@/components/session-timer";
@@ -41,6 +42,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
     ? overview.plans.flatMap((p) => p.rows).find((r) => r.task.gid === params.task)
     : undefined;
   const comments = selected ? await attempt(() => listComments(selected.task.gid)) : null;
+  const unitSessions = selected ? await attempt(() => loadUnitSessions(selected.task.gid)) : null;
   const commits = current?.plan.mode === "lab" && current.loaded ? await recentCommits() : [];
   // What the market says about each unit. The page works the same without it.
   const loadedBoard = await attempt(() => loadJobBoard(overview));
@@ -96,7 +98,17 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
           loadError={comments && !comments.ok ? comments.error : null}
         >
           <StudyPanel
-            data={{ ...panelFor(selected, overview.study), market: board ? unitMarket(board, selected.unit.ref) : [] }}
+            data={{
+              ...panelFor(selected, overview.study),
+              market: board ? unitMarket(board, selected.unit.ref) : [],
+              // Left out when the tutor's tables cannot be read, so the page still works.
+              learn: unitSessions?.ok
+                ? {
+                    prompt: `Teach me "${selected.unit.name}" with the portal tutor (task ${selected.task.gid}).`,
+                    sessions: unitSessions.value,
+                  }
+                : undefined,
+            }}
           />
         </TaskPane>
       )}

@@ -65,3 +65,22 @@ values
      {"at":"2026-11-16T08:09:55.000Z","kind":"click","text":"button.btn-ghost"},
      {"at":"2026-11-16T08:09:56.000Z","kind":"action","text":"server action on /schedule → 200 (184 ms)"},
      {"at":"2026-11-16T08:10:00.000Z","kind":"console","text":"error: RangeError: Invalid time value"}]');
+
+-- One finished lesson with a plan and answers, for the Learn pages. No claims or
+-- chains: the tutor's database tests count those.
+insert into portal.tutor_sessions (kind, goal, status, plan, summary, created_at, updated_at)
+values (
+  'teach', 'Example: why tiling cuts memory traffic', 'done',
+  '{"revision": 2, "nodes": [{"id": "memory", "label": "Memory is slow", "status": "done"}, {"id": "reuse", "label": "Threads reuse a tile", "status": "done"}, {"id": "tiling", "label": "Tiling", "status": "done"}], "edges": [["memory", "tiling"], ["reuse", "tiling"]]}',
+  'Example summary: loading each tile once serves every thread that needs it.',
+  '2026-11-13T10:00:00Z', '2026-11-13T10:40:00Z'
+);
+insert into portal.tutor_answers (session_gid, kind, question, answer, dont_know, correct, confidence, thinking, feedback, created_at)
+select s.gid, a.kind, a.question, a.answer, a.dont_know, a.correct, a.confidence, a.thinking, a.feedback, '2026-11-13T10:05:00Z'
+from portal.tutor_sessions s,
+  (values
+    ('probe', 'What does a warp do?', '', true, null::boolean, null::smallint, '', 'No problem: we start there.'),
+    ('check', 'Why does loading a tile once help?', 'Fewer trips to slow memory', false, true, 80::smallint, 'Every thread needs the same numbers.', 'Yes: one load serves the whole block.'),
+    ('check', 'What limits the kernel before tiling?', 'The arithmetic', false, false, 90::smallint, 'It does a lot of multiplying.', 'Close, but the limit is how fast the data arrives.')
+  ) as a(kind, question, answer, dont_know, correct, confidence, thinking, feedback)
+where s.goal = 'Example: why tiling cuts memory traffic';

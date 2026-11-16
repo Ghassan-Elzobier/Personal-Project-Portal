@@ -2,6 +2,7 @@
 
 import { useEffect, useOptimistic, useRef, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
+import { CopyButton } from "@/components/copy-button";
 import { toast } from "@/components/toaster";
 import { nextExerciseStatus, tallyExercises, type ExerciseStatus } from "@/lib/study/review";
 import {
@@ -32,6 +33,8 @@ export type PanelData = {
   connections: { short: string; href: string; done: boolean; why: string }[];
   /** The skills this unit teaches, and how many open roles ask for each. */
   market?: { name: string; must: number; soft: number }[];
+  /** The prompt that starts a lesson on this unit in the Claude app, and lessons so far. */
+  learn?: { prompt: string; sessions: { gid: string; kind: string; goal: string; date: string }[] };
 };
 
 function useRun() {
@@ -54,6 +57,7 @@ export function StudyPanel({ data }: { data: PanelData }) {
       )}
       {data.connections.length > 0 && <Connections items={data.connections} />}
       {data.market && data.market.length > 0 && <JobMarket items={data.market} />}
+      {data.learn && <Learn learn={data.learn} />}
       <Steps taskGid={data.taskGid} steps={data.steps} />
       {(data.mode === "book" || data.exerciseCount !== null) && <Exercises data={data} />}
       {(data.mode === "book" || data.reviews.length > 0) && <Reviews data={data} />}
@@ -95,6 +99,35 @@ function Connections({ items }: { items: PanelData["connections"] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function Learn({ learn }: { learn: NonNullable<PanelData["learn"]> }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">Learn with Claude</h3>
+      <p className="text-sm text-body">
+        Paste this into the Claude app. It probes what you know, then teaches one checked step at a time, and the portal
+        keeps the record.
+      </p>
+      <div className="flex gap-2">
+        <input readOnly value={learn.prompt} aria-label="Lesson prompt" className="field-input text-sm" />
+        <CopyButton value={learn.prompt} label="Copy prompt" />
+      </div>
+      {learn.sessions.length > 0 && (
+        <ul className="space-y-1 text-sm text-body">
+          {learn.sessions.map((s) => (
+            <li key={s.gid}>
+              <Link href={`/study/learn/${s.gid}`} className="link">
+                {s.kind === "practice" ? "Practice" : "Lesson"}, {s.date}
+              </Link>
+              {": "}
+              {s.goal}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
