@@ -105,9 +105,12 @@ export default async function LessonPage({ params }: { params: Promise<{ gid: st
         )}
       </section>
 
-      <p>
+      <p className="flex flex-wrap gap-x-6 gap-y-2">
         <Link href="/study/learn" className="link">
           All lessons
+        </Link>
+        <Link href="/study/graph" className="link">
+          Knowledge graph
         </Link>
       </p>
     </div>

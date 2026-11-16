@@ -30,6 +30,12 @@ export default async function LearnPage() {
         taught.
       </PageHeader>
 
+      <p>
+        <Link href="/study/graph" className="link">
+          Everything you have been taught, as a graph
+        </Link>
+      </p>
+
       {!loaded.ok ? (
         <ErrorNote title="Could not load your lessons" message={loaded.error} />
       ) : loaded.value.length === 0 ? (
