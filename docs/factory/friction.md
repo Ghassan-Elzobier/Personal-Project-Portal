@@ -22,6 +22,7 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-14 · e2e · `next build` failed outright when fonts.gstatic.com timed out once (next/font/google downloads at build time) · self-host Funnel Display with next/font/local so builds need no network
 - 2026-11-14 · review · the Claude review on #38 passed in 5 seconds and 3 turns and posted nothing, while #36, #37 and #39 each got "No issues found"; a review that silently skips looks like a pass · the review job could fail when the run posts no review comment
 - 2026-11-14 · e2e · `npm run test:e2e:update e2e/visual.spec.ts` fails: Playwright reads the spec path as the update mode · pass `--update-snapshots=changed` with a path, or have the script take the mode first
+- 2026-11-16 · debugging · `npm run debug` started pulling images for a second Supabase stack because a leftover scratch stack held ports 554xx under another project id, and the Playwright MCP could not launch (no browser build for this Playwright version) · `debug.sh` could stop when `supabase ps` shows another project on the ports, and `planner_setup_page` could fall back to system Chrome
 
 ## Done
 
