@@ -46,6 +46,7 @@ export type WeekPlan = {
     deliveredOn?: string;
     got?: string[];
     added?: { item: string; qty: number }[];
+    restore?: StapleBefore[];
   } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
@@ -79,9 +80,13 @@ export type Trip = {
   doneOn?: string;
   got?: string[];
   added?: { item: string; qty: number }[];
+  restore?: StapleBefore[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
 } & ShopTicks;
+
+/** A cupboard staple's status before a shop marked it "have", so Undo can put it back. */
+export type StapleBefore = { item: string; status: "have" | "low" | "out" | null };
 
 /** Shopping in person: what has been picked up, and what the shop didn't have. */
 export type ShopTicks = { ticked?: string[]; missing?: string[] };
