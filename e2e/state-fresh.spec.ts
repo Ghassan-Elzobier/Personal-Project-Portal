@@ -463,4 +463,49 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("sorting a payment shows at once, 'always' sorts the merchant's others, and Claude's access is set here", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    const merchant = unique("Example Grocer").toUpperCase();
+    const feed = (list: object[]) => request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: list });
+    await feed([
+      { id: "s1", date: "2026-11-13", pence: -1234, text: merchant },
+      { id: "s2", date: "2026-11-14", pence: -2345, text: merchant },
+    ]);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+    const payments = page.getByRole("region", { name: "Payments" });
+    const rows = payments.getByRole("button", { name: new RegExp(merchant) });
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText("Not sorted");
+
+    await rows.first().click();
+    const sheet = page.getByRole("dialog", { name: "What was this for?" });
+    await expect(sheet.getByRole("checkbox", { name: "Always for this merchant" })).toBeChecked();
+    await sheet.getByRole("button", { name: "Groceries" }).click();
+    await expect(rows.first()).toContainText("Groceries");
+    await expect(rows.nth(1)).toContainText("Groceries");
+    await page.reload();
+    await expect(rows.nth(0)).toContainText("Groceries");
+    await expect(rows.nth(1)).toContainText("Groceries");
+
+    // What Claude may do with Money: set here, and it stays.
+    const claude = page.getByRole("region", { name: "What Claude can do with Money" });
+    await expect(claude.getByRole("button", { name: "Setup (current)" })).toBeVisible();
+    await claude.getByRole("button", { name: "Summary" }).click();
+    await expect(claude.getByRole("button", { name: "Summary (current)" })).toBeVisible();
+    await page.reload();
+    await expect(claude.getByRole("button", { name: "Summary (current)" })).toBeVisible();
+
+    // Back as it was.
+    await claude.getByRole("button", { name: "Setup" }).click();
+    await expect(claude.getByRole("button", { name: "Setup (current)" })).toBeVisible();
+    await feed([]);
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

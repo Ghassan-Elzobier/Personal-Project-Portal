@@ -16,6 +16,7 @@ import { CODE_MAP, PARTS, RENDERER, VIEWS, allFindings, codeLabel, viewById, vie
 import { achieved, latestResults } from "../lab/results";
 import { loadStudy } from "../study/load";
 import { LIFE_INSTRUCTIONS, LIFE_TOOLS } from "../life/connector";
+import { MONEY_INSTRUCTIONS, MONEY_TOOLS } from "../money/connector";
 import * as lifeOps from "../life/operations";
 import { TUTOR_TOOLS } from "../tutor/connector";
 import { TUTOR_INSTRUCTIONS } from "../tutor/method";
@@ -892,6 +893,7 @@ export const TOOLS: Tool[] = [
     },
   },
   ...LIFE_TOOLS,
+  ...MONEY_TOOLS,
   ...TUTOR_TOOLS,
 ];
 
@@ -905,5 +907,6 @@ export const INSTRUCTIONS = [
   "For GPU questions, look in the owner's PMPP: search_pmpp with a few key words, then read_pmpp for the pages that matter. Cite section and page (\"PMPP 4.5, p. 225\"), explain in your own words and quote only a sentence or two. Vulkan words are translated to the book's CUDA words for you.",
   "For the renderer, call explain_renderer first; the owner sees the same diagrams at /lab. Each view has check-yourself questions: ask one and let the owner predict before you explain.",
   LIFE_INSTRUCTIONS,
+  MONEY_INSTRUCTIONS,
   TUTOR_INSTRUCTIONS,
 ].join(" ");

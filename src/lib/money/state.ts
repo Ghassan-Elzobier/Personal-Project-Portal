@@ -26,6 +26,44 @@ export type MoneyState = {
   failures: number;
   /** The scheduled sync's key, once registered, and when it last ran. */
   syncKey: { createdAt: string; lastUsedAt: string | null } | null;
+  /** The first day of this month, which the category totals count from. */
+  month: string | null;
+  categories: Category[];
+  /** This month's payments no rule or hand has sorted. */
+  unsorted: number;
+  rules: Rule[];
+  alerts: Alert[];
+};
+
+export type CategoryKind = "income" | "bills" | "groceries" | "essentials" | "discretionary" | "savings" | "transfer";
+
+export type Category = {
+  id: number;
+  key: string;
+  name: string;
+  kind: CategoryKind;
+  /** A month's budget, when there is one. */
+  budgetPence: number | null;
+  /** This month so far. */
+  outPence: number;
+  inPence: number;
+};
+
+export type Rule = {
+  id: number;
+  field: "merchant" | "description";
+  pattern: string;
+  category: string | null;
+  watch: boolean;
+  /** One of the starter rules the portal ships with. */
+  starter: boolean;
+};
+
+export type Alert = {
+  id: number;
+  kind: string;
+  raisedAt: string;
+  payment: { madeOn: string; pence: number; name: string } | null;
 };
 
 export type Txn = {
@@ -40,9 +78,13 @@ export type Txn = {
   description: string;
   counterparty: string | null;
   note: string | null;
+  categoryId: number | null;
+  /** Who sorted it: a rule, or the owner by hand. */
+  categoryBy: "rule" | "owner" | null;
 };
 
 type Row = Record<string, unknown>;
+const KINDS: CategoryKind[] = ["income", "bills", "groceries", "essentials", "discretionary", "savings", "transfer"];
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 
 export function parseMoney(raw: unknown): MoneyState {
@@ -82,6 +124,68 @@ export function parseMoney(raw: unknown): MoneyState {
     syncKey: r.sync_key
       ? { createdAt: str((r.sync_key as Row).created_at) ?? "", lastUsedAt: str((r.sync_key as Row).last_used_at) }
       : null,
+    month: str(r.month),
+    categories: (Array.isArray(r.categories) ? (r.categories as Row[]) : []).map((c) => ({
+      id: Number(c.id),
+      key: str(c.key) ?? "",
+      name: str(c.name) ?? "",
+      kind: KINDS.includes(c.kind as CategoryKind) ? (c.kind as CategoryKind) : "discretionary",
+      budgetPence: c.budget_pence === null || c.budget_pence === undefined ? null : Number(c.budget_pence),
+      outPence: Number(c.out_pence ?? 0),
+      inPence: Number(c.in_pence ?? 0),
+    })),
+    unsorted: Number(r.unsorted ?? 0),
+    rules: (Array.isArray(r.rules) ? (r.rules as Row[]) : []).map((x) => ({
+      id: Number(x.id),
+      field: x.field === "description" ? "description" : "merchant",
+      pattern: str(x.pattern) ?? "",
+      category: str(x.category),
+      watch: x.watch === true,
+      starter: Number(x.position ?? 0) >= 1000,
+    })),
+    alerts: (Array.isArray(r.alerts) ? (r.alerts as Row[]) : []).map((a) => {
+      const p = a.payment as Row | null;
+      return {
+        id: Number(a.id),
+        kind: str(a.kind) ?? "",
+        raisedAt: str(a.raised_at) ?? "",
+        payment: p ? { madeOn: str(p.made_on) ?? "", pence: Number(p.pence), name: str(p.name) ?? "" } : null,
+      };
+    }),
+  };
+}
+
+export const KIND_NAMES: Record<CategoryKind, string> = {
+  income: "Money in",
+  bills: "Bills",
+  groceries: "Groceries",
+  essentials: "Essentials",
+  discretionary: "Spending",
+  savings: "Savings",
+  transfer: "Transfers",
+};
+
+/**
+ * This month's spending by category, the way the page shows it: categories with money
+ * out or a budget, in their order, each with how much of its budget is gone. Income
+ * and transfers are left out; they aren't spending.
+ */
+export function monthView(categories: Category[]): {
+  rows: (Category & { share: number | null; over: boolean })[];
+  out: number;
+  budget: number;
+} {
+  const rows = categories
+    .filter((c) => c.kind !== "income" && c.kind !== "transfer" && (c.outPence > 0 || (c.budgetPence ?? 0) > 0))
+    .map((c) => ({
+      ...c,
+      share: c.budgetPence ? Math.min(1, c.outPence / c.budgetPence) : null,
+      over: c.budgetPence !== null && c.outPence > c.budgetPence,
+    }));
+  return {
+    rows,
+    out: rows.reduce((s, c) => s + c.outPence, 0),
+    budget: rows.reduce((s, c) => s + (c.budgetPence ?? 0), 0),
   };
 }
 
@@ -98,6 +202,8 @@ export function parseTransactions(raw: unknown): Txn[] {
     description: str(t.description) ?? "",
     counterparty: str(t.counterparty),
     note: str(t.note),
+    categoryId: t.category_id === null || t.category_id === undefined ? null : Number(t.category_id),
+    categoryBy: t.category_by === "owner" ? "owner" : t.category_by === "rule" ? "rule" : null,
   }));
 }
 

@@ -36,6 +36,25 @@ export async function registerSyncKey() {
   return ops.registerSyncKey();
 }
 
+export async function setCategory(txn: number, category: number | null, always: boolean) {
+  await requireOwner();
+  if (!Number.isInteger(txn) || (category !== null && !Number.isInteger(category)))
+    return { error: "Pick a category." };
+  return ops.setCategory(txn, category, always === true);
+}
+
+export async function dismissAlert(id: number) {
+  await requireOwner();
+  return ops.dismissAlert(id);
+}
+
+export async function setClaudeAccess(level: string) {
+  await requireOwner();
+  if (level !== "off" && level !== "summary" && level !== "plan" && level !== "setup")
+    return { error: "Pick a level." };
+  return ops.setClaudeAccess(level);
+}
+
 export async function uploadStatement(account: number, text: string) {
   await requireOwner();
   if (!Number.isInteger(account) || typeof text !== "string") return { error: "Pick an account and a file." };
