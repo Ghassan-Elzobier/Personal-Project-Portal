@@ -24,9 +24,9 @@ export async function applyAdjustment() {
   return ops.applyAdjustment();
 }
 
-export async function planWeek(start?: string) {
+export async function planWeek(start?: string, mode?: "batch" | "fresh") {
   await requireOwner();
-  return ops.planWeek(start);
+  return ops.planWeek(start, mode === "batch" || mode === "fresh" ? mode : undefined);
 }
 
 export async function swapCook(start: string, cookId: string, recipe: string) {
@@ -124,6 +124,16 @@ export async function confirmDelivery(start: string, got: string[]) {
 export async function undoDelivery(start: string) {
   await requireOwner();
   return ops.undoDelivery(start);
+}
+
+export async function confirmTrip(start: string, tripId: string, got: string[]) {
+  await requireOwner();
+  return ops.confirmTrip(start, tripId, got);
+}
+
+export async function undoTrip(start: string, tripId: string) {
+  await requireOwner();
+  return ops.undoTrip(start, tripId);
 }
 
 export async function saveProduct(input: {

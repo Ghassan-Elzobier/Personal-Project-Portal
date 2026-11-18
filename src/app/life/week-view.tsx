@@ -35,6 +35,8 @@ export type CookGroup = {
     minutes: number;
     cooked: boolean;
     spare: number;
+    /** The spare portions stay in the fridge for next week's first lunch. */
+    spareCold?: boolean;
   }[];
 };
 export type MealView = {
@@ -79,6 +81,8 @@ export function WeekView({
   daily,
   options,
   canReplan,
+  mode = "batch",
+  shops = 0,
 }: {
   start: string;
   today: string;
@@ -88,7 +92,11 @@ export function WeekView({
   daily: { breakfast: string; shake: string; shakes: string[] };
   options: { main: Alt[]; breakfast: Alt[]; shake: Alt[]; fresh: Alt[] };
   canReplan: boolean;
+  /** A fresh week: short cooks of one dish and `shops` small shops. */
+  mode?: "batch" | "fresh";
+  shops?: number;
 }) {
+  const other = mode === "fresh" ? "batch" : "fresh";
   const [picker, setPicker] = useState<Picker>(null);
   const [, start_] = useTransition();
   const [logs, setLog] = useOptimistic(
@@ -116,16 +124,34 @@ export function WeekView({
             The week&apos;s cooking
           </h2>
           {canReplan && (
-            <ActionButton
-              action={() => planWeek(start)}
-              className="text-sm text-muted hover:text-white"
-              confirm="Pick a fresh set of recipes for this week?"
-              done="Re-planned."
-            >
-              Pick again
-            </ActionButton>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <ActionButton
+                action={() => planWeek(start)}
+                className="text-sm text-muted hover:text-white"
+                confirm="Pick a fresh set of recipes for this week?"
+                done="Re-planned."
+              >
+                Pick again
+              </ActionButton>
+              <ActionButton
+                action={() => planWeek(start, other)}
+                className="text-sm text-muted hover:text-white"
+                confirm={`Plan this week again as a ${other} week?`}
+                done={`Planned a ${other} week.`}
+              >
+                Make it a {other} week
+              </ActionButton>
+            </div>
           )}
         </div>
+        {mode === "fresh" && (
+          <p className="text-sm text-body">
+            <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
+            dish
+            {shops ? ` and ${shops} ${shops === 1 ? "shop" : "shops"}` : ""}, each feeding the days until the next.
+            Nothing goes in the freezer.
+          </p>
+        )}
         {groups.map((g) => (
           <div key={g.key} className="space-y-2">
             <p className="eyebrow">{g.label}</p>
@@ -146,7 +172,11 @@ export function WeekView({
                           ? "portion"
                           : "portions"}{" "}
                       · {c.kcal} kcal · {c.protein} g · {c.minutes} min
-                      {c.spare > 0 ? ` · ${c.spare} spare to freeze` : ""}
+                      {c.spare > 0
+                        ? c.spareCold
+                          ? ` · ${c.spare} for next week's first lunch`
+                          : ` · ${c.spare} spare to freeze`
+                        : ""}
                     </p>
                   </div>
                   {c.cooked ? (

@@ -5,10 +5,10 @@ import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
-import { cookScale, sizeCooks, type WeekPlan } from "./planner";
+import { cookScale, sizeCooks, spareStaysCold, type WeekMode, type WeekPlan } from "./planner";
 import { recipe } from "./recipes";
 import { buildList, cookUse, delivery, weekNeeds, type Product } from "./shopping";
-import { placedMacros, remainingNeeds, unlogged, weekView, type LifeState, type WeekView } from "./state";
+import { placedMacros, remainingNeeds, tripLists, unlogged, weekView, type LifeState, type WeekView } from "./state";
 import * as store from "./store";
 import { suggestWeek } from "./suggest";
 import type { Tag } from "./allergens";
@@ -116,20 +116,32 @@ async function savePlan(s: LifeState, plan: WeekPlan) {
   return sized;
 }
 
-/** Fills the week from the menu in one go. Replaces any plan not yet cooked from. */
-export function planWeek(start?: string): Promise<Result<{ start: string }>> {
+/**
+ * Fills the week from the menu in one go. Replaces any plan not yet cooked from.
+ * `mode` picks a batch week or a fresh one; left out, a re-plan keeps the week's mode.
+ */
+export function planWeek(start?: string, mode?: WeekMode): Promise<Result<{ start: string }>> {
   return run(async () => {
     const s = await state();
     const week = start ?? s.weekStart;
     const existing = s.plans.find((p) => p.start === week)?.data;
     if (existing && s.batches.some((b) => b.planStart === week))
       fail("You've cooked from this week already. Swap recipes one at a time instead.");
+    const m: WeekMode = mode ?? existing?.mode ?? "batch";
     const spare = Object.fromEntries(s.stock.filter((x) => x.qty > 0).map((x) => [x.item, x.qty]));
-    const plan = suggestWeek(s.profile, week, s.ratings, s.lastHad, spare, s.today);
+    const plan = suggestWeek(s.profile, week, s.ratings, s.lastHad, spare, s.today, m);
     if (!plan.cooks.length) fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
+    // Shops already done stay done: what they brought is in the kitchen.
+    const done = (existing?.trips ?? []).filter((t) => t.doneOn);
     await savePlan(s, {
       ...plan,
-      shop: existing?.shop,
+      shop: m === "batch" ? existing?.shop : undefined,
+      trips:
+        m === "fresh"
+          ? [...done, ...(plan.trips ?? []).filter((t) => !done.some((d) => d.date === t.date))].sort(
+              (a, b) => a.date.localeCompare(b.date) || a.start - b.start,
+            )
+          : undefined,
       createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today,
     });
     return { start: week };
@@ -312,9 +324,10 @@ export function cookPlanned(start: string, cookId: string): Promise<Result> {
     if (!plan || !c || !r) fail("That cook is not in the plan.");
     const placed = viewFor(s, start)?.placements.filter((p) => p.cookId === cookId) ?? [];
     const frozen = placed.filter((p) => p.storage === "freezer").length;
-    // Portions nobody is down to eat this week go in the freezer if they can.
+    // Portions nobody is down to eat this week go in the freezer if they can, unless
+    // a fresh week's last cook keeps them in date for next week's first lunch.
     const spare = Math.max(0, c!.portions - placed.length);
-    const freeze = frozen + (r!.keeps.freezes ? spare : 0);
+    const freeze = frozen + (r!.keeps.freezes && !spareStaysCold(plan!, c!) ? spare : 0);
     await store.cook({
       recipe: r!.key,
       day: s.today < c!.date ? s.today : c!.date,
@@ -418,6 +431,60 @@ export function undoDelivery(start: string): Promise<Result> {
     await store.savePlan(start, {
       ...plan!,
       shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined },
+    });
+    return {};
+  });
+}
+
+/** A fresh week's shop is done: what you got goes into stock, fresh food with its use-by. */
+export function confirmTrip(start: string, tripId: string, got: string[]): Promise<Result<{ added: number }>> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    const trip = plan?.trips?.find((t) => t.id === tripId);
+    if (!plan || !trip) fail("That shop is not in this week's plan.");
+    if (trip!.doneOn) fail("That shop is done already.");
+    const v = viewFor(s, start);
+    const lines = (v && tripLists(s, v).open.find((t) => t.trip.id === tripId)?.lines) ?? [];
+    const changes = delivery(lines, got, s.today);
+    if (changes.length)
+      await store.changeStock(
+        changes.map((c) => ({
+          item: c.item,
+          qty: c.add,
+          ...(c.status ? { status: c.status } : {}),
+          ...(c.goodUntil ? { good_until: c.goodUntil } : {}),
+        })),
+        "add",
+      );
+    const added = changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add }));
+    // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
+    const pence = lines
+      .filter((l) => l.packs > 0 && !l.item.staple && got.includes(l.item.key))
+      .reduce((t, l) => t + l.pence, 0);
+    await store.savePlan(start, {
+      ...plan!,
+      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, doneOn: s.today, got, added, pence } : t)),
+    });
+    return { added: changes.length };
+  });
+}
+
+export function undoTrip(start: string, tripId: string): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    const trip = plan?.trips?.find((t) => t.id === tripId);
+    if (!plan || !trip?.doneOn) fail("No shop to undo.");
+    const back = trip!.added ?? [];
+    if (back.length)
+      await store.changeStock(
+        back.map((c) => ({ item: c.item, qty: -c.qty })),
+        "add",
+      );
+    await store.savePlan(start, {
+      ...plan!,
+      trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),
     });
     return {};
   });

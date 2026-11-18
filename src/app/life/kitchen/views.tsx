@@ -6,6 +6,7 @@ import type { Tag } from "@/lib/life/allergens";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
 import {
   confirmDelivery,
+  confirmTrip,
   cookExtra,
   cookPlanned,
   markOrdered,
@@ -16,6 +17,7 @@ import {
   setStock,
   uncook,
   undoDelivery,
+  undoTrip,
 } from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
 import { Chip } from "@/components/ui";
@@ -57,6 +59,7 @@ export function ShopView({
   delivered,
   deliveryDay,
   unchecked,
+  trip,
 }: {
   start: string;
   lines: ShopLine[];
@@ -69,11 +72,15 @@ export function ShopView({
     packs: number;
     budget: string | null;
     over: boolean;
+    /** A fresh week's food so far and still to buy, against the budget. */
+    week?: string;
   };
   ordered: string | null;
   delivered: string | null;
   deliveryDay: string;
   unchecked: { item: string; name: string }[];
+  /** One shop of a fresh week: Done shopping replaces the delivery buttons. */
+  trip?: { id: string; title: string; when: string; early: string[] };
 }) {
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [pick, setPick] = useState<ShopLine | null>(null);
@@ -100,7 +107,13 @@ export function ShopView({
 
   return (
     <div className="space-y-4">
-      <section className="space-y-3 card-life">
+      <section className="space-y-3 card-life" aria-label={trip?.title}>
+        {trip && (
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="text-lg font-semibold">{trip.title}</h2>
+            <p className="text-sm text-muted">{trip.when}</p>
+          </div>
+        )}
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-2xl font-bold tabular-nums">
             {total.estimated ? "≈ " : ""}
@@ -111,29 +124,37 @@ export function ShopView({
           </p>
         </div>
         <p className="text-sm text-body tabular-nums">
-          Food this week {total.food}
+          {trip ? `Food this shop ${total.food}` : `Food this week ${total.food}`}
+          {total.week && <span className="text-muted"> · the week {total.week}</span>}
           {total.budget && <span className={total.over ? "text-sand" : "text-muted"}> of your {total.budget}</span>}
           {total.cupboard && <span className="text-muted"> · cupboard stock-up {total.cupboard}, lasts weeks</span>}
         </p>
         <p className="text-sm text-body">
-          {delivered
-            ? `Delivered ${delivered}. It's all in the cupboard tab.`
-            : ordered
-              ? `Ordered ${ordered}. When it arrives, tap Delivery arrived and untick anything missing.`
-              : `For delivery by ${deliveryDay}. Tap each item to open it on Sainsbury's and add the packs shown. Pick a product once and the link goes straight to it every week.`}
+          {trip
+            ? `Everything the days until the next shop need. Tap an item to open it on Sainsbury's, or take the list with you. Tap Done shopping when you're home.`
+            : delivered
+              ? `Delivered ${delivered}. It's all in the cupboard tab.`
+              : ordered
+                ? `Ordered ${ordered}. When it arrives, tap Delivery arrived and untick anything missing.`
+                : `For delivery by ${deliveryDay}. Tap each item to open it on Sainsbury's and add the packs shown. Pick a product once and the link goes straight to it every week.`}
         </p>
         <div className="flex flex-wrap gap-2">
-          {!delivered && !ordered && (
+          {trip && (
+            <button type="button" onClick={() => setArrive(true)} className="btn-life" disabled={!buying.length}>
+              Done shopping
+            </button>
+          )}
+          {!trip && !delivered && !ordered && (
             <ActionButton action={() => markOrdered(start, true)} className="btn-life" done="Marked as ordered.">
               I&apos;ve ordered it
             </ActionButton>
           )}
-          {!delivered && (
+          {!trip && !delivered && (
             <button type="button" onClick={() => setArrive(true)} className={ordered ? "btn-life" : "btn-soft"}>
               Delivery arrived
             </button>
           )}
-          {ordered && !delivered && (
+          {!trip && ordered && !delivered && (
             <ActionButton action={() => markOrdered(start, false)} className="btn-soft">
               Not ordered yet
             </ActionButton>
@@ -189,6 +210,7 @@ export function ShopView({
                       {l.spare ? ` · ${l.spare} spare` : ""}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
+                      {trip?.early.includes(l.item) && <Chip tone="sand">Wanted {l.firstUse}, before this shop</Chip>}
                       {l.freeze && <Chip tone="ice">Freeze on arrival · for {l.firstUse}</Chip>}
                       {l.checks.map((c) => (
                         <Chip key={c.tag} tone="sand">
@@ -233,18 +255,60 @@ export function ShopView({
         {pick && <ProductForm line={pick} onDone={() => setPick(null)} />}
       </Sheet>
 
-      <Sheet open={arrive} onClose={() => setArrive(false)} title="What arrived?">
+      <Sheet open={arrive} onClose={() => setArrive(false)} title={trip ? "What did you get?" : "What arrived?"}>
         {arrive && (
           <Arrived
             lines={buying}
+            note={
+              trip ? "Everything is ticked. Untick what you couldn't get, and it moves to the next shop." : undefined
+            }
             onConfirm={async (got) => {
-              const ok = await run(() => confirmDelivery(start, got), "Delivery is in the kitchen.");
+              const ok = trip
+                ? await run(() => confirmTrip(start, trip.id, got), "Your shopping is in the kitchen.")
+                : await run(() => confirmDelivery(start, got), "Delivery is in the kitchen.");
               if (ok) setArrive(false);
             }}
           />
         )}
       </Sheet>
     </div>
+  );
+}
+
+/** A fresh week's shops already done, each with Undo in case it was tapped too soon. */
+export function DoneTrips({
+  start,
+  trips,
+}: {
+  start: string;
+  trips: { id: string; title: string; when: string; price: string | null }[];
+}) {
+  return (
+    <section className="space-y-2" aria-label="Shops done">
+      <h2 className="px-1 eyebrow">Done</h2>
+      <ul className="divide-y divide-white/5 card-life p-0">
+        {trips.map((t) => (
+          <li key={t.id} className="flex min-w-0 items-center gap-3 p-3">
+            <Chip tone="mint">✓</Chip>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{t.title}</p>
+              <p className="text-xs text-muted tabular-nums">
+                {t.when}
+                {t.price ? ` · ${t.price}` : ""}
+              </p>
+            </div>
+            <ActionButton
+              action={() => undoTrip(start, t.id)}
+              className="shrink-0 text-sm text-muted hover:text-white"
+              confirm={`Take ${t.title} back out of the kitchen?`}
+              done="Undone."
+            >
+              Undo
+            </ActionButton>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -304,13 +368,21 @@ function HaveThese({ items }: { items: { item: string; name: string }[] }) {
   );
 }
 
-function Arrived({ lines, onConfirm }: { lines: ShopLine[]; onConfirm: (got: string[]) => Promise<void> }) {
+function Arrived({
+  lines,
+  onConfirm,
+  note,
+}: {
+  lines: ShopLine[];
+  onConfirm: (got: string[]) => Promise<void>;
+  note?: string;
+}) {
   const [got, setGot] = useState<Set<string>>(new Set(lines.map((l) => l.item)));
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-3">
       <p className="text-sm text-body">
-        Everything is ticked. Untick what was missing or substituted with something you won&apos;t use.
+        {note ?? "Everything is ticked. Untick what was missing or substituted with something you won't use."}
       </p>
       <ul className="max-h-[50dvh] space-y-1 overflow-y-auto">
         {lines.map((l) => (

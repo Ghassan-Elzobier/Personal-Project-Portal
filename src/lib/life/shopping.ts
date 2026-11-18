@@ -41,7 +41,17 @@ export type StockRow = {
   goodUntil: string | null;
 };
 
-export type Need = { item: string; qty: number; firstUse: string; uses: string[] };
+/** One use of an ingredient: the day, how much, and the dish it is for. */
+export type Use = { date: string; qty: number; use: string };
+
+export type Need = {
+  item: string;
+  qty: number;
+  firstUse: string;
+  uses: string[];
+  /** Each use on its own, in the order they were added. */
+  at?: Use[];
+};
 
 /** Ingredients for one batch of a recipe at a portion count and size. */
 export function linesFor(r: Recipe, portions: number, scale: number): { item: string; qty: number }[] {
@@ -65,10 +75,11 @@ export function weekNeeds(
 ): Need[] {
   const out = new Map<string, Need>();
   const put = (item: string, qty: number, date: string, use: string) => {
-    const n = out.get(item) ?? { item, qty: 0, firstUse: date, uses: [] };
+    const n = out.get(item) ?? { item, qty: 0, firstUse: date, uses: [], at: [] };
     n.qty += qty;
     if (date < n.firstUse) n.firstUse = date;
     if (!n.uses.includes(use)) n.uses.push(use);
+    n.at!.push({ date, qty, use });
     out.set(item, n);
   };
   for (const c of plan.cooks) {
@@ -167,6 +178,112 @@ export function buildList(
   return lines.sort(
     (a, b) => AISLES.indexOf(a.item.aisle) - AISLES.indexOf(b.item.aisle) || a.item.name.localeCompare(b.item.name),
   );
+}
+
+/** Food that keeps this long is bought on the first shop, so later shops stay small. */
+const LONG_LIFE_DAYS = 14;
+
+export type TripNeeds = {
+  id: string;
+  date: string;
+  needs: Need[];
+  /** Items wanted before this shop happens: use what's in, or shop sooner. */
+  early: string[];
+};
+
+/**
+ * A fresh week's shopping split across its shops, so each buys only what the days
+ * until the next one need. In order:
+ *
+ * - The kitchen comes off first, oldest use first, while the stock is in date.
+ * - Each remaining use goes to the last shop on or before its day.
+ * - It moves to an earlier shop when a pack bought then keeps until the later use
+ *   and that saves a pack (peppers for Monday and Friday: one pack on Sunday), and
+ *   always for food that keeps for weeks (onions, pasta, tins).
+ * - Staples go on the first shop; `buildList` buys them only when low or out.
+ *
+ * A use before the first shop goes on the first shop, flagged as early. Pure, so it is tested.
+ */
+export function splitTrips(
+  needs: Need[],
+  trips: { id: string; date: string }[],
+  stock: StockRow[],
+  products: Product[],
+): { trips: TripNeeds[]; covered: string[] } {
+  const out: TripNeeds[] = [...trips]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((t) => ({ id: t.id, date: t.date, needs: [], early: [] }));
+  const covered: string[] = [];
+  if (!out.length) return { trips: out, covered };
+  const stockOf = new Map(stock.map((x) => [x.item, x]));
+  const productOf = new Map(products.map((x) => [x.item, x]));
+  const tripFor = (date: string) => out.reduce((at, t, i) => (t.date <= date ? i : at), 0);
+
+  for (const n of needs) {
+    const item = INGREDIENTS.get(n.item);
+    if (!item) continue;
+    if (item.staple) {
+      out[0].needs.push(n);
+      continue;
+    }
+    const kept = stockOf.get(n.item);
+    let have = Math.max(0, kept?.qty ?? 0);
+    const left: Use[] = [];
+    const uses = [...(n.at ?? [{ date: n.firstUse, qty: n.qty, use: n.uses[0] ?? "" }])].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+    for (const u of uses) {
+      const usable = !kept?.goodUntil || u.date <= kept.goodUntil ? have : 0;
+      const take = Math.min(usable, u.qty);
+      have -= take;
+      if (u.qty - take > 1e-6) left.push({ ...u, qty: u.qty - take });
+    }
+    if (!left.length) {
+      covered.push(n.item);
+      continue;
+    }
+    const product = productOf.get(n.item);
+    const perPack = packInItemUnit(item, product?.packQty ?? item.pack.qty, product?.packUnit ?? item.pack.unit);
+    const packs = (us: Use[]) => Math.max(1, Math.ceil(us.reduce((t, u) => t + u.qty, 0) / perPack - 0.02));
+    const keeps = item.keeps ?? Infinity;
+
+    const groups: { trip: number; uses: Use[] }[] = [];
+    for (const u of left) {
+      const t = tripFor(u.date);
+      const g = groups[groups.length - 1];
+      if (g && g.trip === t) g.uses.push(u);
+      else groups.push({ trip: t, uses: [u] });
+    }
+    const merged: typeof groups = [];
+    for (const g of groups) {
+      const a = merged[merged.length - 1];
+      if (a) {
+        const inDate = dayGap(out[a.trip].date, g.uses[g.uses.length - 1].date) <= keeps;
+        const saves = packs([...a.uses, ...g.uses]) < packs(a.uses) + packs(g.uses);
+        if (inDate && (saves || keeps >= LONG_LIFE_DAYS)) {
+          a.uses.push(...g.uses);
+          continue;
+        }
+      }
+      merged.push({ trip: g.trip, uses: [...g.uses] });
+    }
+    // Food that keeps for weeks moves to the first shop, so the later ones stay small.
+    const head = merged[0];
+    if (keeps >= LONG_LIFE_DAYS && head.trip > 0 && dayGap(out[0].date, head.uses[head.uses.length - 1].date) <= keeps)
+      head.trip = 0;
+    for (const g of merged) {
+      const t = out[g.trip];
+      t.needs.push({
+        item: n.item,
+        qty: g.uses.reduce((sum, u) => sum + u.qty, 0),
+        firstUse: g.uses[0].date,
+        uses: [...new Set(g.uses.map((u) => u.use))],
+        at: g.uses,
+      });
+      if (g.uses[0].date < t.date) t.early.push(n.item);
+    }
+  }
+  return { trips: out, covered };
 }
 
 export const AISLES: Aisle[] = [

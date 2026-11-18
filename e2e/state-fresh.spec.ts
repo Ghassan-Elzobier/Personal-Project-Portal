@@ -171,6 +171,38 @@ test.describe("life", () => {
     await expect(page.getByText("Logged", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Weight in kg")).toHaveValue("71.4");
   });
+
+  test("a fresh week's shop shows as done at once and after a reload, and Undo brings its list back", async ({
+    page,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    // Next week, so this week (and the Meals screenshot) is left as it is.
+    await page.goto("/life?week=next");
+    const replan = page.getByRole("button", { name: "Make it a fresh week" });
+    if (await replan.isVisible()) await replan.click();
+    else await page.getByRole("button", { name: "Plan a fresh week" }).click();
+    await expect(page.getByText("Fresh week", { exact: true })).toBeVisible();
+
+    await page.goto("/life/kitchen?week=next");
+    const sunday = page.getByRole("region", { name: "Sunday's shop" });
+    await expect(sunday).toBeVisible();
+    await expect(page.getByRole("region", { name: "Wednesday's shop" })).toBeVisible();
+    await sunday.getByRole("button", { name: "Done shopping" }).click();
+    await page.getByRole("button", { name: /^Put \d+ items? away$/ }).click();
+
+    const done = page.getByRole("region", { name: "Shops done" });
+    await expect(done.getByText("Sunday's shop")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Sunday's shop" })).toHaveCount(0);
+    await page.reload();
+    await expect(done.getByText("Sunday's shop")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Sunday's shop" })).toHaveCount(0);
+
+    // Back as it was: the shop's list returns and its food leaves the kitchen.
+    await done.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("region", { name: "Sunday's shop" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Sunday's shop" })).toBeVisible();
+  });
 });
 
 test.describe("errors page", () => {

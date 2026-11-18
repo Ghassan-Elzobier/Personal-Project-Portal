@@ -7,7 +7,10 @@ import { NO_RULES, parseRules, type FoodRules } from "./allergens.ts";
 import type { Cuisine, Kit } from "./recipes.ts";
 import { BULK, type Goal } from "./nutrition.ts";
 
-export type CookSession = { weekday: number; start: number };
+/** `minutes`: the longest the session may take, for short weeknight cooks. */
+export type CookSession = { weekday: number; start: number; minutes?: number | null };
+/** A shop on a day of the week, at a time. */
+export type ShopTrip = { weekday: number; start: number };
 
 export type LifeProfile = {
   body: { sex: "male" | "female" | null; birthYear: number | null; heightCm: number | null };
@@ -39,6 +42,11 @@ export type LifeProfile = {
     lunchAtWork: boolean;
     /** Weekend dinners cooked fresh rather than from a batch: 0, 1 or 2. */
     weekendFresh: number;
+    /**
+     * The other way to run a week: short cooks of one dish every couple of days,
+     * and two or three small shops, so nothing waits in the freezer.
+     */
+    fresh: { cooks: CookSession[]; trips: ShopTrip[] };
   };
   gym: {
     /** 0 = Monday ... 6 = Sunday. */
@@ -77,6 +85,18 @@ export const DEFAULT_PROFILE: LifeProfile = {
     maxRepeat: 3,
     lunchAtWork: true,
     weekendFresh: 0,
+    fresh: {
+      cooks: [
+        { weekday: 6, start: 18 * 60, minutes: 45 },
+        { weekday: 0, start: 18 * 60, minutes: 45 },
+        { weekday: 2, start: 18 * 60, minutes: 45 },
+        { weekday: 4, start: 18 * 60, minutes: 45 },
+      ],
+      trips: [
+        { weekday: 6, start: 10 * 60 },
+        { weekday: 2, start: 17 * 60 + 15 },
+      ],
+    },
   },
   gym: { days: [0, 2, 4], start: 6 * 60 + 45, minutes: 75, benchGoalKg: null, returning: false, missing: [] },
   shopping: { budgetPence: null, deliveryWeekday: 5 },
@@ -114,6 +134,23 @@ function weekdays(v: unknown, fallback: number[]): number[] {
   return days.length ? days : fallback;
 }
 
+/** Weekday-and-time entries (cook sessions, shop trips), dropping any that don't parse. */
+function sessions(v: unknown, max: number): CookSession[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((c) => obj(c))
+    .map((c) => {
+      const limit = num(c.minutes, 15, 240, null);
+      return {
+        weekday: num(c.weekday, 0, 6, -1),
+        start: minutes(c.start, 18 * 60),
+        ...(limit !== null ? { minutes: Math.round(limit / 5) * 5 } : {}),
+      };
+    })
+    .filter((c) => c.weekday >= 0)
+    .slice(0, max);
+}
+
 /** A profile from whatever the database holds, with defaults for anything missing. */
 export function parseProfile(raw: unknown): LifeProfile {
   const r = obj(raw);
@@ -123,13 +160,10 @@ export function parseProfile(raw: unknown): LifeProfile {
   const routine = obj(r.routine);
   const gym = obj(r.gym);
   const shopping = obj(r.shopping);
-  const cooks = Array.isArray(routine.cooks)
-    ? routine.cooks
-        .map((c) => obj(c))
-        .map((c) => ({ weekday: num(c.weekday, 0, 6, -1), start: minutes(c.start, 18 * 60) }))
-        .filter((c) => c.weekday >= 0)
-        .slice(0, 4)
-    : d.routine.cooks;
+  const cooks = sessions(routine.cooks, 4);
+  const fresh = obj(routine.fresh);
+  const freshCooks = sessions(fresh.cooks, 4);
+  const trips = sessions(fresh.trips, 3).map(({ weekday, start }) => ({ weekday, start }));
   return {
     body: {
       sex: body.sex === "male" || body.sex === "female" ? body.sex : null,
@@ -163,6 +197,10 @@ export function parseProfile(raw: unknown): LifeProfile {
       maxRepeat: num(routine.maxRepeat, 1, 7, d.routine.maxRepeat),
       lunchAtWork: typeof routine.lunchAtWork === "boolean" ? routine.lunchAtWork : d.routine.lunchAtWork,
       weekendFresh: num(routine.weekendFresh, 0, 2, d.routine.weekendFresh),
+      fresh: {
+        cooks: freshCooks.length ? freshCooks : d.routine.fresh.cooks,
+        trips: trips.length ? trips : d.routine.fresh.trips,
+      },
     },
     gym: {
       days: weekdays(gym.days, d.gym.days),

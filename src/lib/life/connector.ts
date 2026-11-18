@@ -180,21 +180,34 @@ export const LIFE_TOOLS: Tool[] = [
     name: "plan_meal_week",
     title: "Plan this week's meals",
     description:
-      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. Only when the week has no cooking done yet.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. Only when the week has no cooking done yet. mode 'batch' is two long cooks of two dishes and one shop; 'fresh' is short cooks of one dish every couple of days and two or three small shops, with nothing frozen. Left out, a re-plan keeps the week's mode.",
+    inputSchema: {
+      type: "object",
+      properties: { mode: { type: "string", enum: ["batch", "fresh"] } },
+      additionalProperties: false,
+    },
     annotations: { readOnlyHint: false },
-    async run(_args, { base }) {
-      const r = await ops.planWeek();
+    async run(args, { base }) {
+      const mode = args.mode === "batch" || args.mode === "fresh" ? args.mode : undefined;
+      const r = await ops.planWeek(undefined, mode);
       if (r.error) return err(r.error);
       const loaded = await loadLife();
+      const plan = loaded.state?.plan;
       const cooks =
-        loaded.state?.plan?.cooks.map((c) => ({
+        plan?.cooks.map((c) => ({
           day: c.date,
           at: clock(c.start),
           recipe: recipe(c.recipe)?.name,
           portions: c.portions,
         })) ?? [];
-      return ok({ planned: "start" in r ? r.start : null, cooks, page: `${base}/life` });
+      const shops = plan?.trips?.map((t) => ({ day: t.date, at: clock(t.start) }));
+      return ok({
+        planned: "start" in r ? r.start : null,
+        mode: plan?.mode ?? "batch",
+        cooks,
+        ...(shops ? { shops } : {}),
+        page: `${base}/life`,
+      });
     },
   },
 ];

@@ -4,17 +4,18 @@ import { addDays, shortDate } from "@/lib/dates/week";
 import { TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS, packFromSlug } from "@/lib/life/ingredients";
 import { loadLife } from "@/lib/life/load";
+import { spareStaysCold } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
-import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse } from "@/lib/life/shopping";
-import { remainingNeeds, weekView, type WeekView } from "@/lib/life/state";
+import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse, type ListLine } from "@/lib/life/shopping";
+import { remainingNeeds, tripLists, weekView, type WeekView } from "@/lib/life/state";
 import type { AgendaItem } from "@/lib/life/agenda";
 import { attempt } from "@/lib/portal/data";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import Link from "next/link";
 import { eligible, sessionDates } from "@/lib/life/suggest";
 import { ErrorNote, Tabs } from "@/components/ui";
-import { dayLabel, LifeHeader, weekRange } from "../parts";
-import { CupboardView, FridgeView, ShopView, type ShopLine } from "./views";
+import { clock, dayLabel, LifeHeader, weekRange } from "../parts";
+import { CupboardView, DoneTrips, FridgeView, ShopView, type ShopLine } from "./views";
 
 export const metadata: Metadata = { title: "Kitchen" };
 export const dynamic = "force-dynamic";
@@ -86,6 +87,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
         first, and the list builds itself.
       </p>
     );
+  if (plan.mode === "fresh") return <FreshShops s={s} v={v} />;
   const delivered = plan.shop?.deliveredOn ?? null;
   const deliveryDay =
     delivered ??
@@ -94,7 +96,100 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
       : s.today);
   const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, deliveryDay);
   const total = listTotal(lines);
-  const view: ShopLine[] = lines.map((l) => ({
+  return (
+    <ShopView
+      start={plan.start}
+      lines={lines.map((l) => shopLine(s, l))}
+      aisles={AISLES}
+      total={{
+        price: money(total.pence),
+        food: money(total.food),
+        cupboard: total.cupboard ? money(total.cupboard) : null,
+        estimated: total.estimated,
+        packs: total.packs,
+        budget: s.profile.shopping.budgetPence ? money(s.profile.shopping.budgetPence) : null,
+        over: s.profile.shopping.budgetPence !== null && total.food > s.profile.shopping.budgetPence,
+      }}
+      unchecked={unchecked(s, lines)}
+      ordered={plan.shop?.orderedOn ? shortDate(plan.shop.orderedOn) : null}
+      delivered={delivered ? shortDate(delivered) : null}
+      deliveryDay={dayLabel(deliveryDay, s.today)}
+    />
+  );
+}
+
+/**
+ * A fresh week's shops: a list for each one still to do, in date order, and the
+ * ones done. The week's food is the done shops' plus the lists still to buy.
+ */
+function FreshShops({ s, v }: { s: S; v: WeekView }) {
+  const { open, done } = tripLists(s, v);
+  const budget = s.profile.shopping.budgetPence;
+  const week = done.reduce((t, x) => t + (x.pence ?? 0), 0) + open.reduce((t, x) => t + listTotal(x.lines).food, 0);
+  return (
+    <div className="space-y-8">
+      {done.length > 0 && (
+        <DoneTrips
+          start={v.start}
+          trips={done.map((t) => ({
+            id: t.id,
+            title: tripTitle(t.date),
+            when: `Done ${shortDate(t.doneOn!)}`,
+            price: t.pence ? money(t.pence) : null,
+          }))}
+        />
+      )}
+      {open.map(({ trip, lines, early }) => {
+        const total = listTotal(lines);
+        return (
+          <ShopView
+            key={trip.id}
+            start={v.start}
+            trip={{
+              id: trip.id,
+              title: tripTitle(trip.date),
+              when: `${dayLabel(trip.date, s.today)} · ${clock(trip.start)}`,
+              early,
+            }}
+            lines={lines.map((l) => shopLine(s, l))}
+            aisles={AISLES}
+            total={{
+              price: money(total.pence),
+              food: money(total.food),
+              cupboard: total.cupboard ? money(total.cupboard) : null,
+              estimated: total.estimated,
+              packs: total.packs,
+              week: money(week),
+              budget: budget ? money(budget) : null,
+              over: budget !== null && week > budget,
+            }}
+            unchecked={unchecked(s, lines)}
+            ordered={null}
+            delivered={null}
+            deliveryDay={dayLabel(trip.date, s.today)}
+          />
+        );
+      })}
+      {!open.length && <p className="card-life text-sm text-body">Every shop this week is done.</p>}
+    </div>
+  );
+}
+
+/** "Wednesday's shop". */
+function tripTitle(date: string): string {
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
+  return `${day}'s shop`;
+}
+
+/** Staples nobody has said anything about yet, for the "Already have any of these?" card. */
+function unchecked(s: S, lines: ListLine[]) {
+  return lines
+    .filter((l) => l.item.staple && l.packs > 0 && !s.stock.some((x) => x.item === l.item.key && x.status))
+    .map((l) => ({ item: l.item.key, name: l.item.name }));
+}
+
+function shopLine(s: S, l: ListLine): ShopLine {
+  return {
     item: l.item.key,
     name: l.item.name,
     aisle: l.item.aisle,
@@ -128,29 +223,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
     staple: Boolean(l.item.staple),
     defaultPack: { qty: l.item.pack.qty, unit: l.item.pack.unit },
     slugPack: l.product ? packFromSlug(l.product.url) : null,
-  }));
-  return (
-    <ShopView
-      start={plan.start}
-      lines={view}
-      aisles={AISLES}
-      total={{
-        price: money(total.pence),
-        food: money(total.food),
-        cupboard: total.cupboard ? money(total.cupboard) : null,
-        estimated: total.estimated,
-        packs: total.packs,
-        budget: s.profile.shopping.budgetPence ? money(s.profile.shopping.budgetPence) : null,
-        over: s.profile.shopping.budgetPence !== null && total.food > s.profile.shopping.budgetPence,
-      }}
-      unchecked={lines
-        .filter((l) => l.item.staple && l.packs > 0 && !s.stock.some((x) => x.item === l.item.key && x.status))
-        .map((l) => ({ item: l.item.key, name: l.item.name }))}
-      ordered={plan.shop?.orderedOn ? shortDate(plan.shop.orderedOn) : null}
-      delivered={delivered ? shortDate(delivered) : null}
-      deliveryDay={dayLabel(deliveryDay, s.today)}
-    />
-  );
+  };
 }
 
 /** The next given weekday on or after today, but not after the plan starts. */
@@ -213,7 +286,10 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
           name: recipe(c.recipe)?.name ?? c.recipe,
           recipe: c.recipe,
           portions: c.portions,
-          freeze: freeze + Math.max(0, c.portions - placed.length) * (recipe(c.recipe)?.keeps.freezes ? 1 : 0),
+          freeze:
+            freeze +
+            Math.max(0, c.portions - placed.length) *
+              (recipe(c.recipe)?.keeps.freezes && !spareStaysCold(plan!, c) ? 1 : 0),
         };
       }),
     };
