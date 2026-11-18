@@ -28,6 +28,8 @@ import { INGREDIENTS } from "./ingredients.ts";
 import {
   buildList,
   carryMissing,
+  listTotal,
+  money,
   splitTrips,
   weekNeeds,
   type ListLine,
@@ -287,6 +289,17 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       cookId: c.id,
     });
   }
+  for (const shop of shopsOn(s, v, date)) {
+    items.push({
+      key: `shop-${shop.trip.id}`,
+      time: shop.trip.start,
+      kind: "shop",
+      title: "Shop",
+      detail: shop.done ? "Done" : shop.list,
+      done: shop.done,
+      href: shop.href,
+    });
+  }
   for (const r of v.reminders.filter((x) => x.date === date && (x.kind === "defrost" || x.kind === "freeze"))) {
     items.push({
       key: `${r.kind}-${r.time}-${r.text}`,
@@ -374,6 +387,29 @@ export type TripList = {
   /** What this shop didn't have, and the shop it moved to (null: none left this week). */
   notFound: { line: ListLine; to: string | null }[];
 };
+
+type ShopOn = { trip: Trip; done: boolean; list: string; href: string };
+
+/**
+ * A fresh week's shops on a day, for Today and the Schedule: each one done, and
+ * each one still to do that has something to buy, with its list in a few words
+ * ("6 items, about £14.20"). `open` saves working the lists out again.
+ */
+export function shopsOn(s: LifeState, v: WeekView, date: string, open?: () => TripList[]): ShopOn[] {
+  const trips = v.plan?.mode === "fresh" ? (v.plan.trips ?? []).filter((t) => t.date === date) : [];
+  if (!trips.length) return [];
+  const lists = open ? open() : tripLists(s, v).open;
+  const href = v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next";
+  return trips.flatMap((trip): ShopOn[] => {
+    if (trip.doneOn) return [{ trip, done: true, list: "", href }];
+    const lines = lists.find((x) => x.trip.id === trip.id)?.lines ?? [];
+    const buying = lines.filter((l) => l.packs > 0);
+    if (!buying.length) return [];
+    const total = listTotal(lines);
+    const count = `${buying.length} ${buying.length === 1 ? "item" : "items"}`;
+    return [{ trip, done: false, list: `${count}, ${total.estimated ? "about " : ""}${money(total.pence)}`, href }];
+  });
+}
 
 /**
  * A fresh week's shops: a list for each one not done yet, from what the week still

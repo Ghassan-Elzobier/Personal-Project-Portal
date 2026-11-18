@@ -80,7 +80,10 @@ export function yourDay(date: string, blocks: Block[] | null, s: LifeState | nul
   }
   items.sort((a, b) => a.start - b.start || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 
-  const next = items.find((i) => i.kind !== "shop" && !i.done && !i.skipped && Math.max(i.end, i.start + 1) > now);
+  // The untimed "plan the week" nudge is never next; a shop at a time is.
+  const next = items.find(
+    (i) => !(i.kind === "shop" && i.start < 0) && !i.done && !i.skipped && Math.max(i.end, i.start + 1) > now,
+  );
   const meals = routine.filter((i) => i.kind === "meal" && i.placement);
   const kcal = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.kcal ?? 0), 0);
   const protein = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.protein ?? 0), 0);
@@ -104,7 +107,7 @@ function fromRoutine(r: RoutineItem): DayItem {
   return {
     key: r.key,
     start: r.time,
-    end: r.time + (kind === "gym" ? 60 : kind === "meal" ? 30 : kind === "cook" ? 60 : 0),
+    end: r.time + (kind === "gym" ? 60 : kind === "meal" ? 30 : kind === "cook" ? 60 : kind === "shop" ? 30 : 0),
     kind,
     title: r.title,
     detail: r.detail,
@@ -167,6 +170,17 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
   if (type === "gym" || type === "weigh") {
     const r = routine.find((x) => x.kind === type);
     return { ...base, kind: type, detail: r?.detail ?? "", done: Boolean(r?.done), href: r?.href ?? b.url };
+  }
+  if (type === "shop") {
+    const r = routine.find((x) => x.kind === "shop" && x.time === Number(rest));
+    return {
+      ...base,
+      kind: "shop",
+      title: "Shop",
+      detail: r?.detail ?? b.title.replace(/^Shop: /, ""),
+      done: Boolean(r?.done),
+      href: r?.href ?? b.url,
+    };
   }
   if (type === "cook" && s) {
     const v = viewOn(s, date);

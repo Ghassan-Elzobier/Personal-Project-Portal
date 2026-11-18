@@ -165,6 +165,8 @@ function Action({
   }
   if (i.kind === "gym") return pill("/life/gym", "Start");
   if (i.kind === "weigh") return pill("/life/body", "Log");
+  // A fresh week's shop, not the untimed "plan the week" nudge.
+  if (i.kind === "shop" && i.start >= 0) return pill(i.href, "See list");
   // Study: log it once it has started.
   if (i.kind === "study" && i.taskGid && (next || past)) return pill(`/log?task=${i.taskGid}`, "Log");
   return null;
