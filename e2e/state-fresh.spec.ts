@@ -393,4 +393,74 @@ test.describe("money", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("payments come in with the connection and the scheduled sync, and a statement fills a day the feed missed, once", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    const feed = (list: object[]) => request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: list });
+    await feed([
+      { id: "t1", date: "2026-11-13", pence: -1234, text: "EXAMPLE GROCER" },
+      { id: "t2", date: "2026-11-15", pence: -500, text: "EXAMPLE BAKERY", pending: true },
+    ]);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+    const payments = page.getByRole("region", { name: "Payments" });
+    await expect(payments.getByText("EXAMPLE GROCER")).toBeVisible();
+    await expect(payments.getByText("EXAMPLE BAKERY")).toBeVisible();
+    await expect(payments.getByText("Pending", { exact: true }).first()).toBeVisible();
+
+    // The scheduled sync: register its key, then the cron call brings what the bank booked since.
+    const connection = page.getByRole("region", { name: "Bank connection" });
+    await connection.getByRole("button", { name: "Register" }).click();
+    await expect(connection.getByText("On. It runs at the next scheduled time.")).toBeVisible();
+    await feed([
+      { id: "t1", date: "2026-11-13", pence: -1234, text: "EXAMPLE GROCER" },
+      { id: "t3", date: "2026-11-15", pence: -500, text: "EXAMPLE BAKERY" },
+    ]);
+    const cron = (secret: string) =>
+      request.get("/api/money/sync", { headers: { authorization: `Bearer ${secret}` }, maxRedirects: 0 });
+    expect((await cron("not-the-secret")).status()).toBe(401);
+    const ran = await cron(process.env.CRON_SECRET ?? "");
+    expect(await ran.json()).toEqual({ ran: true, outcome: "ok" });
+    await page.reload();
+    await expect(payments.getByText("Pending", { exact: true })).toHaveCount(0);
+    await expect(payments.getByText("EXAMPLE BAKERY")).toHaveCount(1);
+    await expect(connection.getByText(/^On\. Last ran /)).toBeVisible();
+
+    // A statement: the grocer is already in (same day and amount), the shop on the 10th is new.
+    const file = [
+      '"Account Name:","Example ****1234"',
+      "",
+      '"Date","Transaction type","Description","Paid out","Paid in","Balance"',
+      '"10 Nov 2026","Visa purchase","EXAMPLE SHOP","£20.00","","£980.00"',
+      '"13 Nov 2026","Visa purchase","EXAMPLE GROCER LONDON","£12.34","","£967.66"',
+    ].join("\n");
+    const upload = async () => {
+      await page.goto("/life/money/upload");
+      await page
+        .getByLabel("CSV file")
+        .setInputFiles({ name: "statement.csv", mimeType: "text/csv", buffer: Buffer.from(file) });
+      await page.getByRole("button", { name: "Add the statement" }).click();
+    };
+    await upload();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Added 1 payment; 1 the portal already had was left out." }),
+    ).toBeVisible();
+    await page.goto("/life/money");
+    await expect(payments.getByText("EXAMPLE SHOP")).toBeVisible();
+    await expect(payments.getByText("From a statement")).toBeVisible();
+    await page.reload();
+    await expect(payments.getByText("EXAMPLE SHOP")).toBeVisible();
+    await upload();
+    await expect(page.getByText("That statement is in already.")).toBeVisible();
+
+    // Back as it was.
+    await feed([]);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });
