@@ -118,3 +118,29 @@ export function uploadStatement(account: number, text: string): Promise<Result<{
     return { added, skipped };
   });
 }
+
+/**
+ * Sorts a payment by hand (null: back to the rules). With `always`, the merchant gets a
+ * rule too, which sorts its past payments and every one after.
+ */
+export function setCategory(txn: number, category: number | null, always: boolean): Promise<Result> {
+  return run(async () => {
+    await store.setCategory(txn, category, always);
+    return {};
+  });
+}
+
+export function dismissAlert(id: number): Promise<Result> {
+  return run(async () => {
+    await store.dismissAlert(id);
+    return {};
+  });
+}
+
+/** What Claude may do with Money: off, summary, plan or setup. Only ever set here, in the app. */
+export function setClaudeAccess(level: "off" | "summary" | "plan" | "setup"): Promise<Result> {
+  return run(async () => {
+    await store.setClaudeAccess(level);
+    return {};
+  });
+}

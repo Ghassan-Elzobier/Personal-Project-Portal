@@ -1,5 +1,6 @@
 import "server-only";
 import { anonClient } from "../supabase/anon";
+import { rpcAsCaller } from "../supabase/caller";
 import { createClient } from "../supabase/server";
 import type { TxnRow } from "./feed";
 import type { AccountChoice } from "./map";
@@ -41,6 +42,25 @@ async function writer<T>(name: string, args: Record<string, unknown>, key?: stri
   return data as T;
 }
 
+/**
+ * A Claude RPC: the token's hash goes with a connector call (rpcAsCaller). Its refusals
+ * say what to do ("…The owner can change it on the Money page."), so they pass on.
+ */
+async function claude<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await rpcAsCaller(name, args);
+  if (error) {
+    if (error.code === "42501" || error.code === "P0001") throw new MoneyStoreError(error.message);
+    throw failure(name, error);
+  }
+  return data as T;
+}
+
+export const claudeHistory = (months: number) => claude<unknown>("money_claude_history", { p_months: months });
+export const claudePlan = (changes: Record<string, unknown>) =>
+  claude<{ categories: number; rules: number; unsorted_this_month: number }>("money_claude_plan", {
+    p_changes: changes,
+  });
+
 export const readMoney = () => owner<unknown>("money_read");
 export const readTransactions = (since: string) => owner<unknown[]>("money_transactions", { p_since: since });
 export const connect = (accounts: AccountChoice[]) => owner<number[]>("money_connect", { p_accounts: accounts });
@@ -48,6 +68,11 @@ export const disconnect = () => owner<void>("money_disconnect");
 export const forgetAll = () => owner<void>("money_forget_all");
 export const setJobKey = (hash: string, scope: "bank-sync" | "trolley", label: string) =>
   owner<void>("job_key_set", { p_hash: hash, p_scope: scope, p_label: label });
+export const setCategory = (txn: number, category: number | null, always: boolean) =>
+  owner<void>("money_set_category", { p_txn: txn, p_category: category, p_always: always });
+export const dismissAlert = (id: number) => owner<void>("money_dismiss_alert", { p_id: id });
+export const setClaudeAccess = (level: "off" | "summary" | "plan" | "setup") =>
+  owner<void>("money_set_claude_access", { p_level: level });
 export const uploadStatement = (
   account: number,
   sha256: string,
