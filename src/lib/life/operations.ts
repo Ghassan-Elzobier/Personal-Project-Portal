@@ -5,7 +5,15 @@ import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
-import { cookScale, sizeCooks, spareStaysCold, type StapleBefore, type WeekMode, type WeekPlan } from "./planner";
+import {
+  cookScale,
+  sizeCooks,
+  spareStaysCold,
+  type ShopVia,
+  type StapleBefore,
+  type WeekMode,
+  type WeekPlan,
+} from "./planner";
 import { recipe } from "./recipes";
 import { buildList, cookUse, delivery, undoOf, weekNeeds, type Product } from "./shopping";
 import {
@@ -416,9 +424,20 @@ export function setStock(
   });
 }
 
-export function markOrdered(start: string, ordered: boolean): Promise<Result> {
+/**
+ * Ordered on Sainsbury's, with the trolley total from the checkout if you typed it
+ * (pence), or not ordered after all, which clears both.
+ */
+export function markOrdered(start: string, ordered: boolean, pence: number | null = null): Promise<Result> {
   return editPlan(start, (plan, s) => {
-    plan.shop = { ...plan.shop, orderedOn: ordered ? s.today : undefined };
+    if (ordered && pence !== null && !(Number.isInteger(pence) && pence >= 0 && pence <= 100_000))
+      fail("That total doesn't look right. Type it as it shows at the checkout, like 71.40.");
+    plan.shop = {
+      ...plan.shop,
+      orderedOn: ordered ? s.today : undefined,
+      orderedPence: ordered && pence !== null ? pence : undefined,
+      ...(ordered ? { via: "online" as const } : {}),
+    };
   });
 }
 
@@ -512,11 +531,19 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
 }
 
 /**
- * Shopping in person: what is in the basket and what the shop didn't have, for a
- * fresh week's shop (`tripId`) or a batch week's one shop (null). The phone sends
- * the whole set each time, in order, so the last tap always wins.
+ * What is in the basket (in person) or the trolley (online), and what the shop
+ * didn't have, for a fresh week's shop (`tripId`) or a batch week's one shop (null).
+ * The phone sends the whole set each time, in order, so the last tap always wins.
+ * `via` says which way the ticks were made, so the list opens that way again.
  */
-export function tickShop(start: string, tripId: string | null, ticked: string[], missing: string[]): Promise<Result> {
+export function tickShop(
+  start: string,
+  tripId: string | null,
+  ticked: string[],
+  missing: string[],
+  via?: unknown,
+): Promise<Result> {
+  const how: { via?: ShopVia } = via === "store" || via === "online" ? { via } : {};
   return run(async () => {
     const items = (xs: unknown) =>
       Array.isArray(xs)
@@ -532,7 +559,7 @@ export function tickShop(start: string, tripId: string | null, ticked: string[],
     if (!plan) fail("Plan the week first.");
     if (tripId === null) {
       if (plan!.shop?.deliveredOn) fail("This week's shopping is in already.");
-      await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, ticked: got, missing: gone } });
+      await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, ticked: got, missing: gone, ...how } });
       return {};
     }
     const trip = plan!.trips?.find((t) => t.id === tripId);
@@ -540,7 +567,7 @@ export function tickShop(start: string, tripId: string | null, ticked: string[],
     if (trip!.doneOn) fail("That shop is done already.");
     await store.savePlan(start, {
       ...plan!,
-      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, ticked: got, missing: gone } : t)),
+      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, ticked: got, missing: gone, ...how } : t)),
     });
     return {};
   });

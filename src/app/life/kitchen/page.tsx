@@ -112,9 +112,10 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
       }}
       unchecked={unchecked(s, lines)}
       ordered={plan.shop?.orderedOn ? shortDate(plan.shop.orderedOn) : null}
+      orderedTotal={plan.shop?.orderedPence != null ? money(plan.shop.orderedPence) : null}
       delivered={delivered ? shortDate(delivered) : null}
       deliveryDay={dayLabel(deliveryDay, s.today)}
-      ticks={{ ticked: plan.shop?.ticked ?? [], missing: plan.shop?.missing ?? [] }}
+      ticks={{ ticked: plan.shop?.ticked ?? [], missing: plan.shop?.missing ?? [], via: plan.shop?.via }}
       next={null}
       budgetPence={s.profile.shopping.budgetPence}
     />
@@ -178,7 +179,7 @@ function FreshShops({ s, v }: { s: S; v: WeekView }) {
             ordered={null}
             delivered={null}
             deliveryDay={dayLabel(trip.date, s.today)}
-            ticks={{ ticked: trip.ticked ?? [], missing: trip.missing ?? [] }}
+            ticks={{ ticked: trip.ticked ?? [], missing: trip.missing ?? [], via: trip.via }}
             notFound={notFound.map((n) => ({ line: shopLine(s, n.line), to: titleOf(n.to) }))}
             next={titleOf(open[i + 1]?.trip.id ?? null)}
             budgetPence={share(trip.id)}

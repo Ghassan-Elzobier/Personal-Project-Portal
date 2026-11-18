@@ -43,6 +43,8 @@ export type WeekPlan = {
   /** Delivery and order state, for a batch week's one shop. */
   shop?: {
     orderedOn?: string;
+    /** The trolley total at Sainsbury's checkout, when you typed it. */
+    orderedPence?: number;
     deliveredOn?: string;
     got?: string[];
     added?: { item: string; qty: number }[];
@@ -88,8 +90,14 @@ export type Trip = {
 /** A cupboard staple's status before a shop marked it "have", so Undo can put it back. */
 export type StapleBefore = { item: string; status: "have" | "low" | "out" | null };
 
-/** Shopping in person: what has been picked up, and what the shop didn't have. */
-export type ShopTicks = { ticked?: string[]; missing?: string[] };
+/**
+ * What has gone in the basket (in person) or the trolley (online), and what the shop
+ * didn't have. `via` is the way the ticks were made, so the list opens that way again.
+ */
+export type ShopTicks = { ticked?: string[]; missing?: string[]; via?: ShopVia };
+
+/** Shopping in person with the list, or ordering online from it. */
+export type ShopVia = "store" | "online";
 
 /** A cooked batch with portions left, from the kitchen. */
 export type StockBatch = {
