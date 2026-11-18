@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { moneySyncKey } from "../config/env";
+import { parsePounds } from "./budget";
 import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
 import { BankError, type AccountChoice } from "./map";
@@ -133,6 +134,40 @@ export function setCategory(txn: number, category: number | null, always: boolea
 export function dismissAlert(id: number): Promise<Result> {
   return run(async () => {
     await store.dismissAlert(id);
+    return {};
+  });
+}
+
+export type SettingsInput = {
+  allowance: string;
+  buffer: string;
+  bufferFrom: string;
+  firstPayday: string;
+  paydayRule: string;
+};
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function poundsToPence(text: string): number | null {
+  const p = parsePounds(text);
+  if (p === undefined) throw new store.MoneyStoreError("Amounts are in pounds, like 160 or 160.50.");
+  return p;
+}
+
+/** The weekly amount, the buffer and when it starts, and the payday. */
+export function saveSettings(input: SettingsInput): Promise<Result> {
+  return run(async () => {
+    for (const d of [input.bufferFrom, input.firstPayday])
+      if (d && !DAY.test(d)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
+    if (!/^(last-working-day|day-([1-9]|[12][0-9]|3[01]))$/.test(input.paydayRule))
+      throw new store.MoneyStoreError("Pick when you're paid.");
+    await store.saveSettings({
+      allowance_pence: poundsToPence(input.allowance),
+      buffer_pence: poundsToPence(input.buffer) ?? 0,
+      buffer_from: input.bufferFrom || null,
+      first_payday: input.firstPayday || null,
+      payday_rule: input.paydayRule,
+    });
     return {};
   });
 }

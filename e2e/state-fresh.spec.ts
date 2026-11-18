@@ -508,4 +508,42 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("the weekly amount shows what's left this week at once and after a reload, on Money and on Today", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    // The suite's clock is Monday 16 November: one unsorted payment this week.
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=123456`);
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, {
+      data: [{ id: "w1", date: "2026-11-16", pence: -1234, text: "EXAMPLE MARKET" }],
+    });
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+    const week = page.getByRole("region", { name: "This week" });
+    await expect(week.getByText("Set the amount you live on each week")).toBeVisible();
+
+    const plan = page.getByRole("region", { name: "Your plan" });
+    await plan.getByLabel("To live on each week (£)").fill("150");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    await expect(week.getByText("£137.66 left")).toBeVisible();
+    await expect(week.getByText(/until payday on Mon 30 Nov/)).toBeVisible();
+    await page.reload();
+    await expect(week.getByText("£137.66 left")).toBeVisible();
+    await expect(plan.getByLabel("To live on each week (£)")).toHaveValue("150");
+
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /£137\.66 left this week/ })).toBeVisible();
+
+    // Back as it was.
+    await page.goto("/life/money");
+    await plan.getByLabel("To live on each week (£)").fill("");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    await expect(week.getByText("Set the amount you live on each week")).toBeVisible();
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: [] });
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

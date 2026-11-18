@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { dateIn } from "@/lib/dates/week";
+import type { BudgetData, BudgetView } from "@/lib/money/budget";
 import { loadMoney } from "@/lib/money/load";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { ago, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
@@ -13,6 +14,7 @@ import { LifeHeader } from "../parts";
 import { disconnectBank, dismissAlert, forgetBank, refreshBank, registerSyncKey, setClaudeAccess } from "./actions";
 import { ConnectBank } from "./connect";
 import { PaymentList } from "./payments";
+import { PlanForm } from "./plan-form";
 
 export const metadata: Metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -60,12 +62,126 @@ export default async function MoneyPage() {
         </p>
       )}
       {s.alerts.length > 0 && <Alerts s={s} />}
+      {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
+      {s.connection && <Plan budget={loaded.budget} />}
       {s.connection && <Claude s={s} />}
       {s.connection && <Connection connected={connected} s={s} />}
     </div>
+  );
+}
+
+const longDay = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+
+/** This week's amount on top, then how the weeks to payday look, and where the money goes. */
+function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
+  const w = v.week;
+  return (
+    <section aria-labelledby="week-title" className="space-y-3 card-life">
+      <h2 id="week-title" className="text-lg font-semibold">
+        This week
+      </h2>
+      {w.left === null ? (
+        <p className="text-sm text-body">
+          Set the amount you live on each week, under Your plan below, to see what&apos;s left.
+        </p>
+      ) : (
+        <div>
+          <p className={`text-3xl font-bold tabular-nums ${w.left < 0 ? "text-coral" : "text-bright"}`}>
+            {w.left < 0 ? `${pounds(-w.left)} over` : `${pounds(w.left)} left`}
+          </p>
+          <p className="text-sm text-muted tabular-nums">
+            of {pounds(w.allowance!)}: {pounds(w.spent)} spent
+            {w.carry > 0 && `, ${pounds(w.carry)} over last week`}
+            {w.spread > 0 && `, ${pounds(w.spread)} planned`}. Resets on Monday.
+          </p>
+        </div>
+      )}
+      {v.safe !== null && (
+        <p
+          className={`rounded-xl p-3 text-sm ${v.onTrack === false ? "bg-coral/10 text-coral" : "bg-white/5 text-body"}`}
+        >
+          {v.perWeek !== null && v.perWeek > 0
+            ? `Enough for ${pounds(v.perWeek)} a week until payday on ${longDay(v.payday)}`
+            : `Nothing spare until payday on ${longDay(v.payday)}`}
+          {w.allowance !== null &&
+            (v.onTrack ? `: on track for your ${pounds(w.allowance)}.` : `, less than your ${pounds(w.allowance)}.`)}
+        </p>
+      )}
+      {v.safe !== null && v.balance !== null && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">Where it goes</summary>
+          <dl className="mt-2 space-y-1 tabular-nums">
+            <div className="flex justify-between gap-3">
+              <dt>Balance</dt>
+              <dd>{pounds(v.balance)}</dd>
+            </div>
+            {v.stillToPay.map((c) => (
+              <div key={c.key} className="flex justify-between gap-3 text-muted">
+                <dt>{c.name}, still to pay</dt>
+                <dd>−{pounds(c.pence)}</dd>
+              </div>
+            ))}
+            {v.plannedBefore > 0 && (
+              <div className="flex justify-between gap-3 text-muted">
+                <dt>Planned purchases</dt>
+                <dd>−{pounds(v.plannedBefore)}</dd>
+              </div>
+            )}
+            {v.buffer > 0 && (
+              <div className="flex justify-between gap-3 text-muted">
+                <dt>Buffer, always kept</dt>
+                <dd>−{pounds(v.buffer)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-3 border-t border-white/10 pt-1 font-medium">
+              <dt>Safe to spend</dt>
+              <dd>{pounds(v.safe)}</dd>
+            </div>
+            <div className="flex justify-between gap-3 text-muted">
+              <dt>
+                Over {v.daysToPayday} {v.daysToPayday === 1 ? "day" : "days"} to {longDay(v.payday)}
+              </dt>
+              <dd>{pounds(Math.floor(v.safe / Math.max(1, v.daysToPayday)))} a day</dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-xs text-faint">
+            Still to pay is each monthly bill and savings budget for the months up to payday, less what has gone out
+            this month. Today is {longDay(today)}.
+          </p>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function Plan({ budget }: { budget: BudgetData }) {
+  const values = {
+    allowance: budget.allowancePence === null ? "" : String(budget.allowancePence / 100),
+    buffer: budget.bufferPence ? String(budget.bufferPence / 100) : "",
+    bufferFrom: budget.bufferFrom ?? "",
+    firstPayday: budget.firstPayday ?? "",
+    paydayRule: budget.paydayRule,
+  };
+  return (
+    <section aria-labelledby="plan-title" className="space-y-3 card-life">
+      <h2 id="plan-title" className="font-semibold">
+        Your plan
+      </h2>
+      <p className="text-sm text-muted">
+        Monthly budgets for each category are set with Claude, or below for the weekly amount, the buffer and payday.
+      </p>
+      {/* Keyed to what's saved, so the form always starts from the saved plan. */}
+      <PlanForm key={JSON.stringify(values)} {...values} />
+    </section>
   );
 }
 

@@ -43,6 +43,18 @@ export async function setCategory(txn: number, category: number | null, always: 
   return ops.setCategory(txn, category, always === true);
 }
 
+export async function saveSettings(input: ops.SettingsInput) {
+  await requireOwner();
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : "");
+  return ops.saveSettings({
+    allowance: text(input?.allowance),
+    buffer: text(input?.buffer),
+    bufferFrom: text(input?.bufferFrom),
+    firstPayday: text(input?.firstPayday),
+    paydayRule: text(input?.paydayRule),
+  });
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);
