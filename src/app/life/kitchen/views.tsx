@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
+import { aislesToVisit, basketProgress, pounds, toggle } from "@/lib/life/basket";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
 import {
   confirmDelivery,
@@ -15,12 +16,16 @@ import {
   saveProduct,
   setBatch,
   setStock,
+  tickShop,
   uncook,
   undoDelivery,
   undoTrip,
 } from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
 import { Chip } from "@/components/ui";
+import { useTicks, type Ticks } from "./use-ticks";
+
+const NO_TICKS: Ticks = { ticked: [], missing: [] };
 
 // ---------------------------------------------------------------------------
 // Shop
@@ -60,6 +65,10 @@ export function ShopView({
   deliveryDay,
   unchecked,
   trip,
+  ticks,
+  notFound,
+  next,
+  budgetPence,
 }: {
   start: string;
   lines: ShopLine[];
@@ -81,16 +90,48 @@ export function ShopView({
   unchecked: { item: string; name: string }[];
   /** One shop of a fresh week: Done shopping replaces the delivery buttons. */
   trip?: { id: string; title: string; when: string; early: string[] };
+  /** Shopping in person: what is in the basket and what the shop didn't have, as saved. */
+  ticks?: Ticks;
+  /** What this shop didn't have and the server has moved on (`to`: the shop it's on now). */
+  notFound?: { line: ShopLine; to: string | null }[];
+  /** The shop after this one, where anything not found goes. */
+  next?: string | null;
+  /** What this shop may spend: the week's budget less the other shops. */
+  budgetPence?: number | null;
 }) {
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [pick, setPick] = useState<ShopLine | null>(null);
   const [arrive, setArrive] = useState(false);
-  const buying = lines.filter((l) => l.packs > 0);
-  const covered = lines.filter((l) => l.packs === 0);
-  const byAisle = useMemo(
-    () => aisles.map((a) => ({ aisle: a, lines: buying.filter((l) => l.aisle === a) })).filter((g) => g.lines.length),
-    [aisles, buying],
+  const saved = ticks ?? NO_TICKS;
+  const [inStore, setInStore] = useState(saved.ticked.length + saved.missing.length > 0);
+  const tripId = trip?.id ?? null;
+  const send = useCallback(
+    async (value: Ticks) => {
+      const r = await tickShop(start, tripId, value.ticked, value.missing);
+      if (r && "error" in r && r.error) {
+        toast(r.error, { tone: "error" });
+        return "refused" as const;
+      }
+      return "sent" as const;
+    },
+    [start, tripId],
   );
+  const { ticks: basket, set: setBasket, waiting } = useTicks(`portal.ticks.${start}.${tripId ?? "week"}`, saved, send);
+  const missing = new Set(basket.missing);
+  const onList = lines.filter((l) => l.packs > 0);
+  // A line the server moved on comes back at once on "Found it", before the page catches up.
+  const back = (notFound ?? []).filter((n) => !missing.has(n.line.item)).map((n) => n.line);
+  const buying = [...onList.filter((l) => !missing.has(l.item)), ...back];
+  const gone = [
+    ...(notFound ?? []).filter((n) => missing.has(n.line.item)),
+    ...onList.filter((l) => missing.has(l.item)).map((line) => ({ line, to: next ?? null })),
+  ];
+  const covered = lines.filter((l) => l.packs === 0);
+  const byAisle = aisles
+    .map((a) => ({ aisle: a, lines: buying.filter((l) => l.aisle === a) }))
+    .filter((g) => g.lines.length);
+  const progress = basketProgress(buying, basket.ticked, basket.missing, budgetPence ?? null);
+  const visit = aislesToVisit(buying, aisles, basket.missing);
   const { run } = useAction();
 
   const copy = async () => {
@@ -106,8 +147,8 @@ export function ShopView({
   };
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-3 card-life" aria-label={trip?.title}>
+    <section className="space-y-4" aria-label={trip?.title}>
+      <div className="space-y-3 card-life">
         {trip && (
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h2 className="text-lg font-semibold">{trip.title}</h2>
@@ -130,26 +171,33 @@ export function ShopView({
           {total.cupboard && <span className="text-muted"> · cupboard stock-up {total.cupboard}, lasts weeks</span>}
         </p>
         <p className="text-sm text-body">
-          {trip
-            ? `Everything the days until the next shop need. Tap an item to open it on Sainsbury's, or take the list with you. Tap Done shopping when you're home.`
-            : delivered
-              ? `Delivered ${delivered}. It's all in the cupboard tab.`
-              : ordered
-                ? `Ordered ${ordered}. When it arrives, tap Delivery arrived and untick anything missing.`
-                : `For delivery by ${deliveryDay}. Tap each item to open it on Sainsbury's and add the packs shown. Pick a product once and the link goes straight to it every week.`}
+          {inStore
+            ? `Tick each item as it goes in the basket. Can't find one? Tap Not found and it ${next ? `moves to ${next}` : "waits for a top-up"}. Tap Done shopping when you're home.`
+            : trip
+              ? `Everything the days until the next shop need. Tap an item to open it on Sainsbury's, or Shop in store to tick it off as you go. Tap Done shopping when you're home.`
+              : delivered
+                ? `Delivered ${delivered}. It's all in the cupboard tab.`
+                : ordered
+                  ? `Ordered ${ordered}. When it arrives, tap Delivery arrived and untick anything missing.`
+                  : `For delivery by ${deliveryDay}. Tap each item to open it on Sainsbury's and add the packs shown, or Shop in store to take the list with you.`}
         </p>
         <div className="flex flex-wrap gap-2">
-          {trip && (
+          {(trip || (inStore && !delivered)) && (
             <button type="button" onClick={() => setArrive(true)} className="btn-life" disabled={!buying.length}>
               Done shopping
             </button>
           )}
-          {!trip && !delivered && !ordered && (
+          {!delivered && !ordered && (
+            <button type="button" onClick={() => setInStore((v) => !v)} className="btn-soft" aria-pressed={inStore}>
+              {inStore ? "Use the links" : "Shop in store"}
+            </button>
+          )}
+          {!trip && !inStore && !delivered && !ordered && (
             <ActionButton action={() => markOrdered(start, true)} className="btn-life" done="Marked as ordered.">
               I&apos;ve ordered it
             </ActionButton>
           )}
-          {!trip && !delivered && (
+          {!trip && !inStore && !delivered && (
             <button type="button" onClick={() => setArrive(true)} className={ordered ? "btn-life" : "btn-soft"}>
               Delivery arrived
             </button>
@@ -177,61 +225,168 @@ export function ShopView({
             Prices marked ≈ are typical ones until you pick the product and its price.
           </p>
         )}
-      </section>
+      </div>
 
       {unchecked.length > 0 && !delivered && <HaveThese items={unchecked} />}
 
-      {byAisle.map((g) => (
-        <section key={g.aisle} className="space-y-2" aria-label={g.aisle}>
-          <h2 className="px-1 eyebrow">{g.aisle}</h2>
-          <ul className="divide-y divide-white/5 card-life p-0">
-            {g.lines.map((l) => {
-              const seen = opened.has(l.item);
-              return (
-                <li key={l.item} className="flex min-w-0 items-start gap-3 p-3">
-                  <a
-                    href={l.link}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    onClick={() => setOpened((s) => new Set(s).add(l.item))}
-                    className={`tap size-11 shrink-0 rounded-full text-sm font-bold ring-1 ${seen ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
-                    aria-label={`Open ${l.name} on Sainsbury's`}
-                  >
-                    {seen ? "✓" : `×${l.packs}`}
-                  </a>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium wrap-break-word">
-                      {l.product?.name ?? l.name} <span className="text-muted">× {l.packs}</span>
-                    </p>
-                    <p className="text-xs text-muted tabular-nums">
-                      {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack} packs
-                      · {l.estimate ? "≈" : ""}
-                      {l.price}
-                      {l.spare ? ` · ${l.spare} spare` : ""}
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {trip?.early.includes(l.item) && <Chip tone="sand">Wanted {l.firstUse}, before this shop</Chip>}
-                      {l.freeze && <Chip tone="ice">Freeze on arrival · for {l.firstUse}</Chip>}
-                      {l.checks.map((c) => (
-                        <Chip key={c.tag} tone="sand">
-                          Check label: {c.label.split(" (")[0]}
-                        </Chip>
-                      ))}
+      {inStore && (
+        <div className="sticky top-16 z-10 space-y-1 card-life py-3 shadow-lg" aria-live="polite" aria-label="Basket">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="text-xl font-bold tabular-nums">{pounds(progress.pence)} in the basket</span>
+            <span className="text-sm text-muted tabular-nums">
+              {progress.got} of {progress.of}
+            </span>
+          </p>
+          <p className="text-sm text-body tabular-nums">
+            About {pounds(progress.left)} to go
+            {progress.spare !== null && budgetPence != null && (
+              <span className={progress.spare < 0 ? "text-sand" : "text-muted"}>
+                {" "}
+                ·{" "}
+                {progress.spare < 0
+                  ? `${pounds(-progress.spare)} over this shop's ${pounds(budgetPence)}`
+                  : `${pounds(progress.spare)} left of this shop's ${pounds(budgetPence)}`}
+              </span>
+            )}
+          </p>
+          {visit.length > 0 && (
+            <p className="text-xs text-muted">
+              {visit.length} {visit.length === 1 ? "aisle" : "aisles"}: {visit.join(" · ")}
+            </p>
+          )}
+          {waiting && <p className="text-xs text-faint">Saved on this phone. It sends when there&apos;s signal.</p>}
+        </div>
+      )}
+
+      {inStore &&
+        byAisle.map((g) => (
+          <section key={g.aisle} className="space-y-2" aria-label={g.aisle}>
+            <h2 className="px-1 eyebrow">{g.aisle}</h2>
+            <ul className="divide-y divide-white/5 card-life p-0">
+              {g.lines.map((l) => {
+                const got = basket.ticked.includes(l.item);
+                return (
+                  <li key={l.item} className="flex min-w-0 items-center gap-1 p-2">
+                    <button
+                      type="button"
+                      aria-pressed={got}
+                      onClick={() => setBasket(toggle(basket, l.item, got ? "open" : "got"))}
+                      className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left hover:bg-white/5"
+                    >
+                      <span
+                        aria-hidden
+                        className={`grid size-9 shrink-0 place-items-center rounded-full font-bold ring-1 ${got ? "bg-mint text-primary ring-mint" : "bg-white/5 text-transparent ring-white/20"}`}
+                      >
+                        ✓
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block font-medium wrap-break-word ${got ? "text-muted line-through" : ""}`}>
+                          {l.product?.name ?? l.name} <span className="text-muted">× {l.packs}</span>
+                        </span>
+                        <span className="block text-xs text-muted tabular-nums">
+                          {l.estimate ? "≈" : ""}
+                          {l.price}
+                          {trip?.early.includes(l.item) ? ` · wanted ${l.firstUse}` : ""}
+                        </span>
+                      </span>
+                    </button>
+                    {!got && (
+                      <button
+                        type="button"
+                        onClick={() => setBasket(toggle(basket, l.item, "missing"))}
+                        className="min-h-11 shrink-0 px-2 text-xs text-muted hover:text-sand"
+                        aria-label={`${l.product?.name ?? l.name} not found`}
+                      >
+                        Not found
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+
+      {!inStore &&
+        byAisle.map((g) => (
+          <section key={g.aisle} className="space-y-2" aria-label={g.aisle}>
+            <h2 className="px-1 eyebrow">{g.aisle}</h2>
+            <ul className="divide-y divide-white/5 card-life p-0">
+              {g.lines.map((l) => {
+                const seen = opened.has(l.item);
+                return (
+                  <li key={l.item} className="flex min-w-0 items-start gap-3 p-3">
+                    <a
+                      href={l.link}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      onClick={() => setOpened((s) => new Set(s).add(l.item))}
+                      className={`tap size-11 shrink-0 rounded-full text-sm font-bold ring-1 ${seen ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
+                      aria-label={`Open ${l.name} on Sainsbury's`}
+                    >
+                      {seen ? "✓" : `×${l.packs}`}
+                    </a>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium wrap-break-word">
+                        {l.product?.name ?? l.name} <span className="text-muted">× {l.packs}</span>
+                      </p>
+                      <p className="text-xs text-muted tabular-nums">
+                        {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack}{" "}
+                        packs · {l.estimate ? "≈" : ""}
+                        {l.price}
+                        {l.spare ? ` · ${l.spare} spare` : ""}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {trip?.early.includes(l.item) && <Chip tone="sand">Wanted {l.firstUse}, before this shop</Chip>}
+                        {l.freeze && <Chip tone="ice">Freeze on arrival · for {l.firstUse}</Chip>}
+                        {l.checks.map((c) => (
+                          <Chip key={c.tag} tone="sand">
+                            Check label: {c.label.split(" (")[0]}
+                          </Chip>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPick(l)}
-                    className="shrink-0 text-xs text-mint hover:underline"
-                  >
-                    {l.product ? "Product" : "Pick"}
-                  </button>
-                </li>
-              );
-            })}
+                    <button
+                      type="button"
+                      onClick={() => setPick(l)}
+                      className="shrink-0 text-xs text-mint hover:underline"
+                    >
+                      {l.product ? "Product" : "Pick"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+
+      {gone.length > 0 && (
+        <section className="space-y-2" aria-label="Not found">
+          <h2 className="px-1 eyebrow">Not found</h2>
+          <ul className="divide-y divide-white/5 card-life p-0">
+            {gone.map(({ line, to }) => (
+              <li key={line.item} className="flex min-w-0 items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium wrap-break-word text-muted">
+                    {line.product?.name ?? line.name} × {line.packs}
+                  </p>
+                  <p className="text-xs text-faint">
+                    {to ? `Moved to ${to}` : "No shop after this one: buy it as a top-up"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBasket(toggle(basket, line.item, "open"))}
+                  className="min-h-11 shrink-0 px-2 text-sm text-mint hover:underline"
+                  aria-label={`Found ${line.product?.name ?? line.name} after all`}
+                >
+                  Found it
+                </button>
+              </li>
+            ))}
           </ul>
         </section>
-      ))}
+      )}
 
       {covered.length > 0 && (
         <details className="card-life text-sm">
@@ -259,8 +414,13 @@ export function ShopView({
         {arrive && (
           <Arrived
             lines={buying}
+            initial={inStore && basket.ticked.length ? basket.ticked : undefined}
             note={
-              trip ? "Everything is ticked. Untick what you couldn't get, and it moves to the next shop." : undefined
+              inStore && basket.ticked.length
+                ? "What you ticked in the shop is ticked here. Tick anything you picked up without ticking."
+                : trip
+                  ? "Everything is ticked. Untick what you couldn't get, and it moves to the next shop."
+                  : undefined
             }
             onConfirm={async (got) => {
               const ok = trip
@@ -271,7 +431,7 @@ export function ShopView({
           />
         )}
       </Sheet>
-    </div>
+    </section>
   );
 }
 
@@ -372,12 +532,17 @@ function Arrived({
   lines,
   onConfirm,
   note,
+  initial,
 }: {
   lines: ShopLine[];
   onConfirm: (got: string[]) => Promise<void>;
   note?: string;
+  /** What starts ticked: everything, unless the shop's own ticks say otherwise. */
+  initial?: string[];
 }) {
-  const [got, setGot] = useState<Set<string>>(new Set(lines.map((l) => l.item)));
+  const [got, setGot] = useState<Set<string>>(
+    new Set(lines.map((l) => l.item).filter((item) => !initial || initial.includes(item))),
+  );
   const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-3">

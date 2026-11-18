@@ -25,7 +25,16 @@ import {
 } from "./planner.ts";
 import { recipe } from "./recipes.ts";
 import { INGREDIENTS } from "./ingredients.ts";
-import { buildList, splitTrips, weekNeeds, type ListLine, type Need, type Product, type StockRow } from "./shopping.ts";
+import {
+  buildList,
+  carryMissing,
+  splitTrips,
+  weekNeeds,
+  type ListLine,
+  type Need,
+  type Product,
+  type StockRow,
+} from "./shopping.ts";
 import { consistency, nextWorkout, type SessionLog, type SetLog } from "./gym/progress.ts";
 import { workout } from "./gym/program.ts";
 
@@ -358,12 +367,19 @@ export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")):
   return weekNeeds(v.plan, v.placements, { cooked, eaten, from: s.today });
 }
 
-export type TripList = { trip: Trip; lines: ListLine[]; early: string[] };
+export type TripList = {
+  trip: Trip;
+  lines: ListLine[];
+  early: string[];
+  /** What this shop didn't have, and the shop it moved to (null: none left this week). */
+  notFound: { line: ListLine; to: string | null }[];
+};
 
 /**
  * A fresh week's shops: a list for each one not done yet, from what the week still
- * needs, and the ones already done. The page and the Done action both use this, so
- * what you tick is what goes into the kitchen.
+ * needs, and the ones already done. What a shop didn't have moves to the next one.
+ * The page and the Done action both use this, so what you tick is what goes into
+ * the kitchen.
  */
 export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: Trip[]; covered: string[] } {
   const trips = v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : [];
@@ -371,13 +387,19 @@ export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: 
   const open = trips.filter((t) => !t.doneOn);
   if (!open.length) return { open: [], done, covered: [] };
   const split = splitTrips(remainingNeeds(s, v), open, s.stock, s.products);
+  const carried = carryMissing(split.trips, Object.fromEntries(open.map((t) => [t.id, t.missing ?? []])));
   // Fresh food has come off already; staples still need their have / low / out.
   const staples = s.stock.filter((x) => INGREDIENTS.get(x.item)?.staple);
   return {
-    open: split.trips.map((t) => ({
+    open: carried.trips.map((t) => ({
       trip: open.find((o) => o.id === t.id)!,
       lines: buildList(t.needs, staples, s.products, s.profile.food, t.date),
       early: t.early,
+      notFound: carried.moved
+        .filter((m) => m.from === t.id)
+        .flatMap((m) =>
+          buildList([m.need], staples, s.products, s.profile.food, t.date).map((line) => ({ line, to: m.to })),
+        ),
     })),
     done,
     covered: split.covered,

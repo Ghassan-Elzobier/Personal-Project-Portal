@@ -470,6 +470,41 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
   });
 }
 
+/**
+ * Shopping in person: what is in the basket and what the shop didn't have, for a
+ * fresh week's shop (`tripId`) or a batch week's one shop (null). The phone sends
+ * the whole set each time, in order, so the last tap always wins.
+ */
+export function tickShop(start: string, tripId: string | null, ticked: string[], missing: string[]): Promise<Result> {
+  return run(async () => {
+    const items = (xs: unknown) =>
+      Array.isArray(xs)
+        ? [...new Set(xs.filter((x): x is string => typeof x === "string" && /^[a-z0-9-]{1,60}$/.test(x)))].slice(
+            0,
+            200,
+          )
+        : [];
+    const got = items(ticked);
+    const gone = items(missing).filter((x) => !got.includes(x));
+    const s = await state();
+    const plan = s.plans.find((p) => p.start === start)?.data;
+    if (!plan) fail("Plan the week first.");
+    if (tripId === null) {
+      if (plan!.shop?.deliveredOn) fail("This week's shopping is in already.");
+      await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, ticked: got, missing: gone } });
+      return {};
+    }
+    const trip = plan!.trips?.find((t) => t.id === tripId);
+    if (!trip) fail("That shop is not in this week's plan.");
+    if (trip!.doneOn) fail("That shop is done already.");
+    await store.savePlan(start, {
+      ...plan!,
+      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, ticked: got, missing: gone } : t)),
+    });
+    return {};
+  });
+}
+
 export function undoTrip(start: string, tripId: string): Promise<Result> {
   return run(async () => {
     const s = await state();

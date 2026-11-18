@@ -286,6 +286,40 @@ export function splitTrips(
   return { trips: out, covered };
 }
 
+/**
+ * Items a shop didn't have move to the next shop's list, merged with anything it
+ * buys of the same, and flagged early when they're wanted before it. With no shop
+ * after, they stay with nowhere to go (`to: null`), for a top-up. In date order, so
+ * an item missing twice moves twice. Pure, so it is tested.
+ */
+export function carryMissing(
+  trips: TripNeeds[],
+  missing: Record<string, string[]>,
+): { trips: TripNeeds[]; moved: { from: string; to: string | null; need: Need }[] } {
+  const out = trips.map((t) => ({ ...t, needs: [...t.needs], early: [...t.early] }));
+  const moved: { from: string; to: string | null; need: Need }[] = [];
+  out.forEach((t, i) => {
+    const gone = new Set(missing[t.id] ?? []);
+    if (!gone.size) return;
+    const next = out[i + 1];
+    for (const n of t.needs.filter((x) => gone.has(x.item))) {
+      t.needs = t.needs.filter((x) => x !== n);
+      t.early = t.early.filter((x) => x !== n.item);
+      moved.push({ from: t.id, to: next?.id ?? null, need: n });
+      if (!next) continue;
+      const there = next.needs.find((x) => x.item === n.item);
+      if (there) {
+        there.qty += n.qty;
+        there.firstUse = n.firstUse < there.firstUse ? n.firstUse : there.firstUse;
+        there.uses = [...new Set([...there.uses, ...n.uses])];
+        there.at = [...(n.at ?? []), ...(there.at ?? [])];
+      } else next.needs.push({ ...n });
+      if (n.firstUse < next.date && !next.early.includes(n.item)) next.early.push(n.item);
+    }
+  });
+  return { trips: out, moved };
+}
+
 export const AISLES: Aisle[] = [
   "Fruit & veg",
   "Meat & fish",

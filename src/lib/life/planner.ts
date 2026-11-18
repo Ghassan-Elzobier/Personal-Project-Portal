@@ -37,7 +37,12 @@ export type WeekPlan = {
   /** Slots you won't eat at home: "2026-11-15:dinner". */
   out: string[];
   /** Delivery and order state, for a batch week's one shop. */
-  shop?: { orderedOn?: string; deliveredOn?: string; got?: string[]; added?: { item: string; qty: number }[] };
+  shop?: {
+    orderedOn?: string;
+    deliveredOn?: string;
+    got?: string[];
+    added?: { item: string; qty: number }[];
+  } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
   /** A fresh week's shops, in date order. */
@@ -59,7 +64,10 @@ export type Trip = {
   added?: { item: string; qty: number }[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
-};
+} & ShopTicks;
+
+/** Shopping in person: what has been picked up, and what the shop didn't have. */
+export type ShopTicks = { ticked?: string[]; missing?: string[] };
 
 /** A cooked batch with portions left, from the kitchen. */
 export type StockBatch = {

@@ -114,6 +114,9 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
       ordered={plan.shop?.orderedOn ? shortDate(plan.shop.orderedOn) : null}
       delivered={delivered ? shortDate(delivered) : null}
       deliveryDay={dayLabel(deliveryDay, s.today)}
+      ticks={{ ticked: plan.shop?.ticked ?? [], missing: plan.shop?.missing ?? [] }}
+      next={null}
+      budgetPence={s.profile.shopping.budgetPence}
     />
   );
 }
@@ -125,7 +128,15 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
 function FreshShops({ s, v }: { s: S; v: WeekView }) {
   const { open, done } = tripLists(s, v);
   const budget = s.profile.shopping.budgetPence;
-  const week = done.reduce((t, x) => t + (x.pence ?? 0), 0) + open.reduce((t, x) => t + listTotal(x.lines).food, 0);
+  const spent = done.reduce((t, x) => t + (x.pence ?? 0), 0);
+  const food = new Map(open.map((x) => [x.trip.id, listTotal(x.lines).food]));
+  const week = spent + [...food.values()].reduce((t, x) => t + x, 0);
+  // What a shop may spend: the week's budget less what's been spent and the other shops' lists.
+  const share = (id: string) => (budget === null ? null : budget - week + (food.get(id) ?? 0));
+  const titleOf = (id: string | null) => {
+    const t = id ? v.plan?.trips?.find((x) => x.id === id) : undefined;
+    return t ? tripTitle(t.date) : null;
+  };
   return (
     <div className="space-y-8">
       {done.length > 0 && (
@@ -139,7 +150,7 @@ function FreshShops({ s, v }: { s: S; v: WeekView }) {
           }))}
         />
       )}
-      {open.map(({ trip, lines, early }) => {
+      {open.map(({ trip, lines, early, notFound }, i) => {
         const total = listTotal(lines);
         return (
           <ShopView
@@ -167,6 +178,10 @@ function FreshShops({ s, v }: { s: S; v: WeekView }) {
             ordered={null}
             delivered={null}
             deliveryDay={dayLabel(trip.date, s.today)}
+            ticks={{ ticked: trip.ticked ?? [], missing: trip.missing ?? [] }}
+            notFound={notFound.map((n) => ({ line: shopLine(s, n.line), to: titleOf(n.to) }))}
+            next={titleOf(open[i + 1]?.trip.id ?? null)}
+            budgetPence={share(trip.id)}
           />
         );
       })}
