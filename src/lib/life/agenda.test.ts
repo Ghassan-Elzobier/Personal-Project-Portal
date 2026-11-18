@@ -2,8 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { arrange, lifeAgenda, type AgendaItem } from "./agenda.ts";
 import { buildState, type LifeRaw } from "./state.ts";
-import { DEFAULT_PROFILE } from "./profile.ts";
+import { DEFAULT_PROFILE, type LifeProfile } from "./profile.ts";
 import { sizeCooks, type WeekPlan } from "./planner.ts";
+import { suggestWeek } from "./suggest.ts";
 
 // Gym Tue, Thu, Sat at 06:45 for 65 minutes; cook Sat 17:00 and Wed 18:30.
 const profile = {
@@ -135,4 +136,47 @@ test("a meal cooked that day never goes before its cook, and today nothing moves
   const lateCook = at(late, "2026-11-14:cook:1020");
   assert.match(lateCook.clash ?? "", /Send-off/);
   assert.equal(lateCook.start, 1020);
+});
+
+// A fresh week from Sunday 15 November, with the default fresh routine: short cooks
+// Sun, Mon, Wed and Fri at 18:00, and shops Sun 10:00 and Wed 17:15.
+function freshRaw(doneTrip?: string): LifeRaw {
+  const p: LifeProfile = {
+    ...profile,
+    body: { ...profile.body, sex: "male" },
+    routine: { ...profile.routine, cooks: [{ weekday: 6, start: 1080 }] },
+  };
+  const plan = suggestWeek(p, "2026-11-15", [], {}, {}, "2026-11-15", "fresh");
+  const r = { ...p.routine, gymDays: p.gym.days, gymEnd: 405 + 65 };
+  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, r as never, 2700) };
+  if (doneTrip) sized.trips = sized.trips!.map((t) => (t.id === doneTrip ? { ...t, doneOn: t.date } : t));
+  return { ...raw, profile: p, plans: [{ start: "2026-11-15", data: sized }] };
+}
+const freshDays = ["2026-11-15", "2026-11-16", "2026-11-17", "2026-11-18"];
+
+test("a fresh week's shops are on the agenda at their times with their lists, and a done shop says so", () => {
+  const items = lifeAgenda(buildState(freshRaw(), "2026-11-15"), freshDays);
+  const sunday = at(items, "2026-11-15:shop:600");
+  assert.equal(sunday.kind, "shop");
+  assert.match(sunday.title, /^Shop: \d+ items?, (about )?£\d+\.\d\d$/);
+  assert.equal(sunday.preferred, 600);
+  assert.equal(sunday.href, "/life/kitchen");
+  assert.ok(at(items, "2026-11-18:shop:1035"), "Wednesday's shop");
+  assert.ok(!items.some((i) => i.kind === "shop" && i.date === "2026-11-16"), "no shop on Monday");
+
+  const after = lifeAgenda(buildState(freshRaw("trip-2026-11-15"), "2026-11-15"), freshDays);
+  assert.equal(at(after, "2026-11-15:shop:600").title, "Shop: done", "Sunday's shop stays, done");
+  assert.match(at(after, "2026-11-18:shop:1035").title, /^Shop: \d+ items?, /);
+});
+
+test("a shop that clashes moves within its window, and still ends before that day's cook", () => {
+  const items = lifeAgenda(buildState(freshRaw(), "2026-11-15"), freshDays);
+  const study = { date: "2026-11-18", start: 16 * 60 + 30, end: 18 * 60, title: "Study: Ch 5" };
+  const out = arrange(items, [study], 15);
+  const shop = at(out, "2026-11-18:shop:1035");
+  const cook = out.find((i) => i.kind === "cook" && i.date === "2026-11-18")!;
+  assert.equal(shop.clash, undefined);
+  assert.match(shop.moved ?? "", /Study: Ch 5/);
+  assert.ok(shop.start + shop.duration <= study.start, `shop at ${shop.start} ends before study`);
+  assert.ok(shop.start + shop.duration <= cook.start, `shop at ${shop.start} ends before the cook at ${cook.start}`);
 });

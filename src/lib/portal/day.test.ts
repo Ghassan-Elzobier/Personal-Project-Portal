@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { yourDay } from "./day.ts";
 import { lifeBlocks } from "./life-plan.ts";
 import { buildState, type LifeRaw } from "../life/state.ts";
-import { DEFAULT_PROFILE } from "../life/profile.ts";
+import { DEFAULT_PROFILE, type LifeProfile } from "../life/profile.ts";
 import { sizeCooks, type WeekPlan } from "../life/planner.ts";
+import { suggestWeek } from "../life/suggest.ts";
 import type { Block } from "./schedule.ts";
 
 // Saturday 14th: gym 06:45, cook 17:00 (bolognese and butter chicken), study 09:30-11:30, an event 18:00-21:00.
@@ -98,4 +99,46 @@ test("without the Schedule, the Life items still show at their planned times", (
   const day = yourDay(date, null, s, 0);
   assert.ok(day.items.some((i) => i.kind === "gym" && i.start === 405));
   assert.ok(day.items.some((i) => i.kind === "cook"));
+});
+
+test("a fresh week's shop is on your day with its list, comes next when it is next, and ticks when done", () => {
+  // Weeks from Sunday, with the default fresh routine: Sunday's shop is at 10:00.
+  const p: LifeProfile = {
+    ...profile,
+    body: { ...profile.body, sex: "male" },
+    routine: { ...profile.routine, cooks: [{ weekday: 6, start: 1080 }] },
+  };
+  const sunday = "2026-11-15";
+  const week = suggestWeek(p, sunday, [], {}, {}, sunday, "fresh");
+  const r = { ...p.routine, gymDays: p.gym.days, gymEnd: 405 + 65 };
+  const plan: WeekPlan = { ...week, cooks: sizeCooks(week, r as never, 2700) };
+  const stateOf = (data: WeekPlan) =>
+    buildState({ ...raw, profile: p, meals: [], plans: [{ start: sunday, data }] }, sunday);
+  const dayOf = (data: WeekPlan) => {
+    const s = stateOf(data);
+    return yourDay(sunday, lifeBlocks(s, [sunday], [], { date: sunday, minutes: 9 * 60 }).blocks, s, 9 * 60);
+  };
+
+  const day = dayOf(plan);
+  const shop = day.items.find((i) => i.kind === "shop")!;
+  assert.equal(shop.key, "plan-2026-11-15:shop:600");
+  assert.equal(shop.start, 600);
+  assert.equal(shop.title, "Shop");
+  assert.match(shop.detail, /^\d+ items?, (about )?£\d+\.\d\d$/);
+  assert.equal(shop.href, "/life/kitchen");
+  assert.equal(shop.done, false);
+  assert.equal(day.nextKey, shop.key, "at 09:00 the shop is next");
+
+  const done = dayOf({ ...plan, trips: plan.trips!.map((t) => (t.date === sunday ? { ...t, doneOn: sunday } : t)) });
+  const ticked = done.items.find((i) => i.kind === "shop")!;
+  assert.equal(ticked.done, true);
+  assert.equal(ticked.detail, "Done");
+  assert.notEqual(done.nextKey, ticked.key);
+
+  // Without the Schedule, the shop still shows at its planned time.
+  const alone = yourDay(sunday, null, stateOf(plan), 9 * 60);
+  const own = alone.items.find((i) => i.kind === "shop")!;
+  assert.equal(own.start, 600);
+  assert.equal(own.end, 630);
+  assert.equal(own.detail, shop.detail);
 });

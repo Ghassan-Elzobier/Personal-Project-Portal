@@ -1,10 +1,10 @@
 // The Life side of the schedule, built from the plans themselves: each meal with
-// its recipe from the meal plan, the cook sessions with what they cook, the gym
-// session the rotation says is next, and the morning weigh-in. Then arranged
-// around everything fixed (study, work meetings, other events): a life item that
-// clashes moves to the nearest free time inside its own window, so lunch stays a
-// lunch and the shake stays after the gym. Fixed things never move. Pure, so it
-// is tested.
+// its recipe from the meal plan, the cook sessions with what they cook, a fresh
+// week's shops with their lists, the gym session the rotation says is next, and
+// the morning weigh-in. Then arranged around everything fixed (study, work
+// meetings, other events): a life item that clashes moves to the nearest free
+// time inside its own window, so lunch stays a lunch and the shake stays after
+// the gym. Fixed things never move. Pure, so it is tested.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
 import { workout } from "./gym/program.ts";
@@ -13,7 +13,7 @@ import type { Slot } from "./nutrition.ts";
 import { slotTime } from "./planner.ts";
 import { plannerRoutine } from "./profile.ts";
 import { recipe } from "./recipes.ts";
-import { viewOn, type LifeState } from "./state.ts";
+import { shopsOn, tripLists, viewOn, type LifeState, type TripList, type WeekView } from "./state.ts";
 
 /** Calendar colour family, matching the life block kinds. */
 export type AgendaColour = "lunch" | "cooking" | "gym" | "other";
@@ -22,7 +22,7 @@ export type AgendaItem = {
   /** Stable for the same thing on the same day, so a calendar copy can be updated in place. */
   key: string;
   date: string;
-  kind: "weigh" | "meal" | "gym" | "cook";
+  kind: "weigh" | "meal" | "gym" | "cook" | "shop";
   colour: AgendaColour;
   slot?: Slot;
   title: string;
@@ -61,6 +61,12 @@ export function lifeAgenda(s: LifeState, days: string[]): AgendaItem[] {
 
   const sorted = [...days].sort();
   const workoutOn = rotation(s, sorted[sorted.length - 1] ?? s.today);
+  // Each meal week's shop lists, worked out once however many of its days are shown.
+  const lists = new Map<string, TripList[]>();
+  const listsFor = (v: WeekView) => {
+    if (!lists.has(v.start)) lists.set(v.start, tripLists(s, v).open);
+    return lists.get(v.start)!;
+  };
 
   for (const date of sorted) {
     const gymDay = gymDays.includes(weekdayIndex(date));
@@ -122,6 +128,27 @@ export function lifeAgenda(s: LifeState, days: string[]): AgendaItem[] {
         window: clampWindow(9 * 60, 22 * 60),
         priority: 2,
         href: "/life/kitchen?tab=fridge",
+      });
+    }
+
+    // A fresh week's shops: each one with something to buy, and each one done (it
+    // stays, ticked, like a cook that's cooked). A shop on a cook day stays before
+    // the cook, so the food is in before the pan goes on.
+    for (const { trip, done, list, href } of shopsOn(s, v, date, () => listsFor(v))) {
+      const cookAfter = cooksToday.filter((c) => c.start > trip.start).map((c) => c.start);
+      const latestEnd = cookAfter.length ? Math.min(...cookAfter) : trip.start + 180;
+      items.push({
+        key: `${date}:shop:${trip.start}`,
+        date,
+        kind: "shop",
+        colour: "cooking",
+        title: `Shop: ${done ? "done" : list}`,
+        start: trip.start,
+        preferred: trip.start,
+        duration: 30,
+        window: clampWindow(trip.start - 120, Math.max(trip.start + 30, latestEnd)),
+        priority: 2.5,
+        href,
       });
     }
 
@@ -200,10 +227,11 @@ const overlaps = (a0: number, a1: number, b0: number, b1: number) => a0 < b1 && 
 
 /**
  * Moves clashing life items to the nearest free time in their window, most
- * important first: gym and cooking, then dinner, lunch, breakfast, the shake and
- * the weigh-in. Busy time is never moved. A meal made that day never goes before
- * its cook is done, and on today nothing still to come moves into time already
- * gone. An item with nowhere to go stays put and says what it clashes with.
+ * important first: gym and cooking, then shops, dinner, lunch, breakfast, the
+ * shake and the weigh-in. Busy time is never moved. A meal made that day never
+ * goes before its cook is done, and on today nothing still to come moves into
+ * time already gone. An item with nowhere to go stays put and says what it
+ * clashes with.
  */
 export function arrange(
   items: AgendaItem[],

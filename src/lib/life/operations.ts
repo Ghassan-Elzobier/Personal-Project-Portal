@@ -467,7 +467,7 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
       trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, doneOn: s.today, got, added, pence } : t)),
     });
     return { added: changes.length };
-  });
+  }, true);
 }
 
 /**
@@ -522,7 +522,7 @@ export function undoTrip(start: string, tripId: string): Promise<Result> {
       trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),
     });
     return {};
-  });
+  }, true);
 }
 
 export function saveProduct(input: {

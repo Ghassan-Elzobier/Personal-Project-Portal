@@ -160,6 +160,11 @@ test.describe("shared pages", () => {
   });
 });
 
+// A planned fresh week's chip. The plan card's own "Fresh week" option shows before
+// anything is saved, so waiting for that text alone can move on mid-save.
+const freshWeek = (page: Page) =>
+  page.getByRole("region", { name: "The week's cooking" }).getByText("Fresh week", { exact: true });
+
 test.describe("life", () => {
   test("a weigh-in shows as logged at once and is still logged after a reload", async ({ page }) => {
     await page.goto("/life/body");
@@ -181,7 +186,7 @@ test.describe("life", () => {
     const replan = page.getByRole("button", { name: "Make it a fresh week" });
     if (await replan.isVisible()) await replan.click();
     else await page.getByRole("button", { name: "Plan a fresh week" }).click();
-    await expect(page.getByText("Fresh week", { exact: true })).toBeVisible();
+    await expect(freshWeek(page)).toBeVisible();
 
     await page.goto("/life/kitchen?week=next");
     const sunday = page.getByRole("region", { name: "Sunday's shop" });
@@ -216,7 +221,7 @@ test.describe("life", () => {
       page.once("dialog", (dialog) => void dialog.accept());
       await make.click();
     }
-    await expect(page.getByText("Fresh week", { exact: true })).toBeVisible();
+    await expect(freshWeek(page)).toBeVisible();
 
     await page.goto("/life/kitchen?week=next");
     const sunday = page.getByRole("region", { name: "Sunday's shop" });
@@ -263,6 +268,57 @@ test.describe("life", () => {
     const ticked = sunday.locator('li button[aria-pressed="true"]');
     while ((await ticked.count()) > 0) await ticked.first().click();
     await sent();
+  });
+
+  test("a fresh week's shop is on the Schedule with its list, and says done at once and after a reload", async ({
+    page,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    // The Schedule shows the Life plan once Life can work out targets: made-up details, cleared at the end.
+    const body = async (sex: string, born: string, height: string) => {
+      await page.goto("/life/settings");
+      await page.getByLabel("Sex for the maths").selectOption(sex);
+      await page.getByLabel("Born in").fill(born);
+      await page.getByLabel("Height cm").fill(height);
+      await page.getByRole("button", { name: "Save settings" }).click();
+      await expect(page.getByText("Saved. Plans and portions follow it from now on.").first()).toBeVisible();
+    };
+    await body("male", "1990", "175");
+    try {
+      // Next week, so this week (and the Meals screenshot) is left as it is.
+      await page.goto("/life?week=next");
+      const plan = page.getByRole("button", { name: "Plan a fresh week" });
+      const make = page.getByRole("button", { name: "Make it a fresh week" });
+      if (await plan.isVisible()) await plan.click();
+      else if (await make.isVisible()) await make.click();
+      await expect(freshWeek(page)).toBeVisible();
+
+      // Next meal week starts on Sunday the 22nd, the last day of this week's Schedule.
+      const sundayShop = async () => {
+        await page.getByRole("button", { name: /^Sun\s*22$/ }).click();
+        return page.getByRole("button", { name: /Shop: / });
+      };
+      await page.goto("/schedule");
+      await expect(await sundayShop()).toContainText(/Shop: \d+ items?, (about )?£\d+\.\d\d/);
+
+      await page.goto("/life/kitchen?week=next");
+      await page.getByRole("region", { name: "Sunday's shop" }).getByRole("button", { name: "Done shopping" }).click();
+      await page.getByRole("button", { name: /^Put \d+ items? away$/ }).click();
+      const done = page.getByRole("region", { name: "Shops done" });
+      await expect(done.getByText("Sunday's shop")).toBeVisible();
+
+      await page.goto("/schedule");
+      await expect(await sundayShop()).toContainText("Shop: done");
+      await page.reload();
+      await expect(await sundayShop()).toContainText("Shop: done");
+
+      // Back as it was: the shop's list returns.
+      await page.goto("/life/kitchen?week=next");
+      await done.getByRole("button", { name: "Undo" }).click();
+      await expect(page.getByRole("region", { name: "Sunday's shop" })).toBeVisible();
+    } finally {
+      await body("", "", "");
+    }
   });
 });
 
