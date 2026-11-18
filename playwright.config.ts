@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, OWNER_STATE, PORT } from "./e2e/env";
+import { BASE_URL, FAKE_LUNCHFLOW, OWNER_STATE, PORT } from "./e2e/env";
 
 // End-to-end, layout, accessibility and screenshot checks against a production
 // build and a local Supabase stack. Run them with `npm run test:e2e` (which
@@ -61,10 +61,19 @@ export default defineConfig({
       dependencies: ["pixel-7", "small-phone", "desktop"],
     },
   ],
-  webServer: {
-    command: `npx next start -p ${PORT}`,
-    url: `${BASE_URL}/login`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    // A made-up Lunch Flow, so Money's bank feed is tested without the real one.
+    {
+      command: "node e2e/fake-lunchflow.mjs",
+      url: `${FAKE_LUNCHFLOW}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 10_000,
+    },
+    {
+      command: `npx next start -p ${PORT}`,
+      url: `${BASE_URL}/login`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

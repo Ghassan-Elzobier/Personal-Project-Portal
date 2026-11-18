@@ -23,5 +23,8 @@ export PORTAL_TIMEZONE="Europe/London"
 export PORTAL_FIXED_NOW="${PORTAL_FIXED_NOW:-2026-11-16T09:30:00Z}"
 # Report errors as production does, so e2e/errors.spec.ts can see them stored.
 export ERROR_REPORTING=on
+# Money's bank feed: the made-up Lunch Flow that Playwright starts (e2e/fake-lunchflow.mjs).
+export LUNCHFLOW_BASE_URL="http://localhost:3199"
+export LUNCHFLOW_API_KEY="e2e-made-up-key"
 export NEXT_TELEMETRY_DISABLED=1
 

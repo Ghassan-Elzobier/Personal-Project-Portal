@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { FAKE_LUNCHFLOW } from "./env";
 
 // The portal's rule: a tap that changes data changes the page at once, and the
 // change is still there after a reload. Each test taps, checks the screen, then
@@ -359,5 +360,37 @@ test.describe("errors page", () => {
     await expect(page.getByRole("button", { name: "Restore" })).toBeVisible();
     await page.getByRole("button", { name: "Restore" }).click();
     await expect(page.getByRole("button", { name: "Ignore" })).toBeVisible();
+  });
+});
+
+test.describe("money", () => {
+  test("connecting the bank shows the balance at once and after a reload, and Refresh brings the new one", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=123456`);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await expect(page.getByRole("checkbox", { name: "Current account ••1234" })).toBeChecked();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+
+    const balance = page.getByRole("region", { name: "Balance" });
+    await expect(balance.getByText("£1,234.56")).toBeVisible();
+    await page.reload();
+    await expect(balance.getByText("£1,234.56")).toBeVisible();
+
+    // The bank moves on: Refresh fetches Lunch Flow's latest copy.
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=-4205`);
+    await balance.getByRole("button", { name: "Refresh" }).click();
+    await expect(balance.getByText("−£42.05")).toBeVisible();
+    await page.reload();
+    await expect(balance.getByText("−£42.05")).toBeVisible();
+
+    // Erasing leaves nothing behind, so the Money screenshot stays as approved.
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
 });

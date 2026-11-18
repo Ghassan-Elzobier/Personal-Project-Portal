@@ -37,6 +37,16 @@ export function weeklyHoursTarget(): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** The Lunch Flow key for the bank feed (Vercel only), or null when Money is not set up. */
+export function lunchflowKey(): string | null {
+  return process.env.LUNCHFLOW_API_KEY?.trim() || null;
+}
+
+/** Lunch Flow's Personal API, or the end-to-end suite's fake one. */
+export function lunchflowBase(): string {
+  return process.env.LUNCHFLOW_BASE_URL?.trim().replace(/\/$/, "") || "https://lunchflow.app/api/v1";
+}
+
 /** Problems with configuration, worded for the owner's "Needs attention" list. */
 export function configProblems(): string[] {
   const problems: string[] = [];

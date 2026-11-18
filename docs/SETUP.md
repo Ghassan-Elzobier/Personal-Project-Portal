@@ -180,6 +180,25 @@ Only the owner can approve a connection, and only Claude's own callback
 every change it makes. **Disconnect everything** on the Claude page revokes all
 tokens at once.
 
+## 6. Money: the bank feed (optional)
+
+Money reads your bank through Lunch Flow (lunchflow.app), a small paid service
+that connects to UK banks and hands the data on. It is read only: nothing in the
+portal can move money.
+
+1. In Lunch Flow, connect your bank, then add a destination of type **REST API**.
+   Under **Account Access**, allow only the account you want Money to read.
+2. In Vercel, add the destination's key as `LUNCHFLOW_API_KEY`: **Production**
+   only, marked **sensitive**. Then redeploy. The key never goes in the database,
+   the repo or the browser.
+3. Open **Money** (under More in Life) and tap **Connect Lunch Flow**. Pick the
+   account; the balance comes in at once.
+
+The portal keeps an account's type and the last 4 digits of its number, never
+the full number, sort code or the holder's name. **Erase all bank data** on the
+Money page deletes everything it holds. If the key might have leaked, delete it
+in Lunch Flow (that cuts it off at once) and add a new one.
+
 ## Local development
 
 ```sh
