@@ -60,6 +60,11 @@ export const claudeHistory = (months: number) => claude<unknown>("money_claude_h
 export const readBudget = (monthStart: string, weekStart: string) =>
   claude<unknown>("money_budget", { p_month_start: monthStart, p_week_start: weekStart });
 export const saveSettings = (settings: Record<string, unknown>) => owner<void>("money_save_settings", { p: settings });
+export const savePlanned = (p: Record<string, unknown>) => owner<number>("money_save_planned", { p });
+export const cancelPlanned = (id: number) => owner<void>("money_cancel_planned", { p_id: id });
+/** Claude at the plan level: save a purchase the owner chose, or change or cancel one Claude added. */
+export const claudePlanPurchase = (p: Record<string, unknown>) =>
+  claude<{ saved?: number; cancelled?: number }>("money_claude_plan_purchase", { p });
 export const claudePlan = (changes: Record<string, unknown>) =>
   claude<{ categories: number; rules: number; unsorted_this_month: number }>("money_claude_plan", {
     p_changes: changes,

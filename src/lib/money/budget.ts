@@ -116,8 +116,102 @@ export type BudgetData = {
   unsortedWeek: number;
   unsortedLastWeek: number;
   /** Planned purchases not paid yet: one-offs due before payday, and spread ones by the week. */
-  planned?: { name: string; pence: number; dueOn: string; funding: string; weeks: number }[];
+  planned?: Planned[];
 };
+
+export type Planned = {
+  id?: number;
+  name: string;
+  pence: number;
+  dueOn: string;
+  /** "allowance": from that week's amount; "spread": a share over `weeks` weeks; anything else: from what's safe before payday. */
+  funding: string;
+  weeks: number;
+  addedBy?: "owner" | "claude";
+};
+
+export type AffordOption = {
+  funding: "allowance" | "spread" | "safe";
+  weeks: number;
+  /** What it does, in a sentence. */
+  text: string;
+};
+
+export type Afford = {
+  verdict: "fits" | "tight" | "out" | "unknown";
+  /** Why, in a sentence. */
+  reason: string;
+  /** Ways to pay for it, best first, each with its effect. */
+  options: AffordOption[];
+  /** With a weekly saving (a repair that replaces the bus), how many weeks until it has paid for itself. */
+  paysBackWeeks: number | null;
+};
+
+const gbp = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+
+/**
+ * "Can I afford it?" for a cost of `pence`, read-only. Fits: this week's amount covers
+ * it, or what's safe to spend does without going under the weekly amount. Tight: it
+ * fits only by moving something (spreading it, or less a week to payday). Out of reach:
+ * it would take you past what's safe to spend before payday, into the buffer or bills.
+ */
+export function afford(data: BudgetData, today: string, pence: number, savesPerWeek = 0): Afford {
+  const v = budgetView(data, today);
+  const paysBackWeeks = savesPerWeek > 0 ? Math.ceil(pence / savesPerWeek) : null;
+  if (v.safe === null) {
+    return {
+      verdict: "unknown",
+      reason: "Money has no balance yet: connect the bank first.",
+      options: [],
+      paysBackWeeks,
+    };
+  }
+  const allowance = v.week.allowance;
+  const left = v.week.left;
+  const options: AffordOption[] = [];
+  if (left !== null && left >= pence)
+    options.push({
+      funding: "allowance",
+      weeks: 1,
+      text: `From this week's amount: ${gbp(left - pence)} left this week after.`,
+    });
+  if (allowance !== null && v.safe >= pence)
+    for (const weeks of [2, 3, 4]) {
+      const share = Math.ceil(pence / weeks);
+      if (share < allowance && (left ?? 0) >= share)
+        options.push({
+          funding: "spread",
+          weeks,
+          text: `${gbp(share)} a week for ${weeks} weeks: your weekly amount goes from ${gbp(allowance)} to ${gbp(allowance - share)}.`,
+        });
+    }
+  const after = Math.floor((v.safe - pence) / Math.max(1, v.daysToPayday / 7));
+  if (v.safe >= pence)
+    options.push({
+      funding: "safe",
+      weeks: 1,
+      text:
+        `From what's safe to spend before payday: ${gbp(Math.max(0, after))} a week to payday instead of ${gbp(Math.max(0, v.perWeek ?? 0))}` +
+        (allowance !== null && after < allowance ? `, under your ${gbp(allowance)} a week.` : "."),
+    });
+  if (v.safe < pence) {
+    return {
+      verdict: "out",
+      reason: `It would take you ${gbp(pence - v.safe)} past what's safe to spend before payday on ${v.payday}${v.buffer > 0 ? ", into your buffer" : ""}. After payday, it can be planned then.`,
+      options: [],
+      paysBackWeeks,
+    };
+  }
+  const fits = options.some((o) => o.funding === "allowance") || (allowance !== null && after >= allowance);
+  return {
+    verdict: fits ? "fits" : "tight",
+    reason: fits
+      ? "It fits without changing your weekly amount."
+      : "It fits, but only by moving something: spread it, or have less a week until payday.",
+    options,
+    paysBackWeeks,
+  };
+}
 
 const FIXED = new Set(["bills", "savings"]);
 const FLEXIBLE = new Set(["groceries", "essentials", "discretionary"]);
@@ -207,9 +301,18 @@ const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : 
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 
 /** What money_budget returns, as BudgetData. */
-export function parseBudget(raw: unknown, planned: BudgetData["planned"] = []): BudgetData {
+export function parseBudget(raw: unknown): BudgetData {
   const r = (raw ?? {}) as Row;
   const s = (r.settings ?? {}) as Row;
+  const planned = (Array.isArray(r.planned) ? (r.planned as Row[]) : []).map((p) => ({
+    id: num(p.id) ?? 0,
+    name: str(p.name) ?? "",
+    pence: num(p.pence) ?? 0,
+    dueOn: str(p.due_on) ?? "",
+    funding: str(p.funding) ?? "safe",
+    weeks: num(p.weeks) ?? 1,
+    addedBy: str(p.added_by) === "claude" ? ("claude" as const) : ("owner" as const),
+  }));
   return {
     balancePence: num(r.balance_pence),
     allowancePence: num(s.allowance_pence),

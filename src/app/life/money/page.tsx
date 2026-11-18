@@ -11,10 +11,19 @@ import { ago, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/l
 import { Empty, ErrorNote } from "@/components/ui";
 import { ActionButton } from "../kit";
 import { LifeHeader } from "../parts";
-import { disconnectBank, dismissAlert, forgetBank, refreshBank, registerSyncKey, setClaudeAccess } from "./actions";
+import {
+  cancelPlanned,
+  disconnectBank,
+  dismissAlert,
+  forgetBank,
+  refreshBank,
+  registerSyncKey,
+  setClaudeAccess,
+} from "./actions";
 import { ConnectBank } from "./connect";
 import { PaymentList } from "./payments";
 import { PlanForm } from "./plan-form";
+import { PlannedForm } from "./planned-form";
 
 export const metadata: Metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -63,6 +72,7 @@ export default async function MoneyPage() {
       )}
       {s.alerts.length > 0 && <Alerts s={s} />}
       {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
+      {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
@@ -159,6 +169,59 @@ function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
           </p>
         </details>
       )}
+    </section>
+  );
+}
+
+const FUNDING: Record<string, (weeks: number) => string> = {
+  allowance: () => "from that week's amount",
+  spread: (weeks) => `spread over ${weeks} weeks`,
+  safe: () => "from what's safe before payday",
+};
+
+/** Purchases planned (by you or Claude) and not paid yet: the week and payday count them already. */
+function PlannedPurchases({ budget, today }: { budget: BudgetData; today: string }) {
+  const planned = budget.planned ?? [];
+  return (
+    <section aria-labelledby="planned-title" className="space-y-3 card-life">
+      <h2 id="planned-title" className="font-semibold">
+        Planned purchases
+      </h2>
+      {planned.length === 0 ? (
+        <p className="text-sm text-muted">
+          Nothing planned. Plan one here, or ask Claude &quot;can I afford it?&quot; and it saves the way you pick.
+        </p>
+      ) : (
+        <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+          {planned.map((p) => (
+            <li key={p.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block truncate text-sm">{p.name}</span>
+                <span className="block text-xs text-body tabular-nums">
+                  {pounds(p.pence)} · {longDay(p.dueOn)}
+                </span>
+                <span className="block text-xs text-muted">
+                  {(FUNDING[p.funding] ?? FUNDING.safe)(p.weeks)}
+                  {p.addedBy === "claude" && " · planned with Claude"}
+                </span>
+              </span>
+              <ActionButton
+                action={cancelPlanned.bind(null, p.id ?? 0)}
+                className="btn-soft shrink-0 px-3 py-1.5 text-xs"
+                confirm={`Cancel ${p.name}?`}
+                done="Cancelled."
+                label={`Cancel ${p.name}`}
+              >
+                Cancel
+              </ActionButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      <PlannedForm today={today} />
+      <p className="text-xs text-faint">
+        Paid within 2 weeks of its day, a plan is matched to the payment and stops counting.
+      </p>
     </section>
   );
 }
