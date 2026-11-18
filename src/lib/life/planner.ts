@@ -21,6 +21,10 @@ export type Cook = {
   portions: number;
   /** Portion size against the recipe as written, so every portion of a batch is the same. */
   scale: number;
+  /** Portions this much bigger than the target (at most 1.15), to finish a whole pack. */
+  round?: number;
+  /** Why the planner picked it, in a few words. */
+  why?: string[];
 };
 
 export type WeekPlan = {
@@ -49,6 +53,19 @@ export type WeekPlan = {
   trips?: Trip[];
   /** The day the plan was made: days before it are history, not missed meals. */
   createdOn?: string;
+  /**
+   * What the week costs as planned, before any of it is bought (pence, and fresh food
+   * left to go off), and the cheapest week the planner found then (packs plus waste).
+   */
+  cost?: {
+    pence: number;
+    cupboard: number;
+    waste: number;
+    items: number;
+    trips: number;
+    kcal: number;
+    cheaper?: number;
+  };
 };
 
 export type WeekMode = "batch" | "fresh";
@@ -364,7 +381,7 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
         portions: c.portions || breakfastPortions(plan, c, r),
         scale: portionScale(r, kcal * SPLIT.breakfast),
       };
-    return { ...c, portions: sized.get(c.id) ?? c.portions, scale: cookScale(r, kcal) };
+    return { ...c, portions: sized.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
   });
 }
 

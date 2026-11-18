@@ -120,7 +120,7 @@ export type ListLine = {
 };
 
 /** Pack contents in the ingredient's own unit. */
-function packInItemUnit(item: Ingredient, packQty: number, packUnit: Unit): number {
+export function packInItemUnit(item: Ingredient, packQty: number, packUnit: Unit): number {
   if (packUnit === item.unit) return packQty;
   return fromGrams(item, toGrams(item, packQty, packUnit));
 }

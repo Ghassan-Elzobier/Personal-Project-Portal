@@ -24,9 +24,9 @@ export async function applyAdjustment() {
   return ops.applyAdjustment();
 }
 
-export async function planWeek(start?: string, mode?: "batch" | "fresh") {
+export async function planWeek(start?: string, mode?: "batch" | "fresh", cheaper?: boolean) {
   await requireOwner();
-  return ops.planWeek(start, mode === "batch" || mode === "fresh" ? mode : undefined);
+  return ops.planWeek(start, mode === "batch" || mode === "fresh" ? mode : undefined, cheaper === true);
 }
 
 export async function swapCook(start: string, cookId: string, recipe: string) {

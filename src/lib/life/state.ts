@@ -20,6 +20,7 @@ import {
   reminders,
   type Placement,
   type Reminder,
+  type StockBatch,
   type Trip,
   type WeekPlan,
 } from "./planner.ts";
@@ -176,7 +177,12 @@ export function viewOn(s: LifeState, date: string): WeekView {
   return weekView(s, date >= s.next.start ? "next" : "this");
 }
 
-const toStock = (b: Batch) => ({
+/** Cooked portions in the fridge and freezer, as a new week's plan would draw on them. */
+export function openStock(s: LifeState): StockBatch[] {
+  return openForPlan(s.batches, null).map(toStock);
+}
+
+const toStock = (b: Batch): StockBatch => ({
   gid: b.gid,
   recipe: b.recipe,
   cookedOn: b.cookedOn,
