@@ -243,6 +243,15 @@ export function dueUntil(b: Schedule, today: string, until: string): string[] {
   return out;
 }
 
+/** A bill's days from `from` up to (not including) `to`, by its schedule alone: for a pay cycle ahead. */
+export function occurrencesIn(b: Pick<Bill, "cadence" | "anchorOn">, from: string, to: string): string[] {
+  let d = b.anchorOn;
+  for (let i = 0; d < from && i < 2000; i++) d = following(b, d);
+  const out: string[] = [];
+  for (; d < to && out.length < 60; d = following(b, d)) out.push(d);
+  return out;
+}
+
 /** What a bill costs in a year. */
 export function yearlyPence(b: Pick<Bill, "cadence" | "expectedPence">): number {
   return b.expectedPence * (b.cadence === "weekly" ? 52 : b.cadence === "monthly" ? 12 : 1);
