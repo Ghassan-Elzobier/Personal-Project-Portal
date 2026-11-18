@@ -1,14 +1,19 @@
-# One independent review per pull request, by a Claude session that did not
+# An independent review of each pull request, by a Claude session that did not
 # write the code: the inferential check that runs after the computational ones
-# (CI). It reviews when a PR is opened or marked ready, not on every push, to
-# spend the subscription's usage once per PR. Ask for another with
-# "@claude review" in a comment. Drafts, PRs it already reviewed and Dependabot
-# updates are skipped.
+# (CI). On the Max plan it reviews when a PR is opened or marked ready, and again
+# when new commits are pushed, so fix-ups after a review are reviewed too. Pushes
+# close together cancel the earlier run, so only the latest commit is reviewed.
+# Ask for another with "@claude review" in a comment. Label a PR "skip-review" to
+# skip it. Dependabot updates are skipped.
 name: Claude review
 
 on:
   pull_request:
-    types: [opened, ready_for_review, reopened]
+    types: [opened, ready_for_review, reopened, synchronize]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -17,9 +22,11 @@ jobs:
   review:
     # Not for Dependabot: its runs get no secrets and the action refuses bot authors;
     # CI, the guard and the screenshots check dependency updates instead.
+    # Drafts wait until they are marked ready.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
+      !github.event.pull_request.draft &&
       !contains(github.event.pull_request.labels.*.name, 'skip-review')
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -39,4 +46,4 @@ jobs:
           plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
           plugins: "code-review@claude-plugins-official"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          claude_args: '--model opus --allowedTools "mcp__github_inline_comment__create_inline_comment"'

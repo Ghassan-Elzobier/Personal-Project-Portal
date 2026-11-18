@@ -5,7 +5,7 @@ it inside a harness of rules and checks, and you review a pull request that has
 already proved itself. The harness also keeps the design cohesive, works the
 code's structural debt down every week, and improves itself from what goes wrong.
 
-It is built for one owner on a Claude Pro subscription, GitHub, Vercel and
+It is built for one owner on a Claude Max subscription, GitHub, Vercel and
 Supabase, and it follows the published practice for agent-driven development
 (sources at the end).
 
@@ -124,8 +124,8 @@ errors stay on the page and are never filed.
 You stay in charge with two labels, the close button and the page. `no-autofix`
 keeps an issue from Claude. Closing an issue as not planned, or pressing Ignore on
 the errors page, stops the triage reporting that error; the triage closes or
-reopens the GitHub issue to match the page. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit;
-`0` turns auto-fixing off.
+reopens the GitHub issue to match the page. The repository variable `ERROR_AUTOFIX_PER_DAY` sets the daily limit
+(5 when it isn't set, the workflow's fallback for the Max plan; at most 10); `0` turns auto-fixing off.
 
 If the repository goes private, change the triage's schedule back to hourly
 (`17 * * * *`). Private repositories get 2,000 free Actions minutes a month, and
@@ -233,29 +233,50 @@ results and kept in an archive (here, git and the PRs). Böckeler's harness
 engineering adds the steering loop: when something goes wrong twice, improve the
 guides or sensors, preferring computational ones.
 
-## Fitting a Claude Pro subscription
+## Fitting a Claude Max subscription
 
-Pro has usage limits shared across chat, Claude Code, cloud sessions, GitHub
-runs and routines. The factory spends them where judgement is needed and uses
-free, deterministic tools for everything else:
+Max has usage limits shared across chat, Claude Code, cloud sessions, GitHub
+runs and routines, several times Pro's. The factory spends them on judgement,
+now more freely than on Pro, and keeps free, deterministic tools for everything
+mechanical:
 
-- **The model.** This project uses `opusplan`: Opus while planning, Sonnet while
-  building, the hybrid Anthropic documents for this trade-off. For one session
-  that needs Opus throughout, run `/model opus`.
+- **The model.** This project uses `opus` throughout: the strongest model for
+  planning and building alike. On Pro it was `opusplan` (Opus to plan, Sonnet to
+  build); switch back with `/model opusplan` if a month runs close to the limit.
+  Claude's GitHub jobs (`@claude`, the review, the error and CI fixes, conflict
+  resolution) also run `--model opus`.
 - **Context.** `AGENTS.md` is short and always loaded; detail sits in rules that
   load only for matching files, and in skills that load when used. The verifier
   subagent keeps long test output out of the main conversation.
 - **Hooks and scripts do the mechanical work**: formatting, checks, the guard,
   the health report. They cost no usage.
-- **One AI review per PR**, on opening, not on every push. Ask for another with
-  `@claude review`. Label a PR `skip-review` to skip it.
-- **Two weekly routines**, not daily ones. Each run counts like a session.
-- **At most two error fixes a day.** The triage is a script and costs
-  nothing; each fix it hands to Claude counts like a session
-  (`ERROR_AUTOFIX_PER_DAY`, default 2).
+- **A review on opening and on every push.** Fix-ups after a review are reviewed
+  too; pushes close together cancel the earlier run, and drafts wait until they're
+  ready. Ask for another with `@claude review`, or label a PR `skip-review`.
+- **Room for longer jobs.** The turn caps allow harder fixes: 150 for `@claude` and
+  error fixes, 120 for CI fixes, 80 for conflicts.
+- **Up to five error fixes a day.** The triage is a script and costs nothing; each
+  fix it hands to Claude counts like a session (`ERROR_AUTOFIX_PER_DAY`, 5 when
+  unset).
+- **Weekly routines.** The refactor and the factory pass stay weekly: each opens a
+  pull request for you to merge, so more often means more merging, not more value.
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the
-  build is right the first time; run parallel cloud sessions only when the
-  tasks are truly separate, since each draws on the same limits.
+  build is right the first time; run parallel sessions when the tasks are truly
+  separate, each in its own worktree.
+
+### API credits
+
+Max includes $100 a month of Claude API credits (Ultra $200), once a Claude
+Console organisation is linked in claude.ai, Settings, Billing, API credits. Unused
+credits expire each billing cycle. They cover the Messages API, Batches, Managed
+Agents and the Agent SDK. They do **not** cover Claude Code, and runs of the Claude
+Code GitHub Action count as Claude Code usage, so the factory's CI stays on the plan.
+
+The portal may use the API for work it does on its own, with no chat open: a
+server-side call with `ANTHROPIC_API_KEY` from the linked organisation, set in
+Vercel for Production only and marked sensitive, never in GitHub or the repo. Give
+the portal its own Console workspace with a spend limit. Conversations about the
+owner's data go through the Claude connector instead, which runs on the plan.
 
 ## Security
 

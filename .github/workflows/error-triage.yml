@@ -5,7 +5,7 @@
 # files each new group as an issue, keeps open issues' counts current, and
 # reopens a fixed bug that came back on code containing the fix. New and
 # returning bugs then go to Claude, one at a time and at most
-# ERROR_AUTOFIX_PER_DAY a day (a repository variable, default 2), which follows
+# ERROR_AUTOFIX_PER_DAY a day (a repository variable, 5 when unset), which follows
 # /ship and opens a PR saying "Fixes #N", or explains on the issue why there is
 # nothing to fix. Each Claude run counts toward the subscription's usage.
 #
@@ -45,7 +45,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-      ERROR_AUTOFIX_PER_DAY: ${{ vars.ERROR_AUTOFIX_PER_DAY }}
+      ERROR_AUTOFIX_PER_DAY: ${{ vars.ERROR_AUTOFIX_PER_DAY || '5' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -114,5 +114,6 @@ jobs:
 
             Never merge, never push to main, and never weaken or delete an existing test.
           claude_args: >-
-            --max-turns 80
+            --max-turns 150
+            --model opus
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm test),Bash(npm run guard),Bash(npx prettier:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh pr create:*),Bash(gh pr view:*)"

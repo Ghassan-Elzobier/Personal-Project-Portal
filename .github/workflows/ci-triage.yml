@@ -99,5 +99,6 @@ jobs:
 
             Never merge, never push to main.
           claude_args: >-
-            --max-turns 60
+            --max-turns 120
+            --model opus
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm test),Bash(npm run guard),Bash(npx prettier:*),Bash(npx eslint:*),Bash(npx tsc:*),Bash(git:*),Bash(gh run view:*),Bash(gh pr view:*),Bash(gh pr comment:*)"

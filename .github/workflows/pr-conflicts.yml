@@ -86,5 +86,6 @@ jobs:
 
             Never merge the pull request, never push to main.
           claude_args: >-
-            --max-turns 40
+            --max-turns 80
+            --model opus
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm run guard),Bash(npx prettier:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr view:*)"
