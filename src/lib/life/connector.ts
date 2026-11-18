@@ -68,7 +68,9 @@ export const LIFE_TOOLS: Tool[] = [
         date,
         targets: s.targets
           ? { kcal: s.kcal, protein_g: s.targets.protein, fat_g: s.targets.fat, carbs_g: s.targets.carbs }
-          : "Profile not set up yet",
+          : s.setUp
+            ? `No weigh-in yet, so no targets: log one to work them out. Portions are sized to ${s.kcal} kcal until then.`
+            : "Profile not set up yet: add sex, birth year and height in Life settings.",
         weight_trend_kg: s.kg,
         routine,
         gym:

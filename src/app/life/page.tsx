@@ -51,6 +51,14 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
           <>
             {s.kcal.toLocaleString("en-GB")} kcal and {s.targets.protein} g protein a day. Portions are sized to hit it.
           </>
+        ) : s.setUp ? (
+          <>
+            Log a weigh-in on{" "}
+            <Link href="/life/body" className="text-mint underline">
+              Body
+            </Link>{" "}
+            to work out your targets. Until then portions are sized to {s.kcal.toLocaleString("en-GB")} kcal a day.
+          </>
         ) : (
           "Pick the week's recipes, and the plan works out the cooking, the shopping and the freezer."
         )}
