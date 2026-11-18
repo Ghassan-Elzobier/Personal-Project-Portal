@@ -23,6 +23,9 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-14 · review · the Claude review on #38 passed in 5 seconds and 3 turns and posted nothing, while #36, #37 and #39 each got "No issues found"; a review that silently skips looks like a pass · the review job could fail when the run posts no review comment
 - 2026-11-14 · e2e · `npm run test:e2e:update e2e/visual.spec.ts` fails: Playwright reads the spec path as the update mode · pass `--update-snapshots=changed` with a path, or have the script take the mode first
 - 2026-11-16 · debugging · `npm run debug` started pulling images for a second Supabase stack because a leftover scratch stack held ports 554xx under another project id, and the Playwright MCP could not launch (no browser build for this Playwright version) · `debug.sh` could stop when `supabase ps` shows another project on the ports, and `planner_setup_page` could fall back to system Chrome
+- 2026-11-18 · worktrees · `EnterWorktree` named the branch `worktree-claude+order-on-sainsburys`, not `claude/<name>`, so it had to be renamed by hand before pushing · /ship step 3 could say to run `git branch -m claude/<name>` straight after `EnterWorktree`
+- 2026-11-18 · e2e · every new save needs a test in `e2e/state-fresh.spec.ts`, which is protected, so any pull request that adds a save waits for the `approved-test-change` label · let the state project match `e2e/state-*.spec.ts` (playwright.config.ts), so new save tests go in new files
+- 2026-11-18 · e2e · a `next start` used for a manual look outlived its stopped task on port 3100, and the suite reused it (`reuseExistingServer`) with the build it had just replaced, so sign-in failed with `/login?error=link` · `scripts/e2e.sh` could stop when port 3100 is already taken and say what holds it
 
 ## Done
 
