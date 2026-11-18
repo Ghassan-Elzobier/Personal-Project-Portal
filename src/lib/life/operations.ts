@@ -5,9 +5,9 @@ import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
-import { cookScale, sizeCooks, spareStaysCold, type WeekMode, type WeekPlan } from "./planner";
+import { cookScale, sizeCooks, spareStaysCold, type StapleBefore, type WeekMode, type WeekPlan } from "./planner";
 import { recipe } from "./recipes";
-import { buildList, cookUse, delivery, weekNeeds, type Product } from "./shopping";
+import { buildList, cookUse, delivery, undoOf, weekNeeds, type Product } from "./shopping";
 import {
   openStock,
   placedMacros,
@@ -443,8 +443,11 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
         })),
         "add",
       );
-    const added = changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add }));
-    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: s.today, got, added } });
+    const { added, restore } = undoOf(changes, s.stock);
+    await store.savePlan(start, {
+      ...plan!,
+      shop: { ...plan!.shop, deliveredOn: s.today, got, added, ...(restore.length ? { restore } : {}) },
+    });
     return { added: changes.length };
   });
 }
@@ -454,18 +457,22 @@ export function undoDelivery(start: string): Promise<Result> {
     const s = await state();
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan?.shop?.deliveredOn) fail("No delivery to undo.");
-    const back = plan!.shop!.added ?? [];
-    if (back.length)
-      await store.changeStock(
-        back.map((c) => ({ item: c.item, qty: -c.qty })),
-        "add",
-      );
+    await unshop(plan!.shop!.added ?? [], plan!.shop!.restore ?? []);
     await store.savePlan(start, {
       ...plan!,
-      shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined },
+      shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined, restore: undefined },
     });
     return {};
   });
+}
+
+/** Puts the kitchen back as it was before a shop: its food out again, its staples to how they were. */
+async function unshop(added: { item: string; qty: number }[], restore: StapleBefore[]) {
+  const changes = [
+    ...added.map((c) => ({ item: c.item, qty: -c.qty })),
+    ...restore.map((r) => ({ item: r.item, status: r.status })),
+  ];
+  if (changes.length) await store.changeStock(changes, "add");
 }
 
 /** A fresh week's shop is done: what you got goes into stock, fresh food with its use-by. */
@@ -489,14 +496,16 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
         })),
         "add",
       );
-    const added = changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add }));
+    const { added, restore } = undoOf(changes, s.stock);
     // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
     const pence = lines
       .filter((l) => l.packs > 0 && !l.item.staple && got.includes(l.item.key))
       .reduce((t, l) => t + l.pence, 0);
     await store.savePlan(start, {
       ...plan!,
-      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, doneOn: s.today, got, added, pence } : t)),
+      trips: plan!.trips!.map((t) =>
+        t.id === tripId ? { ...t, doneOn: s.today, got, added, ...(restore.length ? { restore } : {}), pence } : t,
+      ),
     });
     return { added: changes.length };
   }, true);
@@ -543,12 +552,7 @@ export function undoTrip(start: string, tripId: string): Promise<Result> {
     const plan = s.plans.find((p) => p.start === start)?.data;
     const trip = plan?.trips?.find((t) => t.id === tripId);
     if (!plan || !trip?.doneOn) fail("No shop to undo.");
-    const back = trip!.added ?? [];
-    if (back.length)
-      await store.changeStock(
-        back.map((c) => ({ item: c.item, qty: -c.qty })),
-        "add",
-      );
+    await unshop(trip!.added ?? [], trip!.restore ?? []);
     await store.savePlan(start, {
       ...plan!,
       trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),

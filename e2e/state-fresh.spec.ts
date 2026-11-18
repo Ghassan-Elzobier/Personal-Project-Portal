@@ -320,6 +320,34 @@ test.describe("life", () => {
       await body("", "", "");
     }
   });
+
+  test("Undo after Done shopping puts the cupboard staples back as they were, at once and after a reload", async ({
+    page,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    // Next week, so this week (and the Meals screenshot) is left as it is.
+    await page.goto("/life?week=next");
+    const plan = page.getByRole("button", { name: "Plan a fresh week" });
+    const make = page.getByRole("button", { name: "Make it a fresh week" });
+    if (await plan.isVisible()) await plan.click();
+    else if (await make.isVisible()) await make.click();
+    await expect(freshWeek(page)).toBeVisible();
+
+    await page.goto("/life/kitchen?week=next");
+    const sunday = page.getByRole("region", { name: "Sunday's shop" });
+    // Staples nobody has marked yet: Done marks them "have", and Undo must unmark them.
+    const staples = sunday.getByRole("region", { name: "Already have any of these?" }).locator("button[aria-pressed]");
+    await expect(staples.first()).toBeVisible();
+    const unmarked = await staples.count();
+    await sunday.getByRole("button", { name: "Done shopping" }).click();
+    await page.getByRole("button", { name: /^Put \d+ items? away$/ }).click();
+    const done = page.getByRole("region", { name: "Shops done" });
+    await done.getByRole("button", { name: "Undo" }).click();
+
+    await expect(staples).toHaveCount(unmarked);
+    await page.reload();
+    await expect(staples).toHaveCount(unmarked);
+  });
 });
 
 test.describe("errors page", () => {

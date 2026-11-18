@@ -378,6 +378,23 @@ export function delivery(
     }));
 }
 
+/**
+ * What Undo needs to put the kitchen back as it was before a shop: the amounts the
+ * shop added, and each cupboard staple's status before it was marked "have".
+ */
+export function undoOf(
+  changes: { item: string; add: number; status: "have" | null }[],
+  stock: StockRow[],
+): { added: { item: string; qty: number }[]; restore: { item: string; status: StockRow["status"] }[] } {
+  const before = (item: string) => stock.find((s) => s.item === item)?.status ?? null;
+  return {
+    added: changes.filter((c) => c.add > 0).map((c) => ({ item: c.item, qty: c.add })),
+    restore: changes
+      .filter((c) => c.status && before(c.item) !== c.status)
+      .map((c) => ({ item: c.item, status: before(c.item) })),
+  };
+}
+
 /** What a cook takes out of the kitchen. Staples are not counted. */
 export function cookUse(r: Recipe, portions: number, scale: number): { item: string; qty: number }[] {
   const merged = new Map<string, number>();
