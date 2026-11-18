@@ -2,7 +2,7 @@ import "server-only";
 import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
-import { budgetView, mondayOf, monthStart, parseBudget } from "./budget";
+import { afford, budgetView, mondayOf, monthStart, parseBudget } from "./budget";
 import * as store from "./store";
 
 // Money tools for the Claude connector: setting up the budget from the owner's real
@@ -69,6 +69,51 @@ async function summary() {
 }
 
 export const MONEY_TOOLS: Tool[] = [
+  {
+    name: "money_afford",
+    title: "Money: can I afford it?",
+    description:
+      "What a purchase would do to the owner's budget, before they buy it. Give its cost in pence (the owner's price, or a typical one you say is a guess), and optionally what it saves a week (a bike repair that replaces the bus). Returns a verdict — fits (this week's amount covers it, or what's safe before payday does without going under the weekly amount), tight (only by spreading it or having less a week), out (it would take them past what's safe before payday, into the buffer or bills) — with the reason, the ways to pay ranked with their effect, and weeks to pay itself back. Writes nothing. If they pick a way, save it with money_plan_purchase. Needs summary access.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pence: { type: "integer", minimum: 1, maximum: 10_000_000 },
+        saves_per_week_pence: { type: "integer", minimum: 0, maximum: 1_000_000 },
+      },
+      required: ["pence"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+    run: (args, { base }) =>
+      attempt(async () => {
+        const today = dateIn(now(), timeZone());
+        const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+        const saves = typeof args.saves_per_week_pence === "number" ? args.saves_per_week_pence : 0;
+        return ok({ ...afford(data, today, Number(args.pence), saves), page: `${base}/life/money` });
+      }),
+  },
+  {
+    name: "money_plan_purchase",
+    title: "Money: save a planned purchase",
+    description:
+      "Saves a purchase the owner has chosen how to pay for in this chat, so the weekly amount and safe-to-spend count it from now on: name, pence, due_on (YYYY-MM-DD, when they'll pay), funding ('allowance' from that week's amount, 'spread' over weeks 2-12, or 'safe' from what's safe to spend before payday). With id, changes one you added; with id and cancel: true, cancels one you added. When the payment arrives it is matched and stops counting. Only ever after the owner agrees. Needs plan access.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "integer" },
+        cancel: { type: "boolean" },
+        name: { type: "string", minLength: 1, maxLength: 60 },
+        pence: { type: "integer", minimum: 1, maximum: 10_000_000 },
+        due_on: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+        funding: { type: "string", enum: ["allowance", "spread", "safe"] },
+        weeks: { type: "integer", minimum: 1, maximum: 12 },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    run: (args, { base }) =>
+      attempt(async () => ok({ ...(await store.claudePlanPurchase(args)), page: `${base}/life/money` })),
+  },
   {
     name: "get_money_summary",
     title: "Money: this week, safe-to-spend and the month",
@@ -163,4 +208,4 @@ export const MONEY_TOOLS: Tool[] = [
 ];
 
 export const MONEY_INSTRUCTIONS =
-  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
+  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";

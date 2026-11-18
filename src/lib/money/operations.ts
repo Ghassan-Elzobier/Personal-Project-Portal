@@ -172,6 +172,31 @@ export function saveSettings(input: SettingsInput): Promise<Result> {
   });
 }
 
+export type PlannedInput = { name: string; amount: string; dueOn: string; funding: string; weeks: number };
+
+/** A purchase you plan: what, how much, when, and how it's paid for. */
+export function savePlanned(input: PlannedInput): Promise<Result> {
+  return run(async () => {
+    const name = input.name.trim();
+    if (!name) throw new store.MoneyStoreError("Say what it's for.");
+    const pence = poundsToPence(input.amount);
+    if (!pence) throw new store.MoneyStoreError("Say what it costs, in pounds.");
+    if (!DAY.test(input.dueOn)) throw new store.MoneyStoreError("Pick the day you'll pay.");
+    if (!["allowance", "spread", "safe"].includes(input.funding))
+      throw new store.MoneyStoreError("Pick how to pay for it.");
+    const weeks = input.funding === "spread" ? Math.min(12, Math.max(2, Math.round(input.weeks) || 2)) : 1;
+    await store.savePlanned({ name: name.slice(0, 60), pence, due_on: input.dueOn, funding: input.funding, weeks });
+    return {};
+  });
+}
+
+export function cancelPlanned(id: number): Promise<Result> {
+  return run(async () => {
+    await store.cancelPlanned(id);
+    return {};
+  });
+}
+
 /** What Claude may do with Money: off, summary, plan or setup. Only ever set here, in the app. */
 export function setClaudeAccess(level: "off" | "summary" | "plan" | "setup"): Promise<Result> {
   return run(async () => {

@@ -55,6 +55,23 @@ export async function saveSettings(input: ops.SettingsInput) {
   });
 }
 
+export async function savePlanned(input: ops.PlannedInput) {
+  await requireOwner();
+  const text = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");
+  return ops.savePlanned({
+    name: text(input?.name, 60),
+    amount: text(input?.amount, 20),
+    dueOn: text(input?.dueOn, 10),
+    funding: text(input?.funding, 20),
+    weeks: typeof input?.weeks === "number" ? input.weeks : 1,
+  });
+}
+
+export async function cancelPlanned(id: number) {
+  await requireOwner();
+  return ops.cancelPlanned(id);
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);
