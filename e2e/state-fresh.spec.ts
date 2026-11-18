@@ -546,4 +546,48 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("a planned purchase counts against this week at once and after a reload, and cancelling gives it back", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=123456`);
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: [] });
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+    const week = page.getByRole("region", { name: "This week" });
+    const plan = page.getByRole("region", { name: "Your plan" });
+    await plan.getByLabel("To live on each week (£)").fill("150");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    await expect(week.getByText("£150.00 left")).toBeVisible();
+
+    // £60 spread over 3 weeks: £20 off this week (the suite's clock is Monday 16 November).
+    const planned = page.getByRole("region", { name: "Planned purchases" });
+    await planned.getByRole("button", { name: "Plan a purchase" }).click();
+    await planned.getByLabel("What for").fill("Bike repair");
+    await planned.getByLabel("Cost (£)").fill("60");
+    await planned.getByLabel("When you'll pay").fill("2026-11-16");
+    await planned.getByLabel("Paid for").selectOption("spread");
+    // A label around a select takes in its options' text, so match the label's start.
+    await planned.getByRole("combobox", { name: /^Weeks/ }).selectOption("3");
+    await planned.getByRole("button", { name: "Plan it" }).click();
+    await expect(planned.getByText("Bike repair", { exact: true })).toBeVisible();
+    await expect(planned.getByText(/^£60\.00 · /)).toBeVisible();
+    await expect(week.getByText("£130.00 left")).toBeVisible();
+    await page.reload();
+    await expect(week.getByText("£130.00 left")).toBeVisible();
+
+    await planned.getByRole("button", { name: "Cancel Bike repair" }).click();
+    await expect(week.getByText("£150.00 left")).toBeVisible();
+    await expect(planned.getByText("Nothing planned.")).toBeVisible();
+
+    // Back as it was.
+    await plan.getByLabel("To live on each week (£)").fill("");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    await expect(week.getByText("Set the amount you live on each week")).toBeVisible();
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });
