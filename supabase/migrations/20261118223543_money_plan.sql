@@ -21,7 +21,11 @@ alter table portal.money_settings
   add column week_amount_pence bigint check (week_amount_pence is null or week_amount_pence between 0 and 1000000),
   add column week_amount_of date,
   add column last_week_closed date,
-  add column last_payday_done date;
+  add column last_payday_done date,
+  -- The moves the plan asked for on the last payday ({payday, transfers: [{goal, name, pence}]}),
+  -- kept so the check that they arrived measures against what the owner was shown.
+  add column payday_transfers jsonb check (payday_transfers is null or (jsonb_typeof(payday_transfers) = 'object'
+                                                                        and pg_column_size(payday_transfers) < 8192));
 
 alter table portal.money_alerts drop constraint money_alerts_kind_check;
 alter table portal.money_alerts add constraint money_alerts_kind_check
@@ -132,7 +136,10 @@ begin
                                   apr_bp, payment_pence, merchant_key, category_id, position, added_by)
   values (p->>'name', p->>'kind', (p->>'target_pence')::bigint, (p->>'due_on')::date,
           coalesce((p->>'repeats_yearly')::boolean, false), coalesce(p->>'held', 'account'),
-          coalesce((p->>'saved_pence')::bigint, 0), coalesce((p->>'saved_on')::date, current_date),
+          coalesce((p->>'saved_pence')::bigint, 0),
+          -- Only the owner dates a saved figure in the past: a date from Claude would reach
+          -- back over payments it may not read.
+          coalesce(case when p_by = 'owner' then (p->>'saved_on')::date end, current_date),
           (p->>'apr_bp')::integer, (p->>'payment_pence')::bigint, nullif(p->>'merchant_key', ''), v_cat,
           coalesce((select max(position) from portal.money_goals), 0) + 1, p_by)
   returning id into v_id;
@@ -193,7 +200,7 @@ begin
                    'buffer_from', buffer_from, 'payday_rule', payday_rule, 'first_payday', first_payday,
                    'weekly_floor_pence', weekly_floor_pence, 'week_amount_pence', week_amount_pence,
                    'week_amount_of', week_amount_of, 'last_week_closed', last_week_closed,
-                   'last_payday_done', last_payday_done)
+                   'last_payday_done', last_payday_done, 'payday_transfers', payday_transfers)
                  from portal.money_settings where id),
     'categories', coalesce((
       select jsonb_agg(jsonb_build_object('key', c.key, 'name', c.name, 'kind', c.kind, 'budget_pence', c.budget_pence,
@@ -340,6 +347,7 @@ declare
   v_removed integer := 0;
   v_goals integer := 0;
   v_gone integer := 0;
+  v_setup boolean;
 begin
   perform portal.require_money_claude(p_access_hash, 'plan');
   if jsonb_typeof(p) is distinct from 'object' then
@@ -360,8 +368,11 @@ begin
   )
   select count(*) into v_removed from gone;
 
+  -- A goal's merchant makes its progress the money paid to that merchant, so linking one
+  -- would let Claude read spending at any merchant: that needs setup, like the history.
+  v_setup := exists (select 1 from portal.money_settings where id and claude_access = 'setup');
   for v in select * from jsonb_array_elements(coalesce(p->'goals', '[]')) loop
-    perform portal.money_put_goal(v, 'claude');
+    perform portal.money_put_goal(case when v_setup then v else v - 'merchant_key' end, 'claude');
     v_goals := v_goals + 1;
   end loop;
   with gone as (
@@ -413,7 +424,7 @@ end;
 $function$;
 
 -- What the engine decided: {week_amount?: {of, pence}, closed_week?: date,
--- payday_done?: date, set_aside?: [{goal, pence}]}. Setting aside adds to a goal kept in
+-- payday_done?: date, payday_transfers?: {payday, transfers}, set_aside?: [{goal, pence}]}. Setting aside adds to a goal kept in
 -- the account; it never touches one kept elsewhere (that money moves by transfer).
 create function public.money_engine_apply(p jsonb, p_sync_key text default null)
 returns void
@@ -432,6 +443,8 @@ begin
       week_amount_of = case when p ? 'week_amount' then (p->'week_amount'->>'of')::date else week_amount_of end,
       last_week_closed = coalesce((p->>'closed_week')::date, last_week_closed),
       last_payday_done = coalesce((p->>'payday_done')::date, last_payday_done),
+      payday_transfers = case when jsonb_typeof(p->'payday_transfers') = 'object' then p->'payday_transfers'
+                              else payday_transfers end,
       updated_at = now()
   where id;
   update portal.money_goals g

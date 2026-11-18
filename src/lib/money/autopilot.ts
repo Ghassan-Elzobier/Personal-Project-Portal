@@ -20,6 +20,7 @@ export type Apply = {
   week_amount?: { of: string; pence: number };
   closed_week?: string;
   payday_done?: string;
+  payday_transfers?: { payday: string; transfers: { goal: number; name: string; pence: number }[] };
   set_aside?: { goal: number; pence: number }[];
 };
 
@@ -50,12 +51,20 @@ export function decide(
     if (pence > 0) setAside.set(goal, (setAside.get(goal) ?? 0) + pence);
   };
 
-  // The payday: set aside each goal kept in the account its share.
+  // The payday: set aside each goal kept in the account its share, and keep the moves
+  // the plan asks for, as the owner is shown them, to check later that they arrived.
+  // (Worked out again later, the plan would differ: by then the set-asides and the
+  // moves themselves have filled the goals.)
   const payday = currentPayday(data, today);
+  let transfers = data.paydayTransfers?.payday === payday ? data.paydayTransfers.transfers : null;
   if (payday && (!state.lastPaydayDone || state.lastPaydayDone < payday)) {
     const plan = allocate(data, payday);
     for (const s of plan?.shares ?? []) if (!s.transfer) add(s.id, s.pence);
+    transfers = (plan?.shares ?? [])
+      .filter((s) => s.transfer && s.pence > 0)
+      .map((s) => ({ goal: s.id, name: s.name, pence: s.pence }));
     apply.payday_done = payday;
+    apply.payday_transfers = { payday, transfers };
   }
 
   const monday = mondayOf(today);
@@ -89,19 +98,18 @@ export function decide(
     }
   }
 
-  // Transfers due on the payday that started this cycle, checked from 3 days after it.
-  if (payday && today >= addDays(payday, 3)) {
-    const plan = allocate(data, payday);
-    for (const s of plan?.shares ?? []) {
-      const g = goals.find((x) => x.id === s.id);
-      if (!s.transfer || s.pence <= 0 || !g?.merchantKey) continue;
-      const moved = moves.filter((m) => m.goal === s.id && m.on >= payday).reduce((t, m) => t + m.pence, 0);
-      if (moved < s.pence)
+  // The moves kept on payday, checked from 3 days after it: only for a goal whose payments
+  // Money can see (it has a merchant).
+  if (payday && transfers && today >= addDays(payday, 3)) {
+    for (const t of transfers) {
+      if (!goals.find((x) => x.id === t.goal)?.merchantKey) continue;
+      const moved = moves.filter((m) => m.goal === t.goal && m.on >= payday).reduce((s, m) => s + m.pence, 0);
+      if (moved < t.pence)
         alerts.push({
           kind: "transfer-missing",
-          dedupe: `transfer-missing:${s.id}:${payday}`,
-          goal: s.id,
-          detail: { name: s.name, pence: s.pence - Math.max(0, moved), payday },
+          dedupe: `transfer-missing:${t.goal}:${payday}`,
+          goal: t.goal,
+          detail: { name: t.name, pence: t.pence - Math.max(0, moved), payday },
         });
     }
   }

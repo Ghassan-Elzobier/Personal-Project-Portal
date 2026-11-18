@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(22);
 
 create function pg_temp.make_user(p_email text)
 returns uuid
@@ -117,6 +117,21 @@ select is((select target_pence from portal.money_goals where id = (select v::big
 select is((select weekly_floor_pence from portal.money_settings where id), 11000::bigint, 'Claude sets the least a week');
 select is((select added_by from portal.money_goals where kind = 'debt'), 'claude', 'its goal is marked as Claude''s');
 
+-- Linking a goal to a merchant reads that merchant's payments, so at plan Claude can't,
+-- and it never dates a saved figure in the past.
+select pg_temp.act_as((select v::uuid from fx where k = 'owner'));
+select public.money_set_claude_access('plan');
+reset role;
+select pg_temp.as_anon();
+select public.money_claude_set_plan(jsonb_build_object('goals', jsonb_build_array(jsonb_build_object(
+  'name', 'Example bike', 'kind', 'saving', 'target_pence', 30000, 'merchant_key', 'example-cafe',
+  'saved_on', '2025-01-01'))), encode(sha256('money8-live'), 'hex'));
+reset role;
+select is((select merchant_key from portal.money_goals where name = 'Example bike'), null,
+  'Given plan access, Claude cannot link a goal to a merchant');
+select is((select saved_on from portal.money_goals where name = 'Example bike'), current_date,
+  'and its saved figure is dated today');
+
 -- At summary, Claude can't set the plan.
 select pg_temp.act_as((select v::uuid from fx where k = 'owner'));
 select public.money_set_claude_access('summary');
@@ -130,6 +145,8 @@ select is(jsonb_array_length(public.money_engine_budget(date_trunc('month', curr
   1, 'The engine reads the goals'' recent transfers');
 select public.money_engine_apply(jsonb_build_object(
   'week_amount', jsonb_build_object('of', current_date, 'pence', 14000), 'closed_week', current_date - 7,
+  'payday_transfers', jsonb_build_object('payday', current_date - 3,
+    'transfers', jsonb_build_array(jsonb_build_object('goal', 1, 'name', 'Emergency fund', 'pence', 15000))),
   'set_aside', jsonb_build_array(jsonb_build_object('goal', (select v::bigint from fx where k = 'gifts'), 'pence', 500),
                                  jsonb_build_object('goal', (select v::bigint from fx where k = 'saver'), 'pence', 500))),
   'money8-sync');
@@ -137,7 +154,9 @@ select throws_ok($$ select public.money_engine_apply('{"closed_week": "2026-11-0
   'a wrong key changes nothing');
 reset role;
 select is((select week_amount_pence from portal.money_settings where id), 14000::bigint, 'When the engine fixes the week, then it holds');
-select is((select jsonb_agg(saved_pence order by position) from portal.money_goals where kind <> 'debt'), '[8500, 10000]'::jsonb,
+select is((select payday_transfers->'transfers'->0->>'pence' from portal.money_settings where id), '15000',
+  'and the payday''s moves are kept as the owner was shown them');
+select is((select jsonb_agg(saved_pence order by position) from portal.money_goals where kind <> 'debt' and name <> 'Example bike'), '[8500, 10000]'::jsonb,
   'money is set aside for the goal kept in the account, never for one kept in a saver');
 
 -- A missing transfer: once.

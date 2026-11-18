@@ -109,3 +109,17 @@ test("the alert says what has not arrived and how to make it automatic", () => {
     "Emergency fund: £150.00 planned on payday (Thu 31 Dec) hasn't arrived yet. A standing order for the day after payday does it for you.",
   );
 });
+
+test("later checks measure against the moves shown on payday, not the plan worked out again", () => {
+  const done = { lastWeekClosed: "2026-12-28", lastPaydayDone: "2026-12-31" };
+  const shown = data({
+    weekAmount: { of: "2027-01-04", pence: 14_800 },
+    paydayTransfers: { payday: "2026-12-31", transfers: [{ goal: 1, name: "Emergency fund", pence: 45_000 }] },
+  });
+  assert.deepEqual(decide(shown, done, [{ goal: 1, on: "2027-01-01", pence: 45_000 }], TODAY).alerts, []);
+  const short = decide(shown, done, [{ goal: 1, on: "2027-01-01", pence: 40_000 }], TODAY).alerts;
+  assert.equal(short[0].detail.pence, 5_000);
+  const first = decide(data(), fresh, [], TODAY).apply;
+  assert.equal(first.payday_transfers?.payday, "2026-12-31", "the moves are kept on payday");
+  assert.equal(first.payday_transfers?.transfers[0].goal, 1);
+});

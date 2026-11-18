@@ -133,6 +133,8 @@ export type BudgetData = {
   weekAmount?: { of: string; pence: number } | null;
   /** What the money is for, in order: savings, yearly costs and debts. */
   goals?: Goal[];
+  /** The moves the plan asked for on the last payday, as the owner was shown them. */
+  paydayTransfers?: { payday: string; transfers: { goal: number; name: string; pence: number }[] } | null;
 };
 
 /** Take-home on each payday from a day on, until a later step. */
@@ -477,6 +479,21 @@ export function parseBudget(raw: unknown): BudgetData {
         ? { of: str(s.week_amount_of)!, pence: num(s.week_amount_pence)! }
         : null,
     goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
+    paydayTransfers: parseTransfers(s.payday_transfers),
+  };
+}
+
+function parseTransfers(v: unknown): BudgetData["paydayTransfers"] {
+  if (!v || typeof v !== "object") return null;
+  const t = v as Row;
+  if (!str(t.payday)) return null;
+  return {
+    payday: str(t.payday)!,
+    transfers: (Array.isArray(t.transfers) ? (t.transfers as Row[]) : []).map((x) => ({
+      goal: num(x.goal) ?? 0,
+      name: str(x.name) ?? "",
+      pence: num(x.pence) ?? 0,
+    })),
   };
 }
 
