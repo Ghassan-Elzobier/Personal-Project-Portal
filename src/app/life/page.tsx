@@ -4,8 +4,9 @@ import { requireOwner } from "@/lib/auth/access";
 import { addDays } from "@/lib/dates/week";
 import { loadLife } from "@/lib/life/load";
 import { portionMacros } from "@/lib/life/nutrition";
-import { spare, spareStaysCold, weekDays } from "@/lib/life/planner";
+import { spare, spareStaysCold, weekDays, type WeekPlan } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
+import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
   placedMacros,
@@ -21,7 +22,7 @@ import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek, logPastAsEaten } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
-import { WeekView, type Alt, type CookGroup, type DayView } from "./week-view";
+import { WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -98,6 +99,7 @@ function alts(s: LifeState, meal: "main" | "breakfast" | "shake", weekend = fals
         stars: s.ratings.find((x) => x.recipe === r.recipe.key)?.stars ?? null,
         explore: r.recipe.tags.includes("explore"),
         daily: Boolean(r.recipe.daily),
+        pence: portionCost(r.recipe, s.products),
       };
     });
 }
@@ -174,6 +176,24 @@ function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
   );
 }
 
+/**
+ * What the week costs as planned, in two lines: the food and what there is to buy,
+ * then what is likely to go off and the price per 1,000 kcal (food only: the cupboard
+ * lasts for weeks). Shown until the week's food is bought.
+ */
+function costView(plan: WeekPlan): WeekCostView | null {
+  const c = plan.cost;
+  if (!c || plan.shop?.deliveredOn || plan.trips?.some((t) => t.doneOn)) return null;
+  const food = c.pence - c.cupboard;
+  const shops = plan.mode === "fresh" ? ` over ${c.trips} ${c.trips === 1 ? "shop" : "shops"}` : "";
+  const saves = c.cheaper !== undefined ? c.pence + c.waste - c.cheaper : 0;
+  return {
+    food: `Food about ${money(food)}${c.cupboard ? ` + ${money(c.cupboard)} cupboard` : ""} · ${c.items} ${c.items === 1 ? "thing" : "things"} to buy${shops}`,
+    detail: `${c.waste >= 50 ? `About ${money(c.waste)} likely to go off` : "Next to nothing left to go off"}${c.kcal ? ` · ${money(Math.round((food * 1000) / c.kcal))} per 1,000 kcal` : ""}`,
+    saves: saves >= 50 ? saves : null,
+  };
+}
+
 /** A fresh week's shopping in a line: the next shop, and the week against the budget. */
 function freshShops(s: LifeState, v: MealWeek): { title: string; detail: string } {
   const { open, done } = tripLists(s, v);
@@ -218,6 +238,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
       cooked: cooked.has(c.id),
       spare: left.find((x) => x.cookId === c.id)?.portions ?? 0,
       spareCold: spareStaysCold(plan, c),
+      why: c.why?.[0],
     });
   }
   const from = plan.createdOn ?? plan.start;
@@ -325,6 +346,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
         mode={plan.mode ?? "batch"}
         shops={plan.trips?.length ?? 0}
+        cost={costView(plan)}
       />
       <p className="text-sm text-muted">
         Your meals, cooking and gym are on the{" "}

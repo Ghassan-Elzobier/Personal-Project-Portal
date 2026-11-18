@@ -7,6 +7,7 @@ import { lifeToday, loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import * as ops from "./operations";
 import { recipe } from "./recipes";
+import { money } from "./shopping";
 import { isReturning, placedMacros, routineFor } from "./state";
 
 // Life tools for the Claude connector: what today holds, and one-line logging
@@ -180,16 +181,16 @@ export const LIFE_TOOLS: Tool[] = [
     name: "plan_meal_week",
     title: "Plan this week's meals",
     description:
-      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. Only when the week has no cooking done yet. mode 'batch' is two long cooks of two dishes and one shop; 'fresh' is short cooks of one dish every couple of days and two or three small shops, with nothing frozen. Left out, a re-plan keeps the week's mode.",
+      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. The mains are chosen together so they share packs and little is wasted; each says why it was picked, and the week says what it costs. Only when the week has no cooking done yet. mode 'batch' is two long cooks of two dishes and one shop; 'fresh' is short cooks of one dish every couple of days and two or three small shops, with nothing frozen. Left out, a re-plan keeps the week's mode. cheaper: true picks the cheapest good week instead of the best value.",
     inputSchema: {
       type: "object",
-      properties: { mode: { type: "string", enum: ["batch", "fresh"] } },
+      properties: { mode: { type: "string", enum: ["batch", "fresh"] }, cheaper: { type: "boolean" } },
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false },
     async run(args, { base }) {
       const mode = args.mode === "batch" || args.mode === "fresh" ? args.mode : undefined;
-      const r = await ops.planWeek(undefined, mode);
+      const r = await ops.planWeek(undefined, mode, args.cheaper === true);
       if (r.error) return err(r.error);
       const loaded = await loadLife();
       const plan = loaded.state?.plan;
@@ -199,13 +200,27 @@ export const LIFE_TOOLS: Tool[] = [
           at: clock(c.start),
           recipe: recipe(c.recipe)?.name,
           portions: c.portions,
+          ...(c.why?.length ? { why: c.why } : {}),
         })) ?? [];
       const shops = plan?.trips?.map((t) => ({ day: t.date, at: clock(t.start) }));
+      const cost = plan?.cost;
       return ok({
         planned: "start" in r ? r.start : null,
         mode: plan?.mode ?? "batch",
         cooks,
         ...(shops ? { shops } : {}),
+        ...(cost
+          ? {
+              cost: {
+                basket: money(cost.pence),
+                wasted: money(cost.waste),
+                items: cost.items,
+                ...(cost.cheaper && cost.pence + cost.waste - cost.cheaper >= 50
+                  ? { cheaperWeekSaves: money(cost.pence + cost.waste - cost.cheaper) }
+                  : {}),
+              },
+            }
+          : {}),
         page: `${base}/life`,
       });
     },

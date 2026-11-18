@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
+import { pounds } from "@/lib/life/basket";
 import type { Slot } from "@/lib/life/nutrition";
 import { logMeal, planWeek, removeCook, setDaily, setFresh, setOut, swapCook } from "./actions";
 import { ActionButton, Sheet, Stars } from "./kit";
@@ -19,6 +20,8 @@ export type Alt = {
   stars: number | null;
   explore: boolean;
   daily: boolean;
+  /** One portion at the written size, at your prices or typical ones. */
+  pence: number;
 };
 export type CookGroup = {
   key: string;
@@ -37,8 +40,13 @@ export type CookGroup = {
     spare: number;
     /** The spare portions stay in the fridge for next week's first lunch. */
     spareCold?: boolean;
+    /** Why the planner picked it ("Shares the peppers with …"). */
+    why?: string;
   }[];
 };
+
+/** What the week costs as planned, in words, and what a cheaper week would save (pence). */
+export type WeekCostView = { food: string; detail: string; saves: number | null };
 export type MealView = {
   id: string;
   slot: Slot;
@@ -83,6 +91,7 @@ export function WeekView({
   canReplan,
   mode = "batch",
   shops = 0,
+  cost = null,
 }: {
   start: string;
   today: string;
@@ -95,6 +104,8 @@ export function WeekView({
   /** A fresh week: short cooks of one dish and `shops` small shops. */
   mode?: "batch" | "fresh";
   shops?: number;
+  /** What the week costs as planned, until its food is bought. */
+  cost?: WeekCostView | null;
 }) {
   const other = mode === "fresh" ? "batch" : "fresh";
   const [picker, setPicker] = useState<Picker>(null);
@@ -144,6 +155,24 @@ export function WeekView({
             </div>
           )}
         </div>
+        {cost && (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-white/5 p-3">
+            <p className="min-w-0 text-sm">
+              <span className="block text-body">{cost.food}</span>
+              <span className="block text-xs text-muted">{cost.detail}</span>
+            </p>
+            {canReplan && cost.saves !== null && (
+              <ActionButton
+                action={() => planWeek(start, mode, true)}
+                className="btn-soft px-3 py-1.5 text-xs"
+                confirm={`Plan a cheaper week? It saves about ${pounds(cost.saves)}.`}
+                done="Planned a cheaper week."
+              >
+                Cheaper week: save {pounds(cost.saves)}
+              </ActionButton>
+            )}
+          </div>
+        )}
         {mode === "fresh" && (
           <p className="text-sm text-body">
             <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
@@ -178,6 +207,7 @@ export function WeekView({
                           : ` · ${c.spare} spare to freeze`
                         : ""}
                     </p>
+                    {c.why && <p className="text-xs text-mint">{c.why}</p>}
                   </div>
                   {c.cooked ? (
                     <Chip tone="mint">Cooked</Chip>
@@ -454,7 +484,7 @@ function AltList({
               {a.stars ? <Stars value={a.stars} size="text-xs" /> : a.explore ? <Chip tone="sand">New</Chip> : null}
             </span>
             <span className="block text-xs text-muted tabular-nums">
-              {a.cuisine} · {a.kcal} kcal · {a.protein} g · {a.minutes} min
+              {a.cuisine} · {a.kcal} kcal · {a.protein} g · {a.minutes} min · about {pounds(a.pence)}
             </span>
             {a.reasons.length > 0 && <span className="block text-xs text-mint">{a.reasons.join(" · ")}</span>}
             {a.key === current && <span className="block text-xs text-mint">On the plan</span>}

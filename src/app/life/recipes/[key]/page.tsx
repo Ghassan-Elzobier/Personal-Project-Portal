@@ -8,7 +8,8 @@ import { loadLife } from "@/lib/life/load";
 import { portionMacros, portionScale, SPLIT, verdict } from "@/lib/life/nutrition";
 import { cookScale } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
-import { amount, linesFor } from "@/lib/life/shopping";
+import { portionCost } from "@/lib/life/combo";
+import { amount, linesFor, money } from "@/lib/life/shopping";
 import { Chip, ErrorNote } from "@/components/ui";
 import { LifeHeader } from "../../parts";
 import { RateRecipe } from "./rate";
@@ -60,6 +61,7 @@ export default async function RecipePage({
         <Chip tone="mint">
           {Math.round(per.kcal * scale)} kcal · {Math.round(per.protein * scale)} g protein a portion
         </Chip>
+        <Chip>About {money(portionCost(r, s.products, scale))} a portion</Chip>
         <Chip>{SPICE[r.spice]}</Chip>
         {r.keeps.freezes ? <Chip tone="ice">Freezes</Chip> : <Chip>Doesn&apos;t freeze</Chip>}
         <Chip>
