@@ -3,7 +3,9 @@ import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { allocate } from "./allocate";
-import { afford, budgetView, mondayOf, monthStart, parseBudget, savedNow } from "./budget";
+import { afford, budgetView, mondayOf, monthStart, parseBudget, savedNow, type BudgetData } from "./budget";
+import { prompts } from "./prompts";
+import { weekSummary } from "./summary";
 import { forecast, whatIf } from "./forecast";
 import { nextDue } from "./recurring";
 import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
@@ -117,6 +119,23 @@ async function summary() {
   };
 }
 
+/**
+ * What a cost displaces, in the owner's terms: days of the weekly amount, and how much
+ * later the first goal still being saved for gets there. People weigh a purchase better
+ * when what it displaces is named (Frederick et al. 2009).
+ */
+function inYourTerms(data: BudgetData, today: string, pence: number) {
+  const view = budgetView(data, today);
+  const weekly = view.week.allowance;
+  const plan = allocate(data, view.payday);
+  const goal = plan?.shares.find((s) => s.kind !== "debt" && s.remaining > 0 && s.pence > 0);
+  return {
+    days_of_weekly_amount: weekly ? Math.round((pence / weekly) * 7 * 10) / 10 : null,
+    first_goal_later_by_weeks:
+      goal && plan ? { goal: goal.name, weeks: Math.ceil((pence / goal.pence) * (plan.weeks || 4.3)) } : null,
+  };
+}
+
 /** The budget read with today's date, for the forecast tools. */
 async function budgetNow() {
   const today = dateIn(now(), timeZone());
@@ -154,6 +173,26 @@ const SALARY = {
 };
 
 const FORECAST_TOOLS: Tool[] = [
+  {
+    name: "money_week",
+    title: "Money: the week in short",
+    description:
+      "The owner's weekly summary, written by Money with no input, for a short weekly money note: last week's spending against its amount, what went to which goal when the week closed, categories well off their usual week (against the median of the 7 weeks before), the next 7 days' bills, pay and planned purchases, the forecast's lowest point, whether each goal keeps its pace, and the (at most two) things Money would raise on Today. Amounts are pence. Totals only. Needs summary access.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    run: (_args, { base }) =>
+      attempt(async () => {
+        const { today, data } = await budgetNow();
+        const view = budgetView(data, today);
+        const f = forecast(data, today);
+        return ok({
+          today,
+          ...weekSummary(data, view, f, today),
+          raising: prompts(data, view, f, [], today).map((p) => p.text),
+          page: `${base}/life/money`,
+        });
+      }),
+  },
   {
     name: "money_forecast",
     title: "Money: the next 13 weeks",
@@ -322,7 +361,7 @@ export const MONEY_TOOLS: Tool[] = [
     name: "money_afford",
     title: "Money: can I afford it?",
     description:
-      "What a purchase would do to the owner's budget, before they buy it. Give its cost in pence (the owner's price, or a typical one you say is a guess), and optionally what it saves a week (a bike repair that replaces the bus). Returns a verdict — fits (this week's amount covers it, or what's safe before payday does without going under the weekly amount), tight (only by spreading it or having less a week), out (it would take them past what's safe before payday, into the buffer or bills) — with the reason, the ways to pay ranked with their effect, and weeks to pay itself back. Writes nothing. If they pick a way, save it with money_plan_purchase. Needs summary access.",
+      "What a purchase would do to the owner's budget, before they buy it. Give its cost in pence (the owner's price, or a typical one you say is a guess), and optionally what it saves a week (a bike repair that replaces the bus). Returns a verdict — fits (this week's amount covers it, or what's safe before payday does without going under the weekly amount), tight (only by spreading it or having less a week), out (it would take them past what's safe before payday, into the buffer or bills) — with the reason, the ways to pay ranked with their effect, and weeks to pay itself back, plus what it displaces in their terms (days of the weekly amount, and how many weeks later the first goal gets there): say that too. Writes nothing. If they pick a way, save it with money_plan_purchase. Needs summary access.",
     inputSchema: {
       type: "object",
       properties: {
@@ -338,7 +377,12 @@ export const MONEY_TOOLS: Tool[] = [
         const today = dateIn(now(), timeZone());
         const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
         const saves = typeof args.saves_per_week_pence === "number" ? args.saves_per_week_pence : 0;
-        return ok({ ...afford(data, today, Number(args.pence), saves), page: `${base}/life/money` });
+        const pence = Number(args.pence);
+        return ok({
+          ...afford(data, today, pence, saves),
+          ...inYourTerms(data, today, pence),
+          page: `${base}/life/money`,
+        });
       }),
   },
   {
@@ -476,4 +520,4 @@ export const MONEY_TOOLS: Tool[] = [
 ];
 
 export const MONEY_INSTRUCTIONS =
-  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. For what's coming, call money_forecast (the lowest point, Monday checkpoints, paydays); for \"what if…\" questions (a job offer's salary, a cheaper commute, a new regular cost), call money_what_if and say how the lowest point and the balance in 13 weeks move. The owner wants a budget that runs itself from a high-level plan: agree their pay, goals in order (best practice: buffer, yearly costs, an emergency fund, high-interest debts, then the rest) and the least and most to live on a week, and save them with money_set_plan; Money then shares each payday out, sets money aside, fixes each week's amount and checks transfers by itself, and get_money_summary shows how each goal is doing. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
+  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. For a weekly money note, call money_week and keep it short: last week, anything unusual, the week ahead. For what's coming, call money_forecast (the lowest point, Monday checkpoints, paydays); for \"what if…\" questions (a job offer's salary, a cheaper commute, a new regular cost), call money_what_if and say how the lowest point and the balance in 13 weeks move. The owner wants a budget that runs itself from a high-level plan: agree their pay, goals in order (best practice: buffer, yearly costs, an emergency fund, high-interest debts, then the rest) and the least and most to live on a week, and save them with money_set_plan; Money then shares each payday out, sets money aside, fixes each week's amount and checks transfers by itself, and get_money_summary shows how each goal is doing. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";

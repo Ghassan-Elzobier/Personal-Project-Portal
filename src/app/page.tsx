@@ -24,8 +24,8 @@ import { yourDay } from "@/lib/portal/day";
 import { YourDay } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
 import { now as clockNow } from "@/lib/dates/clock";
-import { loadBudget } from "@/lib/money/load";
-import { MoneyLine } from "./money-line";
+import { loadToday } from "@/lib/money/load";
+import { MoneyLine, MoneyPrompts } from "./money-line";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +69,7 @@ async function OwnerHome() {
     usesAsana() ? null : attempt(() => studySnapshot()),
     usesAsana() ? null : attempt(() => loadStudy()),
     lifeLoad,
-    loadBudget(),
+    loadToday(),
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -181,6 +181,7 @@ async function OwnerHome() {
       />
 
       {money?.view.week.left != null && money.view.balance !== null && <MoneyLine view={money.view} />}
+      {money && money.prompts.length > 0 && <MoneyPrompts prompts={money.prompts} />}
 
       {totals && !firstRun && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 card sm:grid-cols-4">

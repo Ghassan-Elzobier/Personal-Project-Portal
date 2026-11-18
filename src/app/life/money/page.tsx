@@ -7,6 +7,7 @@ import { addDays, dateIn } from "@/lib/dates/week";
 import { allocate, suggestGoals } from "@/lib/money/allocate";
 import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
 import type { Forecast } from "@/lib/money/forecast";
+import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadMoney } from "@/lib/money/load";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
@@ -83,6 +84,9 @@ export default async function MoneyPage() {
       )}
       {s.alerts.length > 0 && <Alerts s={s} />}
       {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
+      {connected && (
+        <Summary s={weekSummary(loaded.budget, loaded.view, loaded.forecast, loaded.today)} today={loaded.today} />
+      )}
       {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
       {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
@@ -330,6 +334,47 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
         Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
         Ignore one that isn&apos;t a bill and it won&apos;t be found again.
       </p>
+    </section>
+  );
+}
+
+/** The week in short, written with no input: last week, what was unusual, the week ahead, the goals. */
+function Summary({ s, today }: { s: WeekSummary; today: string }) {
+  if (s.spent === 0 && s.next7.length === 0 && s.goals.length === 0) return null;
+  const diff = s.amount === null ? null : s.amount - s.spent;
+  return (
+    <section aria-labelledby="summary-title" className="space-y-2 card-life">
+      <h2 id="summary-title" className="font-semibold">
+        Your week in short
+      </h2>
+      <p className="text-sm tabular-nums">
+        Last week, from {dayMonth(s.week)}: {pounds(s.spent)}
+        {s.amount !== null && ` of ${pounds(s.amount)}`}
+        {diff !== null && (diff >= 0 ? `, ${pounds(diff)} under` : `, ${pounds(-diff)} over`)}.
+        {s.swept.length > 0 && ` ${s.swept.map((x) => `${pounds(x.pence)} went to ${x.name}`).join(", ")}.`}
+      </p>
+      {s.unusual.length > 0 && (
+        <p className="text-sm text-body tabular-nums">
+          Off your usual week:{" "}
+          {s.unusual.map((u) => `${u.name} ${pounds(u.spent)} (usually ${pounds(u.usual)})`).join(" · ")}.
+        </p>
+      )}
+      {s.next7.length > 0 && (
+        <p className="text-sm text-muted tabular-nums">
+          Next 7 days:{" "}
+          {s.next7
+            .map(
+              (e) =>
+                `${e.day === addDays(today, 1) ? "tomorrow" : dayMonth(e.day)} ${e.name} ${pounds(Math.abs(e.pence))}`,
+            )
+            .join(" · ")}
+        </p>
+      )}
+      {s.goals.length > 0 && (
+        <p className="text-sm text-muted">
+          Goals: {s.goals.map((g) => `${g.name} ${g.onPace ? "on pace" : "behind"}`).join(" · ")}
+        </p>
+      )}
     </section>
   );
 }

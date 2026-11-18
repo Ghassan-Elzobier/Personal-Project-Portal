@@ -712,4 +712,43 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("Money speaks up on Today only when something needs you, and a dismissed prompt stays gone after a reload", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    // A made-up subscription that went up last week: the engine finds the bill and the rise.
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, {
+      data: [
+        { id: "p1", date: "2026-08-10", pence: -1099, text: "EXAMPLE STREAMING" },
+        { id: "p2", date: "2026-09-10", pence: -1099, text: "EXAMPLE STREAMING" },
+        { id: "p3", date: "2026-10-10", pence: -1099, text: "EXAMPLE STREAMING" },
+        { id: "p4", date: "2026-11-10", pence: -1299, text: "EXAMPLE STREAMING" },
+      ],
+    });
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=100000`);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+    await expect(page.getByRole("region", { name: "Bills" }).getByText("EXAMPLE STREAMING")).toBeVisible();
+
+    await page.goto("/");
+    const prompts = page.getByRole("region", { name: "Money needs you" });
+    await expect(
+      prompts.getByText(
+        "EXAMPLE STREAMING went up from £10.99 to £12.99 on Tue 10 Nov. Money counts the new amount from now on.",
+      ),
+    ).toBeVisible();
+    await prompts.getByRole("button", { name: "Dismiss" }).click();
+    await expect(prompts).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Money needs you" })).toHaveCount(0);
+
+    // Back as it was.
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: [] });
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

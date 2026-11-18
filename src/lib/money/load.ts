@@ -4,6 +4,7 @@ import { now } from "../dates/clock";
 import { addDays, dateIn } from "../dates/week";
 import { budgetView, mondayOf, monthStart, parseBudget, type BudgetData, type BudgetView } from "./budget";
 import { forecast, type Forecast } from "./forecast";
+import { prompts, type Prompt } from "./prompts";
 import { parseMoney, parseTransactions, type MoneyState, type Txn } from "./state";
 import { MoneyStoreError, readBudget, readMoney, readTransactions } from "./store";
 
@@ -42,12 +43,17 @@ export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) |
   }
 }
 
-/** Just the budget, for Today and Claude: null when Money isn't set up or can't be read. */
-export async function loadBudget(): Promise<{ data: BudgetData; view: BudgetView; today: string } | null> {
+/**
+ * What Today shows of Money: the week's numbers and up to two prompts, only for what
+ * needs the owner (prompts.ts). Null when Money isn't set up or can't be read.
+ */
+export async function loadToday(): Promise<{ data: BudgetData; view: BudgetView; prompts: Prompt[] } | null> {
   try {
     const today = dateIn(now(), timeZone());
-    const data = parseBudget(await readBudget(monthStart(today), mondayOf(today)));
-    return { data, view: budgetView(data, today), today };
+    const [budget, money] = await Promise.all([readBudget(monthStart(today), mondayOf(today)), readMoney()]);
+    const data = parseBudget(budget);
+    const view = budgetView(data, today);
+    return { data, view, prompts: prompts(data, view, forecast(data, today), parseMoney(money).alerts, today) };
   } catch {
     return null;
   }

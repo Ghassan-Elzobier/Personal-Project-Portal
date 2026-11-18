@@ -22,6 +22,13 @@ export type Apply = {
   payday_done?: string;
   payday_transfers?: { payday: string; transfers: { goal: number; name: string; pence: number }[] };
   set_aside?: { goal: number; pence: number }[];
+  /** Last week as it closed, for the weekly summary. */
+  last_week?: {
+    week: string;
+    amount_pence: number;
+    spent_pence: number;
+    swept: { goal: number; name: string; pence: number }[];
+  };
 };
 
 export type GoalAlert = {
@@ -77,12 +84,16 @@ export function decide(
           data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + c.spentLastWeek, 0) +
           data.unsortedLastWeek;
         let left = data.weekAmount.pence - spent;
+        const swept: { goal: number; name: string; pence: number }[] = [];
         for (const g of goals.filter((x) => x.held === "account" && x.kind !== "debt")) {
           if (left <= 0) break;
           const give = Math.min(left, room(g.id));
+          if (give <= 0) continue;
           add(g.id, give);
+          swept.push({ goal: g.id, name: g.name, pence: give });
           left -= give;
         }
+        apply.last_week = { week: lastMonday, amount_pence: data.weekAmount.pence, spent_pence: spent, swept };
       }
       apply.closed_week = lastMonday;
     }
