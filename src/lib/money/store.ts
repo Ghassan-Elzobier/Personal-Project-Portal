@@ -56,6 +56,10 @@ async function claude<T>(name: string, args: Record<string, unknown>): Promise<T
 }
 
 export const claudeHistory = (months: number) => claude<unknown>("money_claude_history", { p_months: months });
+/** The budget's numbers: the owner's page, or Claude at summary. */
+export const readBudget = (monthStart: string, weekStart: string) =>
+  claude<unknown>("money_budget", { p_month_start: monthStart, p_week_start: weekStart });
+export const saveSettings = (settings: Record<string, unknown>) => owner<void>("money_save_settings", { p: settings });
 export const claudePlan = (changes: Record<string, unknown>) =>
   claude<{ categories: number; rules: number; unsorted_this_month: number }>("money_claude_plan", {
     p_changes: changes,

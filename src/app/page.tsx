@@ -24,6 +24,8 @@ import { yourDay } from "@/lib/portal/day";
 import { YourDay } from "./your-day";
 import { HubCard } from "./jobs/hub-card";
 import { now as clockNow } from "@/lib/dates/clock";
+import { loadBudget } from "@/lib/money/load";
+import { MoneyLine } from "./money-line";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,7 @@ async function OwnerHome() {
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
 
-  const [perProject, comments, schedule, study, overview, life] = await Promise.all([
+  const [perProject, comments, schedule, study, overview, life, money] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -67,6 +69,7 @@ async function OwnerHome() {
     usesAsana() ? null : attempt(() => studySnapshot()),
     usesAsana() ? null : attempt(() => loadStudy()),
     lifeLoad,
+    loadBudget(),
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -176,6 +179,8 @@ async function OwnerHome() {
         day={yourDay(date, schedule.ok ? schedule.value.blocks : null, life.state ?? null, now)}
         error={schedule.ok ? undefined : `The schedule could not be read: ${schedule.error}`}
       />
+
+      {money?.view.week.left != null && money.view.balance !== null && <MoneyLine view={money.view} />}
 
       {totals && !firstRun && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 card sm:grid-cols-4">
