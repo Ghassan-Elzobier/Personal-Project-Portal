@@ -33,8 +33,11 @@ export function MoneyPrompts({ prompts }: { prompts: Prompt[] }) {
   );
 }
 
-/** Today's one line about money: this week's amount, and how the weeks to payday look. */
-export function MoneyLine({ view: v }: { view: BudgetView }) {
+/**
+ * Today's one line about money: this week's amount (and how much of it the meal plan's
+ * shop still needs), and how the weeks to payday look.
+ */
+export function MoneyLine({ view: v, shop = 0 }: { view: BudgetView; shop?: number }) {
   const left = v.week.left ?? 0;
   const payday = new Date(`${v.payday}T12:00:00Z`).toLocaleDateString("en-GB", {
     weekday: "short",
@@ -53,6 +56,13 @@ export function MoneyLine({ view: v }: { view: BudgetView }) {
       <span className={`text-sm ${v.onTrack === false ? "text-coral" : "text-muted"}`}>
         {v.perWeek !== null && v.perWeek > 0 ? `${pounds(v.perWeek)} a week to payday, ${payday}` : `Payday ${payday}`}
       </span>
+      {shop > 0 && left > 0 && (
+        <span className="basis-full text-sm text-body tabular-nums">
+          {shop >= left
+            ? `The meal plan's shop still needs ${pounds(shop)}: more than is left.`
+            : `${pounds(shop)} of it for the meal plan's shop, ${pounds(left - shop)} for the rest.`}
+        </span>
+      )}
     </Link>
   );
 }

@@ -6,6 +6,9 @@ import { BENCH_LIFTS, EXERCISE_MAP, PROGRAM, resolve, workout } from "@/lib/life
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target } from "@/lib/life/gym/progress";
 import { demoFor } from "@/lib/life/gym/media";
 import { loadLife } from "@/lib/life/load";
+import { loadToday } from "@/lib/money/load";
+import { pounds } from "@/lib/money/state";
+import { gymCost } from "@/lib/portal/money";
 import { isReturning } from "@/lib/life/state";
 import { Chip, ErrorNote } from "@/components/ui";
 import { dayLabel, LifeHeader, weekdayShort } from "../parts";
@@ -19,7 +22,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default async function GymPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
   // In parallel: life_read checks for the owner itself.
-  const [, params, loaded] = await Promise.all([requireOwner(), searchParams, loadLife()]);
+  const [, params, loaded, money] = await Promise.all([requireOwner(), searchParams, loadLife(), loadToday()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -37,6 +40,8 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
   const before = s.sets.filter((x) => x.day < today);
   const returning = isReturning(s, today);
   const trainingDay = s.profile.gym.days.includes(weekdayIndex(today));
+  // What the gym bill Money found costs a visit, this month.
+  const cost = money ? gymCost(money.data, s.sessions, today) : null;
 
   const blocks: BlockView[] = w.blocks.map((b) => ({
     title: b.title,
@@ -136,6 +141,15 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
           <p className="text-xs text-muted">bench estimate, kg</p>
         </div>
       </section>
+
+      {cost && (
+        <p className="text-sm text-muted tabular-nums">
+          The gym costs {pounds(cost.monthly)} a month:{" "}
+          {cost.perVisit !== null
+            ? `${cost.visits} ${cost.visits === 1 ? "visit" : "visits"} so far this month, ${pounds(cost.perVisit)} a visit.`
+            : "no visits yet this month."}
+        </p>
+      )}
 
       {returning && (
         <p className="rounded-xl bg-sand/10 p-3 text-sm text-sand ring-1 ring-sand/25">

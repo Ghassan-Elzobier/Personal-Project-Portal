@@ -47,13 +47,18 @@ export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) |
  * What Today shows of Money: the week's numbers and up to two prompts, only for what
  * needs the owner (prompts.ts). Null when Money isn't set up or can't be read.
  */
-export async function loadToday(): Promise<{ data: BudgetData; view: BudgetView; prompts: Prompt[] } | null> {
+export async function loadToday(): Promise<{
+  data: BudgetData;
+  view: BudgetView;
+  prompts: Prompt[];
+  today: string;
+} | null> {
   try {
     const today = dateIn(now(), timeZone());
     const [budget, money] = await Promise.all([readBudget(monthStart(today), mondayOf(today)), readMoney()]);
     const data = parseBudget(budget);
     const view = budgetView(data, today);
-    return { data, view, prompts: prompts(data, view, forecast(data, today), parseMoney(money).alerts, today) };
+    return { data, view, prompts: prompts(data, view, forecast(data, today), parseMoney(money).alerts, today), today };
   } catch {
     return null;
   }

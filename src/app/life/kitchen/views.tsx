@@ -71,6 +71,7 @@ export function ShopView({
   notFound,
   next,
   budgetPence,
+  weekLeftPence,
 }: {
   start: string;
   lines: ShopLine[];
@@ -102,6 +103,8 @@ export function ShopView({
   next?: string | null;
   /** What this shop may spend: the week's budget less the other shops. */
   budgetPence?: number | null;
+  /** What's left of this week's amount in Money, before this shop. */
+  weekLeftPence?: number | null;
 }) {
   const [pick, setPick] = useState<ShopLine | null>(null);
   const [arrive, setArrive] = useState(false);
@@ -278,6 +281,15 @@ export function ShopView({
               </span>
             )}
           </p>
+          {weekLeftPence != null && (
+            <p
+              className={`text-xs tabular-nums ${weekLeftPence - progress.pence - progress.left < 0 ? "text-sand" : "text-muted"}`}
+            >
+              {weekLeftPence - progress.pence - progress.left < 0
+                ? `${pounds(progress.pence + progress.left - weekLeftPence)} over this week's amount after this shop`
+                : `${pounds(weekLeftPence - progress.pence - progress.left)} left this week after this shop`}
+            </p>
+          )}
           {inStore && visit.length > 0 && (
             <p className="text-xs text-muted">
               {visit.length} {visit.length === 1 ? "aisle" : "aisles"}: {visit.join(" · ")}

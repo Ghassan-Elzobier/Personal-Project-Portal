@@ -8,7 +8,9 @@ import { allocate, suggestGoals } from "@/lib/money/allocate";
 import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
 import type { Forecast } from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
+import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
+import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
 import { ago, alertText, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
@@ -58,7 +60,7 @@ const ACCESS: { level: MoneyState["claudeAccess"]; name: string; text: string }[
 ];
 
 export default async function MoneyPage() {
-  const [, loaded] = await Promise.all([requireOwner(), loadMoney()]);
+  const [, loaded, life] = await Promise.all([requireOwner(), loadMoney(), loadLife()]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -83,7 +85,9 @@ export default async function MoneyPage() {
         </p>
       )}
       {s.alerts.length > 0 && <Alerts s={s} />}
-      {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
+      {connected && (
+        <ThisWeek view={loaded.view} today={loaded.today} shop={life.state ? plannedShop(life.state) : 0} />
+      )}
       {connected && (
         <Summary s={weekSummary(loaded.budget, loaded.view, loaded.forecast, loaded.today)} today={loaded.today} />
       )}
@@ -111,7 +115,7 @@ const longDay = (day: string) =>
   });
 
 /** This week's amount on top, then how the weeks to payday look, and where the money goes. */
-function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
+function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; shop: number }) {
   const w = v.week;
   return (
     <section aria-labelledby="week-title" className="space-y-3 card-life">
@@ -136,6 +140,13 @@ function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
             <p className="mt-1 text-xs text-muted tabular-nums">
               Set from your plan: what&apos;s safe to payday, between your {pounds(w.floor)} and {pounds(w.target)} a
               week.
+            </p>
+          )}
+          {shop > 0 && w.left > 0 && (
+            <p className="mt-1 text-sm text-body tabular-nums">
+              {shop >= w.left
+                ? `The meal plan's shop still needs ${pounds(shop)}: more than is left.`
+                : `${pounds(shop)} of it for the meal plan's shop, ${pounds(w.left - shop)} for the rest.`}
             </p>
           )}
         </div>
