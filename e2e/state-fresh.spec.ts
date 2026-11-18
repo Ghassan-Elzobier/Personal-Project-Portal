@@ -203,6 +203,67 @@ test.describe("life", () => {
     await page.reload();
     await expect(page.getByRole("region", { name: "Sunday's shop" })).toBeVisible();
   });
+
+  test("in the shop, a tick adds to the basket at once and stays after a reload; Not found moves an item on", async ({
+    page,
+  }) => {
+    // A fresh week next week, so this week (and the Meals screenshot) is left as it is.
+    await page.goto("/life?week=next");
+    const plan = page.getByRole("button", { name: "Plan a fresh week" });
+    const make = page.getByRole("button", { name: "Make it a fresh week" });
+    if (await plan.isVisible()) await plan.click();
+    else if (await make.isVisible()) {
+      page.once("dialog", (dialog) => void dialog.accept());
+      await make.click();
+    }
+    await expect(page.getByText("Fresh week", { exact: true })).toBeVisible();
+
+    await page.goto("/life/kitchen?week=next");
+    const sunday = page.getByRole("region", { name: "Sunday's shop" });
+    await sunday.getByRole("button", { name: "Shop in store" }).click();
+    const basket = sunday.getByLabel("Basket");
+    await expect(basket).toContainText("£0.00 in the basket");
+
+    // The phone keeps unsent ticks; wait until it has sent them, then forget them, so a
+    // reload can only show what the portal saved.
+    const sent = async () => {
+      await expect(sunday.getByText("Saved on this phone")).toHaveCount(0);
+      await page.evaluate(() => window.localStorage.clear());
+    };
+
+    const ticks = sunday.locator("li button[aria-pressed]");
+    const first = ticks.first();
+    await first.click();
+    await expect(first).toHaveAttribute("aria-pressed", "true");
+    await expect(basket).not.toContainText("£0.00 in the basket");
+    await sent();
+    await page.reload();
+    await expect(
+      page.getByRole("region", { name: "Sunday's shop" }).locator("li button[aria-pressed]").first(),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // Not found: the item leaves Sunday's list for Wednesday's, and stays there after a reload.
+    const line = sunday
+      .locator("li")
+      .filter({ has: page.locator('button[aria-pressed="false"]') })
+      .first();
+    const name = (await line.locator("button[aria-pressed] span.block").first().innerText()).split(" × ")[0].trim();
+    await line.getByRole("button", { name: `${name} not found` }).click();
+    const gone = sunday.getByRole("region", { name: "Not found" });
+    await expect(gone.getByText(name)).toBeVisible();
+    await expect(gone.getByText("Moved to Wednesday's shop")).toBeVisible();
+    await sent();
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Wednesday's shop" }).getByText(name).first()).toBeVisible();
+    await expect(sunday.getByRole("region", { name: "Not found" }).getByText(name)).toBeVisible();
+
+    // Back as it was: found after all, and nothing ticked.
+    await sunday.getByRole("button", { name: `Found ${name} after all` }).click();
+    await expect(sunday.getByRole("region", { name: "Not found" })).toHaveCount(0);
+    const ticked = sunday.locator('li button[aria-pressed="true"]');
+    while ((await ticked.count()) > 0) await ticked.first().click();
+    await sent();
+  });
 });
 
 test.describe("errors page", () => {
