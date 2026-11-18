@@ -30,3 +30,14 @@ export async function forgetBank() {
   await requireOwner();
   return ops.forgetBank();
 }
+
+export async function registerSyncKey() {
+  await requireOwner();
+  return ops.registerSyncKey();
+}
+
+export async function uploadStatement(account: number, text: string) {
+  await requireOwner();
+  if (!Number.isInteger(account) || typeof text !== "string") return { error: "Pick an account and a file." };
+  return ops.uploadStatement(account, text);
+}

@@ -42,6 +42,16 @@ export function lunchflowKey(): string | null {
   return process.env.LUNCHFLOW_API_KEY?.trim() || null;
 }
 
+/** The secret Vercel Cron sends with each scheduled call ("Bearer <secret>"). */
+export function cronSecret(): string | null {
+  return process.env.CRON_SECRET?.trim() || null;
+}
+
+/** The key the scheduled bank sync proves itself with; the database holds only its hash. */
+export function moneySyncKey(): string | null {
+  return process.env.MONEY_SYNC_KEY?.trim() || null;
+}
+
 /** Lunch Flow's Personal API, or the end-to-end suite's fake one. */
 export function lunchflowBase(): string {
   return process.env.LUNCHFLOW_BASE_URL?.trim().replace(/\/$/, "") || "https://lunchflow.app/api/v1";

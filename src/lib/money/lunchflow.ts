@@ -1,5 +1,6 @@
 import "server-only";
 import { lunchflowBase, lunchflowKey } from "../config/env";
+import { feedRows } from "./feed";
 import { accountChoices, balanceOf, BankError, type AccountChoice } from "./map";
 
 // Lunch Flow's Personal API: read only, with one key that lives in Vercel. It reads
@@ -43,4 +44,13 @@ export async function listAccounts(): Promise<AccountChoice[]> {
 /** One account's balance, in pence. */
 export async function fetchBalance(uid: string): Promise<{ kind: "available"; pence: number }> {
   return balanceOf(await get(`/accounts/${encodeURIComponent(uid)}/balance`));
+}
+
+/** One account's transactions from a day on, with the bank's raw record for exact amounts. */
+export async function fetchTransactions(
+  uid: string,
+  from: string,
+  today: string,
+): Promise<ReturnType<typeof feedRows>> {
+  return feedRows(await get(`/accounts/${encodeURIComponent(uid)}/transactions?from=${from}&include_raw=true`), today);
 }
