@@ -11,30 +11,15 @@ import { addDays } from "../dates/week.ts";
 import { INGREDIENTS } from "./ingredients.ts";
 import { verdict } from "./nutrition.ts";
 import type { CookSession, LifeProfile } from "./profile.ts";
-import { RECIPES, type Recipe } from "./recipes.ts";
+import { mainProtein, recipe, RECIPES, type Recipe } from "./recipes.ts";
 import type { Cook, Trip, WeekMode, WeekPlan } from "./planner.ts";
+import { planCombo, type ComboSession, type Kitchen } from "./combo.ts";
 
 export type Rating = { recipe: string; stars: number };
 /** When each recipe was last eaten or cooked. */
 export type LastHad = Record<string, string>;
 
 export type Ranked = { recipe: Recipe; score: number; reasons: string[] };
-
-/** The main meat, for spreading the week. */
-export function mainProtein(r: Recipe): string {
-  let best = "";
-  let most = 0;
-  for (const l of r.lines) {
-    const ing = INGREDIENTS.get(l.item);
-    if (!ing || ing.aisle !== "Meat & fish") continue;
-    const p = (ing.per100.protein * (ing.unit === "each" ? l.qty * (ing.each ?? 0) : l.qty)) / 100;
-    if (p > most) {
-      most = p;
-      best = ing.key.split("-")[0];
-    }
-  }
-  return best || "other";
-}
 
 /** Recipes this profile can cook and eat, for a meal type. */
 export function eligible(profile: LifeProfile, meal: Recipe["meal"]): Recipe[] {
@@ -188,7 +173,9 @@ export function catchUp<T extends { date: string; start: number }>(sessions: T[]
 /**
  * A whole week in one go: two mains per cook session, a breakfast batch on the
  * first session, a daily breakfast for the gaps, and the shake. Portions are left
- * at zero for sizeCooks to fill in.
+ * at zero for sizeCooks to fill in. Given the kitchen, the mains are chosen as a set
+ * that buys and wastes little (`planCombo`), and the plan says what it costs;
+ * without it, they are the menu's top picks spread out.
  */
 export function suggestWeek(
   profile: LifeProfile,
@@ -198,8 +185,64 @@ export function suggestWeek(
   spare: Record<string, number>,
   today: string,
   mode: WeekMode = "batch",
+  kitchen?: Kitchen & { cheaper?: boolean },
 ): WeekPlan {
-  if (mode === "fresh") return suggestFreshWeek(profile, start, ratings, lastHad, spare, today);
+  const plan =
+    mode === "fresh"
+      ? suggestFreshWeek(profile, start, ratings, lastHad, spare, today)
+      : suggestBatchWeek(profile, start, ratings, lastHad, spare, today);
+  if (!kitchen) return plan;
+  const ranked = rank(profile, "main", ratings, lastHad, spare, today).filter(
+    (r) => !r.recipe.tags.includes("weekend"),
+  );
+  return combine(plan, profile, ranked, today, kitchen);
+}
+
+/** The menu's picks replaced by the set planCombo chooses, in the same sessions. */
+function combine(
+  plan: WeekPlan,
+  profile: LifeProfile,
+  ranked: Ranked[],
+  today: string,
+  kitchen: Kitchen & { cheaper?: boolean },
+): WeekPlan {
+  const isMain = (c: Cook) => recipe(c.recipe)?.meal === "main";
+  const mains = plan.cooks.filter(isMain);
+  const times = catchUp(
+    sessionDates(plan.start, plan.mode === "fresh" ? profile.routine.fresh.cooks : profile.routine.cooks),
+    today,
+  );
+  const sessions: ComboSession[] = [];
+  const greedy: Recipe[][] = [];
+  for (const c of mains) {
+    let i = sessions.findIndex((s) => s.date === c.date && s.start === c.start);
+    if (i < 0) {
+      const minutes = times.find((t) => t.date === c.date && t.start === c.start)?.minutes ?? null;
+      i = sessions.push({ date: c.date, start: c.start, minutes, dishes: 0 }) - 1;
+      greedy.push([]);
+    }
+    sessions[i].dishes++;
+    greedy[i].push(recipe(c.recipe)!);
+  }
+  const rest = { ...plan, cooks: plan.cooks.filter((c) => !isMain(c)) };
+  const found = planCombo({ week: rest, sessions, ranked, greedy, kitchen, cheaper: kitchen.cheaper });
+  if (!found) return plan;
+  const { cooks, ...cost } = found.week;
+  return {
+    ...plan,
+    cooks: [...cooks, ...rest.cooks],
+    cost: { ...cost, ...(found.cheaper ? { cheaper: found.cheaper.pence + found.cheaper.waste } : {}) },
+  };
+}
+
+function suggestBatchWeek(
+  profile: LifeProfile,
+  start: string,
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+): WeekPlan {
   const mains = rank(profile, "main", ratings, lastHad, spare, today).filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
   // Each session cooks for the days until the next one. Two mains for that, but

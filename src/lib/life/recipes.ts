@@ -10,7 +10,7 @@
 // fridge, cooked rice within 1 day and reheated once, everything else frozen.
 
 import type { Form } from "./allergens.ts";
-import type { Unit } from "./ingredients.ts";
+import { INGREDIENTS, type Unit } from "./ingredients.ts";
 
 export type Meal = "breakfast" | "main" | "shake";
 export type Cuisine =
@@ -1543,4 +1543,20 @@ export const RECIPE_MAP: ReadonlyMap<string, Recipe> = new Map(R.map((r) => [r.k
 
 export function recipe(key: string): Recipe | undefined {
   return RECIPE_MAP.get(key);
+}
+
+/** The main meat, for spreading the week. */
+export function mainProtein(r: Recipe): string {
+  let best = "";
+  let most = 0;
+  for (const l of r.lines) {
+    const ing = INGREDIENTS.get(l.item);
+    if (!ing || ing.aisle !== "Meat & fish") continue;
+    const p = (ing.per100.protein * (ing.unit === "each" ? l.qty * (ing.each ?? 0) : l.qty)) / 100;
+    if (p > most) {
+      most = p;
+      best = ing.key.split("-")[0];
+    }
+  }
+  return best || "other";
 }
