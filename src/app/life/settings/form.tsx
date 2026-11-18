@@ -345,36 +345,14 @@ export function SettingsForm({
         <p className="field-label">Cook sessions (the first starts the meal week)</p>
         <ul className="space-y-2">
           {p.routine.cooks.map((c, i) => (
-            <li key={i} className="flex flex-wrap items-center gap-2">
-              <select
-                className="field-input mt-0 w-auto"
-                value={c.weekday}
-                onChange={(e) => set((d) => void (d.routine.cooks[i].weekday = Number(e.target.value)))}
-                aria-label="Day"
-              >
-                {DAYS.map((day, j) => (
-                  <option key={day} value={j}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="time"
-                className="field-input mt-0 w-auto"
-                value={time(c.start)}
-                onChange={(e) => set((d) => void (d.routine.cooks[i].start = mins(e.target.value)))}
-                aria-label="Start"
-              />
-              {p.routine.cooks.length > 1 && (
-                <button
-                  type="button"
-                  className="text-sm text-muted hover:text-coral"
-                  onClick={() => set((d) => void d.routine.cooks.splice(i, 1))}
-                >
-                  Remove
-                </button>
-              )}
-            </li>
+            <DayTime
+              key={i}
+              weekday={c.weekday}
+              start={c.start}
+              onDay={(w) => set((d) => void (d.routine.cooks[i].weekday = w))}
+              onStart={(m) => set((d) => void (d.routine.cooks[i].start = m))}
+              onRemove={p.routine.cooks.length > 1 ? () => set((d) => void d.routine.cooks.splice(i, 1)) : undefined}
+            />
           ))}
         </ul>
         {p.routine.cooks.length < 3 && (
@@ -418,6 +396,80 @@ export function SettingsForm({
             Lunch is reheated at work, so keep weekend dishes for dinner
           </Check>
         </div>
+      </Section>
+
+      <Section
+        title="Fresh weeks"
+        id="fresh"
+        hint="The other way to run a week: a short cook of one dish every couple of days and two or three small shops, so nothing waits in the freezer. Choose it when you plan a week on Meals."
+      >
+        <p className="field-label">Short cooks</p>
+        <ul className="space-y-2">
+          {p.routine.fresh.cooks.map((c, i) => (
+            <DayTime
+              key={i}
+              weekday={c.weekday}
+              start={c.start}
+              onDay={(w) => set((d) => void (d.routine.fresh.cooks[i].weekday = w))}
+              onStart={(m) => set((d) => void (d.routine.fresh.cooks[i].start = m))}
+              onRemove={
+                p.routine.fresh.cooks.length > 1 ? () => set((d) => void d.routine.fresh.cooks.splice(i, 1)) : undefined
+              }
+            >
+              <select
+                className="field-input mt-0 w-auto"
+                value={c.minutes ?? ""}
+                onChange={(e) =>
+                  set((d) => void (d.routine.fresh.cooks[i].minutes = e.target.value ? Number(e.target.value) : null))
+                }
+                aria-label="Longest it can take"
+              >
+                <option value="">Any length</option>
+                {[30, 45, 60, 90].map((n) => (
+                  <option key={n} value={n}>
+                    Up to {n} min
+                  </option>
+                ))}
+              </select>
+            </DayTime>
+          ))}
+        </ul>
+        {p.routine.fresh.cooks.length < 4 && (
+          <button
+            type="button"
+            className="text-sm text-mint"
+            onClick={() => set((d) => void d.routine.fresh.cooks.push({ weekday: 3, start: 18 * 60, minutes: 45 }))}
+          >
+            + Add a short cook
+          </button>
+        )}
+        <p className="field-label">Shops</p>
+        <ul className="space-y-2">
+          {p.routine.fresh.trips.map((t, i) => (
+            <DayTime
+              key={i}
+              weekday={t.weekday}
+              start={t.start}
+              onDay={(w) => set((d) => void (d.routine.fresh.trips[i].weekday = w))}
+              onStart={(m) => set((d) => void (d.routine.fresh.trips[i].start = m))}
+              onRemove={
+                p.routine.fresh.trips.length > 1 ? () => set((d) => void d.routine.fresh.trips.splice(i, 1)) : undefined
+              }
+            />
+          ))}
+        </ul>
+        {p.routine.fresh.trips.length < 3 && (
+          <button
+            type="button"
+            className="text-sm text-mint"
+            onClick={() => set((d) => void d.routine.fresh.trips.push({ weekday: 4, start: 17 * 60 + 15 }))}
+          >
+            + Add a shop
+          </button>
+        )}
+        <p className="text-xs text-faint">
+          Each shop buys what the days until the next one need. Shop before a cook on the same day.
+        </p>
       </Section>
 
       <Section title="Gym" id="gym">
@@ -523,6 +575,54 @@ export function SettingsForm({
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** A day of the week and a time, for cook sessions and shops. */
+function DayTime({
+  weekday,
+  start,
+  onDay,
+  onStart,
+  onRemove,
+  children,
+}: {
+  weekday: number;
+  start: number;
+  onDay: (weekday: number) => void;
+  onStart: (minutes: number) => void;
+  onRemove?: () => void;
+  children?: ReactNode;
+}) {
+  // With an extra control the row can wrap on a phone, so it sits in a box that reads as one item.
+  return (
+    <li className={`flex flex-wrap items-center gap-2 ${children ? "rounded-xl bg-white/5 p-2" : ""}`}>
+      <select
+        className="field-input mt-0 w-auto"
+        value={weekday}
+        onChange={(e) => onDay(Number(e.target.value))}
+        aria-label="Day"
+      >
+        {DAYS.map((day, j) => (
+          <option key={day} value={j}>
+            {day}
+          </option>
+        ))}
+      </select>
+      <input
+        type="time"
+        className="field-input mt-0 w-auto"
+        value={time(start)}
+        onChange={(e) => onStart(mins(e.target.value))}
+        aria-label="Start"
+      />
+      {children}
+      {onRemove && (
+        <button type="button" className="text-sm text-muted hover:text-coral" onClick={onRemove}>
+          Remove
+        </button>
+      )}
+    </li>
+  );
 }
 
 function Section({ title, hint, children, id }: { title: string; hint?: string; children: ReactNode; id?: string }) {

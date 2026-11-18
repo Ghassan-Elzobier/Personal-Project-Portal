@@ -4,12 +4,13 @@ import { requireOwner } from "@/lib/auth/access";
 import { addDays } from "@/lib/dates/week";
 import { loadLife } from "@/lib/life/load";
 import { portionMacros } from "@/lib/life/nutrition";
-import { spare, weekDays } from "@/lib/life/planner";
+import { spare, spareStaysCold, weekDays } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
   placedMacros,
   remainingNeeds,
+  tripLists,
   unlogged,
   weekView,
   type LifeState,
@@ -103,18 +104,54 @@ function alts(s: LifeState, meal: "main" | "breakfast" | "shake", weekend = fals
 
 function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
   const menu = alts(s, "main").slice(0, 6);
+  const batchCooks = s.profile.routine.cooks.length;
+  const fresh = s.profile.routine.fresh;
   return (
     <section className="space-y-5 card-life">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Plan this week in one tap</h2>
         <p className="text-sm text-body">
-          Picks two recipes for each cook session from what you like, sizes every portion to your target, and works out
-          what goes in the freezer. Swap anything afterwards.
+          Picks recipes from what you like, sizes every portion to your target, and builds the shopping. Swap anything
+          afterwards.
         </p>
       </div>
-      <ActionButton action={planWeek.bind(null, v.start)} className="btn-life w-full sm:w-auto" done="Planned.">
-        Plan {weekRange(v.start, addDays(v.start, 6))}
-      </ActionButton>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-2 rounded-xl bg-white/5 p-3">
+          <p className="font-medium">Batch week</p>
+          <p className="text-sm text-muted">
+            {batchCooks} long {batchCooks === 1 ? "cook" : "cooks"} of two dishes and one shop. Some portions go in the
+            freezer.
+          </p>
+          <ActionButton
+            action={planWeek.bind(null, v.start, "batch")}
+            className="mt-auto btn-life w-full"
+            done="Planned a batch week."
+          >
+            Plan a batch week
+          </ActionButton>
+        </div>
+        <div className="flex min-w-0 flex-col gap-2 rounded-xl bg-white/5 p-3">
+          <p className="font-medium">Fresh week</p>
+          <p className="text-sm text-muted">
+            {fresh.cooks.length} short {fresh.cooks.length === 1 ? "cook" : "cooks"} of one dish and{" "}
+            {fresh.trips.length} small {fresh.trips.length === 1 ? "shop" : "shops"}. Nothing goes in the freezer.
+          </p>
+          <ActionButton
+            action={planWeek.bind(null, v.start, "fresh")}
+            className="mt-auto btn-soft w-full"
+            done="Planned a fresh week."
+          >
+            Plan a fresh week
+          </ActionButton>
+        </div>
+      </div>
+      <p className="text-xs text-faint">
+        For {weekRange(v.start, addDays(v.start, 6))}. Change the cook and shop days in{" "}
+        <Link href="/life/settings#fresh" className="text-mint underline">
+          Settings
+        </Link>
+        .
+      </p>
       {menu.length > 0 && (
         <div className="space-y-2">
           <p className="eyebrow">Top of your menu</p>
@@ -135,6 +172,23 @@ function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
       )}
     </section>
   );
+}
+
+/** A fresh week's shopping in a line: the next shop, and the week against the budget. */
+function freshShops(s: LifeState, v: MealWeek): { title: string; detail: string } {
+  const { open, done } = tripLists(s, v);
+  const next = open.find((t) => t.lines.some((l) => l.packs > 0));
+  const spent = done.reduce((t, x) => t + (x.pence ?? 0), 0);
+  const ahead = open.reduce((t, x) => t + listTotal(x.lines).food, 0);
+  const budget = s.profile.shopping.budgetPence;
+  const week = `The week's food ${money(spent + ahead)}${budget ? ` of ${money(budget)}` : ""}`;
+  if (!next) return { title: "Shopping is in", detail: `Everything for the week is in the kitchen. ${week}.` };
+  const t = listTotal(next.lines);
+  const later = open.filter((x) => x !== next && x.lines.some((l) => l.packs > 0)).length;
+  return {
+    title: `Next shop: ${dayLabel(next.trip.date, s.today)} · ${clock(next.trip.start)}`,
+    detail: `${t.packs} ${t.packs === 1 ? "pack" : "packs"} · ${t.estimated ? "about " : ""}${money(t.pence)}${later ? ` · then ${later} more ${later === 1 ? "shop" : "shops"}` : ""} · ${week}`,
+  };
 }
 
 function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
@@ -163,6 +217,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
       minutes: r.totalMin,
       cooked: cooked.has(c.id),
       spare: left.find((x) => x.cookId === c.id)?.portions ?? 0,
+      spareCold: spareStaysCold(plan, c),
     });
   }
   const from = plan.createdOn ?? plan.start;
@@ -205,6 +260,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
     });
   const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
   const total = listTotal(lines);
+  const shops = plan.mode === "fresh" ? freshShops(s, v) : null;
   const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
   const nothing = v.placements.filter(
     (p) => p.source === "none" && p.date >= s.today && (p.slot === "lunch" || p.slot === "dinner"),
@@ -226,24 +282,31 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         href={v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next"}
         className="flex flex-wrap items-center justify-between gap-3 card-life transition hover:ring-mint/30"
       >
-        <span className="min-w-0">
-          <span className="block font-semibold">
-            {plan.shop?.deliveredOn
-              ? total.packs
-                ? "Top-ups"
-                : "Shopping is in"
-              : plan.shop?.orderedOn
-                ? "Order placed"
-                : "Shopping list"}
+        {shops ? (
+          <span className="min-w-0">
+            <span className="block font-semibold">{shops.title}</span>
+            <span className="text-sm text-body">{shops.detail}</span>
           </span>
-          <span className="text-sm text-body">
-            {plan.shop?.deliveredOn && !total.packs
-              ? "Everything for the week is in the kitchen."
-              : plan.shop?.deliveredOn
-                ? `${total.packs} ${total.packs === 1 ? "thing" : "things"} short since the delivery · ${money(total.pence)}`
-                : `${total.packs} ${total.packs === 1 ? "pack" : "packs"} · food ${total.estimated ? "about " : ""}${money(total.food)}${s.profile.shopping.budgetPence ? ` of ${money(s.profile.shopping.budgetPence)}` : ""}${total.cupboard ? ` + ${money(total.cupboard)} cupboard` : ""}`}
+        ) : (
+          <span className="min-w-0">
+            <span className="block font-semibold">
+              {plan.shop?.deliveredOn
+                ? total.packs
+                  ? "Top-ups"
+                  : "Shopping is in"
+                : plan.shop?.orderedOn
+                  ? "Order placed"
+                  : "Shopping list"}
+            </span>
+            <span className="text-sm text-body">
+              {plan.shop?.deliveredOn && !total.packs
+                ? "Everything for the week is in the kitchen."
+                : plan.shop?.deliveredOn
+                  ? `${total.packs} ${total.packs === 1 ? "thing" : "things"} short since the delivery · ${money(total.pence)}`
+                  : `${total.packs} ${total.packs === 1 ? "pack" : "packs"} · food ${total.estimated ? "about " : ""}${money(total.food)}${s.profile.shopping.budgetPence ? ` of ${money(s.profile.shopping.budgetPence)}` : ""}${total.cupboard ? ` + ${money(total.cupboard)} cupboard` : ""}`}
+            </span>
           </span>
-        </span>
+        )}
         <span className="text-sm text-mint">Open the list →</span>
       </Link>
       <WeekView
@@ -260,6 +323,8 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           fresh: alts(s, "main", true),
         }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
+        mode={plan.mode ?? "batch"}
+        shops={plan.trips?.length ?? 0}
       />
       <p className="text-sm text-muted">
         Your meals, cooking and gym are on the{" "}
