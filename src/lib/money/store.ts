@@ -4,6 +4,7 @@ import { rpcAsCaller } from "../supabase/caller";
 import { createClient } from "../supabase/server";
 import type { TxnRow } from "./feed";
 import type { AccountChoice } from "./map";
+import type { Adoption, BillAlert } from "./recurring";
 import type { StatementRow } from "./statement";
 
 // The Money tables, through their RPCs (supabase/migrations/*_money_*.sql). Owner
@@ -71,6 +72,12 @@ export const claudePlan = (changes: Record<string, unknown>) =>
   });
 
 export const readMoney = () => owner<unknown>("money_read");
+/** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
+export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
+  owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
+/** Claude at setup: name, sort, ignore or take back bills. */
+export const claudeBills = (changes: Record<string, unknown>[]) =>
+  claude<number>("money_claude_bills", { p_changes: changes });
 export const readTransactions = (since: string) => owner<unknown[]>("money_transactions", { p_since: since });
 export const connect = (accounts: AccountChoice[]) => owner<number[]>("money_connect", { p_accounts: accounts });
 export const disconnect = () => owner<void>("money_disconnect");
@@ -114,3 +121,11 @@ export const ingestTransactions = (run: number, account: number, booked: TxnRow[
   );
 export const syncEnd = (run: number, outcome: SyncOutcome, code: string | null, key?: string) =>
   writer<void>("money_sync_end", { p_run: run, p_outcome: outcome, p_error_code: code }, key);
+
+/** The engine (engine.ts): payments to find bills in, and the bills as they stand. */
+export const engineRead = (since: string, key?: string) =>
+  writer<unknown>("money_engine_read", { p_since: since }, key);
+export const adoptBills = (bills: Adoption[], key?: string) =>
+  writer<number>("money_adopt_bills", { p_bills: bills }, key);
+export const raiseAlerts = (alerts: BillAlert[], key?: string) =>
+  writer<number>("money_raise_alerts", { p_alerts: alerts }, key);

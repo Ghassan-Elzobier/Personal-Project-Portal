@@ -64,7 +64,31 @@ export type Alert = {
   kind: string;
   raisedAt: string;
   payment: { madeOn: string; pence: number; name: string } | null;
+  /** What the engine noted: a bill's name, its old and new amount, the day it was due. */
+  detail: Record<string, unknown>;
 };
+
+const shortDay = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+
+/** What an alert says, in a sentence. */
+export function alertText(a: Alert): string {
+  const d = a.detail;
+  const name = typeof d.name === "string" && d.name ? d.name : "A bill";
+  const pence = (v: unknown) => pounds(Number(v));
+  if (a.kind === "watched" && a.payment)
+    return `${a.payment.name}: ${pounds(a.payment.pence)} on ${shortDay(a.payment.madeOn)}. A merchant you're watching.`;
+  if (a.kind === "price-rise" && typeof d.on === "string")
+    return `${name} went up from ${pence(d.from_pence)} to ${pence(d.to_pence)} on ${shortDay(d.on)}. Money counts the new amount from now on.`;
+  if (a.kind === "missed-bill" && typeof d.due === "string")
+    return `${name}: ${pence(d.pence)} was due on ${shortDay(d.due)} and hasn't gone out. If it's cancelled, ignore it under Bills.`;
+  return "Something in Money needs a look.";
+}
 
 export type Txn = {
   id: number;
@@ -150,6 +174,7 @@ export function parseMoney(raw: unknown): MoneyState {
         kind: str(a.kind) ?? "",
         raisedAt: str(a.raised_at) ?? "",
         payment: p ? { madeOn: str(p.made_on) ?? "", pence: Number(p.pence), name: str(p.name) ?? "" } : null,
+        detail: a.detail && typeof a.detail === "object" ? (a.detail as Row) : {},
       };
     }),
   };

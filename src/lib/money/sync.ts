@@ -2,6 +2,7 @@ import "server-only";
 import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
+import { runEngine } from "./engine";
 import { syncFrom } from "./feed";
 import { fetchBalance, fetchTransactions } from "./lunchflow";
 import { BankError } from "./map";
@@ -23,8 +24,8 @@ export async function syncBank(trigger: "schedule" | "owner" | "connect", key?: 
   const begun = await store.syncBegin(trigger, key);
   if (!begun) return { ran: false };
   const today = dateIn(now(), timeZone());
+  let booked = 0;
   try {
-    let booked = 0;
     for (const account of begun.accounts) {
       const balance = await fetchBalance(account.uid);
       await store.ingest(begun.run, account.id, [balance], key);
@@ -32,12 +33,27 @@ export async function syncBank(trigger: "schedule" | "owner" | "connect", key?: 
       booked += await store.ingestTransactions(begun.run, account.id, rows.booked, rows.pending, key);
     }
     await store.syncEnd(begun.run, "ok", null, key);
-    return { ran: true, outcome: "ok", booked };
   } catch (e) {
     const code = e instanceof BankError ? e.code : "UNEXPECTED";
     const outcome = code === "HTTP_429" ? "rate-limited" : "failed";
     await store.syncEnd(begun.run, outcome, code, key).catch(() => undefined);
     if (!(e instanceof BankError)) throw e;
     return { ran: true, outcome, code };
+  }
+  await autopilot(today, key);
+  return { ran: true, outcome: "ok", booked };
+}
+
+/**
+ * The budget's engine, once the sync has closed. A database refusal leaves the sync a
+ * success (it is logged, and the engine runs again at the next sync); anything
+ * unexpected is passed on, so error tracking sees it.
+ */
+async function autopilot(today: string, key?: string): Promise<void> {
+  try {
+    await runEngine(today, key);
+  } catch (e) {
+    if (!(e instanceof store.MoneyStoreError)) throw e;
+    console.error("money engine", e.message);
   }
 }
