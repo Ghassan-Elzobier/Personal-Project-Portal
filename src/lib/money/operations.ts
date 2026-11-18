@@ -1,7 +1,11 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { moneySyncKey } from "../config/env";
+import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
 import { BankError, type AccountChoice } from "./map";
+import { newStatementRows, parseStatement, StatementError } from "./statement";
 import { bankMessage } from "./state";
 import * as store from "./store";
 import { syncBank } from "./sync";
@@ -26,7 +30,7 @@ async function run<T extends object>(fn: () => Promise<T>): Promise<Result<T>> {
       error:
         e instanceof BankError
           ? bankMessage(e.code)
-          : e instanceof store.MoneyStoreError
+          : e instanceof store.MoneyStoreError || e instanceof StatementError
             ? e.message
             : "That didn't work. Try again.",
     };
@@ -66,10 +70,51 @@ export function disconnectBank(): Promise<Result> {
   });
 }
 
-/** Erases every bank row: connections, accounts, balances and syncs. */
+/** Erases every bank row: connections, accounts, balances, transactions and syncs. */
 export function forgetBank(): Promise<Result> {
   return run(async () => {
     await store.forgetAll();
     return {};
+  });
+}
+
+/**
+ * Lets the scheduled sync in: registers the hash of this deployment's MONEY_SYNC_KEY,
+ * worked out here, so the key itself never leaves the server.
+ */
+export function registerSyncKey(): Promise<Result> {
+  return run(async () => {
+    const key = moneySyncKey();
+    if (!key) throw new store.MoneyStoreError("Add MONEY_SYNC_KEY in Vercel first, then redeploy.");
+    await store.setJobKey(keyHash(key), "bank-sync", "Scheduled sync");
+    return {};
+  });
+}
+
+/** Largest statement file taken, in characters (under the server action's 1 MB limit): years of rows fit. */
+const MAX_STATEMENT = 900_000;
+
+/**
+ * Adds a statement's payments to an account, leaving out any the portal already holds
+ * for the same day and amount (from the feed or an earlier statement). The same file
+ * twice is refused. The file itself is not kept.
+ */
+export function uploadStatement(account: number, text: string): Promise<Result<{ added: number; skipped: number }>> {
+  return run(async () => {
+    if (!text || text.length > MAX_STATEMENT)
+      throw new StatementError("That file is empty or too big for a statement.");
+    const { rows, from, to } = parseStatement(text);
+    const held = (
+      (await store.readTransactions(from)) as {
+        account_id: number;
+        status: string;
+        booked_on: string | null;
+        pence: number;
+      }[]
+    ).filter((t) => t.account_id === account && t.status === "booked" && t.booked_on && t.booked_on <= to);
+    const { add, skipped } = newStatementRows(rows, held);
+    const sha = createHash("sha256").update(text).digest("hex");
+    const added = await store.uploadStatement(account, sha, from, to, add, skipped);
+    return { added, skipped };
   });
 }

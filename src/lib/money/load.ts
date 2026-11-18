@@ -1,13 +1,21 @@
 import "server-only";
-import { parseMoney, type MoneyState } from "./state";
-import { MoneyStoreError, readMoney } from "./store";
+import { timeZone } from "../config/env";
+import { now } from "../dates/clock";
+import { addDays, dateIn } from "../dates/week";
+import { parseMoney, parseTransactions, type MoneyState, type Txn } from "./state";
+import { MoneyStoreError, readMoney, readTransactions } from "./store";
 
-/** The Money state, or a message saying why it could not be read. */
+/** How far back the Money page lists transactions. */
+const LIST_DAYS = 60;
+
+/** The Money state with recent transactions, or a message saying why it could not be read. */
 export async function loadMoney(): Promise<
-  { state: MoneyState; error?: undefined } | { state?: undefined; error: string }
+  { state: MoneyState; txns: Txn[]; error?: undefined } | { state?: undefined; txns?: undefined; error: string }
 > {
   try {
-    return { state: parseMoney(await readMoney()) };
+    const since = addDays(dateIn(now(), timeZone()), -LIST_DAYS);
+    const [money, txns] = await Promise.all([readMoney(), readTransactions(since)]);
+    return { state: parseMoney(money), txns: parseTransactions(txns) };
   } catch (e) {
     return { error: e instanceof MoneyStoreError ? e.message : "Money could not be read. Try again in a minute." };
   }

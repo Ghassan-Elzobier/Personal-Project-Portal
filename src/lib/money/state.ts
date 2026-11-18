@@ -24,6 +24,22 @@ export type MoneyState = {
   lastOk: string | null;
   /** Failed syncs in a row since then. */
   failures: number;
+  /** The scheduled sync's key, once registered, and when it last ran. */
+  syncKey: { createdAt: string; lastUsedAt: string | null } | null;
+};
+
+export type Txn = {
+  id: number;
+  accountId: number;
+  status: "booked" | "pending";
+  source: "lunchflow" | "statement";
+  bookedOn: string | null;
+  madeOn: string;
+  pence: number;
+  method: string;
+  description: string;
+  counterparty: string | null;
+  note: string | null;
 };
 
 type Row = Record<string, unknown>;
@@ -63,7 +79,48 @@ export function parseMoney(raw: unknown): MoneyState {
       : null,
     lastOk: str(r.last_ok),
     failures: Number(r.failures ?? 0),
+    syncKey: r.sync_key
+      ? { createdAt: str((r.sync_key as Row).created_at) ?? "", lastUsedAt: str((r.sync_key as Row).last_used_at) }
+      : null,
   };
+}
+
+export function parseTransactions(raw: unknown): Txn[] {
+  return (Array.isArray(raw) ? (raw as Row[]) : []).map((t) => ({
+    id: Number(t.id),
+    accountId: Number(t.account_id),
+    status: t.status === "pending" ? "pending" : "booked",
+    source: t.source === "statement" ? "statement" : "lunchflow",
+    bookedOn: str(t.booked_on),
+    madeOn: str(t.made_on) ?? "",
+    pence: Number(t.pence),
+    method: str(t.method) ?? "other",
+    description: str(t.description) ?? "",
+    counterparty: str(t.counterparty),
+    note: str(t.note),
+  }));
+}
+
+/** A transaction's name as you'd read it: the payee's name when the bank gives one, else its text. */
+export function txnName(t: Txn): string {
+  return t.counterparty || t.description;
+}
+
+/** Transactions by day, newest first, with pending ones first under "Pending". */
+export function byDay(txns: Txn[]): { day: string | null; txns: Txn[]; out: number; in: number }[] {
+  const groups = new Map<string | null, Txn[]>();
+  for (const t of [...txns].sort((a, b) =>
+    a.status === b.status ? b.madeOn.localeCompare(a.madeOn) || b.id - a.id : a.status === "pending" ? -1 : 1,
+  )) {
+    const key = t.status === "pending" ? null : (t.bookedOn ?? t.madeOn);
+    groups.set(key, [...(groups.get(key) ?? []), t]);
+  }
+  return [...groups].map(([day, list]) => ({
+    day,
+    txns: list,
+    out: list.filter((t) => t.pence < 0).reduce((s, t) => s - t.pence, 0),
+    in: list.filter((t) => t.pence > 0).reduce((s, t) => s + t.pence, 0),
+  }));
 }
 
 /** "£3,185.60", and "−£42.05" for money owed. */

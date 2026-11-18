@@ -192,7 +192,17 @@ portal can move money.
    only, marked **sensitive**. Then redeploy. The key never goes in the database,
    the repo or the browser.
 3. Open **Money** (under More in Life) and tap **Connect Lunch Flow**. Pick the
-   account; the balance comes in at once.
+   account; the balance and up to 15 months of payments come in at once.
+4. For the sync to run on its own four times a day (`vercel.json`), add two more
+   in Vercel, each any long random text (`openssl rand -hex 32`): `CRON_SECRET`
+   (Vercel Cron sends it with each call) and `MONEY_SYNC_KEY` (the sync's key to
+   the database). Redeploy, then tap **Register** under Bank connection on Money;
+   the database keeps only the key's hash.
+
+**Statements.** For days the feed missed, download a statement as CSV from your
+internet banking and add it on Money (**Add a statement**). Payments the portal
+already has for the same day and amount are left out, and the same file twice is
+refused. The file is not kept.
 
 The portal keeps an account's type and the last 4 digits of its number, never
 the full number, sort code or the holder's name. **Erase all bank data** on the

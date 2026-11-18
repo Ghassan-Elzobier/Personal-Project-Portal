@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// The connector endpoints check their own bearer tokens; the browser session
-// does not apply to them.
-const CONNECTOR_PATHS = ["/api/mcp", "/api/oauth/", "/.well-known/"];
+// The connector endpoints and the scheduled bank sync check their own bearer
+// tokens; the browser session does not apply to them.
+const CONNECTOR_PATHS = ["/api/mcp", "/api/oauth/", "/.well-known/", "/api/money/sync"];
 const PUBLIC_PATHS = ["/login", "/auth/", "/manifest.webmanifest", ...CONNECTOR_PATHS];
 
 /** Refreshes the Supabase session cookie and sends signed-out visitors to /login. */
