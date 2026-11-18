@@ -23,6 +23,7 @@ const DOMAINS = [
   "lab",
   "library",
   "life",
+  "money",
   "study",
   "tasks",
   "tutor",

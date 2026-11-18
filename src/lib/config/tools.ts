@@ -32,6 +32,7 @@ export type Tool = {
     | "kitchen"
     | "body"
     | "recipes"
+    | "money"
     | "life-settings";
   title: string;
   href: string;
@@ -245,6 +246,15 @@ export const TOOLS: readonly Tool[] = [
     title: "Recipes",
     href: "/life/recipes",
     description: "Every recipe, with your food rules applied and your ratings.",
+    roles: ["owner"],
+    space: "life",
+    group: "more",
+  },
+  {
+    key: "money",
+    title: "Money",
+    href: "/life/money",
+    description: "Your bank balance from Lunch Flow, kept fresh through the day.",
     roles: ["owner"],
     space: "life",
     group: "more",
