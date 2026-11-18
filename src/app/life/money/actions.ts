@@ -72,6 +72,11 @@ export async function cancelPlanned(id: number) {
   return ops.cancelPlanned(id);
 }
 
+export async function setBill(id: number, status: "active" | "ignored") {
+  await requireOwner();
+  return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);

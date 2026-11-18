@@ -590,4 +590,44 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("Money finds a bill in the payments by itself, and one ignored stays ignored after a reload", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    const feed = (list: object[]) => request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: list });
+    // Three monthly payments to a made-up streaming service: a bill nobody had to set up.
+    await feed([
+      { id: "b1", date: "2026-09-10", pence: -1299, text: "EXAMPLE STREAMING" },
+      { id: "b2", date: "2026-10-10", pence: -1299, text: "EXAMPLE STREAMING" },
+      { id: "b3", date: "2026-11-10", pence: -1299, text: "EXAMPLE STREAMING" },
+    ]);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+
+    const bills = page.getByRole("region", { name: "Bills" });
+    await expect(bills.getByText("£12.99 a month · next 10 Dec")).toBeVisible();
+    await page.reload();
+    await expect(bills.getByText("£12.99 a month · next 10 Dec")).toBeVisible();
+
+    await bills.getByRole("button", { name: "Ignore EXAMPLE STREAMING" }).click();
+    await expect(bills.getByText(/^None found yet/)).toBeVisible();
+    await expect(bills.getByText("Ignored (1)")).toBeVisible();
+    await page.reload();
+    await expect(bills.getByText(/^None found yet/)).toBeVisible();
+
+    // The next sync finds it again, and leaves it ignored.
+    await page.getByRole("region", { name: "Balance" }).getByRole("button", { name: "Refresh" }).click();
+    await expect(page.getByText("Up to date.")).toBeVisible();
+    await page.reload();
+    await expect(bills.getByText("Ignored (1)")).toBeVisible();
+    await expect(bills.getByText(/^None found yet/)).toBeVisible();
+
+    // Back as it was.
+    await feed([]);
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

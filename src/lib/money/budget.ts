@@ -16,6 +16,7 @@
 // overspending last week comes off this week, so the month still balances.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
+import { dueUntil, parseBill, type Bill } from "./recurring.ts";
 
 /** Bank holidays in England and Wales (GOV.UK), for moving a payday off them. */
 export const BANK_HOLIDAYS = new Set([
@@ -117,6 +118,8 @@ export type BudgetData = {
   unsortedLastWeek: number;
   /** Planned purchases not paid yet: one-offs due before payday, and spread ones by the week. */
   planned?: Planned[];
+  /** Regular payments Money found (recurring.ts): the active ones count on their own days. */
+  bills?: Bill[];
 };
 
 export type Planned = {
@@ -221,8 +224,8 @@ export type BudgetView = {
   daysToPayday: number;
   weeksToPayday: number;
   balance: number | null;
-  /** Each fixed cost still to pay before payday. */
-  stillToPay: { key: string; name: string; pence: number }[];
+  /** Each fixed cost still to pay before payday: a bill with its next day, or a category's monthly estimate. */
+  stillToPay: { key: string; name: string; pence: number; on?: string }[];
   buffer: number;
   /** One-off planned purchases due before payday. */
   plannedBefore: number;
@@ -245,10 +248,31 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   const days = Math.round((Date.parse(`${payday}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   const weeks = Math.max(1, days / 7);
   const months = monthsTo(today, payday);
-  const stillToPay = data.categories
-    .filter((c) => FIXED.has(c.kind) && (c.budgetPence ?? 0) > 0)
-    .map((c) => ({ key: c.key, name: c.name, pence: Math.max(0, c.budgetPence! * months - c.paidMonth) }))
-    .filter((c) => c.pence > 0);
+  // A bill Money found counts on each of its days up to payday. A category with such a
+  // bill leaves its monthly estimate out, so nothing is counted twice; the others count
+  // their budget for each month the window touches, less what's gone out this month.
+  const bills = (data.bills ?? []).filter((b) => b.status === "active");
+  const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
+  const named = new Map(data.categories.map((c) => [c.key, c.name]));
+  const fromBills = bills
+    .map((b) => {
+      const due = dueUntil(b, today, payday);
+      return {
+        key: `bill-${b.id}`,
+        name: b.name ?? (b.category ? named.get(b.category) : undefined) ?? "A bill",
+        pence: due.length * b.expectedPence,
+        on: due[0],
+      };
+    })
+    .filter((c) => c.pence > 0)
+    .sort((a, b) => a.on.localeCompare(b.on));
+  const stillToPay = [
+    ...fromBills,
+    ...data.categories
+      .filter((c) => FIXED.has(c.kind) && (c.budgetPence ?? 0) > 0 && !billed.has(c.key))
+      .map((c) => ({ key: c.key, name: c.name, pence: Math.max(0, c.budgetPence! * months - c.paidMonth) }))
+      .filter((c) => c.pence > 0),
+  ];
   const buffer = !data.bufferFrom || data.bufferFrom <= today ? data.bufferPence : 0;
   // Planned purchases: a one-off due before payday is spoken for now; one paid from the
   // weekly amount also comes off its week; a spread one takes a share off each of its weeks.
@@ -332,6 +356,7 @@ export function parseBudget(raw: unknown): BudgetData {
     unsortedWeek: num(r.unsorted_week) ?? 0,
     unsortedLastWeek: num(r.unsorted_last_week) ?? 0,
     planned,
+    bills: (Array.isArray(r.bills) ? (r.bills as Row[]) : []).map(parseBill),
   };
 }
 

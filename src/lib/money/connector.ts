@@ -3,6 +3,7 @@ import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { afford, budgetView, mondayOf, monthStart, parseBudget } from "./budget";
+import { nextDue } from "./recurring";
 import * as store from "./store";
 
 // Money tools for the Claude connector: setting up the budget from the owner's real
@@ -59,7 +60,19 @@ async function summary() {
       planned_pence: view.week.spread,
       left_pence: view.week.left,
     },
-    still_to_pay_before_payday: view.stillToPay.map((c) => ({ category: c.key, pence: c.pence })),
+    still_to_pay_before_payday: view.stillToPay.map((c) => ({ item: c.key, name: c.name, pence: c.pence, next: c.on })),
+    bills: (data.bills ?? [])
+      .filter((b) => b.status === "active")
+      .map((b) => ({
+        id: b.id,
+        name: b.name ?? undefined,
+        category: b.category,
+        cadence: b.cadence,
+        expected_pence: b.expectedPence,
+        variable: b.variable,
+        next_due: nextDue(b, today),
+        last_paid_on: b.lastPaidOn,
+      })),
     buffer_pence: view.buffer,
     planned_before_payday_pence: view.plannedBefore,
     month_by_category: data.categories
@@ -118,7 +131,7 @@ export const MONEY_TOOLS: Tool[] = [
     name: "get_money_summary",
     title: "Money: this week, safe-to-spend and the month",
     description:
-      "How the owner's money stands now: the balance, the next payday, safe-to-spend (balance less fixed costs still to pay before payday, planned purchases and the buffer), what that allows a week until payday against the weekly amount they planned (on_track), this week's amount left (Monday to Sunday), and this month by category against budget. Amounts are pence. Totals only. Needs Claude's access at summary or above.",
+      "How the owner's money stands now: the balance, the next payday, safe-to-spend (balance less fixed costs still to pay before payday, planned purchases and the buffer), what that allows a week until payday against the weekly amount they planned (on_track), this week's amount left (Monday to Sunday), this month by category against budget, and the regular bills Money found by itself with their next day (named only at setup). Amounts are pence. Totals only. Needs Claude's access at summary or above.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     run: (_args, { base }) => attempt(async () => ok({ ...(await summary()), page: `${base}/life/money` })),
@@ -184,6 +197,23 @@ export const MONEY_TOOLS: Tool[] = [
           },
         },
         remove_rules: { type: "array", maxItems: 60, items: { type: "integer" } },
+        bills: {
+          type: "array",
+          maxItems: 100,
+          description:
+            "Bills Money found by itself (ids from get_money_summary): name one, sort it into a category, or set status 'ignored' when it isn't a bill ('active' takes it back).",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              name: { type: "string", minLength: 1, maxLength: 60 },
+              category: { type: "string", pattern: "^[a-z0-9-]{1,40}$" },
+              status: { type: "string", enum: ["active", "ignored"] },
+            },
+            required: ["id"],
+            additionalProperties: false,
+          },
+        },
         settings: {
           type: "object",
           properties: {
@@ -201,11 +231,13 @@ export const MONEY_TOOLS: Tool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     run: (args, { base }) =>
       attempt(async () => {
-        const changed = await store.claudePlan(args);
-        return ok({ changed, page: `${base}/life/money` });
+        const { bills, ...plan } = args;
+        const changed = Object.keys(plan).length ? await store.claudePlan(plan) : undefined;
+        const billsChanged = Array.isArray(bills) ? await store.claudeBills(bills as Json[]) : undefined;
+        return ok({ changed, bills_changed: billsChanged, page: `${base}/life/money` });
       }),
   },
 ];
 
 export const MONEY_INSTRUCTIONS =
-  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
+  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";

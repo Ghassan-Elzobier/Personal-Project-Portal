@@ -131,6 +131,14 @@ export function setCategory(txn: number, category: number | null, always: boolea
   });
 }
 
+/** Ignores a bill Money found (it stops counting and is never found again), or takes it back. */
+export function setBill(id: number, status: "active" | "ignored"): Promise<Result> {
+  return run(async () => {
+    await store.setBill(id, status);
+    return {};
+  });
+}
+
 export function dismissAlert(id: number): Promise<Result> {
   return run(async () => {
     await store.dismissAlert(id);

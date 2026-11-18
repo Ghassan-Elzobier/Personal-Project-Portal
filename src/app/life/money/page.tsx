@@ -3,11 +3,12 @@ import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
-import { dateIn } from "@/lib/dates/week";
+import { addDays, dateIn } from "@/lib/dates/week";
 import type { BudgetData, BudgetView } from "@/lib/money/budget";
 import { loadMoney } from "@/lib/money/load";
 import { lunchflowReady } from "@/lib/money/lunchflow";
-import { ago, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
+import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
+import { ago, alertText, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
 import { Empty, ErrorNote } from "@/components/ui";
 import { ActionButton } from "../kit";
 import { LifeHeader } from "../parts";
@@ -18,6 +19,7 @@ import {
   forgetBank,
   refreshBank,
   registerSyncKey,
+  setBill,
   setClaudeAccess,
 } from "./actions";
 import { ConnectBank } from "./connect";
@@ -73,6 +75,7 @@ export default async function MoneyPage() {
       {s.alerts.length > 0 && <Alerts s={s} />}
       {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
+      {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
@@ -136,7 +139,7 @@ function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
             </div>
             {v.stillToPay.map((c) => (
               <div key={c.key} className="flex justify-between gap-3 text-muted">
-                <dt>{c.name}, still to pay</dt>
+                <dt className="min-w-0 truncate">{c.on ? `${c.name}, ${longDay(c.on)}` : `${c.name}, still to pay`}</dt>
                 <dd>−{pounds(c.pence)}</dd>
               </div>
             ))}
@@ -164,8 +167,8 @@ function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
             </div>
           </dl>
           <p className="mt-2 text-xs text-faint">
-            Still to pay is each monthly bill and savings budget for the months up to payday, less what has gone out
-            this month. Today is {longDay(today)}.
+            Bills Money found count on their own days up to payday. Any other bill or savings budget counts for each
+            month up to payday, less what has gone out this month. Today is {longDay(today)}.
           </p>
         </details>
       )}
@@ -226,6 +229,93 @@ function PlannedPurchases({ budget, today }: { budget: BudgetData; today: string
   );
 }
 
+const PER: Record<Bill["cadence"], string> = { weekly: "a week", monthly: "a month", yearly: "a year" };
+/** "8 Dec": short enough for a bill's line at 360 px. */
+const dayMonth = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** The regular payments Money found by itself, next one first. One that isn't a bill can be ignored. */
+function Bills({ bills, today }: { bills: Bill[]; today: string }) {
+  const active = bills
+    .filter((b) => b.status === "active")
+    .map((b) => ({ b, due: nextDue(b, today) }))
+    .sort((x, y) => x.due.localeCompare(y.due));
+  const ignored = bills.filter((b) => b.status === "ignored");
+  const yearly = active.reduce((s, { b }) => s + yearlyPence(b), 0);
+  const recent = addDays(today, -14);
+  return (
+    <section aria-labelledby="bills-title" className="space-y-3 card-life">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="bills-title" className="font-semibold">
+          Bills
+        </h2>
+        {active.length > 0 && (
+          <p className="text-sm text-muted tabular-nums">
+            {pounds(Math.round(yearly / 12))} a month · {pounds(yearly)} a year
+          </p>
+        )}
+      </div>
+      {active.length === 0 ? (
+        <p className="text-sm text-muted">
+          None found yet. After each sync, Money looks for payments that repeat on a steady day, three times or more,
+          and lists them here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+          {active.map(({ b, due }) => (
+            <li key={b.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block truncate text-sm">{b.name}</span>
+                <span className="block text-xs text-body tabular-nums">
+                  {b.variable && "about "}
+                  {pounds(b.expectedPence)} {PER[b.cadence]} ·{" "}
+                  {due < today ? `due ${dayMonth(due)}, late` : `next ${dayMonth(due)}`}
+                </span>
+                <span className="block text-xs text-muted">
+                  {b.lastPaidOn ? `Paid ${dayMonth(b.lastPaidOn)}` : "Not paid yet"}
+                  {b.addedBy === "engine" && b.createdAt.slice(0, 10) >= recent && " · found for you"}
+                </span>
+              </span>
+              <ActionButton
+                action={setBill.bind(null, b.id, "ignored")}
+                className="btn-soft shrink-0 px-3 py-1.5 text-xs"
+                done="Ignored."
+                label={`Ignore ${b.name}`}
+              >
+                Ignore
+              </ActionButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ignored.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">Ignored ({ignored.length})</summary>
+          <ul className="mt-2 divide-y divide-white/5 rounded-xl bg-white/5">
+            {ignored.map((b) => (
+              <li key={b.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
+                <span className="min-w-0 truncate text-muted">{b.name}</span>
+                <ActionButton
+                  action={setBill.bind(null, b.id, "active")}
+                  className="btn-soft shrink-0 px-3 py-1.5 text-xs"
+                  done="Counting it again."
+                  label={`Take back ${b.name}`}
+                >
+                  Take back
+                </ActionButton>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="text-xs text-faint">
+        Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
+        Ignore one that isn&apos;t a bill and it won&apos;t be found again.
+      </p>
+    </section>
+  );
+}
+
 function Plan({ budget }: { budget: BudgetData }) {
   const values = {
     allowance: budget.allowancePence === null ? "" : String(budget.allowancePence / 100),
@@ -256,11 +346,7 @@ function Alerts({ s }: { s: MoneyState }) {
           key={a.id}
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-sand/10 p-3 text-sm text-sand ring-1 ring-sand/30"
         >
-          <p className="min-w-0">
-            {a.payment
-              ? `${a.payment.name}: ${pounds(a.payment.pence)} on ${new Date(`${a.payment.madeOn}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}. A merchant you're watching.`
-              : "Something in Money needs a look."}
-          </p>
+          <p className="min-w-0">{alertText(a)}</p>
           <ActionButton
             action={dismissAlert.bind(null, a.id)}
             className="btn-soft px-3 py-1.5 text-xs"
