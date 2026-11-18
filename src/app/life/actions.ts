@@ -131,6 +131,11 @@ export async function confirmTrip(start: string, tripId: string, got: string[]) 
   return ops.confirmTrip(start, tripId, got);
 }
 
+export async function tickShop(start: string, tripId: string | null, ticked: string[], missing: string[]) {
+  await requireOwner();
+  return ops.tickShop(start, tripId, ticked, missing);
+}
+
 export async function undoTrip(start: string, tripId: string) {
   await requireOwner();
   return ops.undoTrip(start, tripId);

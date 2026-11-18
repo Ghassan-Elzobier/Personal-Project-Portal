@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NO_RULES, type FoodRules } from "./allergens.ts";
 import { isSainsburysProduct, packFromSlug } from "./ingredients.ts";
-import { buildList, cookUse, delivery, listTotal, soonToUse, splitTrips, type Need } from "./shopping.ts";
+import { buildList, carryMissing, cookUse, delivery, listTotal, soonToUse, splitTrips, type Need } from "./shopping.ts";
 
 const rules: FoodRules = {
   ...NO_RULES,
@@ -237,4 +237,54 @@ test("your product's pack size decides whether one pack covers two cooks", () =>
   // With the typical 240 g bag it takes two packs either way, so each is bought nearer its use.
   const typical = splitTrips([need("spinach", ["2026-11-16", 200], ["2026-11-19", 200])], TRIPS, [], []);
   assert.equal(onTrip(typical, "wed", "spinach")?.qty, 200);
+});
+
+test("what a shop didn't have moves to the next shop, merged with what that one buys", () => {
+  const split = splitTrips(
+    [need("spinach", ["2026-11-16", 100], ["2026-11-20", 100]), need("pepper", ["2026-11-16", 1])],
+    TRIPS,
+    [],
+    [],
+  );
+  const r = carryMissing(split.trips, { sun: ["spinach"] });
+  const sun = r.trips.find((t) => t.id === "sun")!;
+  const wed = r.trips.find((t) => t.id === "wed")!;
+  assert.equal(
+    sun.needs.find((n) => n.item === "spinach"),
+    undefined,
+  );
+  assert.equal(wed.needs.find((n) => n.item === "spinach")?.qty, 200);
+  // Monday's share is now wanted before Wednesday's shop.
+  assert.deepEqual(wed.early, ["spinach"]);
+  assert.deepEqual(
+    r.moved.map((m) => [m.from, m.to, m.need.item]),
+    [["sun", "wed", "spinach"]],
+  );
+  // Nothing else moves.
+  assert.ok(sun.needs.some((n) => n.item === "pepper"));
+});
+
+test("with no shop after, a missing item has nowhere to go; missing twice, it moves twice", () => {
+  const split = splitTrips([need("chicken-thigh", ["2026-11-20", 800])], TRIPS, [], []);
+  const last = carryMissing(split.trips, { wed: ["chicken-thigh"] });
+  assert.deepEqual(
+    last.moved.map((m) => [m.from, m.to]),
+    [["wed", null]],
+  );
+  assert.equal(last.trips.find((t) => t.id === "wed")!.needs.length, 0);
+
+  const three = [...TRIPS, { id: "fri", date: "2026-11-20" }];
+  const s3 = splitTrips([need("chicken-thigh", ["2026-11-21", 800])], three, [], []);
+  // Saturday's chicken is bought on Friday; say Friday had none, then: nowhere.
+  assert.equal(s3.trips.find((t) => t.id === "fri")!.needs[0]?.item, "chicken-thigh");
+  const early = splitTrips([need("onion", ["2026-11-16", 2])], three, [], []);
+  const twice = carryMissing(early.trips, { sun: ["onion"], wed: ["onion"] });
+  assert.deepEqual(
+    twice.moved.map((m) => [m.from, m.to]),
+    [
+      ["sun", "wed"],
+      ["wed", "fri"],
+    ],
+  );
+  assert.equal(twice.trips.find((t) => t.id === "fri")!.needs[0]?.qty, 2);
 });
