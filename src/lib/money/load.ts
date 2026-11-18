@@ -3,13 +3,21 @@ import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { addDays, dateIn } from "../dates/week";
 import { budgetView, mondayOf, monthStart, parseBudget, type BudgetData, type BudgetView } from "./budget";
+import { forecast, type Forecast } from "./forecast";
 import { parseMoney, parseTransactions, type MoneyState, type Txn } from "./state";
 import { MoneyStoreError, readBudget, readMoney, readTransactions } from "./store";
 
 /** How far back the Money page lists transactions. */
 const LIST_DAYS = 60;
 
-export type MoneyPage = { state: MoneyState; txns: Txn[]; budget: BudgetData; view: BudgetView; today: string };
+export type MoneyPage = {
+  state: MoneyState;
+  txns: Txn[];
+  budget: BudgetData;
+  view: BudgetView;
+  forecast: Forecast | null;
+  today: string;
+};
 
 /** The Money state with recent transactions and the budget, or a message saying why it could not be read. */
 export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) | { error: string }> {
@@ -26,6 +34,7 @@ export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) |
       txns: parseTransactions(txns),
       budget: data,
       view: budgetView(data, today),
+      forecast: forecast(data, today),
       today,
     };
   } catch (e) {

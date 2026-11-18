@@ -72,6 +72,13 @@ export const claudePlan = (changes: Record<string, unknown>) =>
   });
 
 export const readMoney = () => owner<unknown>("money_read");
+/** A pay step: take-home on each payday from a day on. */
+export const saveIncome = (step: { from_on: string; pence: number; gross_year_pence: number | null }) =>
+  owner<number>("money_save_income", { p: step });
+export const removeIncome = (id: number) => owner<void>("money_remove_income", { p_id: id });
+/** Claude at the plan level sets the high-level plan (the pay steps, for now). */
+export const claudeSetPlan = (plan: Record<string, unknown>) =>
+  claude<Record<string, number>>("money_claude_set_plan", { p: plan });
 /** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
 export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
   owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
@@ -127,5 +134,6 @@ export const engineRead = (since: string, key?: string) =>
   writer<unknown>("money_engine_read", { p_since: since }, key);
 export const adoptBills = (bills: Adoption[], key?: string) =>
   writer<number>("money_adopt_bills", { p_bills: bills }, key);
+export const markPay = (txn: number, key?: string) => writer<void>("money_mark_pay", { p_txn: txn }, key);
 export const raiseAlerts = (alerts: BillAlert[], key?: string) =>
   writer<number>("money_raise_alerts", { p_alerts: alerts }, key);

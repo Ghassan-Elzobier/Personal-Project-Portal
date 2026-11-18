@@ -3,7 +3,9 @@ import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { afford, budgetView, mondayOf, monthStart, parseBudget } from "./budget";
+import { forecast, whatIf } from "./forecast";
 import { nextDue } from "./recurring";
+import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
 import * as store from "./store";
 
 // Money tools for the Claude connector: setting up the budget from the owner's real
@@ -81,7 +83,176 @@ async function summary() {
   };
 }
 
+/** The budget read with today's date, for the forecast tools. */
+async function budgetNow() {
+  const today = dateIn(now(), timeZone());
+  return { today, data: parseBudget(await store.readBudget(monthStart(today), mondayOf(today))) };
+}
+
+const DATE = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
+const LOAN = { type: "string", enum: Object.keys(LOANS) };
+const PENSION_KIND = { type: "string", enum: ["net-pay", "salary-sacrifice", "relief-at-source"] };
+
+/** Take-home a month from what Claude was given: typed, or worked out from a gross salary. */
+function payFrom(a: Json): { pence: number; grossYearPence: number | null } | null {
+  if (typeof a.take_home_pence === "number") return { pence: a.take_home_pence, grossYearPence: null };
+  if (typeof a.gross_year_pence !== "number") return null;
+  const t = takeHome({
+    grossYearPence: a.gross_year_pence,
+    loans: Array.isArray(a.student_loans) ? (a.student_loans as LoanPlan[]).filter((l) => l in LOANS) : [],
+    pensionPercent: typeof a.pension_percent === "number" ? a.pension_percent : 0,
+    pensionKind: (a.pension_kind as PensionKind) ?? "net-pay",
+  });
+  return { pence: t.monthPence, grossYearPence: a.gross_year_pence };
+}
+
+const SALARY = {
+  take_home_pence: { type: "integer", minimum: 0, maximum: 10_000_000, description: "Take-home a month." },
+  gross_year_pence: {
+    type: "integer",
+    minimum: 0,
+    maximum: 100_000_000,
+    description: "Or the salary a year: take-home is worked out (2026/27 rates, England, Wales and NI).",
+  },
+  student_loans: { type: "array", maxItems: 3, items: LOAN },
+  pension_percent: { type: "number", minimum: 0, maximum: 20 },
+  pension_kind: PENSION_KIND,
+};
+
+const FORECAST_TOOLS: Tool[] = [
+  {
+    name: "money_forecast",
+    title: "Money: the next 13 weeks",
+    description:
+      "The owner's balance forecast, day by day for 91 days, from the bills Money found (on their days), each week's amount spent through the week, planned purchases and pay on each payday. Returns the lowest point and its day, the days under the buffer, each Monday's checkpoint (the balance the week should start with if the plan holds), the paydays with their pay (0 when no pay is planned: suggest setting it with money_set_plan), the balance each week, and the next big moves. Amounts are pence. Totals only. Needs summary access.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    run: (_args, { base }) =>
+      attempt(async () => {
+        const { today, data } = await budgetNow();
+        const f = forecast(data, today);
+        if (!f) return err("Money has no balance yet: the owner connects the bank on the Money page first.");
+        return ok({
+          today,
+          lowest: f.lowest,
+          days_under_buffer: f.underBuffer.length,
+          first_day_under_buffer: f.underBuffer[0] ?? null,
+          buffer_pence: data.bufferPence,
+          buffer_from: data.bufferFrom,
+          paydays: f.paydays,
+          monday_checkpoints: f.checkpoints,
+          balance_each_week: f.points.filter((_, i) => i % 7 === 0),
+          next_moves: f.events.slice(0, 15),
+          page: `${base}/life/money`,
+        });
+      }),
+  },
+  {
+    name: "money_what_if",
+    title: "Money: what if…?",
+    description:
+      "How a change would move the owner's forecast, before they make it: a different pay (take-home, or a salary a year worked out after tax — a job offer), spending more or less each week (a cheaper commute: a negative weekly_change_pence), a new regular cost (bills: name, pence, cadence, first day), or one-offs on a day. Returns the lowest point and the balance in 13 weeks, before and after, how much each moves, the change as a month's worth, and the take-home worked out. Writes nothing. Needs summary access.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...SALARY,
+        weekly_change_pence: { type: "integer", minimum: -1_000_000, maximum: 1_000_000 },
+        bills: {
+          type: "array",
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", minLength: 1, maxLength: 60 },
+              pence: { type: "integer", minimum: 1, maximum: 10_000_000 },
+              cadence: { type: "string", enum: ["weekly", "monthly", "yearly"] },
+              first_on: DATE,
+            },
+            required: ["name", "pence", "cadence", "first_on"],
+            additionalProperties: false,
+          },
+        },
+        one_offs: {
+          type: "array",
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", minLength: 1, maxLength: 60 },
+              pence: { type: "integer", minimum: 1, maximum: 10_000_000 },
+              on: DATE,
+            },
+            required: ["name", "pence", "on"],
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+    run: (args, { base }) =>
+      attempt(async () => {
+        const { today, data } = await budgetNow();
+        const pay = payFrom(args);
+        const result = whatIf(data, today, {
+          payPence: pay?.pence,
+          weeklyChangePence: typeof args.weekly_change_pence === "number" ? args.weekly_change_pence : undefined,
+          bills: Array.isArray(args.bills)
+            ? (args.bills as Json[]).map((b) => ({
+                name: String(b.name),
+                pence: Number(b.pence),
+                cadence: b.cadence as "weekly" | "monthly" | "yearly",
+                on: String(b.first_on),
+              }))
+            : undefined,
+          oneOffs: Array.isArray(args.one_offs)
+            ? (args.one_offs as Json[]).map((o) => ({ name: String(o.name), pence: Number(o.pence), on: String(o.on) }))
+            : undefined,
+        });
+        if (!result) return err("Money has no balance yet: the owner connects the bank on the Money page first.");
+        return ok({ ...result, take_home_month_pence: pay?.pence ?? null, page: `${base}/life/money` });
+      }),
+  },
+  {
+    name: "money_set_plan",
+    title: "Money: set the owner's pay",
+    description:
+      "Sets the high-level plan Money runs on by itself. income: pay steps — from a payday (from_on), the take-home a month, or a salary a year (with student loans and pension) worked out after tax; a step lasts until a later one (half pay in December, full pay from January). remove_income: the from_on days of steps to remove. Once a real pay comes in, Money uses it for later paydays until a later step. Agree the figures with the owner first. Needs plan access.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        income: {
+          type: "array",
+          maxItems: 24,
+          items: {
+            type: "object",
+            properties: { from_on: DATE, ...SALARY },
+            required: ["from_on"],
+            additionalProperties: false,
+          },
+        },
+        remove_income: { type: "array", maxItems: 24, items: DATE },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    run: (args, { base }) =>
+      attempt(async () => {
+        const income: Json[] = [];
+        for (const step of Array.isArray(args.income) ? (args.income as Json[]) : []) {
+          const pay = payFrom(step);
+          if (!pay)
+            return err(`The pay step from '${String(step.from_on)}' needs take_home_pence or gross_year_pence.`);
+          income.push({ from_on: step.from_on, pence: pay.pence, gross_year_pence: pay.grossYearPence });
+        }
+        const saved = await store.claudeSetPlan({ income, remove_income: args.remove_income ?? [] });
+        return ok({ ...saved, page: `${base}/life/money` });
+      }),
+  },
+];
+
 export const MONEY_TOOLS: Tool[] = [
+  ...FORECAST_TOOLS,
   {
     name: "money_afford",
     title: "Money: can I afford it?",
@@ -240,4 +411,4 @@ export const MONEY_TOOLS: Tool[] = [
 ];
 
 export const MONEY_INSTRUCTIONS =
-  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
+  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. For what's coming, call money_forecast (the lowest point, Monday checkpoints, paydays); for \"what if…\" questions (a job offer's salary, a cheaper commute, a new regular cost), call money_what_if and say how the lowest point and the balance in 13 weeks move. Set the owner's pay with money_set_plan once you've agreed it. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
