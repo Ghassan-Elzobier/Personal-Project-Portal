@@ -4,6 +4,7 @@ import { rpcAsCaller } from "../supabase/caller";
 import { createClient } from "../supabase/server";
 import type { TxnRow } from "./feed";
 import type { AccountChoice } from "./map";
+import type { Apply, GoalAlert } from "./autopilot";
 import type { Adoption, BillAlert } from "./recurring";
 import type { StatementRow } from "./statement";
 
@@ -76,6 +77,10 @@ export const readMoney = () => owner<unknown>("money_read");
 export const saveIncome = (step: { from_on: string; pence: number; gross_year_pence: number | null }) =>
   owner<number>("money_save_income", { p: step });
 export const removeIncome = (id: number) => owner<void>("money_remove_income", { p_id: id });
+/** A goal: add one, or change one by id. */
+export const saveGoal = (goal: Record<string, unknown>) => owner<number>("money_save_goal", { p: goal });
+export const removeGoal = (id: number) => owner<void>("money_remove_goal", { p_id: id });
+export const moveGoal = (id: number, step: -1 | 1) => owner<void>("money_move_goal", { p_id: id, p_step: step });
 /** Claude at the plan level sets the high-level plan (the pay steps, for now). */
 export const claudeSetPlan = (plan: Record<string, unknown>) =>
   claude<Record<string, number>>("money_claude_set_plan", { p: plan });
@@ -135,5 +140,9 @@ export const engineRead = (since: string, key?: string) =>
 export const adoptBills = (bills: Adoption[], key?: string) =>
   writer<number>("money_adopt_bills", { p_bills: bills }, key);
 export const markPay = (txn: number, key?: string) => writer<void>("money_mark_pay", { p_txn: txn }, key);
-export const raiseAlerts = (alerts: BillAlert[], key?: string) =>
+/** The budget's numbers for the engine, with each goal's recent transfers. */
+export const engineBudget = (monthStart: string, weekStart: string, key?: string) =>
+  writer<unknown>("money_engine_budget", { p_month_start: monthStart, p_week_start: weekStart }, key);
+export const engineApply = (apply: Apply, key?: string) => writer<void>("money_engine_apply", { p: apply }, key);
+export const raiseAlerts = (alerts: (BillAlert | GoalAlert)[], key?: string) =>
   writer<number>("money_raise_alerts", { p_alerts: alerts }, key);

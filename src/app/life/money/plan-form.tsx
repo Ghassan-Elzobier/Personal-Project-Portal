@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useAction } from "../kit";
 import { saveSettings } from "./actions";
 
-type Values = { allowance: string; buffer: string; bufferFrom: string; firstPayday: string; paydayRule: string };
+type Values = {
+  allowance: string;
+  floor: string;
+  buffer: string;
+  bufferFrom: string;
+  firstPayday: string;
+  paydayRule: string;
+};
 
 const RULES = [
   { value: "last-working-day", label: "The last working day of the month" },
@@ -41,6 +48,20 @@ export function PlanForm(initial: Values) {
             onChange={set("allowance")}
             placeholder="From your budgets"
           />
+        </label>
+        <label className="block min-w-0">
+          <span className="field-label">The least each week (£)</span>
+          <input
+            className="field-input"
+            inputMode="decimal"
+            value={v.floor}
+            onChange={set("floor")}
+            placeholder="Off: the weekly amount stays fixed"
+            aria-describedby="floor-help"
+          />
+          <span id="floor-help" className="mt-1 block text-xs text-muted">
+            Set it and each week&apos;s amount moves with your plan, between this and the amount above.
+          </span>
         </label>
         <label className="block min-w-0">
           <span className="field-label">Buffer, always kept (£)</span>

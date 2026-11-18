@@ -124,10 +124,69 @@ export type BudgetData = {
   income?: IncomeStep[];
   /** The latest pay that came in (sorted as Pay). */
   lastPay?: { day: string; pence: number } | null;
+  /**
+   * The least to live on each week. Set, it turns the autopilot on: each week's amount
+   * is worked out from what's left to payday, between this and the weekly amount above.
+   */
+  weeklyFloorPence?: number | null;
+  /** This week's amount as the engine fixed it on Monday, so it holds all week. */
+  weekAmount?: { of: string; pence: number } | null;
+  /** What the money is for, in order: savings, yearly costs and debts. */
+  goals?: Goal[];
 };
 
 /** Take-home on each payday from a day on, until a later step. */
 export type IncomeStep = { id?: number; fromOn: string; pence: number; grossYearPence: number | null };
+
+/**
+ * A goal: saving for something ("saving"), putting money by for a cost that comes once
+ * or each year ("sinking": Christmas, a yearly subscription), or paying off a debt.
+ */
+export type Goal = {
+  id: number;
+  name: string;
+  kind: "saving" | "sinking" | "debt";
+  /** What to reach; a debt's is what's owed (savedPence on savedOn). */
+  targetPence: number | null;
+  dueOn: string | null;
+  repeatsYearly: boolean;
+  /** Kept in the current account (on paper), or elsewhere (a saver, or the lender). */
+  held: "account" | "elsewhere";
+  /** Saved (or, for a debt, owed) on savedOn; what's moved since comes on top. */
+  savedPence: number;
+  savedOn: string;
+  aprBp: number | null;
+  /** A debt's monthly payment. */
+  paymentPence: number | null;
+  /** Who transfers to it go to (a saver, a lender), and its spending category. */
+  merchantKey: string | null;
+  category: string | null;
+  position: number;
+  status: "active" | "done" | "paused";
+  addedBy: "owner" | "claude" | "engine";
+  /** Money out to its merchant since savedOn, less any back. */
+  movedPence: number;
+  /** Money out in its category since savedOn. */
+  spentPence: number;
+};
+
+/**
+ * What a goal holds now. Elsewhere: what was saved plus what's been moved there. In the
+ * account: what's been set aside, less what's been spent from it. A debt: what's owed,
+ * less what's been paid.
+ */
+export function savedNow(g: Goal): number {
+  if (g.kind === "debt") return Math.max(0, g.savedPence - g.movedPence);
+  if (g.held === "elsewhere") return Math.max(0, g.savedPence + g.movedPence);
+  return Math.max(0, g.savedPence - g.spentPence - g.movedPence);
+}
+
+/** Money set aside in the current account for goals: it's in the balance, but spoken for. */
+export function heldInAccount(goals: Goal[] = []): number {
+  return goals
+    .filter((g) => g.status === "active" && g.kind !== "debt" && g.held === "account")
+    .reduce((s, g) => s + savedNow(g), 0);
+}
 
 export type Planned = {
   id?: number;
@@ -236,9 +295,21 @@ export type BudgetView = {
   buffer: number;
   /** One-off planned purchases due before payday. */
   plannedBefore: number;
+  /** Set aside in the current account for goals (it's in the balance, but spoken for). */
+  held: number;
   safe: number | null;
   perWeek: number | null;
-  week: { allowance: number | null; carry: number; spread: number; spent: number; left: number | null };
+  week: {
+    allowance: number | null;
+    carry: number;
+    spread: number;
+    spent: number;
+    left: number | null;
+    /** On the autopilot: the amount was worked out from what's left to payday, between floor and target. */
+    auto: boolean;
+    floor: number | null;
+    target: number | null;
+  };
   /** Whether what's left covers the weekly amount every week to payday. */
   onTrack: boolean | null;
 };
@@ -261,13 +332,20 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   const bills = (data.bills ?? []).filter((b) => b.status === "active");
   const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
   const named = new Map(data.categories.map((c) => [c.key, c.name]));
+  // A bill with money put by for it (a goal kept in the account, paid to the same
+  // merchant) counts only what the goal doesn't hold yet: the goal is already set aside.
+  const putBy = (b: Bill) =>
+    (data.goals ?? []).find(
+      (g) => g.status === "active" && g.kind === "sinking" && g.held === "account" && g.merchantKey === b.merchantKey,
+    );
   const fromBills = bills
     .map((b) => {
       const due = dueUntil(b, today, payday);
+      const goal = putBy(b);
       return {
         key: `bill-${b.id}`,
         name: b.name ?? (b.category ? named.get(b.category) : undefined) ?? "A bill",
-        pence: due.length * b.expectedPence,
+        pence: Math.max(0, due.length * b.expectedPence - (goal ? savedNow(goal) : 0)),
         on: due[0],
       };
     })
@@ -295,16 +373,31 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
       return s + Math.ceil(p.pence / Math.max(1, p.weeks));
     return s;
   }, 0);
+  const held = heldInAccount(data.goals);
   const safe =
     data.balancePence === null
       ? null
-      : data.balancePence - stillToPay.reduce((s, c) => s + c.pence, 0) - buffer - plannedBefore;
-  const allowance = allowanceFrom(data);
+      : data.balancePence - stillToPay.reduce((s, c) => s + c.pence, 0) - buffer - plannedBefore - held;
   const flexible = (pick: (c: BudgetCategory) => number) =>
     data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + pick(c), 0);
   const spent = flexible((c) => c.spentWeek) + data.unsortedWeek;
   const lastWeek = flexible((c) => c.spentLastWeek) + data.unsortedLastWeek;
-  const carry = allowance === null ? 0 : Math.max(0, lastWeek - allowance);
+  // The autopilot (a floor is set): this week's amount is what's safe from Monday on (what's
+  // left now plus what this week has spent), over the weeks from Monday to payday, between
+  // the floor and the target. Fixed on Monday by the engine, so it holds all week. An
+  // overspend lowers the weeks after by itself, so nothing is carried.
+  const floor = data.weeklyFloorPence ?? null;
+  const auto = floor !== null;
+  const target = auto ? Math.max(floor, allowanceFrom(data) ?? floor) : allowanceFrom(data);
+  const fromMonday = (days + weekdayIndex(today)) / 7;
+  const allowance = !auto
+    ? target
+    : data.weekAmount?.of === week
+      ? data.weekAmount.pence
+      : safe === null
+        ? floor
+        : Math.min(target!, Math.max(floor, Math.floor((safe + spent) / Math.max(1, fromMonday) / 100) * 100));
+  const carry = auto || allowance === null ? 0 : Math.max(0, lastWeek - allowance);
   const perWeek = safe === null ? null : Math.floor(safe / weeks);
   return {
     payday,
@@ -314,6 +407,7 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
     stillToPay,
     buffer,
     plannedBefore,
+    held,
     safe,
     perWeek,
     week: {
@@ -322,6 +416,9 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
       spread,
       spent,
       left: allowance === null ? null : allowance - carry - spread - spent,
+      auto,
+      floor,
+      target,
     },
     onTrack: perWeek === null || allowance === null ? null : perWeek >= allowance,
   };
@@ -374,6 +471,40 @@ export function parseBudget(raw: unknown): BudgetData {
       r.last_pay && typeof r.last_pay === "object"
         ? { day: str((r.last_pay as Row).on) ?? "", pence: num((r.last_pay as Row).pence) ?? 0 }
         : null,
+    weeklyFloorPence: num(s.weekly_floor_pence),
+    weekAmount:
+      str(s.week_amount_of) && num(s.week_amount_pence) !== null
+        ? { of: str(s.week_amount_of)!, pence: num(s.week_amount_pence)! }
+        : null,
+    goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
+  };
+}
+
+const GOAL_KINDS = ["saving", "sinking", "debt"] as const;
+
+/** A goal as the database returns it, with what's moved to it and spent from it since. */
+export function parseGoal(g: Row): Goal {
+  const status = str(g.status);
+  const by = str(g.added_by);
+  return {
+    id: num(g.id) ?? 0,
+    name: str(g.name) ?? "",
+    kind: GOAL_KINDS.find((k) => k === g.kind) ?? "saving",
+    targetPence: num(g.target_pence),
+    dueOn: str(g.due_on),
+    repeatsYearly: g.repeats_yearly === true,
+    held: g.held === "elsewhere" ? "elsewhere" : "account",
+    savedPence: num(g.saved_pence) ?? 0,
+    savedOn: str(g.saved_on) ?? "",
+    aprBp: num(g.apr_bp),
+    paymentPence: num(g.payment_pence),
+    merchantKey: str(g.merchant_key),
+    category: str(g.category),
+    position: num(g.position) ?? 0,
+    status: status === "done" || status === "paused" ? status : "active",
+    addedBy: by === "claude" || by === "engine" ? by : "owner",
+    movedPence: num(g.moved_pence) ?? 0,
+    spentPence: num(g.spent_pence) ?? 0,
   };
 }
 

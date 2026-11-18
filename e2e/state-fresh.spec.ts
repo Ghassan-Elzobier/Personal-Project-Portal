@@ -733,4 +733,55 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("goals keep their order at once and after a reload, and a floor sets each week's amount from the plan", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: [] });
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=100000`);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+
+    const goals = page.getByRole("region", { name: "Goals" });
+    const add = async (name: string, pounds: string) => {
+      if (!(await goals.getByLabel("What it's for").isVisible())) await goals.getByText("Add a goal").click();
+      await goals.getByLabel("What it's for").fill(name);
+      await goals.getByLabel("Target (£)").fill(pounds);
+      await goals.getByRole("button", { name: "Add the goal" }).click();
+      await expect(goals.getByText(name, { exact: true })).toBeVisible();
+    };
+    await add("Example bike", "300");
+    await add("Example holiday", "600");
+    await expect(goals.getByRole("listitem").first()).toContainText("Example bike");
+    await goals.getByRole("button", { name: "Move Example holiday up" }).click();
+    await expect(goals.getByRole("listitem").first()).toContainText("Example holiday");
+    await page.reload();
+    await expect(goals.getByRole("listitem").first()).toContainText("Example holiday");
+
+    // The least a week turns the autopilot on: the week's amount comes from the plan.
+    const plan = page.getByRole("region", { name: "Your plan" });
+    const week = page.getByRole("region", { name: "This week" });
+    await plan.getByLabel("To live on each week (£)").fill("160");
+    await plan.getByLabel("The least each week (£)").fill("120");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    const auto = "Set from your plan: what's safe to payday, between your £120.00 and £160.00 a week.";
+    await expect(week.getByText(auto)).toBeVisible();
+    await page.reload();
+    await expect(week.getByText(auto)).toBeVisible();
+
+    // Back as it was.
+    await plan.getByLabel("To live on each week (£)").fill("");
+    await plan.getByLabel("The least each week (£)").fill("");
+    await plan.getByRole("button", { name: "Save the plan" }).click();
+    await expect(week.getByText("Set the amount you live on each week")).toBeVisible();
+    await goals.getByRole("button", { name: "Remove Example holiday" }).click();
+    await expect(goals.getByText("Example holiday", { exact: true })).toHaveCount(0);
+    await goals.getByRole("button", { name: "Remove Example bike" }).click();
+    await expect(goals.getByText("Example bike", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

@@ -2,7 +2,8 @@ import "server-only";
 import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
-import { afford, budgetView, mondayOf, monthStart, parseBudget } from "./budget";
+import { allocate } from "./allocate";
+import { afford, budgetView, mondayOf, monthStart, parseBudget, savedNow } from "./budget";
 import { forecast, whatIf } from "./forecast";
 import { nextDue } from "./recurring";
 import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
@@ -47,8 +48,41 @@ async function summary() {
   const today = dateIn(now(), timeZone());
   const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
   const view = budgetView(data, today);
+  const plan = allocate(data, view.payday);
   return {
     today,
+    autopilot: {
+      on: view.week.auto,
+      floor_pence: view.week.floor,
+      target_pence: view.week.target,
+      this_week_amount_pence: view.week.allowance,
+    },
+    goals: (data.goals ?? [])
+      .filter((g) => g.status === "active")
+      .map((g) => {
+        const s = plan?.shares.find((x) => x.id === g.id);
+        return {
+          id: g.id,
+          name: g.name,
+          kind: g.kind,
+          [g.kind === "debt" ? "owed_pence" : "saved_pence"]: savedNow(g),
+          target_pence: g.targetPence,
+          due_on: g.dueOn,
+          held: g.held,
+          next_payday_pence: s?.pence ?? null,
+          behind_pace: s?.slipped ?? null,
+          there_by: s?.finish ?? null,
+        };
+      }),
+    next_payday_plan: plan && {
+      payday: plan.from,
+      pay_pence: plan.pay,
+      bills_pence: plan.commitments,
+      weekly_pence: plan.weekly,
+      short: plan.short,
+      left_over_pence: plan.surplus,
+    },
+    set_aside_in_account_pence: view.held,
     balance_pence: view.balance,
     payday: view.payday,
     days_to_payday: view.daysToPayday,
@@ -215,9 +249,9 @@ const FORECAST_TOOLS: Tool[] = [
   },
   {
     name: "money_set_plan",
-    title: "Money: set the owner's pay",
+    title: "Money: set the owner's high-level plan",
     description:
-      "Sets the high-level plan Money runs on by itself. income: pay steps — from a payday (from_on), the take-home a month, or a salary a year (with student loans and pension) worked out after tax; a step lasts until a later one (half pay in December, full pay from January). remove_income: the from_on days of steps to remove. Once a real pay comes in, Money uses it for later paydays until a later step. Agree the figures with the owner first. Needs plan access.",
+      "Sets the high-level plan Money then runs by itself after every sync (it shares each payday out, sets money aside, fixes each week's amount and checks transfers). income: pay steps — from a payday (from_on), the take-home a month, or a salary a year (with student loans and pension) worked out after tax; a step lasts until a later one. remove_income: from_on days. goals, in the owner's order: kind 'saving' (an emergency fund, a bike: target_pence, optional due_on, held 'elsewhere' for a separate saver or 'account'), 'sinking' (a cost that comes once or each year: target_pence, due_on, repeats_yearly, usually held 'account'), or 'debt' (saved_pence is what's owed now, payment_pence a month, apr_bp interest in basis points); merchant_key links a saver or lender's payments (from get_money_history) so progress follows the bank. Give id to change one; saved_pence only on a new goal. remove_goals: ids (only goals you added). order: every goal id, first first. weekly: floor_pence (the least a week: setting it turns the autopilot on) and target_pence (the most). buffer: pence and from (YYYY-MM-DD). Best practice order: buffer, yearly costs, an emergency fund of about three months of bills and food, high-interest debts, then other goals. Agree everything with the owner first. Needs plan access.",
     inputSchema: {
       type: "object",
       properties: {
@@ -232,6 +266,37 @@ const FORECAST_TOOLS: Tool[] = [
           },
         },
         remove_income: { type: "array", maxItems: 24, items: DATE },
+        goals: {
+          type: "array",
+          maxItems: 30,
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              name: { type: "string", minLength: 1, maxLength: 60 },
+              kind: { type: "string", enum: ["saving", "sinking", "debt"] },
+              target_pence: PENCE,
+              due_on: DATE,
+              repeats_yearly: { type: "boolean" },
+              held: { type: "string", enum: ["account", "elsewhere"] },
+              saved_pence: PENCE,
+              apr_bp: { type: "integer", minimum: 0, maximum: 10_000 },
+              payment_pence: PENCE,
+              merchant_key: { type: "string", pattern: "^[a-z0-9-]{1,60}$" },
+              category: { type: "string", pattern: "^[a-z0-9-]{1,40}$" },
+              status: { type: "string", enum: ["active", "done", "paused"] },
+            },
+            additionalProperties: false,
+          },
+        },
+        remove_goals: { type: "array", maxItems: 30, items: { type: "integer" } },
+        order: { type: "array", maxItems: 60, items: { type: "integer" } },
+        weekly: {
+          type: "object",
+          properties: { floor_pence: PENCE, target_pence: PENCE },
+          additionalProperties: false,
+        },
+        buffer: { type: "object", properties: { pence: PENCE, from: DATE }, additionalProperties: false },
       },
       additionalProperties: false,
     },
@@ -245,7 +310,7 @@ const FORECAST_TOOLS: Tool[] = [
             return err(`The pay step from '${String(step.from_on)}' needs take_home_pence or gross_year_pence.`);
           income.push({ from_on: step.from_on, pence: pay.pence, gross_year_pence: pay.grossYearPence });
         }
-        const saved = await store.claudeSetPlan({ income, remove_income: args.remove_income ?? [] });
+        const saved = await store.claudeSetPlan({ ...args, income, remove_income: args.remove_income ?? [] });
         return ok({ ...saved, page: `${base}/life/money` });
       }),
   },
@@ -411,4 +476,4 @@ export const MONEY_TOOLS: Tool[] = [
 ];
 
 export const MONEY_INSTRUCTIONS =
-  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. For what's coming, call money_forecast (the lowest point, Monday checkpoints, paydays); for \"what if…\" questions (a job offer's salary, a cheaper commute, a new regular cost), call money_what_if and say how the lowest point and the balance in 13 weeks move. Set the owner's pay with money_set_plan once you've agreed it. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";
+  "Money is the owner's bank data and budget; the owner sets on the Money page how far Claude may go (off, summary, plan, setup). For how they're doing, call get_money_summary: it leads with this week's amount left, then what that allows a week until payday. When they ask whether they can afford something, get a price (say if it is a guess), call money_afford, explain the verdict plainly with its ways to pay, and if they pick one, save it with money_plan_purchase; if it is out of reach, say so and suggest waiting for payday or a cheaper way. For what's coming, call money_forecast (the lowest point, Monday checkpoints, paydays); for \"what if…\" questions (a job offer's salary, a cheaper commute, a new regular cost), call money_what_if and say how the lowest point and the balance in 13 weeks move. The owner wants a budget that runs itself from a high-level plan: agree their pay, goals in order (best practice: buffer, yearly costs, an emergency fund, high-interest debts, then the rest) and the least and most to live on a week, and save them with money_set_plan; Money then shares each payday out, sets money aside, fixes each week's amount and checks transfers by itself, and get_money_summary shows how each goal is doing. Money finds regular bills by itself after each sync (listed in get_money_summary with their next day); they count on their own days before payday, so don't budget them again. To set up the budget with the owner, call get_money_history, talk the numbers through, then plan_money with the budgets, rules, watched merchants and settings (weekly amount, buffer, first payday) you agreed. Amounts are pence. Never ask for or repeat account numbers.";

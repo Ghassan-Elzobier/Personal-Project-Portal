@@ -85,6 +85,8 @@ export function alertText(a: Alert): string {
     return `${a.payment.name}: ${pounds(a.payment.pence)} on ${shortDay(a.payment.madeOn)}. A merchant you're watching.`;
   if (a.kind === "price-rise" && typeof d.on === "string")
     return `${name} went up from ${pence(d.from_pence)} to ${pence(d.to_pence)} on ${shortDay(d.on)}. Money counts the new amount from now on.`;
+  if (a.kind === "transfer-missing" && typeof d.payday === "string")
+    return `${name}: ${pence(d.pence)} planned on payday (${shortDay(d.payday)}) hasn't arrived yet. A standing order for the day after payday does it for you.`;
   if (a.kind === "missed-bill" && typeof d.due === "string")
     return `${name}: ${pence(d.pence)} was due on ${shortDay(d.due)} and hasn't gone out. If it's cancelled, ignore it under Bills.`;
   return "Something in Money needs a look.";
