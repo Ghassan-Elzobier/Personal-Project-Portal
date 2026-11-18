@@ -48,6 +48,7 @@ export async function saveSettings(input: ops.SettingsInput) {
   const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : "");
   return ops.saveSettings({
     allowance: text(input?.allowance),
+    floor: text(input?.floor),
     buffer: text(input?.buffer),
     bufferFrom: text(input?.bufferFrom),
     firstPayday: text(input?.firstPayday),
@@ -89,6 +90,37 @@ export async function saveIncome(input: ops.PayInput) {
 export async function removeIncome(id: number) {
   await requireOwner();
   return ops.removeIncome(Number(id));
+}
+
+export async function saveGoal(input: ops.GoalInput) {
+  await requireOwner();
+  const kind = (["saving", "sinking", "debt"] as const).find((k) => k === input?.kind) ?? "saving";
+  return ops.saveGoal({
+    name: String(input?.name ?? ""),
+    kind,
+    amount: String(input?.amount ?? ""),
+    dueOn: String(input?.dueOn ?? ""),
+    repeatsYearly: input?.repeatsYearly === true,
+    held: input?.held === "elsewhere" ? "elsewhere" : "account",
+    saved: String(input?.saved ?? ""),
+    apr: String(input?.apr ?? ""),
+    payment: String(input?.payment ?? ""),
+  });
+}
+
+export async function removeGoal(id: number) {
+  await requireOwner();
+  return ops.removeGoal(Number(id));
+}
+
+export async function moveGoal(id: number, step: number) {
+  await requireOwner();
+  return ops.moveGoal(Number(id), Number(step) < 0 ? -1 : 1);
+}
+
+export async function addSuggestedGoals() {
+  await requireOwner();
+  return ops.addSuggestedGoals();
 }
 
 export async function setBill(id: number, status: "active" | "ignored") {

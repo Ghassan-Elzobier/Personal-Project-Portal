@@ -4,7 +4,8 @@ import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
-import type { BudgetData, BudgetView } from "@/lib/money/budget";
+import { allocate, suggestGoals } from "@/lib/money/allocate";
+import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
 import type { Forecast } from "@/lib/money/forecast";
 import { loadMoney } from "@/lib/money/load";
 import { lunchflowReady } from "@/lib/money/lunchflow";
@@ -20,12 +21,16 @@ import {
   forgetBank,
   refreshBank,
   registerSyncKey,
+  addSuggestedGoals,
+  moveGoal,
+  removeGoal,
   removeIncome,
   setBill,
   setClaudeAccess,
 } from "./actions";
 import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
+import { GoalForm } from "./goal-form";
 import { PayForm } from "./pay-form";
 import { PaymentList } from "./payments";
 import { PlanForm } from "./plan-form";
@@ -79,6 +84,7 @@ export default async function MoneyPage() {
       {s.alerts.length > 0 && <Alerts s={s} />}
       {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
       {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
+      {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
       {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
@@ -122,6 +128,12 @@ function ThisWeek({ view: v, today }: { view: BudgetView; today: string }) {
             {w.carry > 0 && `, ${pounds(w.carry)} over last week`}
             {w.spread > 0 && `, ${pounds(w.spread)} planned`}. Resets on Monday.
           </p>
+          {w.auto && w.floor !== null && w.target !== null && (
+            <p className="mt-1 text-xs text-muted tabular-nums">
+              Set from your plan: what&apos;s safe to payday, between your {pounds(w.floor)} and {pounds(w.target)} a
+              week.
+            </p>
+          )}
         </div>
       )}
       {v.safe !== null && (
@@ -371,6 +383,174 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
   );
 }
 
+/** A thin bar of how far along something is: spending against a budget, a goal's savings. */
+function Bar({ share, over = false }: { share: number; over?: boolean }) {
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
+      <div
+        className={`h-full rounded-full ${over ? "bg-coral" : "bg-mint"}`}
+        style={{ width: `${Math.min(100, Math.round(share * 100))}%` }}
+      />
+    </div>
+  );
+}
+
+const KIND_NAME: Record<Goal["kind"], string> = { saving: "Saving", sinking: "Put by", debt: "Debt" };
+const monthYear = (month: string) =>
+  new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+
+/**
+ * What the money is for, in order, and how the next payday shares the pay out: each
+ * goal's progress and pace, then what to move where on payday.
+ */
+function Goals({ budget, today }: { budget: BudgetData; today: string }) {
+  const goals = (budget.goals ?? []).filter((g) => g.status === "active");
+  const payday = nextPayday(today, budget.paydayRule, budget.firstPayday);
+  const plan = allocate(budget, payday);
+  const share = (id: number) => plan?.shares.find((s) => s.id === id);
+  const suggested = suggestGoals(budget, today);
+  const moves = plan?.shares.filter((s) => s.pence > 0) ?? [];
+  return (
+    <section aria-labelledby="goals-title" className="space-y-3 card-life">
+      <h2 id="goals-title" className="font-semibold">
+        Goals
+      </h2>
+      <p className="text-sm text-muted">
+        In this order, each payday pays the bills, keeps your least for each week, gives each goal its pace, then raises
+        the week to your amount; anything left goes to the first goal.
+      </p>
+      {budget.bufferPence > 0 && (
+        <p className="rounded-xl bg-white/5 px-3 py-2.5 text-sm tabular-nums">
+          Buffer: {pounds(budget.bufferPence)} kept in the account
+          {budget.bufferFrom && budget.bufferFrom > today ? ` from ${dayMonth(budget.bufferFrom)}` : ""}
+        </p>
+      )}
+      {goals.length > 0 && (
+        <ol className="divide-y divide-white/5 rounded-xl bg-white/5">
+          {goals.map((g, i) => {
+            const s = share(g.id);
+            const now = savedNow(g);
+            const target = g.targetPence ?? 0;
+            return (
+              <li key={g.id} className="space-y-1.5 px-3 py-2.5">
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm">{g.name}</span>
+                    <span className="block text-xs text-body tabular-nums">
+                      {g.kind === "debt" ? `${pounds(now)} left` : `${pounds(now)} of ${pounds(target)}`} ·{" "}
+                      {KIND_NAME[g.kind]}
+                      {g.kind === "debt" ? "" : g.held === "account" ? ", in the account" : ", in a saver"}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 gap-1">
+                    <ActionButton
+                      action={moveGoal.bind(null, g.id, -1)}
+                      className="btn-soft px-2 py-1 text-xs"
+                      disabled={i === 0}
+                      label={`Move ${g.name} up`}
+                    >
+                      ↑
+                    </ActionButton>
+                    <ActionButton
+                      action={moveGoal.bind(null, g.id, 1)}
+                      className="btn-soft px-2 py-1 text-xs"
+                      disabled={i === goals.length - 1}
+                      label={`Move ${g.name} down`}
+                    >
+                      ↓
+                    </ActionButton>
+                    <ActionButton
+                      action={removeGoal.bind(null, g.id)}
+                      className="btn-soft px-2 py-1 text-xs"
+                      confirm={`Remove ${g.name}?`}
+                      done="Removed."
+                      label={`Remove ${g.name}`}
+                    >
+                      ✕
+                    </ActionButton>
+                  </span>
+                </div>
+                {g.kind !== "debt" && target > 0 && <Bar share={now / target} />}
+                {s && (
+                  <p className={`text-xs tabular-nums ${s.slipped ? "text-coral" : "text-muted"}`}>
+                    {s.pence > 0 ? `${pounds(s.pence)} on ${dayMonth(payday)}` : `Nothing on ${dayMonth(payday)}`}
+                    {s.finish && ` · there by ${monthYear(s.finish)}`}
+                    {s.slipped && " · behind its pace"}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {suggested.length > 0 && (
+        <div className="space-y-2 rounded-xl bg-white/5 p-3 text-sm">
+          <p className="font-medium">Suggested from your bills and spending</p>
+          <ul className="space-y-1 text-body">
+            {suggested.map((g) => (
+              <li key={g.name} className="tabular-nums">
+                {g.name}: {pounds(g.targetPence)}
+                {g.dueOn ? ` by ${dayMonth(g.dueOn)}` : ""}, {g.held === "account" ? "in the account" : "in a saver"}
+              </li>
+            ))}
+          </ul>
+          <ActionButton
+            action={addSuggestedGoals}
+            className="btn-soft px-3 py-1.5 text-xs"
+            done="Added. Change the order any time."
+          >
+            Add {suggested.length === 1 ? "it" : "these"}
+          </ActionButton>
+        </div>
+      )}
+      {plan === null ? (
+        <p className="text-sm text-muted">Add your pay below to see how each payday is shared out.</p>
+      ) : (
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">On payday, {longDay(payday)}</p>
+          {plan.short && (
+            <p className="text-coral">
+              The pay doesn&apos;t cover the bills and your least each week: lower the least, or a bill.
+            </p>
+          )}
+          <ul className="space-y-0.5 text-body tabular-nums">
+            {moves
+              .filter((s) => s.transfer)
+              .map((s) => (
+                <li key={s.id}>
+                  {s.kind === "debt"
+                    ? `Pay ${pounds(s.pence)} extra off ${s.name}`
+                    : `Move ${pounds(s.pence)} to ${s.name}`}
+                </li>
+              ))}
+            {moves
+              .filter((s) => !s.transfer)
+              .map((s) => (
+                <li key={s.id}>
+                  {pounds(s.pence)} set aside for {s.name}, in the account
+                </li>
+              ))}
+            <li>
+              {pounds(plan.weekly)} a week to live on until {dayMonth(plan.to)}
+            </li>
+          </ul>
+          {moves.some((s) => s.transfer) && (
+            <p className="text-xs text-faint">
+              Set the moves up once as standing orders for the day after payday: Money checks they arrive.
+            </p>
+          )}
+        </div>
+      )}
+      <details className="text-sm">
+        <summary className="cursor-pointer text-muted">Add a goal</summary>
+        <div className="mt-3">
+          <GoalForm key={goals.length} />
+        </div>
+      </details>
+    </section>
+  );
+}
+
 /** Pay in pounds: take-home on each payday from a day on, and the latest pay that came in. */
 function Pay({ budget, payday }: { budget: BudgetData; payday: string }) {
   const steps = budget.income ?? [];
@@ -424,6 +604,7 @@ function Pay({ budget, payday }: { budget: BudgetData; payday: string }) {
 function Plan({ budget }: { budget: BudgetData }) {
   const values = {
     allowance: budget.allowancePence === null ? "" : String(budget.allowancePence / 100),
+    floor: budget.weeklyFloorPence == null ? "" : String(budget.weeklyFloorPence / 100),
     buffer: budget.bufferPence ? String(budget.bufferPence / 100) : "",
     bufferFrom: budget.bufferFrom ?? "",
     firstPayday: budget.firstPayday ?? "",
@@ -493,14 +674,7 @@ function ThisMonth({ s }: { s: MoneyState }) {
                   {c.budgetPence !== null && <span className="text-muted"> / {pounds(c.budgetPence)}</span>}
                 </span>
               </p>
-              {c.share !== null && (
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
-                  <div
-                    className={`h-full rounded-full ${c.over ? "bg-coral" : "bg-mint"}`}
-                    style={{ width: `${Math.round(c.share * 100)}%` }}
-                  />
-                </div>
-              )}
+              {c.share !== null && <Bar share={c.share} over={c.over} />}
             </li>
           ))}
         </ul>

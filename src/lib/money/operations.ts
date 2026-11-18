@@ -1,8 +1,11 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { moneySyncKey } from "../config/env";
-import { parsePounds } from "./budget";
+import { moneySyncKey, timeZone } from "../config/env";
+import { now } from "../dates/clock";
+import { dateIn } from "../dates/week";
+import { suggestGoals } from "./allocate";
+import { mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
 import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
 import { BankError, type AccountChoice } from "./map";
@@ -149,6 +152,8 @@ export function dismissAlert(id: number): Promise<Result> {
 
 export type SettingsInput = {
   allowance: string;
+  /** The least to live on a week; set, the weekly amount moves with the plan. */
+  floor?: string;
   buffer: string;
   bufferFrom: string;
   firstPayday: string;
@@ -170,8 +175,13 @@ export function saveSettings(input: SettingsInput): Promise<Result> {
       if (d && !DAY.test(d)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
     if (!/^(last-working-day|day-([1-9]|[12][0-9]|3[01]))$/.test(input.paydayRule))
       throw new store.MoneyStoreError("Pick when you're paid.");
+    const floor = poundsToPence(input.floor ?? "");
+    const allowance = poundsToPence(input.allowance);
+    if (floor !== null && allowance !== null && floor > allowance)
+      throw new store.MoneyStoreError("The least a week can't be more than the amount to live on.");
     await store.saveSettings({
-      allowance_pence: poundsToPence(input.allowance),
+      allowance_pence: allowance,
+      weekly_floor_pence: floor,
       buffer_pence: poundsToPence(input.buffer) ?? 0,
       buffer_from: input.bufferFrom || null,
       first_payday: input.firstPayday || null,
@@ -245,6 +255,83 @@ export function removeIncome(id: number): Promise<Result> {
   return run(async () => {
     await store.removeIncome(id);
     return {};
+  });
+}
+
+export type GoalInput = {
+  name: string;
+  kind: "saving" | "sinking" | "debt";
+  /** Pounds: the target, the cost, or what's owed. */
+  amount: string;
+  dueOn: string;
+  repeatsYearly: boolean;
+  held: "account" | "elsewhere";
+  /** Pounds saved so far (not for a debt). */
+  saved: string;
+  /** A debt's interest, % a year, and its monthly payment in pounds. */
+  apr: string;
+  payment: string;
+};
+
+/** A goal: what the money is for. It goes last in the order; move it up after. */
+export function saveGoal(input: GoalInput): Promise<Result> {
+  return run(async () => {
+    const name = input.name.trim().slice(0, 60);
+    if (!name) throw new store.MoneyStoreError("Say what it's for.");
+    if (!["saving", "sinking", "debt"].includes(input.kind)) throw new store.MoneyStoreError("Pick what kind of goal.");
+    const amount = poundsToPence(input.amount);
+    if (!amount) throw new store.MoneyStoreError(input.kind === "debt" ? "Say what's owed." : "Say how much it needs.");
+    if (input.dueOn && !DAY.test(input.dueOn)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
+    const debt = input.kind === "debt";
+    const apr = input.apr.trim() ? Number(input.apr) : null;
+    if (apr !== null && !(apr >= 0 && apr <= 100))
+      throw new store.MoneyStoreError("Interest is a % a year, like 19.9.");
+    await store.saveGoal({
+      name,
+      kind: input.kind,
+      target_pence: debt ? null : amount,
+      due_on: input.dueOn || null,
+      repeats_yearly: input.kind === "sinking" && input.repeatsYearly,
+      held: debt ? "elsewhere" : input.held === "elsewhere" ? "elsewhere" : "account",
+      saved_pence: debt ? amount : (poundsToPence(input.saved) ?? 0),
+      apr_bp: debt && apr !== null ? Math.round(apr * 100) : null,
+      payment_pence: debt ? poundsToPence(input.payment) : null,
+    });
+    return {};
+  });
+}
+
+export function removeGoal(id: number): Promise<Result> {
+  return run(async () => {
+    await store.removeGoal(id);
+    return {};
+  });
+}
+
+export function moveGoal(id: number, step: -1 | 1): Promise<Result> {
+  return run(async () => {
+    await store.moveGoal(id, step);
+    return {};
+  });
+}
+
+/** Adds the goals Money suggests from what it knows (an emergency fund, money put by for yearly bills). */
+export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
+  return run(async () => {
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const suggested = suggestGoals(data, today);
+    for (const g of suggested)
+      await store.saveGoal({
+        name: g.name,
+        kind: g.kind,
+        target_pence: g.targetPence,
+        due_on: g.dueOn,
+        repeats_yearly: g.repeatsYearly,
+        held: g.held,
+        merchant_key: g.merchantKey,
+      });
+    return { added: suggested.length };
   });
 }
 
