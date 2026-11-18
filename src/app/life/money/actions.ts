@@ -72,6 +72,25 @@ export async function cancelPlanned(id: number) {
   return ops.cancelPlanned(id);
 }
 
+export async function saveIncome(input: ops.PayInput) {
+  await requireOwner();
+  return ops.saveIncome({
+    fromOn: String(input?.fromOn ?? ""),
+    takeHome: String(input?.takeHome ?? ""),
+    gross: String(input?.gross ?? ""),
+    loans: Array.isArray(input?.loans) ? input.loans.slice(0, 5) : [],
+    pensionPercent: Number(input?.pensionPercent) || 0,
+    pensionKind: ["salary-sacrifice", "net-pay", "relief-at-source"].includes(input?.pensionKind)
+      ? input.pensionKind
+      : "net-pay",
+  });
+}
+
+export async function removeIncome(id: number) {
+  await requireOwner();
+  return ops.removeIncome(Number(id));
+}
+
 export async function setBill(id: number, status: "active" | "ignored") {
   await requireOwner();
   return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");

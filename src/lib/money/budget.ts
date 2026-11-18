@@ -120,7 +120,14 @@ export type BudgetData = {
   planned?: Planned[];
   /** Regular payments Money found (recurring.ts): the active ones count on their own days. */
   bills?: Bill[];
+  /** Take-home on each payday from a day on: the plan's pay. */
+  income?: IncomeStep[];
+  /** The latest pay that came in (sorted as Pay). */
+  lastPay?: { day: string; pence: number } | null;
 };
+
+/** Take-home on each payday from a day on, until a later step. */
+export type IncomeStep = { id?: number; fromOn: string; pence: number; grossYearPence: number | null };
 
 export type Planned = {
   id?: number;
@@ -357,6 +364,16 @@ export function parseBudget(raw: unknown): BudgetData {
     unsortedLastWeek: num(r.unsorted_last_week) ?? 0,
     planned,
     bills: (Array.isArray(r.bills) ? (r.bills as Row[]) : []).map(parseBill),
+    income: (Array.isArray(r.income) ? (r.income as Row[]) : []).map((i) => ({
+      id: num(i.id) ?? 0,
+      fromOn: str(i.from_on) ?? "",
+      pence: num(i.pence) ?? 0,
+      grossYearPence: num(i.gross_year_pence),
+    })),
+    lastPay:
+      r.last_pay && typeof r.last_pay === "object"
+        ? { day: str((r.last_pay as Row).on) ?? "", pence: num((r.last_pay as Row).pence) ?? 0 }
+        : null,
   };
 }
 

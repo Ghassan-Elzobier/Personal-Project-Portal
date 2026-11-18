@@ -5,6 +5,7 @@ import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
 import type { BudgetData, BudgetView } from "@/lib/money/budget";
+import type { Forecast } from "@/lib/money/forecast";
 import { loadMoney } from "@/lib/money/load";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
@@ -19,10 +20,13 @@ import {
   forgetBank,
   refreshBank,
   registerSyncKey,
+  removeIncome,
   setBill,
   setClaudeAccess,
 } from "./actions";
+import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
+import { PayForm } from "./pay-form";
 import { PaymentList } from "./payments";
 import { PlanForm } from "./plan-form";
 import { PlannedForm } from "./planned-form";
@@ -74,11 +78,13 @@ export default async function MoneyPage() {
       )}
       {s.alerts.length > 0 && <Alerts s={s} />}
       {connected && <ThisWeek view={loaded.view} today={loaded.today} />}
+      {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
       {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
+      {s.connection && <Pay budget={loaded.budget} payday={loaded.view.payday} />}
       {s.connection && <Plan budget={loaded.budget} />}
       {s.connection && <Claude s={s} />}
       {s.connection && <Connection connected={connected} s={s} />}
@@ -312,6 +318,105 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
         Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
         Ignore one that isn&apos;t a bill and it won&apos;t be found again.
       </p>
+    </section>
+  );
+}
+
+/** The next 13 weeks: the balance day by day, its lowest point, the paydays and each Monday's checkpoint. */
+function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
+  const bufferOn = (d: string) => (!budget.bufferFrom || budget.bufferFrom <= d ? budget.bufferPence : 0);
+  const low = f.lowest;
+  const under = low.pence < bufferOn(low.day);
+  const unplanned = f.paydays.some((p) => p.pence === 0);
+  return (
+    <section aria-labelledby="ahead-title" className="space-y-3 card-life">
+      <h2 id="ahead-title" className="font-semibold">
+        The next 13 weeks
+      </h2>
+      <ForecastChart
+        points={f.points}
+        buffer={budget.bufferPence}
+        bufferFrom={budget.bufferFrom}
+        lowest={low}
+        paydays={f.paydays.map((p) => p.day)}
+        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.`}
+      />
+      <p className={`text-sm tabular-nums ${under ? "text-coral" : "text-body"}`}>
+        Lowest: {pounds(low.pence)} on {longDay(low.day)}
+        {!under ? "." : low.pence < 0 ? ", overdrawn." : ", under your buffer."}
+      </p>
+      {f.paydays.length > 0 && (
+        <p className="text-sm text-muted tabular-nums">
+          Pay: {f.paydays.map((p) => `${dayMonth(p.day)} ${p.pence > 0 ? pounds(p.pence) : "not planned"}`).join(" · ")}
+        </p>
+      )}
+      {unplanned && <p className="text-sm text-muted">Add your pay under Your pay below to see it in the forecast.</p>}
+      {f.checkpoints.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">Monday checkpoints</summary>
+          <dl className="mt-2 space-y-1 tabular-nums">
+            {f.checkpoints.map((c) => (
+              <div key={c.day} className="flex justify-between gap-3">
+                <dt>{longDay(c.day)}</dt>
+                <dd className={c.pence < bufferOn(c.day) ? "text-coral" : ""}>{pounds(c.pence)}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-xs text-faint">
+            The balance each week should start with if the plan holds. Above it, you&apos;re ahead.
+          </p>
+        </details>
+      )}
+    </section>
+  );
+}
+
+/** Pay in pounds: take-home on each payday from a day on, and the latest pay that came in. */
+function Pay({ budget, payday }: { budget: BudgetData; payday: string }) {
+  const steps = budget.income ?? [];
+  return (
+    <section aria-labelledby="pay-title" className="space-y-3 card-life">
+      <h2 id="pay-title" className="font-semibold">
+        Your pay
+      </h2>
+      {steps.length === 0 ? (
+        <p className="text-sm text-muted">
+          No pay planned yet. Add the take-home from your next payday, or the salary, and the forecast puts it on each
+          payday. When a pay comes in, Money spots it and uses the real figure.
+        </p>
+      ) : (
+        <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+          {steps.map((s) => (
+            <li key={s.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block text-sm tabular-nums">
+                  {pounds(s.pence)} a month from {dayMonth(s.fromOn)}
+                </span>
+                {s.grossYearPence !== null && (
+                  <span className="block text-xs text-muted tabular-nums">
+                    From a salary of {pounds(s.grossYearPence)} a year
+                  </span>
+                )}
+              </span>
+              <ActionButton
+                action={removeIncome.bind(null, s.id ?? 0)}
+                className="btn-soft shrink-0 px-3 py-1.5 text-xs"
+                done="Removed."
+                label={`Remove the pay from ${dayMonth(s.fromOn)}`}
+              >
+                Remove
+              </ActionButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      {budget.lastPay && (
+        <p className="text-sm text-body tabular-nums">
+          Last pay: {pounds(budget.lastPay.pence)} on {dayMonth(budget.lastPay.day)}. Later paydays use it until a step
+          says otherwise.
+        </p>
+      )}
+      <PayForm key={steps.map((s) => `${s.fromOn}:${s.pence}`).join(",")} fromOn={payday} />
     </section>
   );
 }

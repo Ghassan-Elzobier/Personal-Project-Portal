@@ -630,4 +630,35 @@ test.describe("money", () => {
     await page.getByRole("button", { name: "Erase all bank data" }).click();
     await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
   });
+
+  test("a salary is worked out to take-home, and saving it puts the pay on each payday of the forecast at once and after a reload", async ({
+    page,
+    request,
+  }) => {
+    page.on("dialog", (dialog) => void dialog.accept());
+    await request.post(`${FAKE_LUNCHFLOW}/__transactions`, { data: [] });
+    await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=100000`);
+    await page.goto("/life/money");
+    await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
+    await page.getByRole("button", { name: "Connect this account" }).click();
+
+    const ahead = page.getByRole("region", { name: "The next 13 weeks" });
+    await expect(ahead.getByText("Pay: 30 Nov not planned · 31 Dec not planned · 29 Jan not planned")).toBeVisible();
+
+    const pay = page.getByRole("region", { name: "Your pay" });
+    await pay.getByLabel("Salary a year (£)").fill("30000");
+    await expect(pay.getByText(/^About £2,093\.30 a month after tax/)).toBeVisible();
+    await pay.getByRole("button", { name: "Save the pay" }).click();
+    const planned = "Pay: 30 Nov £2,093.30 · 31 Dec £2,093.30 · 29 Jan £2,093.30";
+    await expect(ahead.getByText(planned)).toBeVisible();
+    await page.reload();
+    await expect(ahead.getByText(planned)).toBeVisible();
+    await expect(pay.getByText("£2,093.30 a month from 30 Nov")).toBeVisible();
+
+    // Back as it was.
+    await pay.getByRole("button", { name: "Remove the pay from 30 Nov" }).click();
+    await expect(ahead.getByText(/^Pay: 30 Nov not planned/)).toBeVisible();
+    await page.getByRole("button", { name: "Erase all bank data" }).click();
+    await expect(page.getByRole("button", { name: "Connect Lunch Flow" })).toBeVisible();
+  });
 });

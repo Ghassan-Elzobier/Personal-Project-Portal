@@ -1,0 +1,271 @@
+// The forecast: your balance day by day for the next 13 weeks, from what Money knows —
+// the bills on their days, each week's amount spent through the week, planned
+// purchases on their days, and pay on each payday. Pure, so it is tested with a pinned
+// day. It gives the lowest point (and when), the days under the buffer, and a
+// checkpoint for each Monday: the balance the week should start with.
+//
+// whatIf runs the same forecast with changes (a different pay, a new regular cost,
+// spending more or less a week, a one-off) and says how the lowest point and the
+// balance at the end move, for "what if I switch to the bus?" or "what if the job
+// pays more?".
+
+import { addDays, weekdayIndex } from "../dates/week.ts";
+import {
+  allowanceFrom,
+  budgetView,
+  mondayOf,
+  nextPayday,
+  paydayIn,
+  type BudgetData,
+  type IncomeStep,
+  type Planned,
+} from "./budget.ts";
+import { dueUntil, type Bill, type Cadence } from "./recurring.ts";
+
+export type Day = { day: string; pence: number };
+
+export type Forecast = {
+  /** The balance at the end of each day, today first. */
+  points: Day[];
+  lowest: Day;
+  /** Days the balance ends under the buffer (once the buffer applies). */
+  underBuffer: string[];
+  /** The balance each Monday should start with: the Sunday before's end. */
+  checkpoints: Day[];
+  /** Each payday in the window, with the pay expected. */
+  paydays: Day[];
+  /** What moves the balance most: pay, bills and planned purchases (money out is negative). */
+  events: { day: string; name: string; pence: number }[];
+};
+
+/** The budget, with its pay: the steps planned, and the latest pay received. */
+export type ForecastData = BudgetData;
+
+/**
+ * The pay among unsorted money in: the largest payment within 3 days of a payday (this
+ * month's or last month's) that is at least half the pay expected then. The engine
+ * sorts it as Pay, so the forecast learns the real figure. Nothing without a plan.
+ */
+export function spotPay(
+  incoming: { id: number; madeOn: string; pence: number }[],
+  data: Pick<BudgetData, "paydayRule" | "firstPayday" | "income">,
+  today: string,
+): number | null {
+  const month = today.slice(0, 7);
+  const [y, m] = month.split("-").map(Number);
+  const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+  let best: { id: number; pence: number } | null = null;
+  for (const payday of [paydayIn(prev, data.paydayRule), paydayIn(month, data.paydayRule)]) {
+    if (data.firstPayday && payday < addDays(data.firstPayday, -3)) continue;
+    const expected = payOn(payday, data.income ?? [], null);
+    if (expected <= 0) continue;
+    for (const t of incoming) {
+      const near = Math.abs(Date.parse(`${t.madeOn}T00:00:00Z`) - Date.parse(`${payday}T00:00:00Z`)) <= 3 * 86_400_000;
+      if (near && t.pence >= expected / 2 && (!best || t.pence > best.pence)) best = t;
+    }
+  }
+  return best?.id ?? null;
+}
+
+const FIXED = new Set(["bills", "savings"]);
+export const FORECAST_DAYS = 91;
+
+function daysIn(month: string): number {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/**
+ * The pay expected on a payday: the latest step starting on or before it. When a pay
+ * has come in since that step began, it's that pay instead, so the first real payslip
+ * replaces an estimate without anyone typing it in.
+ */
+export function payOn(payday: string, income: IncomeStep[], lastPay: Day | null): number {
+  const step = income.filter((s) => s.fromOn <= payday).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0];
+  if (lastPay && lastPay.day <= payday && (!step || lastPay.day >= step.fromOn)) return lastPay.pence;
+  return step?.pence ?? 0;
+}
+
+/** A spread purchase's share of a week, or the whole of one paid from that week's amount. */
+function weekShare(planned: Planned[], monday: string): number {
+  return planned.reduce((s, p) => {
+    const from = mondayOf(p.dueOn);
+    if (p.funding === "allowance" && from === monday) return s + p.pence;
+    if (p.funding === "spread" && monday >= from && monday <= addDays(from, 7 * (Math.max(1, p.weeks) - 1)))
+      return s + Math.ceil(p.pence / Math.max(1, p.weeks));
+    return s;
+  }, 0);
+}
+
+export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS): Forecast | null {
+  if (data.balancePence === null) return null;
+  const end = addDays(today, days - 1);
+  const out = new Map<string, number>();
+  const take = (day: string, pence: number) => out.set(day, (out.get(day) ?? 0) + pence);
+  const events: Forecast["events"] = [];
+
+  // Bills on their days (a late one today). A fixed category without a bill found keeps
+  // its monthly budget, spread through each month (this month: what's left of it).
+  const bills = (data.bills ?? []).filter((b): b is Bill => b.status === "active");
+  const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
+  for (const b of bills)
+    for (const due of dueUntil(b, today, end)) {
+      const day = due < today ? today : due;
+      take(day, b.expectedPence);
+      events.push({ day, name: b.name ?? "A bill", pence: -b.expectedPence });
+    }
+  const thisMonth = today.slice(0, 7);
+  const daysLeftInMonth = daysIn(thisMonth) - Number(today.slice(8, 10)) + 1;
+  for (const c of data.categories) {
+    if (!FIXED.has(c.kind) || !c.budgetPence || billed.has(c.key)) continue;
+    for (let d = today; d <= end; d = addDays(d, 1)) {
+      const month = d.slice(0, 7);
+      take(
+        d,
+        month === thisMonth
+          ? Math.max(0, c.budgetPence - c.paidMonth) / daysLeftInMonth
+          : c.budgetPence / daysIn(month),
+      );
+    }
+  }
+
+  // Each week's amount, spent through the week: what's left this week over its days,
+  // then the weekly amount less any planned share, a seventh a day. A planned purchase
+  // itself goes out on its day.
+  const planned = data.planned ?? [];
+  const allowance = allowanceFrom(data) ?? 0;
+  const leftThisWeek = Math.max(0, budgetView(data, today).week.left ?? 0);
+  const thisWeek = mondayOf(today);
+  const daysLeftInWeek = 7 - weekdayIndex(today);
+  for (let d = today; d <= end; d = addDays(d, 1)) {
+    const monday = mondayOf(d);
+    take(
+      d,
+      monday === thisWeek ? leftThisWeek / daysLeftInWeek : Math.max(0, allowance - weekShare(planned, monday)) / 7,
+    );
+  }
+  for (const p of planned) {
+    const day = p.dueOn < today ? today : p.dueOn;
+    if (day > end) continue;
+    take(day, p.pence);
+    events.push({ day, name: p.name, pence: -p.pence });
+  }
+
+  // Pay on each payday.
+  const income = data.income ?? [];
+  const paydays: Day[] = [];
+  for (
+    let p = nextPayday(today, data.paydayRule, data.firstPayday);
+    p <= end;
+    p = nextPayday(p, data.paydayRule, data.firstPayday)
+  ) {
+    const pence = payOn(p, income, data.lastPay ?? null);
+    paydays.push({ day: p, pence });
+    if (pence > 0) {
+      take(p, -pence);
+      events.push({ day: p, name: "Pay", pence });
+    }
+  }
+
+  const points: Day[] = [];
+  let balance = data.balancePence;
+  for (let d = today; d <= end; d = addDays(d, 1)) {
+    balance -= out.get(d) ?? 0;
+    points.push({ day: d, pence: Math.round(balance) });
+  }
+  const checkpoints: Day[] = [];
+  for (let i = 1; i < points.length; i++)
+    if (weekdayIndex(points[i].day) === 0) checkpoints.push({ day: points[i].day, pence: points[i - 1].pence });
+  const bufferOn = (d: string) => (!data.bufferFrom || data.bufferFrom <= d ? data.bufferPence : 0);
+  return {
+    points,
+    lowest: points.reduce((lo, p) => (p.pence < lo.pence ? p : lo), points[0]),
+    underBuffer: points.filter((p) => p.pence < bufferOn(p.day)).map((p) => p.day),
+    checkpoints,
+    paydays,
+    events: events.sort((a, b) => a.day.localeCompare(b.day) || a.pence - b.pence),
+  };
+}
+
+export type Change = {
+  /** Take-home a month from the next payday on. */
+  payPence?: number;
+  /** Spend this much more each week (less, when negative). */
+  weeklyChangePence?: number;
+  /** A new regular cost, first paid on `on`. */
+  bills?: { name: string; pence: number; cadence: Cadence; on: string }[];
+  /** A one-off cost on a day. */
+  oneOffs?: { name: string; pence: number; on: string }[];
+};
+
+export type Outlook = { lowest: Day; end: Day; daysUnderBuffer: number };
+
+export type WhatIf = {
+  before: Outlook;
+  after: Outlook;
+  /** How much the lowest point and the end balance move (better when positive). */
+  lowestChange: number;
+  endChange: number;
+  /** The end change as a month's worth. */
+  perMonth: number;
+};
+
+function outlook(f: Forecast): Outlook {
+  return { lowest: f.lowest, end: f.points[f.points.length - 1], daysUnderBuffer: f.underBuffer.length };
+}
+
+/** The forecast with the changes, against the forecast as it is. Null without a balance. */
+export function whatIf(data: ForecastData, today: string, change: Change): WhatIf | null {
+  const base = forecast(data, today);
+  if (!base) return null;
+  const next = nextPayday(today, data.paydayRule, data.firstPayday);
+  const changed: ForecastData = {
+    ...data,
+    income:
+      change.payPence === undefined
+        ? data.income
+        : [
+            ...(data.income ?? []).filter((s) => s.fromOn < next),
+            { fromOn: next, pence: change.payPence, grossYearPence: null },
+          ],
+    allowancePence:
+      change.weeklyChangePence === undefined
+        ? data.allowancePence
+        : Math.max(0, (allowanceFrom(data) ?? 0) + change.weeklyChangePence),
+    bills: [
+      ...(data.bills ?? []),
+      ...(change.bills ?? []).map((b, i): Bill => ({
+        id: -1 - i,
+        ident: `what-if-${i}`,
+        merchantKey: `what-if-${i}`,
+        bandPence: null,
+        name: b.name,
+        cadence: b.cadence,
+        anchorOn: b.on,
+        expectedPence: b.pence,
+        variable: false,
+        category: null,
+        status: "active",
+        addedBy: "owner",
+        createdAt: "",
+        lastPaidOn: null,
+        lastPence: null,
+      })),
+    ],
+    planned: [
+      ...(data.planned ?? []),
+      ...(change.oneOffs ?? []).map((o) => ({ name: o.name, pence: o.pence, dueOn: o.on, funding: "safe", weeks: 1 })),
+    ],
+  };
+  const after = forecast(changed, today)!;
+  const a = outlook(after);
+  const b = outlook(base);
+  const endChange = a.end.pence - b.end.pence;
+  return {
+    before: b,
+    after: a,
+    lowestChange: a.lowest.pence - b.lowest.pence,
+    endChange,
+    perMonth: Math.round((endChange * 30.4) / FORECAST_DAYS),
+  };
+}

@@ -10,6 +10,7 @@ import { newStatementRows, parseStatement, StatementError } from "./statement";
 import { bankMessage } from "./state";
 import * as store from "./store";
 import { syncBank } from "./sync";
+import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
 
 // Every change Money makes from the app. Each returns { error } with a message for
 // people instead of throwing. What is stored about an account always comes from
@@ -201,6 +202,48 @@ export function savePlanned(input: PlannedInput): Promise<Result> {
 export function cancelPlanned(id: number): Promise<Result> {
   return run(async () => {
     await store.cancelPlanned(id);
+    return {};
+  });
+}
+
+export type PayInput = {
+  fromOn: string;
+  /** Take-home a month, in pounds; or empty to work it out from the gross. */
+  takeHome: string;
+  /** Gross salary a year, in pounds. */
+  gross: string;
+  loans: LoanPlan[];
+  pensionPercent: number;
+  pensionKind: PensionKind;
+};
+
+/** A pay step: from a payday on, this take-home (typed, or worked out from the gross salary). */
+export function saveIncome(input: PayInput): Promise<Result> {
+  return run(async () => {
+    if (!DAY.test(input.fromOn)) throw new store.MoneyStoreError("Pick the payday it starts from.");
+    const gross = parsePounds(input.gross);
+    const typed = parsePounds(input.takeHome);
+    if (gross === undefined || typed === undefined)
+      throw new store.MoneyStoreError("Amounts are in pounds, like 2280 or 2280.50.");
+    const pence =
+      typed ??
+      (gross
+        ? takeHome({
+            grossYearPence: gross,
+            loans: input.loans.filter((l): l is LoanPlan => l in LOANS),
+            pensionPercent: Math.min(20, Math.max(0, Number(input.pensionPercent) || 0)),
+            pensionKind: input.pensionKind,
+          }).monthPence
+        : null);
+    if (!pence) throw new store.MoneyStoreError("Say the take-home a month, or the salary a year.");
+    await store.saveIncome({ from_on: input.fromOn, pence, gross_year_pence: gross ?? null });
+    return {};
+  });
+}
+
+export function removeIncome(id: number): Promise<Result> {
+  return run(async () => {
+    await store.removeIncome(id);
     return {};
   });
 }
