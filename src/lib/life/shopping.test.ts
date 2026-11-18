@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NO_RULES, type FoodRules } from "./allergens.ts";
 import { isSainsburysProduct, packFromSlug } from "./ingredients.ts";
-import { buildList, cookUse, delivery, listTotal, soonToUse, type Need } from "./shopping.ts";
+import { buildList, cookUse, delivery, listTotal, soonToUse, splitTrips, type Need } from "./shopping.ts";
 
 const rules: FoodRules = {
   ...NO_RULES,
@@ -142,4 +142,99 @@ test("Sainsbury's product links only, and pack sizes from their slugs", () => {
     qty: 27000,
     unit: "ml",
   });
+});
+
+// A fresh week: shops on Sunday 15 and Wednesday 18 November.
+const TRIPS = [
+  { id: "wed", date: "2026-11-18" },
+  { id: "sun", date: "2026-11-15" },
+];
+const need = (item: string, ...at: [string, number][]): Need => ({
+  item,
+  qty: at.reduce((t, [, q]) => t + q, 0),
+  firstUse: at.map(([d]) => d).sort()[0],
+  uses: ["x"],
+  at: at.map(([date, qty]) => ({ date, qty, use: "x" })),
+});
+const onTrip = (r: ReturnType<typeof splitTrips>, id: string, item: string) =>
+  r.trips.find((t) => t.id === id)!.needs.find((n) => n.item === item);
+
+test("shops come in date order, and each item is bought on the last shop before it is used", () => {
+  const r = splitTrips([need("chicken-thigh", ["2026-11-20", 800])], TRIPS, [], []);
+  assert.deepEqual(
+    r.trips.map((t) => t.id),
+    ["sun", "wed"],
+  );
+  // Friday's chicken keeps 3 days: bought on Wednesday, not Sunday.
+  assert.equal(onTrip(r, "sun", "chicken-thigh"), undefined);
+  assert.equal(onTrip(r, "wed", "chicken-thigh")?.qty, 800);
+});
+
+test("one pack for two cooks goes on the earlier shop when it keeps and saves a pack", () => {
+  // Peppers keep a week, and one pack of three covers Monday and Friday.
+  const r = splitTrips([need("pepper", ["2026-11-16", 1], ["2026-11-20", 1])], TRIPS, [], []);
+  assert.equal(onTrip(r, "sun", "pepper")?.qty, 2);
+  assert.equal(onTrip(r, "wed", "pepper"), undefined);
+});
+
+test("food that keeps for weeks is bought once, on the first shop", () => {
+  const r = splitTrips(
+    [need("onion", ["2026-11-16", 2], ["2026-11-20", 2]), need("pasta", ["2026-11-19", 300])],
+    TRIPS,
+    [],
+    [],
+  );
+  assert.equal(onTrip(r, "sun", "onion")?.qty, 4);
+  assert.equal(onTrip(r, "sun", "pasta")?.qty, 300);
+  assert.equal(r.trips.find((t) => t.id === "wed")!.needs.length, 0);
+});
+
+test("short-lived food for two cooks far apart is bought on both shops", () => {
+  // Spinach keeps 4 days: Sunday's bag would be gone by Friday.
+  const r = splitTrips([need("spinach", ["2026-11-16", 100], ["2026-11-20", 100])], TRIPS, [], []);
+  assert.equal(onTrip(r, "sun", "spinach")?.qty, 100);
+  assert.equal(onTrip(r, "wed", "spinach")?.qty, 100);
+});
+
+test("the kitchen comes off first while it is in date; staples go on the first shop", () => {
+  const r = splitTrips(
+    [need("chicken-breast", ["2026-11-16", 300], ["2026-11-20", 300]), need("olive-oil", ["2026-11-19", 30])],
+    TRIPS,
+    [{ item: "chicken-breast", qty: 400, status: null, goodUntil: "2026-11-17" }],
+    [],
+  );
+  // Monday's comes from the fridge; the 100 g left is past its date by Friday.
+  assert.equal(onTrip(r, "sun", "chicken-breast"), undefined);
+  assert.equal(onTrip(r, "wed", "chicken-breast")?.qty, 300);
+  assert.ok(onTrip(r, "sun", "olive-oil"));
+});
+
+test("an item fully in the kitchen is covered, and one needed before the first shop is flagged", () => {
+  const r = splitTrips(
+    [need("cheddar", ["2026-11-16", 100]), need("beef-mince", ["2026-11-14", 500])],
+    TRIPS,
+    [{ item: "cheddar", qty: 400, status: null, goodUntil: null }],
+    [],
+  );
+  assert.deepEqual(r.covered, ["cheddar"]);
+  assert.equal(onTrip(r, "sun", "beef-mince")?.qty, 500);
+  assert.deepEqual(r.trips.find((t) => t.id === "sun")!.early, ["beef-mince"]);
+});
+
+test("your product's pack size decides whether one pack covers two cooks", () => {
+  const big = {
+    item: "spinach",
+    url: "https://www.sainsburys.co.uk/gol-ui/product/x-500g",
+    name: "X",
+    packQty: 500,
+    packUnit: "g" as const,
+    pence: 200,
+    checked: [],
+  };
+  // Monday and Thursday are within Sunday's pack's 4 days, and one big pack covers both.
+  const r = splitTrips([need("spinach", ["2026-11-16", 200], ["2026-11-19", 200])], TRIPS, [], [big]);
+  assert.equal(onTrip(r, "sun", "spinach")?.qty, 400);
+  // With the typical 240 g bag it takes two packs either way, so each is bought nearer its use.
+  const typical = splitTrips([need("spinach", ["2026-11-16", 200], ["2026-11-19", 200])], TRIPS, [], []);
+  assert.equal(onTrip(typical, "wed", "spinach")?.qty, 200);
 });

@@ -36,10 +36,29 @@ export type WeekPlan = {
   fresh: { date: string; slot: Slot; recipe: string }[];
   /** Slots you won't eat at home: "2026-11-15:dinner". */
   out: string[];
-  /** Delivery and order state. */
+  /** Delivery and order state, for a batch week's one shop. */
   shop?: { orderedOn?: string; deliveredOn?: string; got?: string[]; added?: { item: string; qty: number }[] };
+  /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
+  mode?: WeekMode;
+  /** A fresh week's shops, in date order. */
+  trips?: Trip[];
   /** The day the plan was made: days before it are history, not missed meals. */
   createdOn?: string;
+};
+
+export type WeekMode = "batch" | "fresh";
+
+/** One shop in a fresh week, and what it brought home once done. */
+export type Trip = {
+  id: string;
+  date: string;
+  /** Minutes after midnight. */
+  start: number;
+  doneOn?: string;
+  got?: string[];
+  added?: { item: string; qty: number }[];
+  /** The shop's estimate when it was done, for the week's total. */
+  pence?: number;
 };
 
 /** A cooked batch with portions left, from the kitchen. */
@@ -265,6 +284,15 @@ function compare(a: number[], b: number[]): number {
   return 0;
 }
 
+/**
+ * In a fresh week, a cook's spare portions (for next week's first lunch) stay in
+ * the fridge when they are still in date at the start of next week.
+ */
+export function spareStaysCold(plan: WeekPlan, c: Cook): boolean {
+  const r = recipe(c.recipe);
+  return Boolean(plan.mode === "fresh" && r && addDays(c.date, r.keeps.fridgeDays) >= addDays(plan.start, 7));
+}
+
 /** Portions left in each planned cook once the week is filled: these go to the freezer. */
 export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string; recipe: string; portions: number }[] {
   return plan.cooks
@@ -362,7 +390,9 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
   }
   for (const s of spare(plan, placements)) {
     const r = recipe(s.recipe);
-    if (r?.keeps.freezes) freezeByCook.set(s.cookId, (freezeByCook.get(s.cookId) ?? 0) + s.portions);
+    const c = plan.cooks.find((x) => x.id === s.cookId);
+    if (r?.keeps.freezes && !(c && spareStaysCold(plan, c)))
+      freezeByCook.set(s.cookId, (freezeByCook.get(s.cookId) ?? 0) + s.portions);
   }
   for (const c of plan.cooks) {
     const n = freezeByCook.get(c.id);

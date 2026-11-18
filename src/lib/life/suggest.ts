@@ -12,7 +12,7 @@ import { INGREDIENTS } from "./ingredients.ts";
 import { verdict } from "./nutrition.ts";
 import type { CookSession, LifeProfile } from "./profile.ts";
 import { RECIPES, type Recipe } from "./recipes.ts";
-import type { Cook, WeekPlan } from "./planner.ts";
+import type { Cook, Trip, WeekMode, WeekPlan } from "./planner.ts";
 
 export type Rating = { recipe: string; stars: number };
 /** When each recipe was last eaten or cooked. */
@@ -100,11 +100,14 @@ export function rank(
     .sort((a, b) => b.score - a.score || a.recipe.name.localeCompare(b.recipe.name));
 }
 
-/** Picks n recipes from a ranking, spreading cuisines and meats, with at most one to explore. */
-export function pickSpread(ranked: Ranked[], n: number, avoid: string[] = []): Recipe[] {
-  const chosen: Recipe[] = [];
+/**
+ * Picks n recipes from a ranking, spreading cuisines and meats, with at most one to
+ * explore. `prior` are picks already made for the week, so the spread counts them too.
+ */
+export function pickSpread(ranked: Ranked[], n: number, avoid: string[] = [], prior: Recipe[] = []): Recipe[] {
+  const chosen: Recipe[] = [...prior];
   const pool = ranked.filter((r) => !avoid.includes(r.recipe.key));
-  while (chosen.length < n && pool.length) {
+  while (chosen.length < prior.length + n && pool.length) {
     let best = -1;
     let bestScore = -Infinity;
     pool.forEach((c, i) => {
@@ -121,7 +124,7 @@ export function pickSpread(ranked: Ranked[], n: number, avoid: string[] = []): R
     chosen.push(pool[best].recipe);
     pool.splice(best, 1);
   }
-  return chosen;
+  return chosen.slice(prior.length);
 }
 
 /**
@@ -156,10 +159,17 @@ export function weekendFresh(
 const daysUntil = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-export function sessionDates(start: string, cooks: CookSession[]): { date: string; start: number }[] {
+export function sessionDates(
+  start: string,
+  cooks: CookSession[],
+): { date: string; start: number; minutes?: number | null }[] {
   const startWeekday = (new Date(`${start}T00:00:00Z`).getUTCDay() + 6) % 7;
   return cooks
-    .map((c) => ({ date: addDays(start, (c.weekday - startWeekday + 7) % 7), start: c.start }))
+    .map((c) => ({
+      date: addDays(start, (c.weekday - startWeekday + 7) % 7),
+      start: c.start,
+      ...(c.minutes ? { minutes: c.minutes } : {}),
+    }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
 }
 
@@ -167,12 +177,12 @@ export function sessionDates(start: string, cooks: CookSession[]): { date: strin
  * Cook sessions already gone when the week is planned late are replaced by one
  * catch-up session today, so the plan never counts on food nobody cooked.
  */
-export function catchUp(sessions: { date: string; start: number }[], today: string): { date: string; start: number }[] {
+export function catchUp<T extends { date: string; start: number }>(sessions: T[], today: string): T[] {
   const past = sessions.filter((x) => x.date < today);
   if (!past.length) return sessions;
   const future = sessions.filter((x) => x.date >= today);
   if (future.some((x) => x.date === today)) return future;
-  return [{ date: today, start: Math.max(...past.map((x) => x.start)) }, ...future];
+  return [{ ...past[past.length - 1], date: today, start: Math.max(...past.map((x) => x.start)) }, ...future];
 }
 
 /**
@@ -187,7 +197,9 @@ export function suggestWeek(
   lastHad: LastHad,
   spare: Record<string, number>,
   today: string,
+  mode: WeekMode = "batch",
 ): WeekPlan {
+  if (mode === "fresh") return suggestFreshWeek(profile, start, ratings, lastHad, spare, today);
   const mains = rank(profile, "main", ratings, lastHad, spare, today).filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
   // Each session cooks for the days until the next one. Two mains for that, but
@@ -228,6 +240,69 @@ export function suggestWeek(
     start,
     cooks,
     breakfast: dailyBreakfast?.key ?? batchBreakfast?.key ?? "",
+    shake: shakes[0] ?? "",
+    shakes,
+    fresh: weekendFresh(profile, start, sessions, rank(profile, "main", ratings, lastHad, spare, today), today),
+    out: [],
+  };
+}
+
+/**
+ * A fresh week: one dish per short session, each feeding the days until the next,
+ * so nothing has to wait in the freezer, and the routine's shop trips. A dish must
+ * fit the session's time; rice dishes (one day in the fridge) go to sessions that
+ * only cover a day. The mornings use the daily breakfast, so no session cooks two
+ * things.
+ */
+function suggestFreshWeek(
+  profile: LifeProfile,
+  start: string,
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+): WeekPlan {
+  const end = addDays(start, 7);
+  const ranked = rank(profile, "main", ratings, lastHad, spare, today).filter(
+    (r) => !r.recipe.tags.includes("weekend"),
+  );
+  const sessions = catchUp(sessionDates(start, profile.routine.fresh.cooks), today);
+  const picks: Recipe[] = [];
+  const cooks: Cook[] = [];
+  sessions.forEach((x, i) => {
+    const covers = daysUntil(x.date, sessions[i + 1]?.date ?? end);
+    const weeknight = (new Date(`${x.date}T00:00:00Z`).getUTCDay() + 6) % 7 < 5;
+    const left = ranked.filter((r) => !picks.some((p) => p.key === r.recipe.key));
+    const inTime = left.filter((r) => !x.minutes || r.recipe.totalMin <= x.minutes);
+    // Dishes that stay safe in the fridge for every day the session feeds, when there are any.
+    const safe = inTime.filter((r) => r.recipe.keeps.fridgeDays >= covers);
+    const fits = (safe.length ? safe : inTime).map((r) => ({
+      ...r,
+      score: r.score - (weeknight ? r.recipe.activeMin / 20 : 0),
+    }));
+    // Nothing fits the time: the quickest dish left, rather than no cook at all.
+    const pick =
+      pickSpread(fits, 1, [], picks)[0] ?? [...left].sort((a, b) => a.recipe.totalMin - b.recipe.totalMin)[0]?.recipe;
+    if (!pick) return;
+    picks.push(pick);
+    cooks.push({ id: `${x.date}-${pick.key}`, recipe: pick.key, date: x.date, start: x.start, portions: 0, scale: 1 });
+  });
+  const breakfasts = rank(profile, "breakfast", ratings, lastHad, spare, today);
+  const dailyBreakfast = breakfasts.find((r) => r.recipe.daily)?.recipe ?? breakfasts[0]?.recipe;
+  const shakes = rank(profile, "shake", ratings, lastHad, spare, today)
+    .slice(0, 3)
+    .map((r) => r.recipe.key);
+  const trips: Trip[] = catchUp(sessionDates(start, profile.routine.fresh.trips), today).map((t) => ({
+    id: `trip-${t.date}`,
+    date: t.date,
+    start: t.start,
+  }));
+  return {
+    start,
+    mode: "fresh",
+    cooks,
+    trips,
+    breakfast: dailyBreakfast?.key ?? "",
     shake: shakes[0] ?? "",
     shakes,
     fresh: weekendFresh(profile, start, sessions, rank(profile, "main", ratings, lastHad, spare, today), today),

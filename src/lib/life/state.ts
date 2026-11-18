@@ -14,9 +14,18 @@ import {
   type Weight,
 } from "./nutrition.ts";
 import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
-import { assign, mealWeekStart, reminders, type Placement, type Reminder, type WeekPlan } from "./planner.ts";
+import {
+  assign,
+  mealWeekStart,
+  reminders,
+  type Placement,
+  type Reminder,
+  type Trip,
+  type WeekPlan,
+} from "./planner.ts";
 import { recipe } from "./recipes.ts";
-import { weekNeeds, type Need, type Product, type StockRow } from "./shopping.ts";
+import { INGREDIENTS } from "./ingredients.ts";
+import { buildList, splitTrips, weekNeeds, type ListLine, type Need, type Product, type StockRow } from "./shopping.ts";
 import { consistency, nextWorkout, type SessionLog, type SetLog } from "./gym/progress.ts";
 import { workout } from "./gym/program.ts";
 
@@ -347,6 +356,32 @@ export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")):
   const cooked = new Set(s.batches.filter((b) => b.planStart === v.start && b.cookId).map((b) => b.cookId!));
   const eaten = new Set(s.meals.filter((m) => m.status !== "skipped").map((m) => `${m.day}:${m.slot}`));
   return weekNeeds(v.plan, v.placements, { cooked, eaten, from: s.today });
+}
+
+export type TripList = { trip: Trip; lines: ListLine[]; early: string[] };
+
+/**
+ * A fresh week's shops: a list for each one not done yet, from what the week still
+ * needs, and the ones already done. The page and the Done action both use this, so
+ * what you tick is what goes into the kitchen.
+ */
+export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: Trip[]; covered: string[] } {
+  const trips = v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : [];
+  const done = trips.filter((t) => t.doneOn);
+  const open = trips.filter((t) => !t.doneOn);
+  if (!open.length) return { open: [], done, covered: [] };
+  const split = splitTrips(remainingNeeds(s, v), open, s.stock, s.products);
+  // Fresh food has come off already; staples still need their have / low / out.
+  const staples = s.stock.filter((x) => INGREDIENTS.get(x.item)?.staple);
+  return {
+    open: split.trips.map((t) => ({
+      trip: open.find((o) => o.id === t.id)!,
+      lines: buildList(t.needs, staples, s.products, s.profile.food, t.date),
+      early: t.early,
+    })),
+    done,
+    covered: split.covered,
+  };
 }
 
 /** kcal and protein of one placed portion. */
