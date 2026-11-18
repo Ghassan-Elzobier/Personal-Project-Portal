@@ -4,6 +4,9 @@
 export const PORT = 3100;
 export const BASE_URL = `http://localhost:${PORT}`;
 
+/** The made-up Lunch Flow (e2e/fake-lunchflow.mjs); scripts/e2e-env.sh points the app at it. */
+export const FAKE_LUNCHFLOW = "http://localhost:3199";
+
 /** The made-up owner from supabase/seed.sql. */
 export const OWNER_EMAIL = "owner@example.test";
 
@@ -41,4 +44,5 @@ export const OWNER_PAGES: { path: string; heading: RegExp }[] = [
   { path: "/life/body", heading: /Body/i },
   { path: "/life/recipes", heading: /Recipes/i },
   { path: "/life/settings", heading: /Settings|Life/i },
+  { path: "/life/money", heading: /Money/i },
 ];

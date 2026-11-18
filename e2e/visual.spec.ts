@@ -14,6 +14,7 @@ const PAGES = [
   { name: "today", path: "/" },
   { name: "meals", path: "/life" },
   { name: "recipes", path: "/life/recipes" },
+  { name: "money", path: "/life/money" },
 ];
 
 // Hidden in screenshots: the loading bar's animation and toasts (e2e/screenshot.css).
