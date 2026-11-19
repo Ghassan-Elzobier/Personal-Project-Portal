@@ -371,13 +371,16 @@ async function file() {
         (counts.already ? `Already filed by this run: ${counts.already}. ` : "") +
         `Nothing worth proposing: ${counts.nothing}. Failed: ${problems.length}.`,
     );
-  if (problems.length)
-    fail(
+  if (problems.length) {
+    // Said like the rest, so the log reads in order and the run's summary ends with what to do.
+    say(
       ids.length > 1
-        ? `${problems.length} of ${ids.length} foci have nothing filed. To try one again, run R&D by hand on that focus. ` +
+        ? `Nothing was filed for ${problems.length} of the ${ids.length} foci. To try one again, run R&D by hand on that focus. ` +
             "Running this run's failed jobs again retries the research that failed, and files nothing twice."
         : "Nothing was filed.",
     );
+    process.exit(1);
+  }
 }
 
 const commands = { plan, brief, file };
