@@ -15,18 +15,19 @@ import { pounds } from "../money/state.ts";
 import { takeHome } from "../money/takehome.ts";
 
 /**
- * What this week's meal plan still has to buy: a fresh week's open shops by their
- * prices, or a batch week's shop until the delivery comes, at the checkout total once
- * it's ordered (the estimate before). Nothing without a plan.
+ * What this week's meal plan still has to buy, cupboard staples included (they're paid
+ * for at the same till): a fresh week's open shops by their prices, or a batch week's
+ * shop until the delivery comes, at the checkout total once it's ordered (the estimate
+ * before). The same total the kitchen's trolley bar counts. Nothing without a plan.
  */
 export function plannedShop(s: LifeState): number {
   const v = weekView(s, "this");
   const plan = v.plan;
   if (!plan) return 0;
-  if (plan.mode === "fresh") return tripLists(s, v).open.reduce((t, x) => t + listTotal(x.lines).food, 0);
+  if (plan.mode === "fresh") return tripLists(s, v).open.reduce((t, x) => t + listTotal(x.lines).pence, 0);
   if (plan.shop?.deliveredOn) return 0;
   if (plan.shop?.orderedOn && plan.shop.orderedPence != null) return plan.shop.orderedPence;
-  return listTotal(buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, s.today)).food;
+  return listTotal(buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, s.today)).pence;
 }
 
 /** What the gym's bills cost a month, and a visit this month so far. Null without a gym bill. */
