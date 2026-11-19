@@ -9,7 +9,8 @@ import { BASE_URL, FAKE_LUNCHFLOW, OWNER_STATE, PORT } from "./e2e/env";
 // and every page must also hold at 360 px. Screenshots use a device scale of 1
 // so the baselines stay small; layout is the same at any pixel density.
 
-const STATE = /state-fresh\.spec\.ts/;
+// The save tests: e2e/state-fresh.spec.ts, and a state-<feature>.spec.ts beside it for each newer save.
+const STATE = /[\\/]state-[a-z0-9-]+\.spec\.ts$/;
 // Every page for R&D's review, at the owner's phone size only (e2e/page-shots.spec.ts).
 const SHOTS = /page-shots\.spec\.ts/;
 
@@ -55,10 +56,12 @@ export default defineConfig({
       dependencies: ["setup"],
     },
     // Tests that tap through the app and change shared data (tasks, weigh-ins). They run
-    // last and alone, so the screenshots and layout checks never see their data.
+    // last and alone, so the screenshots and layout checks never see their data, and one
+    // file at a time, because every file changes the same database.
     {
       name: "state",
       testMatch: STATE,
+      workers: 1,
       use: { ...pixel7, storageState: OWNER_STATE },
       dependencies: ["pixel-7", "small-phone", "desktop"],
     },

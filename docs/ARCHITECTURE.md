@@ -18,7 +18,7 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
    pure logic with tests beside it, plus each domain's data access
                            │
                            ▼
-   src/lib/dates · src/lib/config · src/lib/auth · src/lib/supabase  (infrastructure)
+   src/lib/dates · src/lib/config · src/lib/auth · src/lib/supabase · src/lib/mcp  (infrastructure)
                            │
                            ▼
    Supabase: the private `portal` schema, reached only through `public` RPCs
@@ -30,7 +30,9 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
 - **Domains hold the logic.** Pure functions (planning, matching, progression,
   nutrition) are tested with node:test; I/O stays at the edges of the module.
 - **Infrastructure knows nothing above it.** The clock (`dates/clock.ts`), settings
-  (`config/`), access (`auth/`) and the Supabase clients. Domains call their RPCs
+  (`config/`), access (`auth/`), the Supabase clients, and what a Claude tool is
+  (`mcp/tool.ts`: the `Tool` type every module's tools share, and `checkArgs`, which
+  the connector's route runs on every call before the tool does). Domains call their RPCs
   through `rpcAsCaller` (`supabase/caller.ts`), which uses the browser session for a
   page and the token's hash for a Claude connector call.
 - **Errors are tracked in production.** `src/instrumentation.ts` (server errors),

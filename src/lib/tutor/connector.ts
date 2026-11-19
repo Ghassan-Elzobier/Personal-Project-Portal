@@ -1,5 +1,6 @@
 import "server-only";
 import { loadStudy } from "../study/load";
+import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { searchClaims, unitScope } from "./graph";
 import { PRACTICE_METHOD, TEACH_METHOD } from "./method";
 import * as ops from "./operations";
@@ -10,19 +11,6 @@ import * as store from "./store";
 // tools hold the record. Writes go through the same operations an in-portal tutor
 // page will use. Everything saved is the owner's own wording, never book text.
 
-type Json = Record<string, unknown>;
-type ToolResult = { text: string; isError?: boolean };
-type Tool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Json;
-  annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
-  run: (args: Json, ctx: { base: string }) => Promise<ToolResult>;
-};
-
-const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
-const err = (message: string): ToolResult => ({ text: message, isError: true });
 const SESSION = { type: "string", pattern: "^\\d+$", description: "Session number from tutor_start." };
 const TASK = { type: "string", pattern: "^\\d+$", description: "Task gid of the study unit, from get_study." };
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false };
