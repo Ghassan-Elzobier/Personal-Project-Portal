@@ -6,6 +6,7 @@ import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { suggestGoals } from "./allocate";
 import { mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
+import { affordCheck, displacesText, type AffordCheck } from "./displaces";
 import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
 import { BankError, type AccountChoice } from "./map";
@@ -207,6 +208,25 @@ export function savePlanned(input: PlannedInput): Promise<Result> {
     await store.savePlanned({ name: name.slice(0, 60), pence, due_on: input.dueOn, funding: input.funding, weeks });
     return {};
   });
+}
+
+/**
+ * "Can I afford it?" for a cost typed on the Money page: the check Claude's money_afford
+ * runs, on the budget as it stands now. It reads and writes nothing, so nothing is
+ * refreshed, and it works whatever Claude's access is set to.
+ */
+export async function checkAfford(amount: string): Promise<Result<{ check: AffordCheck; displaces: string }>> {
+  try {
+    const pence = poundsToPence(amount);
+    if (!pence) throw new store.MoneyStoreError("Say what it costs, in pounds.");
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const check = affordCheck(data, today, pence);
+    // Worded here, so the page's script need not carry the budget's working.
+    return { check, displaces: displacesText(check) };
+  } catch (e) {
+    return { error: e instanceof store.MoneyStoreError ? e.message : "That didn't work. Try again." };
+  }
 }
 
 export function cancelPlanned(id: number): Promise<Result> {

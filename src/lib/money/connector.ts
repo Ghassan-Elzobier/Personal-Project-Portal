@@ -4,7 +4,8 @@ import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { allocate } from "./allocate";
-import { afford, budgetView, mondayOf, monthStart, parseBudget, savedNow, type BudgetData } from "./budget";
+import { budgetView, mondayOf, monthStart, parseBudget, savedNow } from "./budget";
+import { affordCheck } from "./displaces";
 import { prompts } from "./prompts";
 import { weekSummary } from "./summary";
 import { forecast, whatIf } from "./forecast";
@@ -103,23 +104,6 @@ async function summary() {
     month_by_category: data.categories
       .filter((c) => c.paidMonth > 0 || (c.budgetPence ?? 0) > 0)
       .map((c) => ({ category: c.key, kind: c.kind, budget_pence: c.budgetPence, out_this_month_pence: c.paidMonth })),
-  };
-}
-
-/**
- * What a cost displaces, in the owner's terms: days of the weekly amount, and how much
- * later the first goal still being saved for gets there. People weigh a purchase better
- * when what it displaces is named (Frederick et al. 2009).
- */
-function inYourTerms(data: BudgetData, today: string, pence: number) {
-  const view = budgetView(data, today);
-  const weekly = view.week.allowance;
-  const plan = allocate(data, view.payday);
-  const goal = plan?.shares.find((s) => s.kind !== "debt" && s.remaining > 0 && s.pence > 0);
-  return {
-    days_of_weekly_amount: weekly ? Math.round((pence / weekly) * 7 * 10) / 10 : null,
-    first_goal_later_by_weeks:
-      goal && plan ? { goal: goal.name, weeks: Math.ceil((pence / goal.pence) * (plan.weeks || 4.3)) } : null,
   };
 }
 
@@ -365,11 +349,7 @@ export const MONEY_TOOLS: Tool[] = [
         const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
         const saves = typeof args.saves_per_week_pence === "number" ? args.saves_per_week_pence : 0;
         const pence = Number(args.pence);
-        return ok({
-          ...afford(data, today, pence, saves),
-          ...inYourTerms(data, today, pence),
-          page: `${base}/life/money`,
-        });
+        return ok({ ...affordCheck(data, today, pence, saves), page: `${base}/life/money` });
       }),
   },
   {
