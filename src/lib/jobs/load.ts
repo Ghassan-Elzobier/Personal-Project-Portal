@@ -19,6 +19,7 @@ import {
   type StoredEvidence,
   type UnitFact,
 } from "./match";
+import { isLive, needsNextStep } from "./next-step";
 import { listEvidence, listPostings, listSources, type JobRow, type JobSource } from "./store";
 
 // Everything the job pages and the Today hub show, worked out from the roles on file,
@@ -198,6 +199,8 @@ export type Hub = {
   nextSkill: MarketRow | null;
   active: number;
   actions: RoleView[];
+  /** Roles in progress with no next action or no date for it: nothing will bring them back to mind. */
+  unplanned: number;
   lastRead: string | null;
   nextUnit: { name: string; href: string | null; skills: { name: string; must: number; soft: number }[] } | null;
   failing: number;
@@ -222,9 +225,9 @@ export function hubFrom(board: JobBoard, overview: StudyOverview): Hub {
     closest,
     biggestGap: board.market.find((m) => m.standing.status === "missing" || m.standing.status === "near") ?? null,
     nextSkill: board.market.find((m) => m.standing.status === "in_plan") ?? null,
-    active: board.roles.filter((r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at)
-      .length,
+    active: board.roles.filter(isLive).length,
     actions,
+    unplanned: needsNextStep(board.roles).length,
     lastRead: board.lastRead,
     nextUnit:
       nextRef && found
