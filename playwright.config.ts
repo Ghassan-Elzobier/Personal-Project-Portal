@@ -10,6 +10,8 @@ import { BASE_URL, FAKE_LUNCHFLOW, OWNER_STATE, PORT } from "./e2e/env";
 // so the baselines stay small; layout is the same at any pixel density.
 
 const STATE = /state-fresh\.spec\.ts/;
+// Every page for R&D's review, at the owner's phone size only (e2e/page-shots.spec.ts).
+const SHOTS = /page-shots\.spec\.ts/;
 
 const pixel7 = { ...devices["Pixel 7"], deviceScaleFactor: 1 };
 
@@ -43,13 +45,13 @@ export default defineConfig({
     {
       name: "small-phone",
       use: { ...pixel7, viewport: { width: 360, height: 780 }, storageState: OWNER_STATE },
-      testIgnore: STATE,
+      testIgnore: [STATE, SHOTS],
       dependencies: ["setup"],
     },
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 }, storageState: OWNER_STATE },
-      testIgnore: STATE,
+      testIgnore: [STATE, SHOTS],
       dependencies: ["setup"],
     },
     // Tests that tap through the app and change shared data (tasks, weigh-ins). They run
