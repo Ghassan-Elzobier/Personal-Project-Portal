@@ -9,6 +9,12 @@
 // a break keeps an extra rep in reserve for the first two weeks, because strength
 // returns quickly but tendons and soreness lag behind.
 //
+// The reps left in the tank that the lifter logs steer the step, as the RIR scale
+// is meant to (Helms et al. 2016): when the top of the range came with less left
+// than the plan asks for, the weight holds until it comes with room to spare; when
+// every set had two or more extra, the step doubles. A set logged without it
+// changes nothing, and neither does one logged as planned.
+//
 // Estimated one-rep max uses Epley's formula with reps in reserve added to the
 // reps done, so a set of 5 with 2 left counts like a 7-rep max. It is only an
 // estimate, and only sets of 12 or fewer are used. Pure, so it is tested.
@@ -67,6 +73,17 @@ function byDay(history: SetLog[], exercise: string): SetLog[][] {
     .map(([, sets]) => sets.sort((a, b) => a.position - b.position));
 }
 
+/** This far under the reps in reserve asked for, the reps came at the limit: hold the weight. */
+const AT_THE_LIMIT = 1;
+/** Every set this far over, and the weight is light: add two steps. Ratings are good to about a rep, so not less. */
+const ROOM_TO_SPARE = 2;
+
+/** The fewest reps left in the tank on any of these sets, or null when none of them says. */
+function fewestLeft(sets: SetLog[]): number | null {
+  const logged = sets.flatMap((s) => (s.rir === null ? [] : [s.rir]));
+  return logged.length ? Math.min(...logged) : null;
+}
+
 export function target(p: Prescription, history: SetLog[], returning: boolean): Target {
   const ex = EXERCISE_MAP.get(p.exercise);
   const rir = p.rir + (returning ? 1 : 0);
@@ -95,7 +112,9 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
     let kg = top.kg!;
     let change: Target["change"] = "same";
     let why = `Same weight: aim for ${Math.min(hi, (top.reps ?? lo) + 1)} reps on the top set.`;
-    if ((top.reps ?? 0) >= hi) {
+    if ((top.reps ?? 0) >= hi && top.rir !== null && top.rir <= rir - AT_THE_LIMIT) {
+      why = `You got ${top.reps} last time, but with ${top.rir} left: same weight, aim for ${hi} with ${rir} in the tank.`;
+    } else if ((top.reps ?? 0) >= hi) {
       kg = top.kg! + ex.step;
       change = "up";
       why = `You got ${top.reps} last time: +${ex.step} kg.`;
@@ -130,12 +149,26 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
       rir,
     };
   }
+  const unloaded = ex.load === "bodyweight" && kg === 0;
+  const left = fewestLeft(atWeight);
+  if (allTop && left !== null && left <= rir - AT_THE_LIMIT) {
+    return {
+      sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: hi })),
+      change: "same",
+      why: `All sets hit ${hi}, but with ${left} left: ${unloaded ? "same again" : "same weight"}, aim for ${hi} with ${rir} in the tank.`,
+      rir,
+    };
+  }
   if (allTop) {
-    const why =
-      ex.load === "bodyweight" && kg === 0
-        ? `All sets hit ${hi}: add ${ex.step} kg on a belt, or hold a dumbbell.`
+    // The first weight on a belt is always the smallest step.
+    const light = !unloaded && left !== null && left >= rir + ROOM_TO_SPARE && atWeight.every((s) => s.rir !== null);
+    const add = light ? 2 * ex.step : ex.step;
+    const why = unloaded
+      ? `All sets hit ${hi}: add ${ex.step} kg on a belt, or hold a dumbbell.`
+      : light
+        ? `All sets hit ${hi} with ${left} or more left: +${add} kg.`
         : `All sets hit ${hi}: +${ex.step} kg.`;
-    return { sets: Array.from({ length: p.sets }, () => ({ kg: kg + ex.step, reps: lo })), change: "up", why, rir };
+    return { sets: Array.from({ length: p.sets }, () => ({ kg: kg + add, reps: lo })), change: "up", why, rir };
   }
   if (under && prevUnder) {
     const down = roundTo(kg * 0.95, ex.step);
@@ -151,7 +184,7 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
   return {
     sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: aim })),
     change: "same",
-    why: `${ex.load === "bodyweight" && kg === 0 ? "Same again" : "Same weight"}: aim for ${aim} on every set.`,
+    why: `${unloaded ? "Same again" : "Same weight"}: aim for ${aim} on every set.`,
     rir,
   };
 }
