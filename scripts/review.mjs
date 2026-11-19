@@ -14,9 +14,9 @@
 //   check  fails the job unless a review comment on the pull request names the
 //          commit it is at. A review that posted nothing used to look like a pass.
 //
-// Both read PR (the number), HEAD (its commit) and GITHUB_REPOSITORY, and need gh
-// signed in (GH_TOKEN in CI). brief also reads BASE; check reads ANSWER, the
-// review's JSON answer.
+// Both read PR (the number), HEAD (its commit), BASE (the commit it is to merge
+// into) and GITHUB_REPOSITORY, and need gh signed in (GH_TOKEN in CI). check also
+// reads ANSWER, the review's JSON answer.
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -144,8 +144,27 @@ function brief() {
   );
 }
 
+/** Whether this pull request changes the workflow that is running: Claude's action then skips itself. */
+function workflowChanged() {
+  // "owner/repo/.github/workflows/claude-review.yml@refs/pull/12/merge"
+  const path = /^[^/]+\/[^/]+\/(.+)@/.exec(env.GITHUB_WORKFLOW_REF ?? "")?.[1];
+  const base = env.BASE ?? "";
+  if (!path || !SHA.test(base)) return false;
+  const onBase = gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${repo}/contents/${path}?ref=${base}`]);
+  try {
+    return !onBase.ok || onBase.out !== readFileSync(path, "utf8");
+  } catch {
+    return true;
+  }
+}
+
 function check() {
-  const verdict = checkReview({ head, comments: comments(), answer: env.ANSWER });
+  const verdict = checkReview({
+    head,
+    comments: comments(),
+    answer: env.ANSWER,
+    workflowChanged: !(env.ANSWER ?? "").trim() && workflowChanged(),
+  });
   if (verdict.ok) return say(verdict.summary);
   say(verdict.problem);
   process.exit(1);

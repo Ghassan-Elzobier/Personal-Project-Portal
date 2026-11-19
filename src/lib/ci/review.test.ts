@@ -121,6 +121,21 @@ test("the answer names the commit in full and counts the findings", () => {
   assert.equal(JSON.stringify(REVIEW_SCHEMA).includes("'"), false);
 });
 
+test("a pull request that changes the review's own workflow has no review, and the failure says why", () => {
+  const changed = checkReview({ head: HEAD, comments: [], answer: "", workflowChanged: true });
+  assert.equal(changed.ok, false);
+  assert.match(
+    !changed.ok ? changed.problem : "",
+    /^This pull request changes the review's own workflow, .* so a1b2c3d has no review\. That is expected/,
+  );
+  // With a review on the pull request, the workflow having changed is beside the point.
+  assert.equal(checkReview({ head: HEAD, comments: [review(HEAD)], answer: "", workflowChanged: true }).ok, true);
+  assert.equal(
+    checkReview({ head: HEAD, comments: [review(HEAD)], answer: answer(HEAD), workflowChanged: true }).ok,
+    true,
+  );
+});
+
 // The workflow and the instructions, held to the promise in docs/FACTORY.md: a
 // review on opening and on every push, and a missing review fails the check.
 

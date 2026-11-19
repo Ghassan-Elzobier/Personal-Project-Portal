@@ -76,15 +76,27 @@ const RETRY = "Run the job again, or ask Claude for a review in a comment.";
 /**
  * Whether the pull request has a review of the commit it is at. `answer` is the
  * review's JSON answer, or nothing when the review step did not run or gave none.
+ * `workflowChanged` says the pull request changes the review's own workflow file:
+ * Claude's action only runs a workflow that matches the default branch's, and
+ * otherwise skips itself while reporting success.
  */
-export function checkReview(input: { head: string; comments: PrComment[]; answer: string | undefined }): Verdict {
+export function checkReview(input: {
+  head: string;
+  comments: PrComment[];
+  answer: string | undefined;
+  workflowChanged?: boolean;
+}): Verdict {
   const { head } = input;
   const posted = fromReview(input.comments).some((sha) => names(sha, head));
   const raw = input.answer?.trim() ?? "";
   if (!raw) {
-    return posted
-      ? { ok: true, summary: `Reviewed ${short(head)} already: the review is on the pull request.` }
-      : { ok: false, problem: `The review finished without posting anything for ${short(head)}. ${RETRY}` };
+    if (posted) return { ok: true, summary: `Reviewed ${short(head)} already: the review is on the pull request.` };
+    if (input.workflowChanged)
+      return {
+        ok: false,
+        problem: `This pull request changes the review's own workflow, and Claude's action only runs a workflow that matches the default branch's, so ${short(head)} has no review. That is expected for this one pull request: read its diff yourself. Reviews start again once it is merged.`,
+      };
+    return { ok: false, problem: `The review finished without posting anything for ${short(head)}. ${RETRY}` };
   }
   let answer: { reviewed_sha?: unknown; findings?: unknown };
   try {

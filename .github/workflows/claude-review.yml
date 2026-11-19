@@ -16,6 +16,10 @@
 # The instructions live in this repository, so /improve-factory can tune them, and
 # come from the base branch, so a pull request can't rewrite its own review.
 #
+# One pull request can never be reviewed: one that changes this file. Claude's
+# action only runs a workflow that matches the default branch's, and skips itself
+# while reporting success. The check then fails and says that is why.
+#
 # Ask for another review in a comment to Claude, or run /review-pr in a session.
 # Label a PR "skip-review" to skip it. Dependabot updates are skipped.
 name: Claude review
@@ -92,4 +96,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.sha }}
           ANSWER: ${{ steps.claude.outputs.structured_output }}
