@@ -59,7 +59,7 @@ components: most already followed this, and the exceptions are in the friction l
 Rules that follow, enforced where a tool can:
 - **No setState in an effect** (`react-hooks/set-state-in-effect`, no longer suppressed anywhere). Derive the value instead; reset state when a value changes by adjusting it while rendering, or key the component; read external stores with `useSyncExternalStore`.
 - **Never copy props into state** without a key tied to the prop (reviewed: the three spots found are keyed).
-- **A tap that changes data must be tested by tapping.** `e2e/state-fresh.spec.ts` taps each switch and save (Tasks views, search, add, tick, the open task, Work/Life, the Schedule's space, a weigh-in, Ignore) and checks the page at once and after a reload. It runs last and alone, creates uniquely named data, and deletes it again, because other suites' screenshots show that data. Add to it whenever a new switch or save is added.
+- **A tap that changes data must be tested by tapping.** `e2e/state-fresh.spec.ts` taps each switch and save (Tasks views, search, add, tick, the open task, Work/Life, the Schedule's space, a weigh-in, Ignore) and checks the page at once and after a reload. It runs last and alone, creates uniquely named data, and deletes it again, because other suites' screenshots show that data. A new switch or save gets its test in a new `e2e/state-<feature>.spec.ts`: those files run in the same `state` project, one file at a time (`playwright.config.ts`), so adding one never touches an existing test.
 
 ## Rules
 

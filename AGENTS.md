@@ -78,7 +78,8 @@ act on the local stack unless given `--remote`.
 - The owner uses the portal on a Pixel 7. Phone layout comes first.
 - Pages must change the moment a tap changes data: key client state to its data,
   never copy props into state, and no router caching or streaming on pages with saves.
-  New switch or save? Add it to `e2e/state-fresh.spec.ts` (tap, see it, reload, see it). See
+  New switch or save? Give it a save test (tap, see it, reload, see it) in a new
+  `e2e/state-<feature>.spec.ts`; it runs with `e2e/state-fresh.spec.ts`, last and alone. See
   "State" in `docs/ARCHITECTURE.md`.
 - Server code asks the time from `src/lib/dates/clock.ts`, never `new Date()` for "today".
 - Production errors become public bug issues (`src/lib/errors`). Put variable values
