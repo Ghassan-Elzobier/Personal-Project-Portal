@@ -152,6 +152,12 @@ test("the review runs on opening and on every push, with instructions kept in th
   assert.match(script, /reviewPrompt\(source\.text, \{ number: pr, head \}\)/);
 });
 
+test("a push by Claude itself is reviewed too: its CI fixes are fix-ups like any other", () => {
+  assert.match(workflow, /^ {10}allowed_bots: claude$/m);
+  // Dependabot stays out: its runs get no secrets.
+  assert.match(workflow, /github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/);
+});
+
 test("a step with no AI checks the review was posted, even when the review step failed", () => {
   const steps = workflow.slice(workflow.indexOf("    steps:"));
   const review = steps.indexOf("id: claude");

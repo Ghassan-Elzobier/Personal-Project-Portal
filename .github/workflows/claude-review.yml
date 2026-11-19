@@ -78,6 +78,9 @@ jobs:
           ENABLE_CLAUDEAI_MCP_SERVERS: "false"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # A push by Claude itself (a CI fix, a resolved conflict) is reviewed like any other:
+          # the action otherwise refuses a run started by a bot, and those are fix-ups too.
+          allowed_bots: claude
           # The repository's own review instructions, from the base branch.
           prompt: ${{ steps.brief.outputs.prompt }}
           # It may read the checkout and post its review; it changes no file.

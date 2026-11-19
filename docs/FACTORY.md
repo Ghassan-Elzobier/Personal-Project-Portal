@@ -335,7 +335,8 @@ mechanical:
 - **Hooks and scripts do the mechanical work**: formatting, checks, the guard,
   the health report. They cost no usage.
 - **A review on opening and on every push.** Fix-ups after a review are reviewed
-  too: a later push is reviewed from the commit the last review covered. Pushes
+  too, a push by Claude's own CI fix among them: a later push is reviewed from the
+  commit the last review covered. Pushes
   close together cancel the earlier run, and drafts wait until they're ready. Every
   review ends in one comment, "Reviewed abc1234: no issues found" or the findings on
   their lines, and a script then fails the **Claude review** check when no comment
