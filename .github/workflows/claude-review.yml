@@ -1,10 +1,23 @@
 # An independent review of each pull request, by a Claude session that did not
 # write the code: the inferential check that runs after the computational ones
-# (CI). On the Max plan it reviews when a PR is opened or marked ready, and again
-# when new commits are pushed, so fix-ups after a review are reviewed too. Pushes
-# close together cancel the earlier run, so only the latest commit is reviewed.
-# Ask for another with "@claude review" in a comment. Label a PR "skip-review" to
-# skip it. Dependabot updates are skipped.
+# (CI). It reviews when a PR is opened or marked ready, and again on every push,
+# so fix-ups after a review are reviewed too. Pushes close together cancel the
+# earlier run, so only the latest commit is reviewed.
+#
+# Every review ends in one comment that names the commit it covered ("Reviewed
+# abc1234: no issues found", or the findings on their lines), and the job fails
+# when there is none: a review that posts nothing must not look like a pass.
+#   brief   a script works out what to review (the whole pull request, or what
+#           changed since the commit the last review covered) and builds the
+#           prompt from .claude/commands/review-pr.md on the base branch (no AI)
+#   review  Claude follows those instructions and posts the review
+#   check   a script reads the pull request's comments and fails the job unless
+#           one from the review names the head commit (no AI)
+# The instructions live in this repository, so /improve-factory can tune them, and
+# come from the base branch, so a pull request can't rewrite its own review.
+#
+# Ask for another review in a comment to Claude, or run /review-pr in a session.
+# Label a PR "skip-review" to skip it. Dependabot updates are skipped.
 name: Claude review
 
 on:
@@ -40,10 +53,43 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Work out what to review (no AI)
+        id: brief
+        run: node --experimental-strip-types --no-warnings scripts/review.mjs brief
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+      - name: Review
+        id: claude
+        # Skipped when this commit already has its review (the job was run again).
+        if: steps.brief.outputs.needed == 'true'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        env:
+          # The owner's claude.ai connectors (the Portal's own data among them) never load here.
+          ENABLE_CLAUDEAI_MCP_SERVERS: "false"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
-          plugins: "code-review@claude-plugins-official"
-          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          claude_args: '--model opus --allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # The repository's own review instructions, from the base branch.
+          prompt: ${{ steps.brief.outputs.prompt }}
+          # It may read the checkout and post its review; it changes no file.
+          claude_args: >-
+            --model opus
+            --max-turns 60
+            --allowedTools "Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
+            --disallowedTools "Edit,Write,NotebookEdit,WebFetch,WebSearch"
+            --json-schema '${{ steps.brief.outputs.schema }}'
+      - name: Check that the review was posted (no AI)
+        # Also after a review step that failed, to say what is missing. Not after a
+        # cancelled run: a newer push has its own.
+        if: ${{ !cancelled() }}
+        run: node --experimental-strip-types --no-warnings scripts/review.mjs check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          ANSWER: ${{ steps.claude.outputs.structured_output }}

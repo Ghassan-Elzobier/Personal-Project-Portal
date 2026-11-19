@@ -47,7 +47,7 @@ and computational checks come before AI judgement:
 | Every PR | CI **Checks**: format, lint (design and architecture rules), types, 268 unit tests, dead code | Regressions, one-off styles, boundary breaks, unused code |
 | Every PR | CI **Integration**: 193 database tests, every page at Pixel 7, 360 px and desktop, accessibility, screenshots | Broken pages, sideways scrolling, access leaks, visual change |
 | Every PR | **Guard**: migrations append-only, ratchets only tighten, existing tests need your label to change | An agent getting to green by weakening the checks |
-| Every PR, once | Claude review, in a fresh session that did not write the code | Logic and design problems the checks can't see |
+| Every PR, on every push | Claude review, in a fresh session that did not write the code. It ends in a comment naming the commit it covered, and the check fails without one | Logic and design problems the checks can't see |
 | Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until "Production database migrated" passes | Code going live before its database |
 | Weekly | Dependabot, CodeQL, secret scanning with push protection | Vulnerable dependencies, leaked keys |
 | Hourly | Error triage: production errors filed as issues and handed to Claude | Bugs no check caught, found by real use |
@@ -335,8 +335,15 @@ mechanical:
 - **Hooks and scripts do the mechanical work**: formatting, checks, the guard,
   the health report. They cost no usage.
 - **A review on opening and on every push.** Fix-ups after a review are reviewed
-  too; pushes close together cancel the earlier run, and drafts wait until they're
-  ready. Ask for another with `@claude review`, or label a PR `skip-review`.
+  too: a later push is reviewed from the commit the last review covered. Pushes
+  close together cancel the earlier run, and drafts wait until they're ready. Every
+  review ends in one comment, "Reviewed abc1234: no issues found" or the findings on
+  their lines, and a script then fails the **Claude review** check when no comment
+  names the head commit, so a review that posts nothing can't look like a pass. The
+  instructions are the factory's own (`.claude/commands/review-pr.md`, read from the
+  base branch, so a pull request can't rewrite its own review); `/improve-factory`
+  can tune them. Ask for another with `@claude review`, run `/review-pr` in a
+  session, or label a PR `skip-review`.
 - **Room for longer jobs.** The turn caps allow harder fixes: 150 for `@claude` and
   error fixes, 120 for CI fixes, 80 for conflicts.
 - **Up to five error fixes a day.** The triage is a script and costs nothing; each
