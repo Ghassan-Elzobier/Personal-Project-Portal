@@ -29,6 +29,7 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-19 · hooks · after `EnterWorktree` the hooks still `cd` to `$CLAUDE_PROJECT_DIR`, the main checkout, whose `.gitignore` lists `.claude/worktrees/`: Prettier skipped every file written in the worktree without a word (ten files unformatted), and the Stop gate looks at the main checkout's changes · `format.sh` and `stop-gate.sh` could work from the edited file's own `git rev-parse --show-toplevel`
 - 2026-11-19 · security · Claude jobs in Actions run on the owner's OAuth token, so they may load the owner's claude.ai connectors (the Portal connector reads personal data), and `--strict-mcp-config` doesn't cover connectors · set `ENABLE_CLAUDEAI_MCP_SERVERS: "false"` on every Claude step (done for R&D in rnd.yml)
 - 2026-11-19 · tooling · the local gh 2.45 has no `stateReason` in `gh issue list --json`, so a script built on it failed locally · scripts read close reasons through `gh api …/issues` (state_reason), as scripts/rnd.mjs does
+- 2026-11-19 · agents · a local `claude -p` run with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` on a machine with bubblewrap left 14 empty files in the working directory (`.npmrc`, `.env*`, lockfiles): the sandbox's mount targets, four of them hidden by .gitignore · after a local agent test, delete the empty files it made (`find . -maxdepth 1 -type f -empty -newer package.json`); CI's workspace is thrown away
 
 ## Done
 
