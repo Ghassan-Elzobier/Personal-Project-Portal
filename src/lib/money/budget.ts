@@ -102,6 +102,16 @@ export type BudgetCategory = {
   /** Spent this week (Monday on) and last week. */
   spentWeek: number;
   spentLastWeek: number;
+  /** Spent in each of the 8 weeks before this one, oldest first. */
+  weeks?: number[];
+};
+
+/** What the engine recorded when it closed a week. */
+export type LastWeek = {
+  week: string;
+  amountPence: number;
+  spentPence: number;
+  swept: { goal: number; name: string; pence: number }[];
 };
 
 export type BudgetData = {
@@ -133,6 +143,12 @@ export type BudgetData = {
   weekAmount?: { of: string; pence: number } | null;
   /** What the money is for, in order: savings, yearly costs and debts. */
   goals?: Goal[];
+  /** The moves the plan asked for on the last payday, as the owner was shown them. */
+  paydayTransfers?: { payday: string; transfers: { goal: number; name: string; pence: number }[] } | null;
+  /** Unsorted spending in each of the 8 weeks before this one, oldest first. */
+  unsortedWeeks?: number[];
+  /** Last week as the engine closed it. */
+  lastWeek?: LastWeek | null;
 };
 
 /** Take-home on each payday from a day on, until a later step. */
@@ -456,9 +472,14 @@ export function parseBudget(raw: unknown): BudgetData {
       paidMonth: num(c.paid_month) ?? 0,
       spentWeek: num(c.spent_week) ?? 0,
       spentLastWeek: num(c.spent_last_week) ?? 0,
+      weeks: Array.isArray(c.weeks) ? (c.weeks as unknown[]).map((w) => num(w) ?? 0) : undefined,
     })),
     unsortedWeek: num(r.unsorted_week) ?? 0,
     unsortedLastWeek: num(r.unsorted_last_week) ?? 0,
+    unsortedWeeks: Array.isArray(r.unsorted_weeks)
+      ? (r.unsorted_weeks as unknown[]).map((w) => num(w) ?? 0)
+      : undefined,
+    lastWeek: parseLastWeek(s.last_week),
     planned,
     bills: (Array.isArray(r.bills) ? (r.bills as Row[]) : []).map(parseBill),
     income: (Array.isArray(r.income) ? (r.income as Row[]) : []).map((i) => ({
@@ -477,6 +498,37 @@ export function parseBudget(raw: unknown): BudgetData {
         ? { of: str(s.week_amount_of)!, pence: num(s.week_amount_pence)! }
         : null,
     goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
+    paydayTransfers: parseTransfers(s.payday_transfers),
+  };
+}
+
+function parseTransfers(v: unknown): BudgetData["paydayTransfers"] {
+  if (!v || typeof v !== "object") return null;
+  const t = v as Row;
+  if (!str(t.payday)) return null;
+  return {
+    payday: str(t.payday)!,
+    transfers: (Array.isArray(t.transfers) ? (t.transfers as Row[]) : []).map((x) => ({
+      goal: num(x.goal) ?? 0,
+      name: str(x.name) ?? "",
+      pence: num(x.pence) ?? 0,
+    })),
+  };
+}
+
+function parseLastWeek(v: unknown): LastWeek | null {
+  if (!v || typeof v !== "object") return null;
+  const w = v as Row;
+  if (!str(w.week)) return null;
+  return {
+    week: str(w.week)!,
+    amountPence: num(w.amount_pence) ?? 0,
+    spentPence: num(w.spent_pence) ?? 0,
+    swept: (Array.isArray(w.swept) ? (w.swept as Row[]) : []).map((s) => ({
+      goal: num(s.goal) ?? 0,
+      name: str(s.name) ?? "",
+      pence: num(s.pence) ?? 0,
+    })),
   };
 }
 
