@@ -35,6 +35,7 @@ Format: `- YYYY-MM-DD · area · what happened · what would have prevented it (
 - 2026-11-19 · ci · nothing local parses a workflow: a `: ` inside an unquoted `run-name` broke the YAML and only the editor said so; zizmor runs in CI and looks for security problems, not syntax · add actionlint to `npm run check`, or to the hook that runs when a workflow is edited
 - 2026-11-19 · tests · a test pins the whole "serves is not one of: …" message, so adding an outcome for the job hunt needs the owner's label; proposals from the new jobs focus say "For: The whole portal" meanwhile · assert on the field's name and one value, not the whole list
 - 2026-11-19 · security · the R&D filer keeps an answer that looks secret or personal out of issues, but by then the raw answer is in the public run log: the filing step's `env` is printed when it starts (so was RESULT before this change) · the agent can reach nothing secret, so it is defence in depth only; if that changes, hand answers on as files and print nothing
+- 2026-11-19 · review · the Claude review on #73 ran seven turns and posted nothing, the third silent pass after #38 and #69 · as those lines say: fail the review job when the run posts no review
 
 ## Done
 
