@@ -50,6 +50,7 @@ and computational checks come before AI judgement:
 | Every PR, once | Claude review, in a fresh session that did not write the code | Logic and design problems the checks can't see |
 | Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until "Production database migrated" passes | Code going live before its database |
 | Weekly | Dependabot, CodeQL, secret scanning with push protection | Vulnerable dependencies, leaked keys |
+| Nightly, and before each migration | Backup: the data, encrypted to your key, kept 90 days (`docs/RESTORE.md`). CI's restore drill proves a copy comes back row for row | Lost data: a migration that drops the wrong rows passes every test and raises no alert |
 | Hourly | Error triage: production errors filed as issues and handed to Claude | Bugs no check caught, found by real use |
 
 Two rules make the checks trustworthy. Existing tests and screenshots are your
@@ -416,11 +417,14 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    - Sunday 21:00, "Improve the factory": `Run /improve-factory.`
 7. **Locally.** `git config blame.ignoreRevsFile .git-blame-ignore-revs`, so blame
    skips the formatting commit. `fnm` and `nvm` pick up `.nvmrc` (Node 24).
-8. **Error triage.** Nothing is required: it uses the release job's secrets and
+8. **Backups.** Make a key pair and set the repository variable
+   `BACKUP_PUBLIC_KEY` (`docs/RESTORE.md`, about five minutes). Until then nothing
+   is backed up, and a release that migrates says so.
+9. **Error triage.** Nothing is required: it uses the release job's secrets and
    creates its labels the first time it files an issue. To change the daily limit
    on fixes, set the repository variable `ERROR_AUTOFIX_PER_DAY`. To try it, run
    "Error triage" from the Actions tab.
-9. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
+10. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
    its `rnd` label the first time it files. Its first runs say "No page shots"
    until CI on main has captured the pages once, on the next merge. To run it
    less often, set the repository variable `RND_RUNS_PER_DAY`; to try it, run
