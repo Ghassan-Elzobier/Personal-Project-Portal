@@ -119,6 +119,10 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
           <p className="text-sm text-body">
             Next action: {hub.actions[0].next_action}, {shortDate(hub.actions[0].next_action_on as string)}
           </p>
+        ) : hub.unplanned > 0 ? (
+          <p className="text-sm text-body">
+            Nothing due, but {plural(hub.unplanned, "role needs", "roles need")} a next step.
+          </p>
         ) : (
           <p className="text-sm text-muted">Nothing due. Choose up to two things to do this week.</p>
         )}

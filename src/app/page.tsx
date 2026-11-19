@@ -115,6 +115,14 @@ async function OwnerHome() {
       });
     }
   }
+  // One quiet line for all of them: a role in progress with no dated next step never shows above.
+  if (hub && hub.unplanned > 0) {
+    attention.push({
+      text: `Job hunt: ${hub.unplanned} ${hub.unplanned === 1 ? "role has" : "roles have"} no next step.`,
+      href: "/jobs?view=applications",
+      tone: "aqua",
+    });
+  }
   const noEvidence = perProject.flatMap((p) =>
     p.finished.ok
       ? p.finished.value

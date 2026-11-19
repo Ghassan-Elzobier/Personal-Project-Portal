@@ -4,6 +4,7 @@ import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import type { JobBoard, RoleView } from "@/lib/jobs/load";
 import { BANDS, type Band, type MarketRow, type SkillStatus, type Standing } from "@/lib/jobs/match";
+import { needsNextStep } from "@/lib/jobs/next-step";
 import { LEVELS, SKILLS } from "@/lib/jobs/skills";
 import { AddRoleForm, AddSourceForm, CopySummary, EvidenceForm, RemoveEvidenceButton, SourceButtons } from "./controls";
 
@@ -537,9 +538,38 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
     .filter((r) => r.legacy_rating !== null)
     .sort((a, b) => (b.legacy_rating ?? 0) - (a.legacy_rating ?? 0) || a.company.localeCompare(b.company));
   const link = (r: RoleView) => query(filters, { role: r.gid });
+  // In progress, and nothing will bring them back to mind: no next action, or no date for it.
+  const unplanned = needsNextStep(board.roles);
+  const stageName = (stage: string) => STAGE_NAMES.find(([key]) => key === stage)?.[1] ?? stage;
 
   return (
     <div className="space-y-8">
+      {unplanned.length > 0 && (
+        <section aria-labelledby="unplanned-title" className="space-y-2">
+          <SectionTitle>
+            <span id="unplanned-title">Needs a next step</span>
+          </SectionTitle>
+          <p className="text-sm text-muted">
+            In progress, with nothing to bring {unplanned.length === 1 ? "it" : "them"} back to mind. Open one and give
+            it a next action and a date.
+          </p>
+          <ul className="divide-y divide-white/5 text-sm">
+            {unplanned.map((r) => (
+              <li key={r.gid} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+                <Link href={link(r)} scroll={false} className="hover:underline">
+                  {r.title}
+                  <span className="text-muted">, {r.company}</span>
+                </Link>
+                <span className="text-muted">
+                  {stageName(r.stage)}
+                  {r.next_action.trim() ? ", no date" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section aria-labelledby="actions-title" className="space-y-2">
         <SectionTitle>
           <span id="actions-title">Next actions</span>
