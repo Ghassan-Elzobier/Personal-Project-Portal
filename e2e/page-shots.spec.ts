@@ -24,16 +24,30 @@ const fileName = (path: string) =>
 
 for (const { path } of OWNER_PAGES) {
   test(`${path} is captured for review`, async ({ page }) => {
+    // Counted from Playwright's side: page.clock replaces the page's own performance
+    // timeline, which then lists no requests at all.
+    const finished: Promise<{ type: string; bytes: number }>[] = [];
+    page.on("requestfinished", (request) =>
+      finished.push(
+        request.sizes().then(
+          (sizes) => ({ type: request.resourceType(), bytes: sizes.responseBodySize }),
+          () => ({ type: request.resourceType(), bytes: 0 }),
+        ),
+      ),
+    );
     await page.clock.setFixedTime(new Date(FIXED_NOW));
     const response = await page.goto(path);
     expect(response?.status(), "status").toBeLessThan(400);
     await page.evaluate(() => document.fonts.ready);
+    // What the page loaded, before anything the screenshot sets off (such as prefetches).
+    const loaded = await Promise.all([...finished]);
+    const scriptBytes = loaded.filter((r) => r.type === "script").reduce((sum, r) => sum + r.bytes, 0);
 
     const name = fileName(path);
     mkdirSync(OUT, { recursive: true });
     await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true, style: HIDE });
 
-    const facts: Omit<PageFacts, "path" | "shot"> = await page.evaluate(async () => {
+    const seen: Omit<PageFacts, "path" | "shot" | "jsKb" | "requests"> = await page.evaluate(async () => {
       // Visible and bigger than the one-pixel boxes that hide text for screen readers.
       const shown = (el: Element) => {
         const r = el.getBoundingClientRect();
@@ -53,10 +67,6 @@ for (const { path } of OWNER_PAGES) {
       const headings = [...document.querySelectorAll("h1, h2, h3")]
         .filter(shown)
         .map((h) => `${h.tagName.toLowerCase()}: ${(h.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80)}`);
-      const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
-      const js = resources
-        .filter((r) => r.initiatorType === "script" || /\.js(?:\?|$)/.test(r.name))
-        .reduce((sum, r) => sum + r.encodedBodySize, 0);
       // Entries recorded so far; a page with none of a kind answers after half a second.
       const recorded = (type: string) =>
         new Promise<PerformanceEntry[]>((resolve) => {
@@ -76,12 +86,17 @@ for (const { path } of OWNER_PAGES) {
         links: [...new Set(links)].sort(),
         headings: headings.slice(0, 40),
         words: (document.querySelector("main")?.innerText ?? "").split(/\s+/).filter(Boolean).length,
-        jsKb: Math.round(js / 1024),
-        requests: resources.length + 1,
         lcpMs: Math.round(lcp),
         cls: Math.round(shifts.reduce((sum, s) => sum + (s.hadRecentInput ? 0 : s.value), 0) * 1000) / 1000,
       };
     });
-    writeFileSync(`${OUT}/${name}.json`, `${JSON.stringify({ path, shot: `${name}.png`, ...facts }, null, 2)}\n`);
+    const facts: PageFacts = {
+      path,
+      shot: `${name}.png`,
+      ...seen,
+      jsKb: Math.round(scriptBytes / 1024),
+      requests: loaded.length,
+    };
+    writeFileSync(`${OUT}/${name}.json`, `${JSON.stringify(facts, null, 2)}\n`);
   });
 }
