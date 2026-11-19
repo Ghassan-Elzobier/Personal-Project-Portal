@@ -1,7 +1,8 @@
 // What the R&D agent researches, and when. The agent (.claude/agents/rnd.md)
 // takes one focus a run, a few runs a day (.github/workflows/rnd.yml), so every
-// part of the portal and of the factory gets a fresh look every few days. Pure,
-// so the rotation and the gate are tested; the I/O is in scripts/rnd.mjs.
+// part of the portal and of the factory gets a fresh look every few days. By
+// hand, a run can take every focus at once (sweep.ts). Pure, so the rotation and
+// the gate are tested; the I/O is in scripts/rnd.mjs.
 
 /** Evidence the brief gathers with a script before the agent starts, at no usage. */
 export type Evidence = "health" | "audit" | "outdated";

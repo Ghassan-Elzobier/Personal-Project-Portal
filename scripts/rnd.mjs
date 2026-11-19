@@ -2,16 +2,18 @@
 // The R&D agent's scaffolding: three steps that need no AI, around the one that
 // does (.github/workflows/rnd.yml runs them; the agent is .claude/agents/rnd.md).
 //
-//   plan   whether this run goes ahead and on which focus (src/lib/rnd/foci.ts),
-//          and the JSON Schema the agent answers in: run, focus and schema go to
-//          $GITHUB_OUTPUT
+//   plan   whether this run goes ahead and on which foci: one (src/lib/rnd/foci.ts),
+//          or all of them at once when the owner asks by hand (src/lib/rnd/sweep.ts).
+//          The foci, as the research jobs' matrix, and the JSON Schema the agent
+//          answers in go to $GITHUB_OUTPUT
 //   brief  gathers the focus's evidence into .rnd/brief.md, and every page as the
 //          owner sees it on a Pixel 7 into .rnd/pages (CI's latest page shots from
 //          main), so the agent's turns go on judgement rather than gathering
-//   file   checks the agent's answer (src/lib/rnd/result.ts) and files it: a new
+//   file   checks each focus's answer (src/lib/rnd/result.ts) and files it: a new
 //          issue, new evidence on an open one, or nothing. An answer that looks as
 //          if it holds a secret or a personal detail is never published, and a
-//          withheld security finding fails the run, saying only where to look.
+//          withheld security finding fails the run, saying only where to look. One
+//          focus failing leaves the others filed, and a rerun says nothing twice.
 //
 //   FOCUS=gym node --experimental-strip-types --no-warnings scripts/rnd.mjs brief
 //   RESULT="$(cat answer.json)" FOCUS=gym node --experimental-strip-types --no-warnings scripts/rnd.mjs file --dry-run
@@ -20,9 +22,10 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { historySection, pagesSection } from "../src/lib/rnd/brief.ts";
-import { FOCI, planRun } from "../src/lib/rnd/foci.ts";
-import { LABEL, focusOf, issueBody, issueTitle, updateComment } from "../src/lib/rnd/issue.ts";
-import { RESULT_SCHEMA, checkResult, sensitiveIn } from "../src/lib/rnd/result.ts";
+import { FOCI } from "../src/lib/rnd/foci.ts";
+import { LABEL, focusOf, fromRun, issueBody, issueTitle, updateComment } from "../src/lib/rnd/issue.ts";
+import { RESULT_SCHEMA } from "../src/lib/rnd/result.ts";
+import { filingOrder, planSweep, readAnswer } from "../src/lib/rnd/sweep.ts";
 
 const env = process.env;
 const dryRun = process.argv.includes("--dry-run");
@@ -50,7 +53,8 @@ const clip = (text, max) => (text.length > max ? `${text.slice(0, max)}\n… (cu
 const today = () => new Date().toISOString().slice(0, 10);
 const repo = () => env.GITHUB_REPOSITORY || gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]);
 const openProposals = () =>
-  ghJson(["issue", "list", "--label", LABEL, "--state", "open", "--limit", "200", "--json", "number,title"]) ?? [];
+  ghJson(["issue", "list", "--label", LABEL, "--state", "open", "--limit", "200", "--json", "number,title,body"]) ?? [];
+const pause = (ms) => new Promise((done) => setTimeout(done, ms));
 
 function focusNamed(id) {
   const focus = FOCI.find((f) => f.id === id);
@@ -60,20 +64,25 @@ function focusNamed(id) {
 
 function plan() {
   const now = new Date();
-  const p = planRun({
+  const p = planSweep({
     event: env.EVENT ?? "",
     schedule: env.SCHEDULE ?? "",
     focus: env.FOCUS_INPUT ?? "",
+    all: env.ALL_INPUT === "true",
     perDay: env.RND_RUNS_PER_DAY,
     openLimit: env.RND_OPEN_LIMIT,
     open: openProposals().length,
     day: now.toISOString().slice(0, 10),
     hour: now.getUTCHours(),
   });
-  output("run", String(p.run));
+  // The research jobs' matrix: an empty list, never an empty string, when this run is not to go ahead.
+  output("foci", JSON.stringify(p.run ? p.foci.map((f) => f.id) : []));
   if (!p.run) return say(`No R&D this time: ${p.why}.`);
-  say(`R&D runs on the ${p.focus.id} focus: ${p.why}.`);
-  output("focus", p.focus.id);
+  say(
+    p.foci.length > 1
+      ? `R&D runs on all ${p.foci.length} foci at once: ${p.why}.`
+      : `R&D runs on the ${p.foci[0].id} focus: ${p.why}.`,
+  );
   output("schema", JSON.stringify(RESULT_SCHEMA));
 }
 
@@ -253,64 +262,12 @@ function brief() {
   console.log(`Wrote ${OUT}/brief.md (${text.length} characters) for the ${focus.id} focus.`);
 }
 
-function file() {
-  const focus = focusNamed(env.FOCUS);
-  if (!env.RESULT?.trim())
-    fail(
-      "R&D finished without an answer in its JSON shape, so nothing was filed. " +
-        "Look at the research step's log; the agent must list StructuredOutput among its tools.",
-    );
-  let raw;
-  try {
-    raw = JSON.parse(env.RESULT);
-  } catch {
-    fail("R&D's answer was not JSON, so nothing was filed.");
-  }
-  const checked = checkResult(raw);
-  if (!checked.ok) fail(`R&D's answer failed its checks, so nothing was filed: ${checked.problems.join("; ")}.`);
-  const result = checked.result;
-  if (checked.trimmed.length) console.log(`Cut to fit: ${checked.trimmed.join(", ")}.`);
-  const sensitive = sensitiveIn(result);
-  if (sensitive.length)
-    fail(
-      `R&D's answer looked as if it held ${sensitive.join(", ")}, so nothing was filed. ` +
-        `If a rerun of the ${focus.id} focus does it again, look at what the agent read.`,
-    );
+const commentsOn = (number) =>
+  (ghJson(["api", `repos/${repo()}/issues/${number}/comments?per_page=100`]) ?? []).map((c) => c.body ?? "");
 
-  if (result.outcome === "private") {
-    say(`R&D's ${focus.id} run found a security weakness in the "${result.area}" area and filed nothing.`);
-    fail(
-      `R&D found a security weakness in the "${result.area}" area that should not be public, so nothing was filed. ` +
-        `Look at it in a private session: ask the rnd agent to check the "${result.area}" area for weaknesses.`,
-    );
-  }
-  if (result.outcome === "nothing")
-    return say(`Nothing worth proposing on the ${focus.id} focus this time. It looked at: ${result.lookedAt}`);
-
-  const ctx = {
-    repo: repo(),
-    sha: env.SHA || run("git", ["rev-parse", "HEAD"]),
-    day: today(),
-    runUrl: env.RUN_URL || `https://github.com/${repo()}/actions/workflows/rnd.yml`,
-    isFile: (path) => existsSync(path) && statSync(path).isFile(),
-  };
-  const open = openProposals();
-  const title = issueTitle(focus, result.proposal);
-  const target =
-    result.outcome === "update"
-      ? open.find((i) => i.number === result.issue)
-      : open.find((i) => i.title.toLowerCase() === title.toLowerCase());
-  if (result.outcome === "update" && !target)
-    console.log(`#${result.issue} is not an open R&D proposal, so this is filed as a new one.`);
-
-  if (target) {
-    const body = updateComment(focus, result.proposal, ctx);
-    if (dryRun) return console.log(`[dry run] a comment on #${target.number}:\n\n${body}`);
-    gh(["issue", "comment", String(target.number), "--body-file", "-"], body);
-    return say(`Added new evidence to #${target.number}: ${target.title}`);
-  }
-  const body = issueBody(focus, result.proposal, ctx);
-  if (dryRun) return console.log(`[dry run] a new issue: ${title}\n\n${body}`);
+let labelReady = false;
+function ensureLabel() {
+  if (labelReady) return;
   gh([
     "label",
     "create",
@@ -321,10 +278,98 @@ function file() {
     "A proposal from the R&D agent: build it, or close it as not planned",
     "--force",
   ]);
-  say(`Filed ${gh(["issue", "create", "--title", title, "--label", LABEL, "--body-file", "-"], body)}: ${title}`);
+  labelReady = true;
+}
+
+/** Files one checked answer, says what it did, and returns what happened for the run's count. */
+function fileOne({ focus, result }, ctx) {
+  if (result.outcome === "nothing") {
+    say(`Nothing worth proposing on the ${focus.id} focus this time. It looked at: ${result.lookedAt}`);
+    return "nothing";
+  }
+  const open = openProposals();
+  const title = issueTitle(focus, result.proposal);
+  const named = result.outcome === "update" ? open.find((i) => i.number === result.issue) : undefined;
+  const target = named ?? open.find((i) => i.title.toLowerCase() === title.toLowerCase());
+  if (result.outcome === "update" && !named)
+    console.log(
+      `#${result.issue} is not an open R&D proposal, so this ` +
+        (target ? `goes to #${target.number}, which has its title.` : "is filed as a new one."),
+    );
+
+  if (target) {
+    // A run in CI has a link of its own, so when its filing job runs again (after one focus
+    // of several failed, say) what the run already wrote is left as it is.
+    const written = () => [target.body ?? "", ...commentsOn(target.number)];
+    if (env.RUN_URL && written().some((text) => fromRun(text, focus, ctx.runUrl))) {
+      say(`#${target.number} already has this run's answer from the ${focus.id} focus: ${target.title}`);
+      return "already";
+    }
+    const body = updateComment(focus, result.proposal, ctx);
+    if (dryRun) console.log(`[dry run] a comment on #${target.number}:\n\n${body}`);
+    else {
+      gh(["issue", "comment", String(target.number), "--body-file", "-"], body);
+      say(`Added new evidence to #${target.number}: ${target.title}`);
+    }
+    return "update";
+  }
+  const body = issueBody(focus, result.proposal, ctx);
+  if (dryRun) console.log(`[dry run] a new issue: ${title}\n\n${body}`);
+  else {
+    ensureLabel();
+    say(`Filed ${gh(["issue", "create", "--title", title, "--label", LABEL, "--body-file", "-"], body)}: ${title}`);
+  }
+  return "proposal";
+}
+
+async function file() {
+  // In CI: this run's foci, and each research job's answer under its focus's name.
+  // By hand: one focus and its answer (FOCUS and RESULT).
+  const ids = env.FOCI ? JSON.parse(env.FOCI) : [env.FOCUS];
+  const handed = (env.RESULTS ? JSON.parse(env.RESULTS) : { [env.FOCUS]: env.RESULT }) ?? {};
+  const answers = ids.map((id) => readAnswer(focusNamed(id), handed[id]));
+  const ctx = {
+    repo: repo(),
+    sha: env.SHA || run("git", ["rev-parse", "HEAD"]),
+    day: today(),
+    runUrl: env.RUN_URL || `https://github.com/${repo()}/actions/workflows/rnd.yml`,
+    isFile: (path) => existsSync(path) && statSync(path).isFile(),
+  };
+
+  // One focus failing leaves the others filed: every problem is told at the end, and fails the run.
+  const problems = answers.filter((a) => "problem" in a).map((a) => a.problem);
+  const counts = { proposal: 0, update: 0, already: 0, nothing: 0 };
+  let wrote = false;
+  for (const answer of filingOrder(answers.filter((a) => "result" in a))) {
+    const { focus, trimmed } = answer;
+    if (trimmed.length) console.log(`Cut to fit on the ${focus.id} focus: ${trimmed.join(", ")}.`);
+    try {
+      // GitHub asks for a second between requests that create content.
+      if (wrote && !dryRun) await pause(1000);
+      const did = fileOne(answer, ctx);
+      counts[did]++;
+      wrote ||= did === "proposal" || did === "update";
+    } catch (e) {
+      problems.push(`The ${focus.id} focus's answer could not be filed: ${e.message}`);
+    }
+  }
+  for (const problem of problems) say(problem);
+  if (ids.length > 1)
+    say(
+      `R&D ran on ${ids.length} foci. New proposals: ${counts.proposal}. Added to an open proposal: ${counts.update}. ` +
+        (counts.already ? `Already filed by this run: ${counts.already}. ` : "") +
+        `Nothing worth proposing: ${counts.nothing}. Failed: ${problems.length}.`,
+    );
+  if (problems.length)
+    fail(
+      ids.length > 1
+        ? `${problems.length} of ${ids.length} foci have nothing filed. To try one again, run R&D by hand on that focus. ` +
+            "Running this run's failed jobs again retries the research that failed, and files nothing twice."
+        : "Nothing was filed.",
+    );
 }
 
 const commands = { plan, brief, file };
 const command = commands[process.argv[2]];
 if (!command) fail("Usage: node --experimental-strip-types scripts/rnd.mjs plan | brief | file [--dry-run]");
-command();
+await command();

@@ -283,6 +283,17 @@ better, where every visit gives you what you need in the fewest taps.
 In a session, ask for it by name ("ask the rnd agent how the gym page could work
 better"): the same method, the answer in the conversation, nothing filed.
 
+**Everything at once: a sweep.** Tick **all** on "Run workflow" (or
+`gh workflow run rnd.yml -f all=true`) and every focus is researched at the same
+time, each in its own job, and one job files all the answers. They are filed
+weakest first, so the proposal with the most impact for the most confidence sits
+at the top of the issue list. One focus failing leaves the others filed, and
+running the failed jobs again files nothing twice. Two foci can land on the same
+idea, since neither sees the other's answer: close one as a duplicate. A sweep
+is fifteen Claude sessions at once, about four days of scheduled R&D, and it can
+leave more than eight proposals waiting, which pauses the schedule until you
+have decided on some. The schedule itself never sweeps.
+
 **Built to read the web safely.** An agent that reads untrusted text stays safe
 when it cannot also reach private data and act on it (Willison's "lethal
 trifecta", Meta's "Rule of Two"). So the Claude step holds nothing worth
@@ -297,9 +308,10 @@ area, and you look at it in a private session.
 
 **Your controls.** Repository variables: `RND_RUNS_PER_DAY` (0 to 4, 4 when unset;
 0 stops the schedule) and `RND_OPEN_LIMIT` (8 when unset). "Run workflow" on R&D
-in the Actions tab runs it now, on a focus you pick. The weekly `/improve-factory`
-pass reads the proposals you declined, so the agent sharpens over time, and
-`npm run factory:metrics` counts proposals built and declined.
+in the Actions tab runs it now, on a focus you pick or on all of them at once
+(a sweep, above). The weekly `/improve-factory` pass reads the proposals you
+declined, so the agent sharpens over time, and `npm run factory:metrics` counts
+proposals built and declined.
 
 It runs in GitHub Actions rather than as a routine because it needs several runs
 a day, limits only a workflow can set (a read-only token, a separate job that
@@ -335,7 +347,8 @@ mechanical:
 - **R&D, up to four runs a day.** It runs more often because a proposal costs you
   a glance, not a merge. Each run is one Opus session of up to 80 turns that only
   reads and researches, and the AI is skipped while eight proposals wait. If a
-  month runs close to the limit, set `RND_RUNS_PER_DAY` to 2, 1 or 0.
+  month runs close to the limit, set `RND_RUNS_PER_DAY` to 2, 1 or 0. A sweep by
+  hand is one such session for every focus, all at once.
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the
   build is right the first time; run parallel sessions when the tasks are truly
   separate, each in its own worktree.
