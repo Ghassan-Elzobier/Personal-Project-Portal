@@ -6,7 +6,10 @@ import { usesAsana } from "@/lib/config/env";
 import { attempt } from "@/lib/portal/data";
 import { Empty, ErrorNote, PageHeader } from "@/components/ui";
 import { loadJobBoard, mentorSummary } from "@/lib/jobs/load";
+import { salaryOf } from "@/lib/jobs/salary";
 import { postingDetail } from "@/lib/jobs/store";
+import { loadToday } from "@/lib/money/load";
+import { roleMoney } from "@/lib/portal/money";
 import { RefreshButton } from "./controls";
 import { RolePane } from "./role-pane";
 import { ApplicationsView, RolesView, SkillsView, SourcesView, type Filters } from "./views";
@@ -45,7 +48,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const board = loaded.value;
   const view = TABS.some((t) => t.key === filters.view) ? (filters.view as string) : "roles";
   const selected = filters.role ? board.roles.find((r) => r.gid === filters.role) : undefined;
-  const detail = selected ? await attempt(() => postingDetail(selected.gid)) : null;
+  const [detail, money] = selected
+    ? await Promise.all([attempt(() => postingDetail(selected.gid)), loadToday()])
+    : [null, null];
+  // What the role's salary would mean for the owner's plan (Jobs is the owner's alone).
+  const pay = selected && money ? roleMoney(salaryOf(selected.salary), money.data, money.today) : [];
   const closeFilters = { ...filters, role: undefined };
   const closeHref = `/jobs${Object.values(closeFilters).some(Boolean) ? `?${new URLSearchParams(Object.entries(closeFilters).filter((e): e is [string, string] => Boolean(e[1])))}` : ""}`;
   const feeds = board.sources.filter((s) => s.kind !== "link" && s.active);
@@ -91,6 +98,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <RolePane
           key={selected.gid}
           role={selected}
+          pay={pay}
           body={detail?.ok ? detail.value.body : ""}
           events={detail?.ok ? detail.value.events : []}
           closeHref={closeHref}

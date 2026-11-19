@@ -108,7 +108,10 @@ export function RolePane({
   events,
   closeHref,
   loadError,
+  pay = [],
 }: {
+  /** What the salary would mean for the owner's money plan, in a few lines. */
+  pay?: string[];
   role: RoleView;
   body: string;
   events: { stage: string; created_at: string }[];
@@ -169,6 +172,13 @@ export function RolePane({
               {role.alsoIn.length > 0 && <span className="text-muted">, also listed for {role.alsoIn.join("; ")}</span>}
             </p>
             {role.salary && <p className="text-sm text-body">{role.salary}</p>}
+            {pay.length > 0 && (
+              <div className="mt-1 space-y-0.5 text-xs text-muted tabular-nums">
+                {pay.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            )}
           </div>
           <Link href={closeHref} scroll={false} className="btn-ghost shrink-0 px-3 py-1 text-sm">
             Close

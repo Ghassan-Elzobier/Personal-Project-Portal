@@ -4,6 +4,7 @@ import { addDays, shortDate } from "@/lib/dates/week";
 import { TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS, packFromSlug } from "@/lib/life/ingredients";
 import { loadLife } from "@/lib/life/load";
+import { loadToday } from "@/lib/money/load";
 import { spareStaysCold } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
 import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse, type ListLine } from "@/lib/life/shopping";
@@ -25,7 +26,12 @@ export default async function KitchenPage({
 }: {
   searchParams: Promise<{ tab?: string; week?: string }>;
 }) {
-  const [, loaded, { tab = "shop", week }] = await Promise.all([requireOwner(), loadLife(), searchParams]);
+  const [, loaded, { tab = "shop", week }, money] = await Promise.all([
+    requireOwner(),
+    loadLife(),
+    searchParams,
+    loadToday(),
+  ]);
   if (loaded.error !== undefined) {
     return (
       <div className="space-y-6">
@@ -66,7 +72,9 @@ export default async function KitchenPage({
           { key: "cupboard", label: "Cupboard", href: q("cupboard"), count: soon.length },
         ]}
       />
-      {current === "shop" && <Shop key={v.start} s={s} v={v} />}
+      {current === "shop" && (
+        <Shop key={v.start} s={s} v={v} weekLeft={which === "this" ? (money?.view.week.left ?? null) : null} />
+      )}
       {current === "fridge" && <Fridge s={s} v={v} />}
       {current === "cupboard" && <Cupboard s={s} soon={soon.map((x) => x.item)} />}
     </div>
@@ -75,7 +83,8 @@ export default async function KitchenPage({
 
 type S = NonNullable<Awaited<ReturnType<typeof loadLife>>["state"]>;
 
-function Shop({ s, v }: { s: S; v: WeekView }) {
+/** weekLeft: what's left of this week's amount in Money, so a shop shows what it leaves. */
+function Shop({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | null }) {
   const plan = v.plan;
   if (!plan)
     return (
@@ -87,7 +96,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
         first, and the list builds itself.
       </p>
     );
-  if (plan.mode === "fresh") return <FreshShops s={s} v={v} />;
+  if (plan.mode === "fresh") return <FreshShops s={s} v={v} weekLeft={weekLeft} />;
   const delivered = plan.shop?.deliveredOn ?? null;
   const deliveryDay =
     delivered ??
@@ -118,6 +127,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
       ticks={{ ticked: plan.shop?.ticked ?? [], missing: plan.shop?.missing ?? [], via: plan.shop?.via }}
       next={null}
       budgetPence={s.profile.shopping.budgetPence}
+      weekLeftPence={weekLeft}
     />
   );
 }
@@ -126,7 +136,7 @@ function Shop({ s, v }: { s: S; v: WeekView }) {
  * A fresh week's shops: a list for each one still to do, in date order, and the
  * ones done. The week's food is the done shops' plus the lists still to buy.
  */
-function FreshShops({ s, v }: { s: S; v: WeekView }) {
+function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | null }) {
   const { open, done } = tripLists(s, v);
   const budget = s.profile.shopping.budgetPence;
   const spent = done.reduce((t, x) => t + (x.pence ?? 0), 0);
@@ -183,6 +193,7 @@ function FreshShops({ s, v }: { s: S; v: WeekView }) {
             notFound={notFound.map((n) => ({ line: shopLine(s, n.line), to: titleOf(n.to) }))}
             next={titleOf(open[i + 1]?.trip.id ?? null)}
             budgetPence={share(trip.id)}
+            weekLeftPence={weekLeft}
           />
         );
       })}
