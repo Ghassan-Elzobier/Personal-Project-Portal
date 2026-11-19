@@ -27,3 +27,7 @@ paths:
 - Buttons say what they do; a busy one sets `aria-busy`. Errors use `ErrorNote`
   and say what to do next. Empty states use `Empty` and point somewhere useful.
 - A component used twice becomes shared and appears on `/design`.
+- The browser loads scripts, pictures and data from the portal alone (the
+  Content-Security-Policy, `src/lib/auth/csp.ts`). No inline `<script>`, no
+  `dangerouslySetInnerHTML`, no event handler in markup. Anything from another
+  site needs the policy changed on purpose; `e2e/csp.spec.ts` fails until it is.
