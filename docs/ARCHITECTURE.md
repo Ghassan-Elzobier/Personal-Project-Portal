@@ -35,6 +35,14 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
   the connector's route runs on every call before the tool does). Domains call their RPCs
   through `rpcAsCaller` (`supabase/caller.ts`), which uses the browser session for a
   page and the token's hash for a Claude connector call.
+- **Every page is served with a Content-Security-Policy.** `src/proxy.ts` makes a
+  nonce for each request and `auth/csp.ts` builds the policy from it: only the
+  portal's own scripts run, and the browser loads pictures and data from the
+  portal alone. It is a second lock behind React's escaping, for the text the
+  portal shows from outside (adverts, merchant names, error messages). A new page
+  needs nothing. A script, picture or request from another site needs the policy
+  changed on purpose first: `e2e/csp.spec.ts` loads every page and fails on
+  anything the browser refused.
 - **Errors are tracked in production.** `src/instrumentation.ts` (server errors),
   `src/instrumentation-client.ts` and `app/error.tsx` (browser errors, through
   `/api/errors`) and the connector's tool handler all report to `src/lib/errors`.
