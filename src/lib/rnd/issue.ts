@@ -60,6 +60,18 @@ export function quiet(text: string, repo: string): string {
 
 export const issueTitle = (focus: Focus, p: Proposal) => `${focus.name}: ${p.title}`.replace(/\s+/g, " ").trim();
 
+/** How an issue and a comment name the run that wrote them: the focus, then a link to the run. */
+const byFocus = (focus: Focus) => `R&D's ${focus.name.toLowerCase()} focus`;
+const runLink = (runUrl: string) => `[run](${runUrl})`;
+
+/**
+ * Whether a text (an issue's body, or a comment) is what this run wrote for this
+ * focus. Running the filing job again, after one focus of several failed, must
+ * not say anything twice.
+ */
+export const fromRun = (text: string, focus: Focus, runUrl: string) =>
+  text.includes(byFocus(focus)) && text.includes(runLink(runUrl));
+
 const WHERE = /^([\w@+.[\]-]+(?:\/[\w@+.[\]-]+)*)(?::(\d+)(?:-(\d+))?)?$/;
 
 /** A path in the repository becomes a link to those lines at the commit; anything else is shown as written. */
@@ -124,7 +136,7 @@ export function issueBody(focus: Focus, p: Proposal, ctx: Context): string {
     "",
     "---",
     "",
-    `From R&D's ${focus.name.toLowerCase()} focus on ${ctx.day} ([run](${ctx.runUrl})). ` +
+    `From ${byFocus(focus)} on ${ctx.day} (${runLink(ctx.runUrl)}). ` +
       "**Build it:** comment here asking Claude to build it, as on any issue. " +
       "**Decline it:** close it as not planned, with your reason if you like; the next run on this focus reads it.",
     "",
@@ -136,7 +148,7 @@ export function issueBody(focus: Focus, p: Proposal, ctx: Context): string {
 export function updateComment(focus: Focus, p: Proposal, ctx: Context): string {
   const q = (t: string) => quiet(t, ctx.repo);
   return [
-    `**More on this from R&D's ${focus.name.toLowerCase()} focus** (${ctx.day}, [run](${ctx.runUrl})): ${q(p.title)}`,
+    `**More on this from ${byFocus(focus)}** (${ctx.day}, ${runLink(ctx.runUrl)}): ${q(p.title)}`,
     "",
     q(p.problem),
     "",

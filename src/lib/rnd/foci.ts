@@ -1,7 +1,8 @@
 // What the R&D agent researches, and when. The agent (.claude/agents/rnd.md)
 // takes one focus a run, a few runs a day (.github/workflows/rnd.yml), so every
-// part of the portal and of the factory gets a fresh look every few days. Pure,
-// so the rotation and the gate are tested; the I/O is in scripts/rnd.mjs.
+// part of the portal and of the factory gets a fresh look every few days. By
+// hand, a run can take every focus at once (sweep.ts). Pure, so the rotation and
+// the gate are tested; the I/O is in scripts/rnd.mjs.
 
 /** Evidence the brief gathers with a script before the agent starts, at no usage. */
 export type Evidence = "health" | "audit" | "outdated";
@@ -21,6 +22,9 @@ export type Focus = {
 };
 
 // In rotation order: each day mixes what the owner sees with how it is built.
+// Every tool in the nav (src/lib/config/tools.ts) is some focus's own page, bar
+// the design catalogue: a test holds that, so a new tool arrives with a focus,
+// or a place in one, and R&D keeps covering the whole portal.
 export const FOCI: Focus[] = [
   {
     id: "design",
@@ -61,13 +65,18 @@ export const FOCI: Focus[] = [
       "src/lib/connector",
       "src/app/api",
       "src/app/oauth",
+      "src/app/auth",
+      "src/app/login",
+      "src/app/no-access",
+      "src/app/people",
       "supabase/migrations",
       "next.config.ts",
       "vercel.json",
       ".github/workflows",
       "SECURITY.md",
     ],
-    pages: null,
+    // Who can sign in, and what each mentor sees.
+    pages: ["/people"],
     evidence: ["audit"],
   },
   {
@@ -115,7 +124,13 @@ export const FOCI: Focus[] = [
     id: "food",
     name: "Food",
     question: "What would make eating for the owner's goals take less effort, within their food rules?",
-    paths: ["src/app/life/page.tsx", "src/app/life/kitchen", "src/app/life/recipes", "src/lib/life"],
+    paths: [
+      "src/app/life/page.tsx",
+      "src/app/life/kitchen",
+      "src/app/life/recipes",
+      "src/app/life/settings",
+      "src/lib/life",
+    ],
     pages: ["/life", "/life/kitchen", "/life/recipes", "/life/settings"],
     evidence: [],
   },
@@ -136,6 +151,7 @@ export const FOCI: Focus[] = [
       "src/app/week",
       "src/app/tasks",
       "src/app/timeline",
+      "src/app/log",
       "src/lib/calendar",
       "src/lib/tasks",
     ],
@@ -147,7 +163,16 @@ export const FOCI: Focus[] = [
     name: "Factory",
     question:
       "What should the factory adopt, change or drop, given what has changed in agent-driven development and in this toolchain?",
-    paths: [".claude", ".github", "scripts", "docs/FACTORY.md", "docs/factory", "AGENTS.md"],
+    paths: [
+      ".claude",
+      ".github",
+      "scripts",
+      "src/lib/ci",
+      "src/lib/rnd",
+      "docs/FACTORY.md",
+      "docs/factory",
+      "AGENTS.md",
+    ],
     pages: null,
     evidence: ["outdated"],
   },
@@ -157,6 +182,49 @@ export const FOCI: Focus[] = [
     question: "What would make the budget run itself better and the owner's money decisions easier?",
     paths: ["src/app/life/money", "src/lib/money", "src/app/money-line.tsx"],
     pages: ["/life/money"],
+    evidence: [],
+  },
+  {
+    id: "connector",
+    name: "Connector",
+    question:
+      "What should the owner be able to do just by asking Claude, and do the connector's tools let a model do it well?",
+    paths: [
+      "src/lib/connector",
+      "src/lib/life/connector.ts",
+      "src/lib/money/connector.ts",
+      "src/lib/tutor/connector.ts",
+      "src/lib/portal/operations.ts",
+      "src/app/api/mcp",
+      "src/app/claude",
+    ],
+    pages: ["/claude"],
+    evidence: [],
+  },
+  {
+    id: "jobs",
+    name: "Jobs",
+    question:
+      "What would turn the roles out there into the owner's next step: what to study, what to show and where to apply?",
+    paths: ["src/app/jobs", "src/app/job-hunt", "src/lib/jobs"],
+    pages: ["/jobs", "/job-hunt"],
+    evidence: [],
+  },
+  {
+    id: "reliability",
+    name: "Reliability",
+    question: "Which failure would the owner meet first that no test, alert or backup would catch?",
+    paths: [
+      "src/lib/errors",
+      "src/app/errors",
+      "src/app/error.tsx",
+      "src/app/global-error.tsx",
+      "src/app/api/errors",
+      "scripts/error-triage.mjs",
+      "e2e",
+      "supabase/tests",
+    ],
+    pages: ["/errors"],
     evidence: [],
   },
 ];
