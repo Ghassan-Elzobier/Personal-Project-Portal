@@ -1,31 +1,43 @@
 // Money joined to the rest of the portal. Domains never import each other, so this is
-// where Money meets the meal plan, the gym and the job hunt: this week's planned shop
+// where Money meets the meal plan, the gym and the job hunt: the shops due before Monday
 // set against this week's amount, what the gym costs a visit, and what a role's salary would do to the plan. Pure; the
 // pages pass in what they have loaded.
 
+import { addDays } from "../dates/week.ts";
 import type { SessionLog } from "../life/gym/progress.ts";
 import { buildList, listTotal } from "../life/shopping.ts";
-import { remainingNeeds, tripLists, weekView, type LifeState } from "../life/state.ts";
+import { remainingNeeds, tripLists, weekView, type LifeState, type WeekView } from "../life/state.ts";
 import type { Salary } from "../jobs/salary.ts";
 import { allocate } from "../money/allocate.ts";
-import { nextPayday, type BudgetData } from "../money/budget.ts";
+import { mondayOf, nextPayday, type BudgetData } from "../money/budget.ts";
 import { payOn } from "../money/forecast.ts";
 import { yearlyPence } from "../money/recurring.ts";
 import { pounds } from "../money/state.ts";
 import { takeHome } from "../money/takehome.ts";
 
 /**
- * What this week's meal plan still has to buy, cupboard staples included (they're paid
- * for at the same till): a fresh week's open shops by their prices, or a batch week's
- * shop until the delivery comes, at the checkout total once it's ordered (the estimate
- * before). The same total the kitchen's trolley bar counts. Nothing without a plan.
+ * What the meal plan still has to buy before Monday, cupboard staples included (they're
+ * paid for at the same till), to set against this money week. The money week runs
+ * Monday to Sunday but a meal week starts on the first cook's day, so each shop is
+ * placed by its own date, from this meal week or the next: a fresh week's open shops
+ * dated on or before Sunday, by their prices; a batch week's one shop, due on the week's
+ * first day, until the delivery comes, at the checkout total once it's ordered (the
+ * estimate before). Nothing without a plan.
  */
 export function plannedShop(s: LifeState): number {
-  const v = weekView(s, "this");
+  const sunday = addDays(mondayOf(s.today), 6);
+  return (["this", "next"] as const).reduce((t, which) => t + shopDueBy(s, weekView(s, which), sunday), 0);
+}
+
+/** One meal week's shopping still to pay for that is due on or before a day. */
+function shopDueBy(s: LifeState, v: WeekView, by: string): number {
   const plan = v.plan;
   if (!plan) return 0;
-  if (plan.mode === "fresh") return tripLists(s, v).open.reduce((t, x) => t + listTotal(x.lines).pence, 0);
-  if (plan.shop?.deliveredOn) return 0;
+  if (plan.mode === "fresh")
+    return tripLists(s, v)
+      .open.filter((x) => x.trip.date <= by)
+      .reduce((t, x) => t + listTotal(x.lines).pence, 0);
+  if (v.start > by || plan.shop?.deliveredOn) return 0;
   if (plan.shop?.orderedOn && plan.shop.orderedPence != null) return plan.shop.orderedPence;
   return listTotal(buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, s.today)).pence;
 }

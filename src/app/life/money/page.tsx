@@ -145,8 +145,8 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
           {shop > 0 && w.left > 0 && (
             <p className="mt-1 text-sm text-body tabular-nums">
               {shop >= w.left
-                ? `The meal plan's shop still needs ${pounds(shop)}: more than is left.`
-                : `${pounds(shop)} of it for the meal plan's shop, ${pounds(w.left - shop)} for the rest.`}
+                ? `The shops before Monday need ${pounds(shop)}: more than is left.`
+                : `${pounds(shop)} of it for the shops before Monday, ${pounds(w.left - shop)} for the rest.`}
             </p>
           )}
         </div>
