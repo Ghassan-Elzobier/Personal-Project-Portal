@@ -24,6 +24,7 @@ const DOMAINS = [
   "library",
   "life",
   "money",
+  "rnd",
   "study",
   "tasks",
   "tutor",

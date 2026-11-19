@@ -67,6 +67,13 @@ jobs:
         run: npm run test:db
       - name: End-to-end, accessibility and screenshots
         run: npm run test:e2e
+      - name: Keep every page as the owner sees it, for R&D (e2e/page-shots.spec.ts)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: page-shots
+          path: test-results/page-shots/
+          if-no-files-found: error
+          retention-days: 14
       - name: Keep the report when something failed
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

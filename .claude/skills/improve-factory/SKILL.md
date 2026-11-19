@@ -27,6 +27,9 @@ wrong, the way the research on self-improving agents says works:
   then for each, review comments (`gh api repos/{owner}/{repo}/pulls/<n>/comments`)
   and failed check runs (`gh pr checks <n>`). Fix-up commits after review are signal.
 - `npm run factory:metrics` and the trend in `docs/factory/metrics.md`.
+- R&D's proposals closed in the week: `gh issue list --label rnd --state closed --search "closed:>=$(date -d '7 days ago' +%F)"`.
+  One closed as not planned is evidence about the R&D agent itself: when the
+  owner declines the same kind of idea twice, sharpen `.claude/agents/rnd.md`.
 
 ## 2. Find what repeats
 

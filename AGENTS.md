@@ -1,7 +1,10 @@
 # Agent guide
 
 The owner's personal portal: study (PMPP, Axler, a Vulkan renderer), the job hunt,
-and life (meals, kitchen, gym, body). Next.js 16 on Vercel, Supabase, Tailwind 4.
+and life (meals, kitchen, gym, body, money). Next.js 16 on Vercel, Supabase, Tailwind 4.
+The goal: a portal that runs the owner's week, making their studies, scheduling,
+gym routine, budgeting and food intake better. It plans, reminds and keeps the
+books, so every visit gives the owner what they need in the fewest taps.
 This file is the map; the details sit in the files it points to. It applies to
 every agent, in the terminal, the IDE, the cloud, GitHub (`@claude`) and routines.
 
@@ -65,6 +68,9 @@ act on the local stack unless given `--remote`.
   what pages call. Layers and import rules: `docs/ARCHITECTURE.md`.
 - `supabase/migrations/`, `supabase/tests/` (pgTAP), `supabase/seed.sql` (test data).
 - `e2e/` Playwright suites; `scripts/` loaders and the factory's own tools.
+- `.claude/agents/` agents to delegate to: `verifier` (the full suite), `debugger`, and
+  `rnd` (research and design review, read-only). R&D also runs four times a day
+  (`.github/workflows/rnd.yml`) and files its proposals as `rnd` issues.
 - `docs/FACTORY.md` how this factory works and why. `docs/DESIGN.md` the design system.
 
 ## Context worth knowing
