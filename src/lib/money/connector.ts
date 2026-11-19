@@ -2,6 +2,7 @@ import "server-only";
 import { timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
+import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { allocate } from "./allocate";
 import { afford, budgetView, mondayOf, monthStart, parseBudget, savedNow, type BudgetData } from "./budget";
 import { prompts } from "./prompts";
@@ -15,20 +16,6 @@ import * as store from "./store";
 // totals. Each is held by the database to the level the owner set on the Money page
 // (off, summary, plan, setup); these two need setup. They never return a single
 // payment, an account number or the bank connection, and can't erase anything.
-
-type Json = Record<string, unknown>;
-type ToolResult = { text: string; isError?: boolean };
-type Tool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Json;
-  annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
-  run: (args: Json, ctx: { base: string }) => Promise<ToolResult>;
-};
-
-const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
-const err = (message: string): ToolResult => ({ text: message, isError: true });
 
 async function attempt(fn: () => Promise<ToolResult>): Promise<ToolResult> {
   try {
