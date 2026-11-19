@@ -125,7 +125,16 @@ These steps are in the browser, so guide Ghassan through them.
 - [ ] Add a mentor only if Ghassan asks now. If so, invite them in Supabase
       first, then add them on People.
 
-## 7. Claude connector (SETUP.md section 5)
+## 7. Backups (RESTORE.md)
+
+The Free plan keeps no backups, so do this before real data goes in.
+
+- [ ] Make the backup key pair and set `BACKUP_PUBLIC_KEY` (RESTORE.md, "One-time
+      setup"). The private half goes in the owner's password manager.
+- [ ] `gh workflow run backup.yml`, then check the run has an artifact ending
+      `.sql.gpg`.
+
+## 8. Claude connector (SETUP.md section 5)
 
 - [ ] Open `/claude` on the live site and copy the connector URL.
 - [ ] In claude.ai, go to Settings, then Connectors, then Add custom
