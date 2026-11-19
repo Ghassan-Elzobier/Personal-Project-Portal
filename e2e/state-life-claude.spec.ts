@@ -163,11 +163,11 @@ test("a cook logged through Claude fills the fridge at once and after a reload, 
     expect(twice.text).toBe(`${name} is already logged as cooked. To undo it, use Undo cook in the Kitchen.`);
 
     // Back as it was: the cook is undone in the Kitchen, and is there to log again.
-    while ((await undo.count()) > 0) {
-      const left = await undo.count();
-      await undo.first().click();
-      await expect(undo).toHaveCount(left - 1);
-    }
+    // A cook split between fridge and freezer shows a batch for each; one Undo cook takes them all.
+    await undo.first().click();
+    await expect(undo).toHaveCount(0);
+    await page.reload();
+    await expect(undo).toHaveCount(0);
     expect((await lifeDay(claude, date)).routine.find((r) => r.cook_id === id)?.done).toBe(false);
   });
 });
