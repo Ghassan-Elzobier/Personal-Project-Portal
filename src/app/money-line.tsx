@@ -34,8 +34,8 @@ export function MoneyPrompts({ prompts }: { prompts: Prompt[] }) {
 }
 
 /**
- * Today's one line about money: this week's amount (and how much of it the meal plan's
- * shop still needs), and how the weeks to payday look.
+ * Today's one line about money: this week's amount (and how much of it the shops due
+ * before Monday still need), and how the weeks to payday look.
  */
 export function MoneyLine({ view: v, shop = 0 }: { view: BudgetView; shop?: number }) {
   const left = v.week.left ?? 0;
@@ -59,8 +59,8 @@ export function MoneyLine({ view: v, shop = 0 }: { view: BudgetView; shop?: numb
       {shop > 0 && left > 0 && (
         <span className="basis-full text-sm text-body tabular-nums">
           {shop >= left
-            ? `The meal plan's shop still needs ${pounds(shop)}: more than is left.`
-            : `${pounds(shop)} of it for the meal plan's shop, ${pounds(left - shop)} for the rest.`}
+            ? `The shops before Monday need ${pounds(shop)}: more than is left.`
+            : `${pounds(shop)} of it for the shops before Monday, ${pounds(left - shop)} for the rest.`}
         </span>
       )}
     </Link>
