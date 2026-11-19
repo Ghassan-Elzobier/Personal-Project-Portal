@@ -5,6 +5,7 @@ import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
 import { aislesToVisit, basketProgress, pounds, toggle } from "@/lib/life/basket";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
+import { parsePrice, smartList, toAdd } from "@/lib/life/order";
 import {
   confirmDelivery,
   confirmTrip,
@@ -22,7 +23,7 @@ import {
   undoTrip,
 } from "../actions";
 import { ActionButton, Sheet, useAction } from "../kit";
-import { Chip } from "@/components/ui";
+import { Chip, ErrorNote } from "@/components/ui";
 import { useTicks, type Ticks } from "./use-ticks";
 
 const NO_TICKS: Ticks = { ticked: [], missing: [] };
@@ -61,6 +62,7 @@ export function ShopView({
   aisles,
   total,
   ordered,
+  orderedTotal,
   delivered,
   deliveryDay,
   unchecked,
@@ -85,12 +87,14 @@ export function ShopView({
     week?: string;
   };
   ordered: string | null;
+  /** The trolley total from Sainsbury's checkout, when you typed it. */
+  orderedTotal?: string | null;
   delivered: string | null;
   deliveryDay: string;
   unchecked: { item: string; name: string }[];
   /** One shop of a fresh week: Done shopping replaces the delivery buttons. */
   trip?: { id: string; title: string; when: string; early: string[] };
-  /** Shopping in person: what is in the basket and what the shop didn't have, as saved. */
+  /** What is in the basket or trolley, what the shop didn't have, and which way, as saved. */
   ticks?: Ticks;
   /** What this shop didn't have and the server has moved on (`to`: the shop it's on now). */
   notFound?: { line: ShopLine; to: string | null }[];
@@ -99,15 +103,16 @@ export function ShopView({
   /** What this shop may spend: the week's budget less the other shops. */
   budgetPence?: number | null;
 }) {
-  const [opened, setOpened] = useState<Set<string>>(new Set());
   const [pick, setPick] = useState<ShopLine | null>(null);
   const [arrive, setArrive] = useState(false);
+  const [ordering, setOrdering] = useState(false);
   const saved = ticks ?? NO_TICKS;
-  const [inStore, setInStore] = useState(saved.ticked.length + saved.missing.length > 0);
+  // Ticks open the list the way they were made; with none, it opens on the links.
+  const [inStore, setInStore] = useState(saved.ticked.length + saved.missing.length > 0 && saved.via !== "online");
   const tripId = trip?.id ?? null;
   const send = useCallback(
     async (value: Ticks) => {
-      const r = await tickShop(start, tripId, value.ticked, value.missing);
+      const r = await tickShop(start, tripId, value.ticked, value.missing, value.via);
       if (r && "error" in r && r.error) {
         toast(r.error, { tone: "error" });
         return "refused" as const;
@@ -132,15 +137,24 @@ export function ShopView({
     .filter((g) => g.lines.length);
   const progress = basketProgress(buying, basket.ticked, basket.missing, budgetPence ?? null);
   const visit = aislesToVisit(buying, aisles, basket.missing);
+  const upNext = toAdd(buying, basket.ticked, basket.missing)[0] ?? null;
+  const unpicked = buying.filter((l) => !l.product).length;
+  const open = !ordered && !delivered;
   const { run } = useAction();
+  // A tick, an untick or "not available", saved with the way it was made.
+  const mark = (item: string, to: "got" | "missing" | "open") =>
+    setBasket({ ...toggle(basket, item, to), via: inStore ? "store" : "online" });
 
   const copy = async () => {
-    const text = byAisle
-      .map((g) => `${g.aisle}\n${g.lines.map((l) => `- ${l.product?.name ?? l.name} x${l.packs}`).join("\n")}`)
-      .join("\n\n");
+    const text = smartList(buying, basket.ticked, basket.missing);
+    if (!text) {
+      toast(`Everything on the list is in the ${inStore ? "basket" : "trolley"} already.`);
+      return;
+    }
+    const n = text.split("\n").length;
     try {
       await navigator.clipboard.writeText(text);
-      toast("List copied. Paste it into Sainsbury's SmartLists or a note.");
+      toast(`Copied ${n} ${n === 1 ? "item" : "items"}. In the Sainsbury's app, open SmartLists and paste them.`);
     } catch {
       toast("Couldn't copy on this device.", { tone: "error" });
     }
@@ -174,12 +188,12 @@ export function ShopView({
           {inStore
             ? `Tick each item as it goes in the basket. Can't find one? Tap Not found and it ${next ? `moves to ${next}` : "waits for a top-up"}. Tap Done shopping when you're home.`
             : trip
-              ? `Everything the days until the next shop need. Tap an item to open it on Sainsbury's, or Shop in store to tick it off as you go. Tap Done shopping when you're home.`
+              ? `Everything the days until the next shop need. Tap Open next to add each item on Sainsbury's, or Shop in store to tick it off as you go. Tap Done shopping when you're home.`
               : delivered
                 ? `Delivered ${delivered}. It's all in the cupboard tab.`
                 : ordered
-                  ? `Ordered ${ordered}. When it arrives, tap Delivery arrived and untick anything missing.`
-                  : `For delivery by ${deliveryDay}. Tap each item to open it on Sainsbury's and add the packs shown, or Shop in store to take the list with you.`}
+                  ? `Ordered ${ordered}${orderedTotal ? `, ${orderedTotal} at checkout against an estimate of ${total.estimated ? "≈" : ""}${total.price}` : ""}. When it arrives, tap Delivery arrived and untick anything missing.`
+                  : `For delivery by ${deliveryDay}. Tap Open next to add each item on Sainsbury's, or copy the list into SmartLists in the Sainsbury's app. Then tap I've ordered it.`}
         </p>
         <div className="flex flex-wrap gap-2">
           {(trip || (inStore && !delivered)) && (
@@ -192,10 +206,10 @@ export function ShopView({
               {inStore ? "Use the links" : "Shop in store"}
             </button>
           )}
-          {!trip && !inStore && !delivered && !ordered && (
-            <ActionButton action={() => markOrdered(start, true)} className="btn-life" done="Marked as ordered.">
+          {!trip && !inStore && open && (
+            <button type="button" onClick={() => setOrdering(true)} className="btn-life">
               I&apos;ve ordered it
-            </ActionButton>
+            </button>
           )}
           {!trip && !inStore && !delivered && (
             <button type="button" onClick={() => setArrive(true)} className={ordered ? "btn-life" : "btn-soft"}>
@@ -217,22 +231,37 @@ export function ShopView({
             </ActionButton>
           )}
           <button type="button" onClick={copy} className="btn-soft">
-            Copy list
+            Copy for SmartLists
           </button>
         </div>
-        {total.estimated && (
+        {!inStore && open && unpicked > 0 ? (
           <p className="text-xs text-faint">
-            Prices marked ≈ are typical ones until you pick the product and its price.
+            {unpicked === 1
+              ? "1 item has no product yet, so its link opens a search."
+              : `${unpicked} items have no product yet, so their links open a search.`}{" "}
+            Pick a product once and the link goes straight to it every week.
           </p>
+        ) : (
+          total.estimated && (
+            <p className="text-xs text-faint">
+              Prices marked ≈ are typical ones until you pick the product and its price.
+            </p>
+          )
         )}
       </div>
 
       {unchecked.length > 0 && !delivered && <HaveThese items={unchecked} />}
 
-      {inStore && (
-        <div className="sticky top-16 z-10 space-y-1 card-life py-3 shadow-lg" aria-live="polite" aria-label="Basket">
+      {(inStore || (open && buying.length > 0)) && (
+        <div
+          className="sticky top-16 z-10 space-y-1 card-life py-3 shadow-lg"
+          aria-live="polite"
+          aria-label={inStore ? "Basket" : "Trolley"}
+        >
           <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span className="text-xl font-bold tabular-nums">{pounds(progress.pence)} in the basket</span>
+            <span className="text-xl font-bold tabular-nums">
+              {pounds(progress.pence)} in the {inStore ? "basket" : "trolley"}
+            </span>
             <span className="text-sm text-muted tabular-nums">
               {progress.got} of {progress.of}
             </span>
@@ -249,11 +278,32 @@ export function ShopView({
               </span>
             )}
           </p>
-          {visit.length > 0 && (
+          {inStore && visit.length > 0 && (
             <p className="text-xs text-muted">
               {visit.length} {visit.length === 1 ? "aisle" : "aisles"}: {visit.join(" · ")}
             </p>
           )}
+          {!inStore &&
+            (upNext ? (
+              <div className="pt-2">
+                <a
+                  href={upNext.link}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={() => mark(upNext.item, "got")}
+                  className="btn-life w-full min-w-0"
+                >
+                  <span className="min-w-0 truncate">
+                    Open next: {upNext.product?.name ?? upNext.name} × {upNext.packs}
+                  </span>
+                </a>
+              </div>
+            ) : (
+              <p className="text-sm text-body">
+                Everything is in the trolley. Check out on Sainsbury&apos;s, then tap{" "}
+                {trip ? "Done shopping when it's home" : "I've ordered it"}.
+              </p>
+            ))}
           {waiting && <p className="text-xs text-faint">Saved on this phone. It sends when there&apos;s signal.</p>}
         </div>
       )}
@@ -270,7 +320,7 @@ export function ShopView({
                     <button
                       type="button"
                       aria-pressed={got}
-                      onClick={() => setBasket(toggle(basket, l.item, got ? "open" : "got"))}
+                      onClick={() => mark(l.item, got ? "open" : "got")}
                       className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left hover:bg-white/5"
                     >
                       <span
@@ -293,7 +343,7 @@ export function ShopView({
                     {!got && (
                       <button
                         type="button"
-                        onClick={() => setBasket(toggle(basket, l.item, "missing"))}
+                        onClick={() => mark(l.item, "missing")}
                         className="min-h-11 shrink-0 px-2 text-xs text-muted hover:text-sand"
                         aria-label={`${l.product?.name ?? l.name} not found`}
                       >
@@ -313,22 +363,30 @@ export function ShopView({
             <h2 className="px-1 eyebrow">{g.aisle}</h2>
             <ul className="divide-y divide-white/5 card-life p-0">
               {g.lines.map((l) => {
-                const seen = opened.has(l.item);
+                // In the trolley: opened from the list, and saved, so it survives going to Sainsbury's and back.
+                const got = basket.ticked.includes(l.item);
+                const label = l.product?.name ?? l.name;
                 return (
                   <li key={l.item} className="flex min-w-0 items-start gap-3 p-3">
                     <a
                       href={l.link}
                       target="_blank"
                       rel="noreferrer noopener"
-                      onClick={() => setOpened((s) => new Set(s).add(l.item))}
-                      className={`tap size-11 shrink-0 rounded-full text-sm font-bold ring-1 ${seen ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
-                      aria-label={`Open ${l.name} on Sainsbury's`}
+                      onClick={() => {
+                        if (open && !got) mark(l.item, "got");
+                      }}
+                      className={`tap size-11 shrink-0 rounded-full text-sm font-bold ring-1 ${got ? "bg-mint text-primary ring-mint" : "bg-white/5 text-mint ring-mint/30"}`}
+                      aria-label={
+                        got || !open
+                          ? `Open ${label} on Sainsbury's`
+                          : `Open ${label} on Sainsbury's and mark it in the trolley`
+                      }
                     >
-                      {seen ? "✓" : `×${l.packs}`}
+                      {got ? "✓" : `×${l.packs}`}
                     </a>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium wrap-break-word">
-                        {l.product?.name ?? l.name} <span className="text-muted">× {l.packs}</span>
+                      <p className={`font-medium wrap-break-word ${got && open ? "text-muted line-through" : ""}`}>
+                        {label} <span className="text-muted">× {l.packs}</span>
                       </p>
                       <p className="text-xs text-muted tabular-nums">
                         {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack}{" "}
@@ -345,11 +403,31 @@ export function ShopView({
                           </Chip>
                         ))}
                       </div>
+                      {open &&
+                        (got ? (
+                          <button
+                            type="button"
+                            onClick={() => mark(l.item, "open")}
+                            className="-mb-2 -ml-2 min-h-11 px-2 text-xs text-muted hover:text-white"
+                            aria-label={`Undo ${label}`}
+                          >
+                            Undo
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => mark(l.item, "missing")}
+                            className="-mb-2 -ml-2 min-h-11 px-2 text-xs text-muted hover:text-sand"
+                            aria-label={`${label} not available`}
+                          >
+                            Not available
+                          </button>
+                        ))}
                     </div>
                     <button
                       type="button"
                       onClick={() => setPick(l)}
-                      className="shrink-0 text-xs text-mint hover:underline"
+                      className="min-h-11 shrink-0 px-2 text-xs text-mint hover:underline"
                     >
                       {l.product ? "Product" : "Pick"}
                     </button>
@@ -376,7 +454,7 @@ export function ShopView({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setBasket(toggle(basket, line.item, "open"))}
+                  onClick={() => mark(line.item, "open")}
                   className="min-h-11 shrink-0 px-2 text-sm text-mint hover:underline"
                   aria-label={`Found ${line.product?.name ?? line.name} after all`}
                 >
@@ -431,7 +509,57 @@ export function ShopView({
           />
         )}
       </Sheet>
+
+      <Sheet open={ordering} onClose={() => setOrdering(false)} title="Your order">
+        <OrderForm
+          start={start}
+          estimate={`${total.estimated ? "≈" : ""}${total.price}`}
+          onDone={() => setOrdering(false)}
+        />
+      </Sheet>
     </section>
+  );
+}
+
+/** Ordered on Sainsbury's: the trolley total from the checkout, if you have it, so the week shows what it really cost. */
+function OrderForm({ start, estimate, onDone }: { start: string; estimate: string; onDone: () => void }) {
+  const [text, setText] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const { pending, run } = useAction();
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const pence = parsePrice(text);
+        if (pence === undefined) {
+          setProblem("Type the total as it shows at the checkout, like 71.40, or leave it empty.");
+          return;
+        }
+        if (await run(() => markOrdered(start, true, pence), "Marked as ordered.")) onDone();
+      }}
+    >
+      <p className="text-sm text-body">
+        Add the trolley total from Sainsbury&apos;s checkout if you have it. The list&apos;s estimate is {estimate}.
+      </p>
+      <label className="block">
+        <span className="field-label">Trolley total £</span>
+        <input
+          className="field-input"
+          inputMode="decimal"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setProblem(null);
+          }}
+          placeholder="optional"
+        />
+      </label>
+      {problem && <ErrorNote message={problem} />}
+      <button type="submit" className="btn-life w-full" disabled={pending} aria-busy={pending}>
+        Save order
+      </button>
+    </form>
   );
 }
 
@@ -619,6 +747,11 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
       className="space-y-3"
       onSubmit={async (e) => {
         e.preventDefault();
+        const pence = parsePrice(price);
+        if (pence === undefined) {
+          toast("Type the price like 1.75, or leave it empty.", { tone: "error" });
+          return;
+        }
         const ok = await run(
           () =>
             saveProduct({
@@ -627,7 +760,7 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
               name,
               packQty: Number(qty),
               packUnit: unit,
-              pence: price.trim() === "" ? null : Math.round(Number(price.replace("£", "")) * 100),
+              pence,
               checked: [...checked] as Tag[],
             }),
           "Saved. The list now links straight to it.",

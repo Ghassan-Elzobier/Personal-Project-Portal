@@ -8,7 +8,8 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 // later tap. A set that fails is kept and sent again when the signal comes back.
 // Once the page shows the saved set, the phone's copy is cleared.
 
-export type Ticks = { ticked: string[]; missing: string[] };
+/** `via`: ticked in the shop or while ordering online, so the list opens that way again. */
+export type Ticks = { ticked: string[]; missing: string[]; via?: "store" | "online" };
 
 const EVENT = "portal:ticks";
 const RETRY_MS = 10_000;
@@ -38,14 +39,17 @@ function parse(raw: string | null): Ticks | null {
     const strings = (xs: unknown) => (Array.isArray(xs) ? xs.filter((x): x is string => typeof x === "string") : null);
     const ticked = strings(v.ticked);
     const missing = strings(v.missing);
-    return ticked && missing ? { ticked, missing } : null;
+    const via = v.via === "store" || v.via === "online" ? { via: v.via } : {};
+    return ticked && missing ? { ticked, missing, ...via } : null;
   } catch {
     return null;
   }
 }
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
-const same = (a: Ticks, b: Ticks) => sameSet(a.ticked, b.ticked) && sameSet(a.missing, b.missing);
+// A set without `via` (queued before ticks carried it) matches any, so it can't be resent forever.
+const same = (a: Ticks, b: Ticks) =>
+  sameSet(a.ticked, b.ticked) && sameSet(a.missing, b.missing) && (!a.via || !b.via || a.via === b.via);
 
 function subscribe(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -75,7 +79,7 @@ export function useTicks(
   );
   const pending = parse(raw);
   const sending = useRef(false);
-  const savedKey = JSON.stringify([[...saved.ticked].sort(), [...saved.missing].sort()]);
+  const savedKey = JSON.stringify([[...saved.ticked].sort(), [...saved.missing].sort(), saved.via ?? null]);
 
   const flush = useCallback(async () => {
     if (sending.current) return;
@@ -107,8 +111,8 @@ export function useTicks(
   useEffect(() => {
     const waiting = parse(raw);
     if (!waiting) return;
-    const shown = JSON.parse(savedKey) as [string[], string[]];
-    if (same(waiting, { ticked: shown[0], missing: shown[1] })) {
+    const shown = JSON.parse(savedKey) as [string[], string[], Ticks["via"] | null];
+    if (same(waiting, { ticked: shown[0], missing: shown[1], via: shown[2] ?? undefined })) {
       write(key, null);
       return;
     }

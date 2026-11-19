@@ -111,9 +111,9 @@ export async function setStock(
   return ops.setStock(changes, mode);
 }
 
-export async function markOrdered(start: string, ordered: boolean) {
+export async function markOrdered(start: string, ordered: boolean, pence: number | null = null) {
   await requireOwner();
-  return ops.markOrdered(start, ordered);
+  return ops.markOrdered(start, ordered, pence);
 }
 
 export async function confirmDelivery(start: string, got: string[]) {
@@ -131,9 +131,15 @@ export async function confirmTrip(start: string, tripId: string, got: string[]) 
   return ops.confirmTrip(start, tripId, got);
 }
 
-export async function tickShop(start: string, tripId: string | null, ticked: string[], missing: string[]) {
+export async function tickShop(
+  start: string,
+  tripId: string | null,
+  ticked: string[],
+  missing: string[],
+  via?: "store" | "online",
+) {
   await requireOwner();
-  return ops.tickShop(start, tripId, ticked, missing);
+  return ops.tickShop(start, tripId, ticked, missing, via);
 }
 
 export async function undoTrip(start: string, tripId: string) {

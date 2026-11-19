@@ -166,6 +166,26 @@ test.describe("shared pages", () => {
 const freshWeek = (page: Page) =>
   page.getByRole("region", { name: "The week's cooking" }).getByText("Fresh week", { exact: true });
 
+/**
+ * Next week as a batch week, not ordered, with its list on the links: the kitchen's
+ * Shop tab, ready to order online. This week (and the Meals screenshot) is left as it is.
+ */
+async function batchWeekNext(page: Page) {
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.goto("/life?week=next");
+  const plan = page.getByRole("button", { name: "Plan a batch week" });
+  const make = page.getByRole("button", { name: "Make it a batch week" });
+  if (await plan.isVisible()) await plan.click();
+  else if (await make.isVisible()) await make.click();
+  await expect(page.getByRole("button", { name: "Make it a fresh week" })).toBeVisible();
+  await page.goto("/life/kitchen?week=next");
+  const ordered = page.getByRole("button", { name: "Not ordered yet" });
+  if (await ordered.isVisible()) await ordered.click();
+  const links = page.getByRole("button", { name: "Use the links" });
+  if (await links.isVisible()) await links.click();
+  await expect(page.getByRole("button", { name: "I've ordered it" })).toBeVisible();
+}
+
 test.describe("life", () => {
   test("a weigh-in shows as logged at once and is still logged after a reload", async ({ page }) => {
     await page.goto("/life/body");
@@ -348,6 +368,58 @@ test.describe("life", () => {
     await expect(staples).toHaveCount(unmarked);
     await page.reload();
     await expect(staples).toHaveCount(unmarked);
+  });
+
+  test("ordering online, opening a product puts it in the trolley at once, and it is still there after a reload", async ({
+    page,
+    context,
+  }) => {
+    // Sainsbury's itself is never loaded: product links open this stub instead.
+    await context.route("https://www.sainsburys.co.uk/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "<title>Sainsbury's</title>" }),
+    );
+    await batchWeekNext(page);
+
+    const trolley = page.getByLabel("Trolley", { exact: true });
+    const before = await trolley.innerText();
+    const suffix = " on Sainsbury's and mark it in the trolley";
+    const link = page.getByRole("link", { name: /^Open .+ on Sainsbury's and mark it in the trolley$/ }).first();
+    const name = ((await link.getAttribute("aria-label")) ?? "").slice("Open ".length, -suffix.length);
+    const tab = context.waitForEvent("page");
+    await link.click();
+    await (await tab).close();
+    const inTrolley = page.getByRole("link", { name: `Open ${name} on Sainsbury's`, exact: true });
+    await expect(inTrolley).toBeVisible();
+    await expect(trolley).not.toHaveText(before);
+
+    // The phone keeps unsent ticks; wait until it has sent them, then forget them, so a
+    // reload can only show what the portal saved.
+    await expect(page.getByText("Saved on this phone")).toHaveCount(0);
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await expect(inTrolley).toBeVisible();
+
+    // Back as it was: out of the trolley again.
+    await page.getByRole("button", { name: `Undo ${name}`, exact: true }).click();
+    await expect(page.getByRole("link", { name: `Open ${name}${suffix}`, exact: true })).toBeVisible();
+    await expect(page.getByText("Saved on this phone")).toHaveCount(0);
+  });
+
+  test("I've ordered it keeps the trolley total from the checkout, at once and after a reload", async ({ page }) => {
+    await batchWeekNext(page);
+
+    await page.getByRole("button", { name: "I've ordered it" }).click();
+    const sheet = page.getByRole("dialog", { name: "Your order" });
+    await sheet.getByLabel("Trolley total £").fill("71.40");
+    await sheet.getByRole("button", { name: "Save order" }).click();
+    await expect(page.getByText(/£71\.40 at checkout/)).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/£71\.40 at checkout/)).toBeVisible();
+
+    // Back as it was: not ordered.
+    await page.getByRole("button", { name: "Not ordered yet" }).click();
+    await expect(page.getByRole("button", { name: "I've ordered it" })).toBeVisible();
+    await expect(page.getByText(/£71\.40 at checkout/)).toHaveCount(0);
   });
 });
 
