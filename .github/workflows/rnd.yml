@@ -1,9 +1,10 @@
 # R&D, four times a day. The rnd agent (.claude/agents/rnd.md) takes one focus,
 # reviews how that part of the portal looks and works, researches better ways,
 # and files the single best proposal as an `rnd` issue, or nothing when no idea
-# clears the bar. Twelve foci take turns (src/lib/rnd/foci.ts): design,
-# navigation, one portal, performance, security, code, the factory, and the
-# owner's study, schedule, gym, food and money.
+# clears the bar. Fifteen foci take turns (src/lib/rnd/foci.ts): design,
+# navigation, one portal, performance, security, reliability, code, the factory,
+# the Claude connector, and the owner's study, job hunt, schedule, gym, food and
+# money.
 #
 # It reads the open web, so it is built to hold nothing worth stealing:
 #   research  a script decides and gathers the evidence (no AI); then Claude runs
@@ -47,6 +48,9 @@ on:
           - schedule
           - factory
           - money
+          - connector
+          - jobs
+          - reliability
 
 permissions:
   contents: read

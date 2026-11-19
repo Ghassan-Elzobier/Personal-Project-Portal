@@ -241,15 +241,18 @@ guides or sensors, preferring computational ones.
 
 The checks keep what exists working; R&D looks for what would make it better.
 It works towards the goal in `AGENTS.md`: a portal that runs your week, making
-your studies, scheduling, gym routine, budgeting and food intake better, where
-every visit gives you what you need in the fewest taps.
+your studies, job hunt, scheduling, gym routine, budgeting and food intake
+better, where every visit gives you what you need in the fewest taps.
 
-1. **One focus a run.** Twelve take turns (`src/lib/rnd/foci.ts`), and each day
+1. **One focus a run.** Fifteen take turns (`src/lib/rnd/foci.ts`), and each day
    mixes what you see with how it is built: design, navigation (the taps a job
    takes, and whether each screen shows what matters at that moment), one portal
-   (how the spaces work together), performance, security, code, the factory, and
-   study, schedule, gym, food and money. At four runs a day, each focus comes
-   round every three days.
+   (how the spaces work together), performance, security, reliability (what
+   would fail with nobody noticing), code, the factory, the Claude connector
+   (what you can do by asking Claude), and study, the job hunt, schedule, gym,
+   food and money. At four runs a day, each focus comes round about every four
+   days. Every tool in the nav is some focus's own page, and a test holds that,
+   so a new tool arrives with a focus.
 2. **Evidence first, gathered by scripts.** Before Claude starts,
    `scripts/rnd.mjs brief` writes `.rnd/brief.md`: what changed lately, every open
    proposal and the ones you decided on this focus with your reasons, the
