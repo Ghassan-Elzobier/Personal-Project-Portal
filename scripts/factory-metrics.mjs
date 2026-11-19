@@ -9,6 +9,8 @@
 //   suppressed    known lint breaches still in the ratchet (lower is better)
 //   a11y          accessibility findings still in the baseline
 //   tests         unit tests + end-to-end test definitions
+//   R&D           proposals the owner decided in the last 7 days: built / declined
+//                 (declined ones are what /improve-factory reads to sharpen the agent)
 //
 // Needs `gh` signed in. Usage: npm run factory:metrics
 import { execFileSync } from "node:child_process";
@@ -80,7 +82,14 @@ const countMatches = (dir, re, test) => {
 const unit = countMatches("src", /\.test\.ts$/, /^\s*test\(/gm);
 const e2e = countMatches("e2e", /\.spec\.ts$/, /^\s*test\(/gm);
 
+// The REST API gives the close reason on any version of gh.
+const decided = ghJson([
+  "api",
+  `repos/{owner}/{repo}/issues?labels=rnd&state=closed&since=${since}T00:00:00Z&per_page=100`,
+]).filter((i) => !i.pull_request && i.closed_at >= since);
+const rnd = `${decided.filter((i) => i.state_reason === "completed").length} / ${decided.filter((i) => i.state_reason === "not_planned").length}`;
+
 const today = new Date().toISOString().slice(0, 10);
 console.log(
-  `| ${today} | ${merged.length} | ${median} | ${firstTry} | ${notes} | ${suppressed} | ${a11y} | ${unit} + ${e2e} |`,
+  `| ${today} | ${merged.length} | ${median} | ${firstTry} | ${notes} | ${suppressed} | ${a11y} | ${unit} + ${e2e} | ${rnd} |`,
 );

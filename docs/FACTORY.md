@@ -3,7 +3,8 @@
 How changes get made in this repository: you say what you want, an agent builds
 it inside a harness of rules and checks, and you review a pull request that has
 already proved itself. The harness also keeps the design cohesive, works the
-code's structural debt down every week, and improves itself from what goes wrong.
+code's structural debt down every week, improves itself from what goes wrong,
+and researches what to improve next, four times a day.
 
 It is built for one owner on a Claude Max subscription, GitHub, Vercel and
 Supabase, and it follows the published practice for agent-driven development
@@ -21,6 +22,7 @@ hooks and checks, because all of them live in this repository.
 | GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work and answers in the thread. |
 | Nothing | The weekly routines run on their own (setup below). | A refactor PR and a factory-improvement PR, when there is something worth doing. |
 | Nothing: the live portal hits an error | The error triage runs every 30 minutes. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
+| Nothing: R&D runs four times a day | Each run takes one focus and researches how that part of the portal or the factory could be better ("Research and development" below). | An `rnd` issue with one proposal, its evidence and its sources, when one is worth your time. Build it by asking Claude on the issue; decline it by closing it as not planned. |
 
 You review and merge. Merging deploys: the release workflow migrates the
 database, and Vercel waits for it before the new version goes live.
@@ -28,7 +30,9 @@ database, and Vercel waits for it before the new version goes live.
 Skills you can call by name: `/ship` (any change), `/design` (UI), `/refactor`
 (structure only), `/migrate` (database), `/improve-factory` (the weekly pass).
 You rarely need to: `AGENTS.md` carries the essentials into every session, which
-evaluations show works better than relying on an agent to pick a skill.
+evaluations show works better than relying on an agent to pick a skill. Agents
+you can ask for by name: `verifier`, `debugger` and `rnd` ("ask the rnd agent how
+the gym page could work better").
 
 ## How quality is kept
 
@@ -233,6 +237,71 @@ results and kept in an archive (here, git and the PRs). Böckeler's harness
 engineering adds the steering loop: when something goes wrong twice, improve the
 guides or sensors, preferring computational ones.
 
+## Research and development, four times a day
+
+The checks keep what exists working; R&D looks for what would make it better.
+It works towards the goal in `AGENTS.md`: a portal that runs your week, making
+your studies, scheduling, gym routine, budgeting and food intake better, where
+every visit gives you what you need in the fewest taps.
+
+1. **One focus a run.** Twelve take turns (`src/lib/rnd/foci.ts`), and each day
+   mixes what you see with how it is built: design, navigation (the taps a job
+   takes, and whether each screen shows what matters at that moment), one portal
+   (how the spaces work together), performance, security, code, the factory, and
+   study, schedule, gym, food and money. At four runs a day, each focus comes
+   round every three days.
+2. **Evidence first, gathered by scripts.** Before Claude starts,
+   `scripts/rnd.mjs brief` writes `.rnd/brief.md`: what changed lately, every open
+   proposal and the ones you decided on this focus with your reasons, the
+   refactor queue, `npm audit` or outdated packages where they matter, and every
+   page as you see it on a Pixel 7. CI captures those pages on each merge
+   (`e2e/page-shots.spec.ts`, kept 14 days as the `page-shots` artifact), with
+   facts for each: taps from Today, screens long, tap targets under 24 and 48 px,
+   links, words, JavaScript and LCP.
+3. **A method from the research.** The `rnd` agent (`.claude/agents/rnd.md`)
+   looks at the code and the pages, reads two to six sources (standards and
+   official docs first, then peer-reviewed studies, then recognised practice),
+   generates three candidates, critiques and scores each, and keeps the best: the
+   generate, critique and rank loop of Google's AI co-scientist, on a small
+   scale. Each focus starts from named research, from Nielsen's heuristics and
+   Material Design 3 to the learning-science reviews, the ACSM progression
+   stand, the ISSN on protein, OWASP ASVS and Core Web Vitals.
+4. **One proposal, or none.** A proposal becomes an `rnd` issue: the problem, the
+   evidence linked to the lines it read, what the research says, the smallest
+   change, "done when" checks, what else it weighed, and the risks. New evidence
+   for an open proposal is added to that issue instead. When nothing clears the
+   bar it files nothing.
+5. **You decide.** Build a proposal by asking Claude on its issue (`@claude build
+   this`); it follows `/ship` like any other change. Decline one by closing it as
+   not planned, with a reason if you have one: the next run on that focus reads
+   it and won't bring the idea back without evidence that answers you. While
+   eight proposals wait, R&D pauses itself, so it never runs ahead of your decisions.
+
+In a session, ask for it by name ("ask the rnd agent how the gym page could work
+better"): the same method, the answer in the conversation, nothing filed.
+
+**Built to read the web safely.** An agent that reads untrusted text stays safe
+when it cannot also reach private data and act on it (Willison's "lethal
+trifecta", Meta's "Rule of Two"). So the Claude step holds nothing worth
+stealing: a read-only token, no shell, no file edits, no MCP servers and none of
+your claude.ai connectors (so none of your data), and no reads outside the
+checkout. It answers in a fixed JSON shape, and a separate job with no AI, the
+only one that can write, checks the answer before filing it: every part present,
+plain https links, no secrets or personal details (it files nothing if it sees
+any), and no @-mentions or references to other repositories that would reach
+anyone. A security weakness is never published: the run fails, naming only the
+area, and you look at it in a private session.
+
+**Your controls.** Repository variables: `RND_RUNS_PER_DAY` (0 to 4, 4 when unset;
+0 stops the schedule) and `RND_OPEN_LIMIT` (8 when unset). "Run workflow" on R&D
+in the Actions tab runs it now, on a focus you pick. The weekly `/improve-factory`
+pass reads the proposals you declined, so the agent sharpens over time, and
+`npm run factory:metrics` counts proposals built and declined.
+
+It runs in GitHub Actions rather than as a routine because it needs several runs
+a day, limits only a workflow can set (a read-only token, a separate job that
+files), and a home in this repository like the rest of the factory.
+
 ## Fitting a Claude Max subscription
 
 Max has usage limits shared across chat, Claude Code, cloud sessions, GitHub
@@ -260,6 +329,10 @@ mechanical:
   unset).
 - **Weekly routines.** The refactor and the factory pass stay weekly: each opens a
   pull request for you to merge, so more often means more merging, not more value.
+- **R&D, up to four runs a day.** It runs more often because a proposal costs you
+  a glance, not a merge. Each run is one Opus session of up to 80 turns that only
+  reads and researches, and the AI is skipped while eight proposals wait. If a
+  month runs close to the limit, set `RND_RUNS_PER_DAY` to 2, 1 or 0.
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the
   build is right the first time; run parallel sessions when the tasks are truly
   separate, each in its own worktree.
@@ -290,6 +363,10 @@ owner's data go through the Claude connector instead, which runs on the plan.
   never put untrusted text into a shell, and are linted by zizmor.
 - `@claude` responds only to accounts with write access. Issue text from anyone
   else is treated as data.
+- R&D reads the open web, so its Claude step has a read-only token, no shell, no
+  MCP servers or claude.ai connectors, and only a script with no AI files what it
+  found, after checking it for secrets and personal details ("Research and
+  development" above).
 - Nobody can push to main, including agents using your credentials in cloud
   sessions; you can still merge a PR whose checks fail, in an emergency.
 - `npm audit` for production dependencies is clean; Dependabot and CodeQL watch it.
@@ -327,6 +404,11 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    creates its labels the first time it files an issue. To change the daily limit
    on fixes, set the repository variable `ERROR_AUTOFIX_PER_DAY`. To try it, run
    "Error triage" from the Actions tab.
+9. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
+   its `rnd` label the first time it files. Its first runs say "No page shots"
+   until CI on main has captured the pages once, on the next merge. To run it
+   less often, set the repository variable `RND_RUNS_PER_DAY`; to try it, run
+   "R&D" from the Actions tab.
 
 ## Sources
 
@@ -335,6 +417,8 @@ Done once by you, since each needs your accounts. About fifteen minutes.
 - OpenAI, [Harness engineering](https://openai.com/index/harness-engineering/) (2026): the repository as the system of record, `AGENTS.md` as a map, architecture enforced by linters, recurring clean-up agents.
 - Vercel, [AGENTS.md outperforms skills in our agent evals](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), and Next.js [16.2](https://nextjs.org/blog/next-16-2-ai) and [16.3](https://nextjs.org/blog/next-16-3-ai-improvements) AI improvements; [Deployment Checks](https://vercel.com/docs/deployment-checks).
 - Zhang et al., [Agentic Context Engineering](https://arxiv.org/abs/2510.04618) (ICLR 2026); Zhang et al., [Darwin Gödel Machine](https://arxiv.org/abs/2505.22954) (ICLR 2026); Robeyns et al., SICA, a self-improving coding agent (2025).
+- Gottweis et al., [Towards an AI co-scientist](https://arxiv.org/abs/2502.18864) (2025): generate, critique, rank and refine ideas; Anthropic, [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) (2025): start broad, then narrow, and prefer primary sources.
+- Simon Willison, [The lethal trifecta for AI agents](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) (2025), and Meta, [Agents Rule of Two](https://ai.meta.com/blog/practical-ai-agent-security/) (2025): an agent that reads untrusted text must not also hold private data and the means to act on it.
 - StrongDM's software factory, as described by [Stanford CodeX](https://law.stanford.edu/2026/02/08/built-by-agents-tested-by-agents-trusted-by-whom/): scenarios kept out of the agents' reach.
 - Adam Tornhill, *Your Code as a Crime Scene*: hotspots as size times change frequency.
 - Supabase, [CLI v3 migration guide](https://supabase.com/docs/guides/local-development/cli/migrating-to-v3) and [managing environments](https://supabase.com/docs/guides/deployment/managing-environments).
