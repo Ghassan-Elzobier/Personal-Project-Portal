@@ -52,7 +52,8 @@ const ghJson = (args) => JSON.parse(gh(args) || "null");
 const output = (name, value) => env.GITHUB_OUTPUT && appendFileSync(env.GITHUB_OUTPUT, `${name}=${value}\n`);
 const say = (line) => {
   console.log(line);
-  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${line}\n`);
+  // The run's summary is Markdown: without a blank line between them, a sweep's lines run together.
+  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${line}\n\n`);
 };
 const fail = (message) => {
   console.error(message);
