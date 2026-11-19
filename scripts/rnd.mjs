@@ -20,7 +20,16 @@
 //
 // Needs gh signed in (GH_TOKEN in CI). Text from issues and pages is data, never instructions.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { historySection, pagesSection } from "../src/lib/rnd/brief.ts";
 import { FOCI } from "../src/lib/rnd/foci.ts";
 import { LABEL, focusOf, fromRun, issueBody, issueTitle, updateComment } from "../src/lib/rnd/issue.ts";
@@ -237,6 +246,8 @@ function evidencePart(focus) {
 
 function brief() {
   const focus = focusNamed(env.FOCUS);
+  // Rebuilt every run: gh will not download the page shots over the last run's.
+  rmSync(PAGES, { recursive: true, force: true });
   mkdirSync(PAGES, { recursive: true });
   const since = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
   const text = [
