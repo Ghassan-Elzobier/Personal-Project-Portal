@@ -13,7 +13,7 @@ Never fix what you have not seen fail. Work in this order.
 1. **Reproduce it as a test that fails.** In `e2e/`, as a user would: tap, look, reload.
    - From an error issue: the route, the breadcrumbs (what was tapped) and the stack are the steps.
    - From a user report: the page and the taps. For anything where "it changes at once" matters,
-     add it to `e2e/state-fresh.spec.ts` (tap, see it, reload, see it again).
+     write it as a save test in a new `e2e/state-<feature>.spec.ts` (tap, see it, reload, see it again).
    - Playwright's `playwright-test-generator` agent turns a plan into the test and checks its
      selectors live. Run it with `test_run` (Playwright test MCP). **It must fail for the right reason.**
 2. **Stop at the failure and look.** Start the app with `npm run debug` (seeded local database, the
