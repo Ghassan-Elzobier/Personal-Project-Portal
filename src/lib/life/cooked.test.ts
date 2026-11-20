@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cookedNote, cooksToLog, eatenBeforeCooked } from "./cooked.ts";
+import { cookedNote, cooksToLog, eatenBeforeCooked, takenFromStock } from "./cooked.ts";
 import type { Placement } from "./planner.ts";
 import type { MealLog } from "./state.ts";
 
@@ -69,6 +69,23 @@ test("meals eaten before their cook was logged are found, with the batch they at
     found.map((f) => [f.meal.day, f.meal.slot, f.placement.batchGid]),
     [["2026-11-16", "lunch", "7"]],
   );
+});
+
+test("a cook takes only what the cupboard has, so Undo puts back no more than came out", () => {
+  const uses = [
+    { item: "beef-mince", qty: 500 },
+    { item: "onion", qty: 2 },
+    { item: "passata", qty: 700 },
+  ];
+  const stock = [
+    { item: "beef-mince", qty: 750 },
+    { item: "onion", qty: 1 },
+  ];
+  assert.deepEqual(takenFromStock(uses, stock), [
+    { item: "beef-mince", qty: 500 },
+    { item: "onion", qty: 1 },
+  ]);
+  assert.deepEqual(takenFromStock(uses, []), []);
 });
 
 test("the note says which cook was logged and where its portions went", () => {

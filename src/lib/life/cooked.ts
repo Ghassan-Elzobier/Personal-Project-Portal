@@ -30,6 +30,21 @@ export function eatenBeforeCooked(
   });
 }
 
+/**
+ * What a cook takes from the cupboard: what it uses, as far as the cupboard has it.
+ * The database never takes stock below nothing, and the batch keeps this list to put
+ * back on Undo, so it must be what really came out, or Undo adds food that wasn't there.
+ */
+export function takenFromStock(
+  uses: { item: string; qty: number }[],
+  stock: { item: string; qty: number }[],
+): { item: string; qty: number }[] {
+  const have = new Map(stock.map((s) => [s.item, Math.max(0, s.qty)]));
+  return uses
+    .map((u) => ({ item: u.item, qty: Math.round(Math.min(u.qty, have.get(u.item) ?? 0) * 10) / 10 }))
+    .filter((u) => u.qty > 0);
+}
+
 /** "Logged the cook too: Bolognese, 3 in the fridge and 2 in the freezer." */
 export function cookedNote(cooked: CookedNote[]): string | null {
   if (!cooked.length) return null;

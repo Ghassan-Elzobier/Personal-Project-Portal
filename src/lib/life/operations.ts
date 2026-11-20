@@ -1,7 +1,7 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { cooksToLog, eatenBeforeCooked, type CookedNote } from "./cooked";
+import { cooksToLog, eatenBeforeCooked, takenFromStock, type CookedNote } from "./cooked";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import { SPLIT, type Slot } from "./nutrition";
@@ -424,7 +424,7 @@ async function logCook(s: LifeState, start: string, cookId: string): Promise<Coo
     portions: c!.portions,
     scale: c!.scale,
     freeze,
-    used: cookUse(r!, c!.portions, c!.scale),
+    used: takenFromStock(cookUse(r!, c!.portions, c!.scale), s.stock),
     planStart: start,
     cookId,
   });
@@ -473,7 +473,14 @@ export function cookExtra(recipeKey: string, portions: number): Promise<Result> 
     if (!r) fail("Unknown recipe.");
     if (!(portions >= 1 && portions <= 20)) fail("Between 1 and 20 portions.");
     const scale = cookScale(r!, s.kcal);
-    await store.cook({ recipe: r!.key, day: s.today, portions, scale, freeze: 0, used: cookUse(r!, portions, scale) });
+    await store.cook({
+      recipe: r!.key,
+      day: s.today,
+      portions,
+      scale,
+      freeze: 0,
+      used: takenFromStock(cookUse(r!, portions, scale), s.stock),
+    });
     return {};
   });
 }
