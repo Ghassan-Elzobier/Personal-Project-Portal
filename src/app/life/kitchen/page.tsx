@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays, shortDate } from "@/lib/dates/week";
-import { TAG_LABELS } from "@/lib/life/allergens";
+import { labelTags, TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS } from "@/lib/life/ingredients";
 import { linkDisagrees, packUnits } from "@/lib/life/pack";
 import { loadLife } from "@/lib/life/load";
@@ -264,10 +264,7 @@ function shopLine(s: S, l: ListLine, boughtOn: string): ShopLine {
         }
       : null,
     checks: l.checks.map((t) => ({ tag: t, label: TAG_LABELS[t] })),
-    allChecks: (l.item.watch ?? [])
-      .map((w) => w.split(":")[0])
-      .filter((t, i, a) => a.indexOf(t) === i && t in TAG_LABELS)
-      .map((t) => ({ tag: t, label: TAG_LABELS[t as keyof typeof TAG_LABELS] })),
+    allChecks: labelTags(s.profile.food, l.item.watch, l.item.compound).map((t) => ({ tag: t, label: TAG_LABELS[t] })),
     freeze: l.freezeOnArrival,
     firstUse: dayLabel(l.firstUse, s.today),
     uses: l.uses,

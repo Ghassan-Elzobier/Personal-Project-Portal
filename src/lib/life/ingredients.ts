@@ -11,7 +11,7 @@
 // label needs a look before a product is trusted (soya flour in bread, pea protein
 // in protein blends, tamarind in Worcestershire sauce). Pure data, no I/O.
 
-import type { Tag, Watch } from "./allergens.ts";
+import type { Form, Tag, Watch } from "./allergens.ts";
 
 export type Unit = "g" | "ml" | "each";
 export type Aisle =
@@ -57,6 +57,11 @@ export type Ingredient = {
   contains?: Tag[];
   /** Some brands add these. "egg:baked" means it is there baked in. */
   watch?: Watch[];
+  /**
+   * A mixed product (bread, a sauce, stock, sausages) whose recipe varies by brand: its label
+   * is checked for every food you avoid, in this form (egg in bread is baked).
+   */
+  compound?: Form;
   /** Strong flavours some people dislike, for the dislikes filter. */
   traits?: ("strong" | "spicy")[];
 };
@@ -199,6 +204,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "pork-sausages",
+    compound: "processed",
     raw: "mince",
     name: "Pork sausages",
     aisle: "Meat & fish",
@@ -211,10 +217,11 @@ const LIST: Ingredient[] = [
     keeps: 4,
     search: "pork sausages 6 pack",
     contains: ["gluten"],
-    watch: ["soy", "pea", "bean"],
+    watch: ["soy", "pea", "bean", "sulphite"],
   },
   {
     key: "chorizo",
+    compound: "processed",
     name: "Cooking chorizo",
     aisle: "Meat & fish",
     per100: m(395, 24.0, 32.2, 2.4),
@@ -242,6 +249,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "ham",
+    compound: "processed",
     name: "Cooked ham slices",
     aisle: "Meat & fish",
     per100: m(107, 18.4, 3.3, 1.0),
@@ -393,6 +401,7 @@ const LIST: Ingredient[] = [
   // Bakery
   {
     key: "bagel",
+    compound: "baked",
     name: "Plain bagels",
     aisle: "Bakery",
     per100: m(273, 10.0, 1.8, 57.8),
@@ -408,6 +417,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "tortilla",
+    compound: "baked",
     name: "Large tortilla wraps",
     aisle: "Bakery",
     per100: m(285, 7.8, 5.7, 53.9),
@@ -423,6 +433,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "pitta",
+    compound: "baked",
     name: "White pitta breads",
     aisle: "Bakery",
     per100: m(255, 9.1, 1.3, 55.1),
@@ -438,6 +449,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "naan",
+    compound: "baked",
     name: "Plain naans",
     aisle: "Bakery",
     per100: m(285, 7.8, 7.3, 50.2),
@@ -453,6 +465,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "burger-bun",
+    compound: "baked",
     name: "Brioche burger buns",
     aisle: "Bakery",
     per100: m(254, 9.3, 2.6, 51.5),
@@ -468,6 +481,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "white-bread",
+    compound: "baked",
     name: "White bread",
     aisle: "Bakery",
     per100: m(219, 7.9, 1.6, 46.1),
@@ -482,6 +496,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "cornflakes",
+    compound: "processed",
     name: "Cornflakes",
     aisle: "Bakery",
     per100: m(376, 7.1, 0.8, 90.9),
@@ -495,6 +510,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "panko",
+    compound: "baked",
     name: "Panko breadcrumbs",
     aisle: "Bakery",
     per100: m(360, 11.0, 2.5, 74.0),
@@ -547,6 +563,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "gnocchi",
+    compound: "processed",
     name: "Potato gnocchi",
     aisle: "Pasta, rice & grains",
     per100: m(150, 3.5, 0.3, 33.0),
@@ -1096,6 +1113,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "sweet-chilli",
+    compound: "processed",
     name: "Sweet chilli sauce",
     aisle: "Sauces & oils",
     per100: m(225, 0.3, 0.2, 55.0),
@@ -1108,6 +1126,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "ketchup",
+    compound: "processed",
     name: "Tomato ketchup",
     aisle: "Sauces & oils",
     per100: m(115, 1.6, 0.1, 28.6),
@@ -1121,6 +1140,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "bbq-sauce",
+    compound: "processed",
     name: "BBQ sauce",
     aisle: "Sauces & oils",
     per100: m(140, 1.0, 0.1, 36.1),
@@ -1133,6 +1153,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "stock-chicken",
+    compound: "processed",
     name: "Chicken stock cubes",
     aisle: "Sauces & oils",
     per100: m(250, 10.0, 15.0, 15.0),
@@ -1147,6 +1168,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "stock-beef",
+    compound: "processed",
     name: "Beef stock cubes",
     aisle: "Sauces & oils",
     per100: m(250, 10.0, 15.0, 15.0),
@@ -1161,6 +1183,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "gravy",
+    compound: "processed",
     name: "Gravy granules",
     aisle: "Sauces & oils",
     per100: m(407, 4.4, 16.1, 65.2),
@@ -1174,6 +1197,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "thai-green-paste",
+    compound: "processed",
     name: "Thai green curry paste",
     aisle: "Sauces & oils",
     per100: m(120, 2.0, 7.0, 12.0),
@@ -1221,7 +1245,8 @@ const LIST: Ingredient[] = [
     search: name.toLowerCase(),
     traits: key === "chilli-flakes" ? ["spicy"] : undefined,
     // Some spice blends add fenugreek or pea flour.
-    watch: key === "garam-masala" || key === "five-spice" ? (["fenugreek"] as Watch[]) : undefined,
+    watch: key === "garam-masala" || key === "five-spice" ? (["fenugreek", "pea"] as Watch[]) : undefined,
+    compound: key === "garam-masala" || key === "five-spice" ? ("processed" as Form) : undefined,
   })),
 
   // Baking
@@ -1324,6 +1349,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "puff-pastry",
+    compound: "baked",
     name: "Ready-rolled puff pastry",
     aisle: "Baking",
     per100: m(384, 5.3, 26.2, 33.7),
@@ -1340,6 +1366,7 @@ const LIST: Ingredient[] = [
   // Supplements
   {
     key: "rice-protein",
+    compound: "processed",
     name: "Rice protein powder",
     aisle: "Supplements",
     per100: m(380, 80, 3, 6),
