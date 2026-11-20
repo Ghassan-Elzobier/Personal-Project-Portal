@@ -21,7 +21,6 @@ import { recipe } from "./recipes";
 import {
   buildList,
   cookUse,
-  delivery,
   frozenOnArrival,
   goodOn,
   landShop,
@@ -29,8 +28,11 @@ import {
   undoShop,
   weekNeeds,
   type Product,
+  type StockRow,
 } from "./shopping";
+import { countDown, countedDelivery, markByHand, putBack, stapleUse, staplesAhead } from "./staples-count";
 import {
+  needsAhead,
   openStock,
   placedMacros,
   remainingNeeds,
@@ -321,7 +323,7 @@ export function logMeal(
     }
     const m = p ? placedMacros(p) : null;
     const before = s.meals.find((x) => x.day === day && x.slot === slot)?.status;
-    await eatFromCupboard(p, before === "eaten", status === "eaten");
+    await eatFromCupboard(s, p, before === "eaten", status === "eaten");
     if (status === "swapped") {
       // No recipe and no batch: the planned portion stays where it is, to be offered again.
       // With no meal planned for the slot, its share of the day's targets stands in.
@@ -345,14 +347,41 @@ export function logMeal(
   });
 }
 
-/** Meals made on the spot (breakfasts, shakes, fresh dinners) use the cupboard as they are eaten. */
-async function eatFromCupboard(p: Placement | undefined, was: boolean, now: boolean) {
+/**
+ * Meals made on the spot (breakfasts, shakes, fresh dinners) use the cupboard as they
+ * are eaten: their food, and their share of each counted staple, which turns low when
+ * it won't last the week ahead (staples-count.ts). Unticking puts them back. Returns
+ * the kitchen after, for the next meal in a run.
+ */
+async function eatFromCupboard(
+  s: LifeState,
+  p: Placement | undefined,
+  was: boolean,
+  now: boolean,
+  stock: StockRow[] = s.stock,
+): Promise<StockRow[]> {
   const r = p?.recipe ? recipe(p.recipe) : undefined;
-  if (!r || !p || (p.source !== "daily" && p.source !== "fresh") || was === now) return;
+  if (!r || !p || (p.source !== "daily" && p.source !== "fresh") || was === now) return stock;
+  const food = cookUse(r, 1, p.scale);
+  const staples = stapleUse(r, 1, p.scale);
+  if (!now) {
+    await store.changeStock([...food, ...putBack(staples, stock)], "add");
+    return stock;
+  }
+  const ahead = staplesAhead(needsAhead(s, { meal: `${p.date}:${p.slot}` }), s.today);
+  const counted = countDown(staples, stock, ahead, s.products);
   await store.changeStock(
-    cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })),
+    [
+      ...food.map((u) => ({ item: u.item, qty: -u.qty })),
+      ...counted.taken.map((t) => ({
+        item: t.item,
+        qty: -t.qty,
+        ...(counted.low.includes(t.item) ? { status: "low" as const } : {}),
+      })),
+    ],
     "add",
   );
+  return counted.stock;
 }
 
 /**
@@ -365,9 +394,11 @@ export function logPastAsEaten(): Promise<Result<{ count: number; cooked?: Cooke
     const cooked = await logCooks(first, first.weekStart, cooksToLog(unlogged(first, first.today)));
     const s = cooked.length ? await state() : first;
     const todo = unlogged(s, s.today);
+    // Each meal's staples come off what the one before it left.
+    let stock = s.stock;
     for (const p of todo) {
       const m = placedMacros(p);
-      await eatFromCupboard(p, false, true);
+      stock = await eatFromCupboard(s, p, false, true, stock);
       await store.logMeal({
         day: p.date,
         slot: p.slot,
@@ -432,16 +463,18 @@ async function logCook(s: LifeState, start: string, cookId: string): Promise<Coo
   // The same count the Kitchen and the Cook view show: planned from the freezer, and
   // spare portions if the dish freezes (unless a fresh week keeps them for next week).
   const freeze = freezeCount(plan!, c!, placed);
+  const staples = countStaples(s, stapleUse(r!, c!.portions, c!.scale), { start, cook: cookId });
   const batch = await store.cook({
     recipe: r!.key,
     day: s.today < c!.date ? s.today : c!.date,
     portions: c!.portions,
     scale: c!.scale,
     freeze,
-    used: takenFromStock(cookUse(r!, c!.portions, c!.scale), s.stock),
+    used: [...takenFromStock(cookUse(r!, c!.portions, c!.scale), s.stock), ...staples.taken],
     planStart: start,
     cookId,
   });
+  await lowerStaples(staples.low);
   const eatenAlready = s.meals.some(
     (m) =>
       m.status === "eaten" &&
@@ -493,16 +526,40 @@ export function cookExtra(recipeKey: string, portions: number): Promise<Result> 
     if (!r) fail("Unknown recipe.");
     if (!(portions >= 1 && portions <= 20)) fail("Between 1 and 20 portions.");
     const scale = cookScale(r!, s.kcal);
+    const staples = countStaples(s, stapleUse(r!, portions, scale));
     await store.cook({
       recipe: r!.key,
       day: s.today,
       portions,
       scale,
       freeze: 0,
-      used: takenFromStock(cookUse(r!, portions, scale), s.stock),
+      used: [...takenFromStock(cookUse(r!, portions, scale), s.stock), ...staples.taken],
     });
+    await lowerStaples(staples.low);
     return {};
   });
+}
+
+/**
+ * What a cook takes of the counted staples, from the kitchen as loaded. The batch
+ * keeps it with the rest of what the cook used, so Undo cook puts it back.
+ * `also` leaves the planned cook being logged out of what the week ahead needs.
+ */
+function countStaples(
+  s: LifeState,
+  uses: { item: string; qty: number }[],
+  also: { start?: string; cook?: string } = {},
+) {
+  return countDown(uses, s.stock, staplesAhead(needsAhead(s, also), s.today), s.products);
+}
+
+/** Staples a cook left short of the week ahead turn low, so the next list buys them. */
+async function lowerStaples(items: string[]) {
+  if (!items.length) return;
+  await store.changeStock(
+    items.map((item) => ({ item, status: "low" as const })),
+    "set",
+  );
 }
 
 export function uncook(batch: string): Promise<Result> {
@@ -535,6 +592,25 @@ export function setStock(
 }
 
 /**
+ * A cupboard staple marked have, low or out by hand. Have or out on a counted one
+ * also stops its count, which no longer says what is there (staples-count.ts).
+ */
+export function markStaple(item: string, status: "have" | "low" | "out"): Promise<Result> {
+  return run(async () => {
+    if (!INGREDIENTS.get(item)?.staple) fail(`'${item}' is not a cupboard staple.`);
+    if (!["have", "low", "out"].includes(status)) fail("Mark it have, low or out.");
+    const s = await state();
+    const change = markByHand(
+      s.stock.find((r) => r.item === item),
+      item,
+      status,
+    );
+    await store.changeStock([change], "set");
+    return {};
+  });
+}
+
+/**
  * Ordered on Sainsbury's, with the trolley total from the checkout if you typed it
  * (pence), or not ordered after all, which clears both.
  */
@@ -561,7 +637,7 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const v = viewFor(s, start);
     const needs = v ? remainingNeeds(s, v) : weekNeeds(plan!, []);
     const lines = buildList(needs, v ? kitchenFor(s, v) : s.stock, s.products, s.profile.food, s.today);
-    const changes = delivery(lines, got, s.today);
+    const changes = countedDelivery(lines, got, s.today);
     const undo = await landInKitchen(changes, s);
     const frozen = frozenOnArrival(lines, got);
     await store.savePlan(start, {
@@ -576,7 +652,7 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
  * Puts a shop into the kitchen (a fresh pack replaces a remainder past its date) and
  * returns what Undo needs to put the kitchen back exactly as it was.
  */
-async function landInKitchen(changes: ReturnType<typeof delivery>, s: LifeState) {
+async function landInKitchen(changes: ReturnType<typeof countedDelivery>, s: LifeState) {
   const landed = landShop(changes, s.stock, s.today);
   if (landed.set.length) await store.changeStock(landed.set, "set");
   if (landed.add.length) await store.changeStock(landed.add, "add");
@@ -630,7 +706,7 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
     if (trip!.doneOn) fail("That shop is done already.");
     const v = viewFor(s, start);
     const lines = (v && tripLists(s, v).open.find((t) => t.trip.id === tripId)?.lines) ?? [];
-    const changes = delivery(lines, got, s.today);
+    const changes = countedDelivery(lines, got, s.today);
     const undo = await landInKitchen(changes, s);
     const frozen = frozenOnArrival(lines, got);
     // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
