@@ -6,8 +6,19 @@ import { OTHER_LABEL, OTHER_SIZES, type OtherSize } from "@/lib/life/other-meal"
 import { toast } from "@/components/toaster";
 import { pounds } from "@/lib/life/basket";
 import type { Slot } from "@/lib/life/nutrition";
-import { logMeal, logPastAsEaten, planWeek, removeCook, setDaily, setFresh, setOut, swapCook, uncook } from "./actions";
-import { ActionButton, Sheet, Stars, toastCooked } from "./kit";
+import {
+  logMeal,
+  logPastAsEaten,
+  planWeek,
+  rate,
+  removeCook,
+  setDaily,
+  setFresh,
+  setOut,
+  swapCook,
+  uncook,
+} from "./actions";
+import { ActionButton, Sheet, Stars, toastCooked, useAction } from "./kit";
 import { cookedNote } from "@/lib/life/cooked";
 import { Chip } from "@/components/ui";
 
@@ -84,6 +95,37 @@ type Picker =
   | { kind: "fresh"; day: DayView; meal: MealView }
   | null;
 
+/**
+ * "How was it?": a star for each dish eaten this week and not rated yet, in one tap.
+ * The planner ranks by stars, so what you like comes round more and what you don't, less.
+ */
+export function RateEaten({ dishes }: { dishes: { key: string; name: string }[] }) {
+  const { run } = useAction();
+  return (
+    <section className="space-y-2 card-life" aria-labelledby="rate-eaten-title">
+      <h2 id="rate-eaten-title" className="font-semibold">
+        How was it?
+      </h2>
+      <p className="text-sm text-body">A star helps the plan pick more of what you like.</p>
+      <ul className="divide-y divide-white/5">
+        {dishes.map((d) => (
+          <li key={d.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+            <Link href={`/life/recipes/${d.key}`} className="min-w-0 font-medium hover:underline">
+              {d.name}
+            </Link>
+            <Stars
+              value={null}
+              onChange={(stars) => {
+                if (stars) void run(() => rate(d.key, stars), "Thanks: the plan will remember.");
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** "I ate them": every past meal not ticked, as eaten, and the cooks they came from. */
 export function AteThem() {
   const [pending, start] = useTransition();
@@ -117,6 +159,7 @@ export function WeekView({
   options,
   canReplan,
   mode = "batch",
+  short = false,
   shops = 0,
   cost = null,
 }: {
@@ -130,6 +173,8 @@ export function WeekView({
   canReplan: boolean;
   /** A fresh week: short cooks of one dish and `shops` small shops. */
   mode?: "batch" | "fresh";
+  /** Planned with two days or fewer left: fresh dinners and one shop, no cooks. */
+  short?: boolean;
   shops?: number;
   /** What the week costs as planned, until its food is bought. */
   cost?: WeekCostView | null;
@@ -181,14 +226,16 @@ export function WeekView({
               >
                 Pick again
               </ActionButton>
-              <ActionButton
-                action={() => planWeek(start, other)}
-                className="text-sm text-muted hover:text-white"
-                confirm={`Plan this week again as a ${other} week?`}
-                done={`Planned a ${other} week.`}
-              >
-                Make it a {other} week
-              </ActionButton>
+              {!short && (
+                <ActionButton
+                  action={() => planWeek(start, other)}
+                  className="text-sm text-muted hover:text-white"
+                  confirm={`Plan this week again as a ${other} week?`}
+                  done={`Planned a ${other} week.`}
+                >
+                  Make it a {other} week
+                </ActionButton>
+              )}
             </div>
           )}
         </div>
@@ -210,13 +257,21 @@ export function WeekView({
             )}
           </div>
         )}
-        {mode === "fresh" && (
+        {short ? (
           <p className="text-sm text-body">
-            <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
-            dish
-            {shops ? ` and ${shops} ${shops === 1 ? "shop" : "shops"}` : ""}, each feeding the days until the next.
-            Nothing goes in the freezer.
+            <Chip tone="mint">Rest of the week</Chip> Each dinner is cooked fresh on the night
+            {shops ? `, and ${shops === 1 ? "one shop buys" : `${shops} shops buy`} what it needs` : ""}. Nothing is
+            batch cooked.
           </p>
+        ) : (
+          mode === "fresh" && (
+            <p className="text-sm text-body">
+              <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
+              dish
+              {shops ? ` and ${shops} ${shops === 1 ? "shop" : "shops"}` : ""}, each feeding the days until the next.
+              Nothing goes in the freezer.
+            </p>
+          )
         )}
         {groups.map((g) => (
           <div key={g.key} className="space-y-2">

@@ -62,6 +62,11 @@ export type WeekPlan = {
   } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
+  /**
+   * Planned with two days or fewer left, for just those days: fresh dinners and one
+   * shop, no cooks (`suggestShortWeek`). Its mode is "fresh", for the shop.
+   */
+  short?: boolean;
   /** A fresh week's shops, in date order. */
   trips?: Trip[];
   /** The day the plan was made: days before it are history, not missed meals. */
@@ -281,8 +286,11 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
       const sameDay =
         slot === "dinner" ? placements.find((p) => p.date === date && p.slot === "lunch")?.recipe : undefined;
       const recent = history[slot];
+      // Days before the plan was made are history: food in the kitchen is kept for the
+      // meals still to come, not placed on a lunch that is gone (a week planned late).
+      const past = plan.createdOn !== undefined && date < plan.createdOn;
       const candidates = pools
-        .filter((p) => p.left > 0 && p.recipe.meal === wantMeal && p.readyAt <= at)
+        .filter((p) => p.left > 0 && p.recipe.meal === wantMeal && p.readyAt <= at && !(past && p.location !== "plan"))
         .map((p) => ({ p, storage: storageFor(p, date) }))
         .filter((c): c is { p: Pool; storage: "fridge" | "freezer" } => c.storage !== null)
         .map((c) => {
@@ -492,8 +500,13 @@ export function lastFeedsUntil(start: string, mode: WeekMode | undefined, routin
  * lunches and dinners before its first cook (`beforeNextCook`): the first of them
  * always, frozen if it must be, and the rest while they are still in date, which it
  * keeps cold for them (`forNextWeek`).
+ *
+ * Cooked portions already in the kitchen (`stock`) are eaten first where the week
+ * puts them (`assign`), so a session makes that many fewer for its days, spread
+ * across its dishes and never under 2 a dish: no extra portions to freeze as spare,
+ * and nothing bought for them.
  */
-export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[] {
+export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number, stock: StockBatch[] = []): Cook[] {
   const days = weekDays(plan.start);
   const fresh = new Set(plan.fresh.map((f) => slotId(f.date, f.slot)));
   const out = new Set(plan.out);
@@ -519,19 +532,19 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
     const fits = last.filter((c) => inDate(c, x.date));
     if (fits.length) share.set(fits[i % fits.length].id, (share.get(fits[i % fits.length].id) ?? 0) + 1);
   });
+  const readyOf = (at: number) =>
+    at +
+    Math.max(
+      ...mains.filter((c) => minuteOf(plan.start, c.date, c.start) === at).map((c) => recipe(c.recipe)!.totalMin),
+    );
+  /** Each session's dishes, and the minutes from when it is ready to when the next one is. */
+  const windows = sessions.map((at, i) => ({
+    group: mains.filter((c) => minuteOf(plan.start, c.date, c.start) === at),
+    ready: readyOf(at),
+    until: sessions[i + 1] !== undefined ? readyOf(sessions[i + 1]) : Infinity,
+  }));
   const sized = new Map<string, number>();
-  sessions.forEach((at, i) => {
-    const group = mains.filter((c) => minuteOf(plan.start, c.date, c.start) === at);
-    const ready = at + Math.max(...group.map((c) => recipe(c.recipe)!.totalMin));
-    const until =
-      sessions[i + 1] !== undefined
-        ? sessions[i + 1] +
-          Math.max(
-            ...mains
-              .filter((c) => minuteOf(plan.start, c.date, c.start) === sessions[i + 1])
-              .map((c) => recipe(c.recipe)!.totalMin),
-          )
-        : Infinity;
+  for (const { group, ready, until } of windows) {
     const need = slots.filter((s) => s >= ready && s < until).length;
     const each = Math.floor(need / group.length);
     let extra = need - each * group.length;
@@ -540,22 +553,55 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number): Cook[
       if (extra > 0) extra--;
       sized.set(c.id, n);
     }
-  });
-  return plan.cooks.map((c) => {
-    const r = recipe(c.recipe);
-    if (!r) return c;
-    if (r.meal === "breakfast")
-      return {
-        ...c,
-        portions: c.portions || breakfastPortions(plan, c, r),
-        scale: portionScale(r, kcal * SPLIT.breakfast),
-      };
-    const main: Cook = { ...c, portions: sized.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
-    // Its share of next week's first meals that are still in date then stays in the fridge.
-    if (last.includes(c)) main.forNextWeek = share.get(c.id) ?? 0;
-    else delete main.forNextWeek;
-    return main;
-  });
+  }
+  const withSizes = (sizes: Map<string, number>) =>
+    plan.cooks.map((c) => {
+      const r = recipe(c.recipe);
+      if (!r) return c;
+      if (r.meal === "breakfast")
+        return {
+          ...c,
+          portions: c.portions || breakfastPortions(plan, c, r),
+          scale: portionScale(r, kcal * SPLIT.breakfast),
+        };
+      const main: Cook = { ...c, portions: sizes.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
+      // Its share of next week's first meals that are still in date then stays in the fridge.
+      if (last.includes(c)) main.forNextWeek = share.get(c.id) ?? 0;
+      else delete main.forNextWeek;
+      return main;
+    });
+  const cooks = withSizes(sized);
+  if (!stock.some((b) => b.left > 0) || !windows.length) return cooks;
+
+  // Lunches and dinners each session's days take from the kitchen, as the week places them.
+  const placed = assign({ ...plan, cooks }, routine, stock, kcal);
+  const minute = (p: Placement) => minuteOf(plan.start, p.date, p.time);
+  const isMeal = (p: Placement) => p.slot === "lunch" || p.slot === "dinner";
+  const fewer = new Map(sized);
+  for (const w of windows) {
+    let n = placed.filter(
+      (p) => isMeal(p) && p.source === "stock" && minute(p) >= w.ready && minute(p) < w.until,
+    ).length;
+    while (n > 0) {
+      const most = w.group.filter((c) => fewer.get(c.id)! > 2).sort((a, b) => fewer.get(b.id)! - fewer.get(a.id)!)[0];
+      if (!most) break;
+      fewer.set(most.id, fewer.get(most.id)! - 1);
+      n--;
+    }
+  }
+  // Smaller cooks can shift which meal takes what: a lunch or dinner that would now
+  // go without gets a portion back from the latest smaller session ready for it.
+  const before = new Map(placed.map((p) => [p.id, p.source]));
+  const smaller = (c: Cook) => fewer.get(c.id)! < sized.get(c.id)!;
+  for (let guard = 0; guard < 50; guard++) {
+    const again = assign({ ...plan, cooks: withSizes(fewer) }, routine, stock, kcal);
+    const gap = again.find((p) => isMeal(p) && p.source === "none" && before.get(p.id) !== "none");
+    const w = gap && windows.findLast((x) => x.ready <= minute(gap) && x.group.some(smaller));
+    if (!w) break;
+    const least = w.group.filter(smaller).sort((a, b) => fewer.get(a.id)! - fewer.get(b.id)!)[0];
+    fewer.set(least.id, fewer.get(least.id)! + 1);
+  }
+  return withSizes(fewer);
 }
 
 /**

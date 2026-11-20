@@ -66,6 +66,8 @@ export default async function CookPage({ searchParams }: { searchParams: Promise
     }),
   );
   const names = prep.dishes.map((d) => d.name);
+  // Your own notes on each dish, from its rating.
+  const notes = new Map(s.ratings.filter((x) => x.note).map((x) => [x.recipe, x.note!]));
 
   return (
     <article className="space-y-6">
@@ -115,6 +117,7 @@ export default async function CookPage({ searchParams }: { searchParams: Promise
               </ActionButton>
             )}
           </div>
+          {notes.get(d.key) && <p className="text-xs text-muted">Your note: {notes.get(d.key)}</p>}
           <Steps steps={d.steps} />
           {d.done && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">{d.done}</p>}
         </section>

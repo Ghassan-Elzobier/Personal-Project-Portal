@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cooksToLog, eatenBeforeCooked, takenFromStock, type CookedNote } from "./cooked";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
-import { loadLife } from "./load";
+import { lifeMinutes, loadLife } from "./load";
 import { SPLIT, type Slot } from "./nutrition";
 import { otherMeal, type OtherSize } from "./other-meal";
 import { packProblem } from "./pack";
@@ -31,7 +31,7 @@ import {
   type Product,
 } from "./shopping";
 import {
-  openStock,
+  stockFor,
   placedMacros,
   remainingNeeds,
   tripLists,
@@ -42,7 +42,7 @@ import {
   type WeekView,
 } from "./state";
 import * as store from "./store";
-import { suggestWeek } from "./suggest";
+import { dinnersLeft, suggestPlan } from "./suggest";
 import { weekCost, type Kitchen } from "./combo";
 import type { Tag } from "./allergens";
 import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
@@ -144,12 +144,16 @@ export function applyAdjustment(): Promise<Result<{ kcal: number }>> {
 
 // ---------------------------------------------------------------- plans
 
-/** What the planner needs to cost a week: the kitchen as that week finds it, and your targets. */
+/**
+ * What the planner needs to size and cost a week: the kitchen as that week finds it
+ * (food, and cooked portions it can really use), and your targets.
+ */
 function kitchenOf(s: LifeState, start: string): Kitchen {
+  const v = viewFor(s, start) ?? weekView(s, "this");
   return {
-    stock: kitchenFor(s, viewFor(s, start) ?? weekView(s, "this")),
+    stock: kitchenFor(s, v),
     products: s.products,
-    batches: openStock(s),
+    batches: stockFor(s, v),
     kcal: s.kcal,
     routine: plannerRoutine(s.profile),
     rules: s.profile.food,
@@ -157,12 +161,14 @@ function kitchenOf(s: LifeState, start: string): Kitchen {
 }
 
 async function savePlan(s: LifeState, plan: WeekPlan) {
-  const sized = { ...plan, cooks: sizeCooks(plan, plannerRoutine(s.profile), s.kcal) };
+  // Cooked portions already in the kitchen are eaten first, so the cooks make fewer.
+  const kitchen = kitchenOf(s, plan.start);
+  const sized = { ...plan, cooks: sizeCooks(plan, kitchen.routine, kitchen.kcal, kitchen.batches) };
   // What the week costs, worked out again after each change until its food is bought;
   // after that the kitchen holds the week's food, so the figure would mislead and goes.
   const bought = Boolean(plan.shop?.deliveredOn || plan.trips?.some((t) => t.doneOn));
   const cheaper = plan.cost?.cheaper;
-  const cost = bought ? undefined : { ...weekCost(sized, kitchenOf(s, plan.start)), ...(cheaper ? { cheaper } : {}) };
+  const cost = bought ? undefined : { ...weekCost(sized, kitchen), ...(cheaper ? { cheaper } : {}) };
   const saved = { ...sized, cost };
   await store.savePlan(plan.start, saved);
   return saved;
@@ -171,7 +177,8 @@ async function savePlan(s: LifeState, plan: WeekPlan) {
 /**
  * Fills the week from the menu in one go. Replaces any plan not yet cooked from.
  * `mode` picks a batch week or a fresh one; left out, a re-plan keeps the week's mode.
- * `cheaper` picks the cheapest good week rather than the best value.
+ * `cheaper` picks the cheapest good week rather than the best value. With two days or
+ * fewer left, the week gets just those days, lean, whatever the mode (`suggestPlan`).
  */
 export function planWeek(start?: string, mode?: WeekMode, cheaper = false): Promise<Result<{ start: string }>> {
   return run(async () => {
@@ -180,14 +187,28 @@ export function planWeek(start?: string, mode?: WeekMode, cheaper = false): Prom
     const existing = s.plans.find((p) => p.start === week)?.data;
     if (existing && s.batches.some((b) => b.planStart === week))
       fail("You've cooked from this week already. Swap recipes one at a time instead.");
-    const m: WeekMode = mode ?? existing?.mode ?? "batch";
     // What the week can use up: what it finds in the kitchen, still good when it starts.
     const kitchen = kitchenOf(s, week);
     const spare = Object.fromEntries(
       kitchen.stock.filter((x) => x.qty > 0 && goodOn(x, week)).map((x) => [x.item, x.qty]),
     );
-    const plan = suggestWeek(s.profile, week, s.ratings, s.lastHad, spare, s.today, m, { ...kitchen, cheaper });
-    if (!plan.cooks.length) fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
+    const minute = lifeMinutes(s.today);
+    const plan = suggestPlan(
+      s.profile,
+      week,
+      s.ratings,
+      s.lastHad,
+      spare,
+      s.today,
+      mode ?? existing?.mode ?? "batch",
+      { ...kitchen, cheaper },
+      minute,
+    );
+    if (plan.short && !dinnersLeft(s.profile, week, s.today, minute).length)
+      fail("This week has no dinners left to plan. Plan next week instead.");
+    if (!plan.cooks.length && !plan.fresh.length)
+      fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
+    const m: WeekMode = plan.mode ?? "batch";
     // Shops already done stay done: what they brought is in the kitchen.
     const done = (existing?.trips ?? []).filter((t) => t.doneOn);
     await savePlan(s, {

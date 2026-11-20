@@ -79,6 +79,7 @@ export default async function RecipePage({
         ))}
       </div>
 
+      {rating?.note && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">Your note: {rating.note}</p>}
       {!v.ok && <ErrorNote title="Not for you" message={v.blocked.map((b) => b.why).join(" ")} />}
       {(v.notes.length > 0 || (r.swaps?.length ?? 0) > 0) && (
         <section className="space-y-2 card-life" aria-labelledby="allergy-title">

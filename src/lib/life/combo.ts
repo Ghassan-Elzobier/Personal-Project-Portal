@@ -336,7 +336,7 @@ function insert<T>(list: T[], x: T, keep: number, cmp: (a: T, b: T) => number) {
 export type Kitchen = {
   stock: StockRow[];
   products: Product[];
-  /** Cooked portions already in the fridge or freezer. */
+  /** Cooked portions already in the fridge or freezer that the week can use: its cooks make fewer for them. */
   batches: StockBatch[];
   kcal: number;
   routine: Routine;
@@ -420,13 +420,15 @@ function comboItem(key: string, k: Kitchen): ComboItem | null {
  */
 export function weekCost(plan: WeekPlan, kitchen: Kitchen): WeekCost {
   const k = goodFrom(kitchen, plan.start);
-  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal) };
+  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal, k.batches) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   return costOfPlaced(sized, placed, k);
 }
 
 function costOfPlaced(plan: WeekPlan, placed: Placement[], k: Kitchen): WeekCost {
-  const needs = weekNeeds(plan, placed);
+  // Meals before the plan was made are history: nothing is bought for them.
+  const from = plan.createdOn;
+  const needs = weekNeeds(plan, placed, from ? { from } : {});
   const lists =
     plan.mode === "fresh" && plan.trips?.length
       ? splitTrips(needs, plan.trips, k.stock, k.products).trips.map((t) =>
@@ -468,7 +470,7 @@ function costOfPlaced(plan: WeekPlan, placed: Placement[], k: Kitchen): WeekCost
   let kcal = 0;
   for (const p of placed) {
     const r = p.recipe ? recipe(p.recipe) : undefined;
-    if (r) kcal += portionMacros(r).kcal * p.scale;
+    if (r && !(from && p.date < from)) kcal += portionMacros(r).kcal * p.scale;
   }
   return { pence, cupboard, waste: Math.round(waste), items, trips, kcal: Math.round(kcal) };
 }
@@ -534,7 +536,7 @@ export function planCombo(input: {
     );
   const withMains = (mains: Cook[]): WeekPlan => ({ ...week, cooks: [...mains, ...week.cooks] });
   const greedyPlan = withMains(mainsOf(input.greedy));
-  const greedySized: WeekPlan = { ...greedyPlan, cooks: sizeCooks(greedyPlan, k.routine, k.kcal) };
+  const greedySized: WeekPlan = { ...greedyPlan, cooks: sizeCooks(greedyPlan, k.routine, k.kcal, k.batches) };
   const placed = assign(greedySized, k.routine, k.batches, k.kcal);
   const places: { session: number; portions: number; greedy?: string }[] = [];
   sessions.forEach((s, i) => {
@@ -659,7 +661,7 @@ export function roundToPacks(
   k: Kitchen,
   cost: WeekCost = weekCost(plan, k),
 ): { cooks: Cook[]; cost: WeekCost } {
-  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal) };
+  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal, k.batches) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   const needs = weekNeeds(sized, placed);
   const mains = sized.cooks.filter(isMain);

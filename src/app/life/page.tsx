@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays } from "@/lib/dates/week";
-import { loadLife } from "@/lib/life/load";
+import { lifeMinutes, loadLife } from "@/lib/life/load";
 import { portionMacros } from "@/lib/life/nutrition";
 import { keptCold, spare, weekDays, type WeekPlan } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
+  kitchenFor,
   placedMacros,
   remainingNeeds,
   tripLists,
@@ -17,12 +18,13 @@ import {
   type LifeState,
   type WeekView as MealWeek,
 } from "@/lib/life/state";
-import { rank } from "@/lib/life/suggest";
+import { daysLeft, dinnersLeft, isShortWeek, rank } from "@/lib/life/suggest";
 import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
-import { AteThem, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { AteThem, RateEaten, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { toRate } from "@/lib/life/to-rate";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -42,8 +44,13 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
   const which = params.week === "next" ? "next" : "this";
   const v = weekView(s, which);
   const end = addDays(v.start, 6);
+  // This week unplanned with two days or fewer left: plan just those, or move on to the next.
+  const short = which === "this" && !v.plan && isShortWeek(v.start, s.today);
   // In the last two days of a week, the next one wants planning and shopping.
-  const nudge = which === "this" && !s.next.plan && s.today >= addDays(s.next.start, -2);
+  const nudge = which === "this" && !s.next.plan && s.today >= addDays(s.next.start, -2) && !short;
+  // Dishes eaten this week and not rated: a star each, so the planner learns what you like.
+  const rateNow =
+    which === "this" ? toRate(s.meals, s.ratings, s.today).map((key) => ({ key, name: recipe(key)?.name ?? key })) : [];
   return (
     <div className="space-y-6">
       <LifeHeader eyebrow={weekRange(v.start, end)} title="Meals">
@@ -85,7 +92,8 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
           <span className="text-sm text-mint">Plan next week →</span>
         </Link>
       )}
-      {v.plan ? <Planned key={v.start} s={s} v={v} /> : <Unplanned s={s} v={v} />}
+      {rateNow.length > 0 && <RateEaten dishes={rateNow} />}
+      {v.plan ? <Planned key={v.start} s={s} v={v} /> : short ? <ShortWeek s={s} v={v} /> : <Unplanned s={s} v={v} />}
     </div>
   );
 }
@@ -180,6 +188,48 @@ function Unplanned({ s, v }: { s: LifeState; v: MealWeek }) {
           </ul>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * This week unplanned with two days or fewer left: plan just those days, lean (a fresh
+ * dinner each night and one small shop, no batch cook), or skip to next week.
+ */
+function ShortWeek({ s, v }: { s: LifeState; v: MealWeek }) {
+  const dinners = dinnersLeft(s.profile, v.start, s.today, lifeMinutes(s.today));
+  const left = daysLeft(v.start, s.today);
+  const shopDay = dinners[0] ? dayLabel(dinners[0], s.today).toLowerCase() : "";
+  return (
+    <section className="space-y-4 card-life" aria-labelledby="short-week-title">
+      <div className="space-y-2">
+        <h2 id="short-week-title" className="text-xl font-semibold">
+          {left === 1 ? "This week ends today" : "This week ends tomorrow"}
+        </h2>
+        <p className="text-sm text-body">
+          {dinners.length
+            ? `Plan just what's left: ${dinners.length === 1 ? "one dinner" : `${dinners.length} dinners`} cooked fresh on the night, lunches from what's in the fridge, and one small shop ${shopDay}. No batch cook.`
+            : "Dinner has been and gone, so there's nothing left to plan here. Next week is the one to plan."}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {dinners.length > 0 && (
+          <ActionButton
+            action={planWeek.bind(null, v.start)}
+            className="btn-life w-full sm:w-auto"
+            done="Planned the rest of this week."
+          >
+            Plan the rest of this week
+          </ActionButton>
+        )}
+        <Link href="/life?week=next" className={`${dinners.length ? "btn-soft" : "btn-life"} w-full sm:w-auto`}>
+          {s.next.plan ? "See next week" : "Plan next week instead"}
+        </Link>
+      </div>
+      <p className="text-xs text-faint">
+        Next week starts {dayLabel(s.next.start, s.today).toLowerCase()},{" "}
+        {weekRange(s.next.start, addDays(s.next.start, 6))}.
+      </p>
     </section>
   );
 }
@@ -288,7 +338,14 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           .map((r) => `${clock(r.time)} · ${r.text}`),
       };
     });
-  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
+  // The week's kitchen, as its lists see it: next week's is what this week leaves.
+  const lines = buildList(
+    remainingNeeds(s, v),
+    kitchenFor(s, v),
+    s.products,
+    s.profile.food,
+    plan.shop?.deliveredOn ?? null,
+  );
   const total = listTotal(lines);
   const shops = plan.mode === "fresh" ? freshShops(s, v) : null;
   const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
@@ -352,6 +409,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         }}
         canReplan={!s.batches.some((b) => b.planStart === plan.start)}
         mode={plan.mode ?? "batch"}
+        short={Boolean(plan.short)}
         shops={plan.trips?.length ?? 0}
         cost={costView(plan)}
       />
