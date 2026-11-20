@@ -17,6 +17,7 @@ import {
   type Ingredient,
   type Unit,
 } from "./ingredients.ts";
+import { packProblem } from "./pack.ts";
 import type { Placement, WeekPlan } from "./planner.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
@@ -119,10 +120,17 @@ export type ListLine = {
   uses: string[];
 };
 
+/** The pack a product holds, or the usual pack when it was saved in a unit the ingredient can't count in. */
+function usablePack(item: Ingredient, product: Product | null | undefined): { qty: number; unit: Unit } {
+  if (!product || packProblem(item, product.packQty, product.packUnit)) return item.pack;
+  return { qty: product.packQty, unit: product.packUnit };
+}
+
 /** Pack contents in the ingredient's own unit. */
 export function packInItemUnit(item: Ingredient, packQty: number, packUnit: Unit): number {
-  if (packUnit === item.unit) return packQty;
-  return fromGrams(item, toGrams(item, packQty, packUnit));
+  const pack = packProblem(item, packQty, packUnit) ? item.pack : { qty: packQty, unit: packUnit };
+  if (pack.unit === item.unit) return pack.qty;
+  return fromGrams(item, toGrams(item, pack.qty, pack.unit));
 }
 
 export function buildList(
@@ -140,8 +148,7 @@ export function buildList(
     if (!item) continue;
     const s = stockOf.get(n.item);
     const product = productOf.get(n.item) ?? null;
-    const packQty = product?.packQty ?? item.pack.qty;
-    const packUnit = product?.packUnit ?? item.pack.unit;
+    const { qty: packQty, unit: packUnit } = usablePack(item, product);
     const perPack = packInItemUnit(item, packQty, packUnit);
     let have: number;
     let packs: number;
