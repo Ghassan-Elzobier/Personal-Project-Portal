@@ -6,8 +6,9 @@ import { OTHER_LABEL, OTHER_SIZES, type OtherSize } from "@/lib/life/other-meal"
 import { toast } from "@/components/toaster";
 import { pounds } from "@/lib/life/basket";
 import type { Slot } from "@/lib/life/nutrition";
-import { logMeal, planWeek, removeCook, setDaily, setFresh, setOut, swapCook } from "./actions";
-import { ActionButton, Sheet, Stars } from "./kit";
+import { logMeal, logPastAsEaten, planWeek, removeCook, setDaily, setFresh, setOut, swapCook, uncook } from "./actions";
+import { ActionButton, Sheet, Stars, toastCooked } from "./kit";
+import { cookedNote } from "@/lib/life/cooked";
 import { Chip } from "@/components/ui";
 
 export type Alt = {
@@ -83,6 +84,29 @@ type Picker =
   | { kind: "fresh"; day: DayView; meal: MealView }
   | null;
 
+/** "I ate them": every past meal not ticked, as eaten, and the cooks they came from. */
+export function AteThem() {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      aria-busy={pending}
+      className="btn-life px-4 py-2"
+      onClick={() =>
+        start(async () => {
+          const r = await logPastAsEaten();
+          if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+          const cooked = cookedNote(r.cooked ?? []);
+          toast(cooked ? `Logged as eaten. ${cooked}` : "Logged as eaten.");
+        })
+      }
+    >
+      I ate them
+    </button>
+  );
+}
+
 export function WeekView({
   start,
   today,
@@ -124,7 +148,17 @@ export function WeekView({
     start_(async () => {
       setLog({ id: meal.id, status });
       const r = await logMeal(day.date, meal.slot, status, size);
-      if (r.error) toast(r.error, { tone: "error" });
+      if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+      // A meal from a cook that wasn't logged logs the cook too; Undo takes both back.
+      toastCooked(r.cooked, () =>
+        start_(async () => {
+          await logMeal(day.date, meal.slot, null);
+          for (const c of r.cooked ?? []) {
+            const back = await uncook(c.batch);
+            if (back.error) return void toast(back.error, { tone: "error" });
+          }
+        }),
+      );
     });
 
   // Today first, then the rest of the week in order, then the days gone.

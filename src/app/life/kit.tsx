@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "@/components/toaster";
+import { cookedNote, type CookedNote } from "@/lib/life/cooked";
 
 // Small client pieces the Life pages share: a button that runs an action and
 // says what happened, a bottom sheet, and star ratings.
@@ -60,6 +61,12 @@ export function ActionButton({
       {children}
     </button>
   );
+}
+
+/** Says which cooks were logged because a meal from them was eaten, with Undo. */
+export function toastCooked(cooked: CookedNote[] | undefined, undo: () => void) {
+  const note = cookedNote(cooked ?? []);
+  if (note) toast(note, { action: { label: "Undo", onClick: undo } });
 }
 
 /** A native dialog: a bottom sheet on phones, a centred panel on wider screens. */

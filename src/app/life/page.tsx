@@ -20,9 +20,9 @@ import {
 import { rank } from "@/lib/life/suggest";
 import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
-import { planWeek, logPastAsEaten } from "./actions";
+import { planWeek } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
-import { WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { AteThem, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -302,9 +302,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           <p className="text-sm">
             {missing} past {missing === 1 ? "meal is" : "meals are"} not ticked.
           </p>
-          <ActionButton action={logPastAsEaten} className="btn-life px-4 py-2" done="Logged as eaten.">
-            I ate them
-          </ActionButton>
+          <AteThem />
         </section>
       )}
       <Link
