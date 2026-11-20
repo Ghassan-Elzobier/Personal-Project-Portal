@@ -336,7 +336,7 @@ function insert<T>(list: T[], x: T, keep: number, cmp: (a: T, b: T) => number) {
 export type Kitchen = {
   stock: StockRow[];
   products: Product[];
-  /** Cooked portions already in the fridge or freezer. */
+  /** Cooked portions already in the fridge or freezer that the week can use: its cooks make fewer for them. */
   batches: StockBatch[];
   kcal: number;
   routine: Routine;
@@ -420,7 +420,7 @@ function comboItem(key: string, k: Kitchen): ComboItem | null {
  */
 export function weekCost(plan: WeekPlan, kitchen: Kitchen): WeekCost {
   const k = goodFrom(kitchen, plan.start);
-  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal) };
+  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal, k.batches) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   return costOfPlaced(sized, placed, k);
 }
@@ -533,7 +533,7 @@ export function planCombo(input: {
     );
   const withMains = (mains: Cook[]): WeekPlan => ({ ...week, cooks: [...mains, ...week.cooks] });
   const greedyPlan = withMains(mainsOf(input.greedy));
-  const greedySized: WeekPlan = { ...greedyPlan, cooks: sizeCooks(greedyPlan, k.routine, k.kcal) };
+  const greedySized: WeekPlan = { ...greedyPlan, cooks: sizeCooks(greedyPlan, k.routine, k.kcal, k.batches) };
   const placed = assign(greedySized, k.routine, k.batches, k.kcal);
   const places: { session: number; portions: number; greedy?: string }[] = [];
   sessions.forEach((s, i) => {
@@ -658,7 +658,7 @@ export function roundToPacks(
   k: Kitchen,
   cost: WeekCost = weekCost(plan, k),
 ): { cooks: Cook[]; cost: WeekCost } {
-  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal) };
+  const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal, k.batches) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   const needs = weekNeeds(sized, placed);
   const mains = sized.cooks.filter(isMain);
