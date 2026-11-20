@@ -8,6 +8,7 @@ import { addDays } from "../dates/week.ts";
 import { INGREDIENTS, type Aisle, type Raw } from "./ingredients.ts";
 import type { Recipe } from "./recipes.ts";
 import { amount, linesFor } from "./shopping.ts";
+import { scaledSteps } from "./steps.ts";
 
 /** One planned cook in the session, at its planned size. */
 export type PrepCook = {
@@ -127,14 +128,14 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
       `The oven is wanted at ${ovenTemps.map((t) => `${t}°C`).join(" and ")}: cook the hotter one first, or one after the other.`,
     );
 
-  const dishes = order.map(({ id, recipe: r, cooked }) => {
+  const dishes = order.map(({ id, recipe: r, cooked, portions, scale }) => {
     const kinds = [...new Set(r.lines.map((l) => INGREDIENTS.get(l.item)?.raw).filter((k) => k !== undefined))];
     const checks = [...new Set(kinds.map((k) => DONE[k!]))];
     return {
       id,
       key: r.key,
       name: r.name,
-      steps: r.steps,
+      steps: scaledSteps(r, portions, scale),
       done: checks.length ? `Done when ${checks.join(", and ")}.` : null,
       cooked,
     };
