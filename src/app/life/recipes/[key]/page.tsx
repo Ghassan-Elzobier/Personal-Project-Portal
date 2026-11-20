@@ -10,6 +10,7 @@ import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { amount, money } from "@/lib/life/shopping";
 import { recipeAmounts } from "@/lib/life/state";
+import { scaledSteps } from "@/lib/life/steps";
 import { Chip, ErrorNote } from "@/components/ui";
 import { dayLabel, LifeHeader, Steps } from "../../parts";
 import { RateRecipe } from "./rate";
@@ -161,7 +162,7 @@ export default async function RecipePage({
           <h2 id="method-title" className="font-semibold">
             Method
           </h2>
-          <Steps steps={r.steps} />
+          <Steps steps={scaledSteps(r, portions, scale)} />
           {r.reheat && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">Reheat: {r.reheat}</p>}
           {r.keeps.rice && (
             <p className="text-xs text-sky-300">
