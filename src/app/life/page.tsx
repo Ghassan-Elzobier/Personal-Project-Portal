@@ -9,6 +9,7 @@ import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
+  kitchenFor,
   placedMacros,
   remainingNeeds,
   tripLists,
@@ -292,7 +293,14 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           .map((r) => `${clock(r.time)} · ${r.text}`),
       };
     });
-  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
+  // The week's kitchen, as its lists see it: next week's is what this week leaves.
+  const lines = buildList(
+    remainingNeeds(s, v),
+    kitchenFor(s, v),
+    s.products,
+    s.profile.food,
+    plan.shop?.deliveredOn ?? null,
+  );
   const total = listTotal(lines);
   const shops = plan.mode === "fresh" ? freshShops(s, v) : null;
   const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
