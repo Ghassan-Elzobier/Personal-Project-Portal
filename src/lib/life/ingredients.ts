@@ -27,6 +27,8 @@ export type Aisle =
   | "Frozen"
   | "Supplements";
 export type Storage = "fridge" | "freezer" | "cupboard";
+/** Raw meat or fish, by how to tell it is cooked (FSA): through with no pink, or a whole cut that can be pink inside. */
+export type Raw = "poultry" | "pork" | "mince" | "whole-cut" | "fish";
 /** Per 100 g, or per 100 ml for liquids. */
 export type Macros = { kcal: number; protein: number; fat: number; carbs: number };
 
@@ -48,6 +50,8 @@ export type Ingredient = {
   keeps?: number;
   /** Kept in the cupboard and tracked as have / low / out, not by the gram. */
   staple?: boolean;
+  /** Bought raw: the Cook view says how to tell it is done. */
+  raw?: Raw;
   /** Words for Sainsbury's search. */
   search: string;
   contains?: Tag[];
@@ -65,6 +69,7 @@ const LIST: Ingredient[] = [
   // Meat & fish
   {
     key: "chicken-thigh",
+    raw: "poultry",
     name: "Chicken thigh fillets",
     aisle: "Meat & fish",
     per100: m(143, 19.5, 7.2, 0),
@@ -77,6 +82,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "chicken-breast",
+    raw: "poultry",
     name: "Chicken breast fillets",
     aisle: "Meat & fish",
     per100: m(106, 24.0, 1.1, 0),
@@ -89,6 +95,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "chicken-whole",
+    raw: "poultry",
     name: "Whole chicken",
     aisle: "Meat & fish",
     per100: m(131, 12.4, 9.0, 0),
@@ -101,6 +108,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "beef-mince-lean",
+    raw: "mince",
     name: "Beef mince 5% fat",
     aisle: "Meat & fish",
     per100: m(130, 21.9, 4.2, 0),
@@ -113,6 +121,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "beef-mince",
+    raw: "mince",
     name: "Beef mince 15% fat",
     aisle: "Meat & fish",
     per100: m(225, 19.7, 16.2, 0),
@@ -125,6 +134,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "beef-strips",
+    raw: "whole-cut",
     name: "Beef stir-fry strips",
     aisle: "Meat & fish",
     per100: m(125, 22.0, 4.1, 0),
@@ -137,6 +147,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "beef-steak",
+    raw: "whole-cut",
     name: "Rump steak",
     aisle: "Meat & fish",
     per100: m(174, 20.7, 10.1, 0),
@@ -149,6 +160,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "lamb-mince",
+    raw: "mince",
     name: "Lamb mince",
     aisle: "Meat & fish",
     per100: m(196, 19.1, 13.3, 0),
@@ -161,6 +173,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "pork-shoulder",
+    raw: "pork",
     name: "Pork shoulder steaks",
     aisle: "Meat & fish",
     per100: m(168, 18.7, 10.4, 0),
@@ -173,6 +186,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "pork-mince",
+    raw: "mince",
     name: "Pork mince",
     aisle: "Meat & fish",
     per100: m(164, 19.2, 9.7, 0),
@@ -185,6 +199,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "pork-sausages",
+    raw: "mince",
     name: "Pork sausages",
     aisle: "Meat & fish",
     per100: m(309, 11.9, 25.0, 9.6),
@@ -214,6 +229,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "bacon",
+    raw: "pork",
     name: "Smoked back bacon",
     aisle: "Meat & fish",
     per100: m(215, 16.5, 16.5, 0),
@@ -239,6 +255,7 @@ const LIST: Ingredient[] = [
   },
   {
     key: "salmon",
+    raw: "fish",
     name: "Salmon fillets",
     aisle: "Meat & fish",
     per100: m(217, 20.4, 15.0, 0),

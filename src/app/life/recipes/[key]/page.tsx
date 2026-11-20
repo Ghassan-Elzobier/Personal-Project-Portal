@@ -11,7 +11,7 @@ import { portionCost } from "@/lib/life/combo";
 import { amount, money } from "@/lib/life/shopping";
 import { recipeAmounts } from "@/lib/life/state";
 import { Chip, ErrorNote } from "@/components/ui";
-import { dayLabel, LifeHeader } from "../../parts";
+import { dayLabel, LifeHeader, Steps } from "../../parts";
 import { RateRecipe } from "./rate";
 
 export const dynamic = "force-dynamic";
@@ -160,16 +160,7 @@ export default async function RecipePage({
           <h2 id="method-title" className="font-semibold">
             Method
           </h2>
-          <ol className="space-y-3">
-            {r.steps.map((step, i) => (
-              <li key={i} className="flex gap-3 text-sm">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
-                  {i + 1}
-                </span>
-                <span className="text-bright">{step}</span>
-              </li>
-            ))}
-          </ol>
+          <Steps steps={r.steps} />
           {r.reheat && <p className="rounded-xl bg-white/5 p-3 text-sm text-body">Reheat: {r.reheat}</p>}
           {r.keeps.rice && (
             <p className="text-xs text-sky-300">

@@ -331,6 +331,18 @@ export function spareStaysCold(plan: WeekPlan, c: Cook): boolean {
   return Boolean(plan.mode === "fresh" && r && addDays(c.date, r.keeps.fridgeDays) >= addDays(plan.start, 7));
 }
 
+/**
+ * Portions of a planned cook that go in the freezer: the ones planned from the freezer,
+ * and the spare ones nobody is down to eat if the dish freezes, unless a fresh week's
+ * last cook keeps them cold for next week's first lunch.
+ */
+export function freezeCount(plan: WeekPlan, c: Cook, placements: Placement[]): number {
+  const placed = placements.filter((p) => p.cookId === c.id);
+  const frozen = placed.filter((p) => p.storage === "freezer").length;
+  const spareOnes = Math.max(0, c.portions - placed.length);
+  return Math.min(c.portions, frozen + (recipe(c.recipe)?.keeps.freezes && !spareStaysCold(plan, c) ? spareOnes : 0));
+}
+
 /** Portions left in each planned cook once the week is filled: these go to the freezer. */
 export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string; recipe: string; portions: number }[] {
   return plan.cooks
