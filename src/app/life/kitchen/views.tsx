@@ -408,7 +408,7 @@ export function ShopView({
                         {l.staple ? "Running low" : `${l.need} needed${l.have ? `, ${l.have} in` : ""}`} · {l.pack}{" "}
                         packs · {l.estimate ? "≈" : ""}
                         {l.price}
-                        {l.spare ? ` · ${l.spare} spare` : ""}
+                        {l.spare ? ` · ${l.spare}` : ""}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {trip?.early.includes(l.item) && <Chip tone="sand">Wanted {l.firstUse}, before this shop</Chip>}
@@ -1084,6 +1084,8 @@ export function CupboardView({
     status: "have" | "low" | "out" | null;
     goodUntil: string | null;
     soon: boolean;
+    /** Past its date: no list, plan or cost counts it any more. */
+    past: boolean;
     known: boolean;
   }[];
 }) {
@@ -1123,7 +1125,7 @@ export function CupboardView({
           {shown.map((r) => (
             <li key={r.item} className="flex min-w-0 items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
-                <p className={`font-medium ${r.soon ? "text-sand" : ""}`}>{r.name}</p>
+                <p className={`font-medium ${r.past ? "text-coral" : r.soon ? "text-sand" : ""}`}>{r.name}</p>
                 <p className="text-xs text-muted">
                   {r.staple
                     ? r.status === "have"
@@ -1134,7 +1136,11 @@ export function CupboardView({
                           ? "Out"
                           : "Not checked"
                     : (r.amount ?? "None")}
-                  {r.goodUntil ? ` · good until ${r.goodUntil.toLowerCase()}` : ""}
+                  {r.past
+                    ? " · past its date: no longer counted"
+                    : r.goodUntil
+                      ? ` · good until ${r.goodUntil.toLowerCase()}`
+                      : ""}
                   {r.soon ? " · use soon" : ""}
                 </p>
               </div>
