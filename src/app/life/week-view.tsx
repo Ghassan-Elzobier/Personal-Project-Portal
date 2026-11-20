@@ -6,8 +6,19 @@ import { OTHER_LABEL, OTHER_SIZES, type OtherSize } from "@/lib/life/other-meal"
 import { toast } from "@/components/toaster";
 import { pounds } from "@/lib/life/basket";
 import type { Slot } from "@/lib/life/nutrition";
-import { logMeal, logPastAsEaten, planWeek, removeCook, setDaily, setFresh, setOut, swapCook, uncook } from "./actions";
-import { ActionButton, Sheet, Stars, toastCooked } from "./kit";
+import {
+  logMeal,
+  logPastAsEaten,
+  planWeek,
+  rate,
+  removeCook,
+  setDaily,
+  setFresh,
+  setOut,
+  swapCook,
+  uncook,
+} from "./actions";
+import { ActionButton, Sheet, Stars, toastCooked, useAction } from "./kit";
 import { cookedNote } from "@/lib/life/cooked";
 import { Chip } from "@/components/ui";
 
@@ -83,6 +94,37 @@ type Picker =
   | { kind: "meal"; day: DayView; meal: MealView; other?: boolean }
   | { kind: "fresh"; day: DayView; meal: MealView }
   | null;
+
+/**
+ * "How was it?": a star for each dish eaten this week and not rated yet, in one tap.
+ * The planner ranks by stars, so what you like comes round more and what you don't, less.
+ */
+export function RateEaten({ dishes }: { dishes: { key: string; name: string }[] }) {
+  const { run } = useAction();
+  return (
+    <section className="space-y-2 card-life" aria-labelledby="rate-eaten-title">
+      <h2 id="rate-eaten-title" className="font-semibold">
+        How was it?
+      </h2>
+      <p className="text-sm text-body">A star helps the plan pick more of what you like.</p>
+      <ul className="divide-y divide-white/5">
+        {dishes.map((d) => (
+          <li key={d.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+            <Link href={`/life/recipes/${d.key}`} className="min-w-0 font-medium hover:underline">
+              {d.name}
+            </Link>
+            <Stars
+              value={null}
+              onChange={(stars) => {
+                if (stars) void run(() => rate(d.key, stars), "Thanks: the plan will remember.");
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /** "I ate them": every past meal not ticked, as eaten, and the cooks they came from. */
 export function AteThem() {

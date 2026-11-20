@@ -22,7 +22,8 @@ import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
-import { AteThem, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { AteThem, RateEaten, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { toRate } from "@/lib/life/to-rate";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -44,6 +45,9 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
   const end = addDays(v.start, 6);
   // In the last two days of a week, the next one wants planning and shopping.
   const nudge = which === "this" && !s.next.plan && s.today >= addDays(s.next.start, -2);
+  // Dishes eaten this week and not rated: a star each, so the planner learns what you like.
+  const rateNow =
+    which === "this" ? toRate(s.meals, s.ratings, s.today).map((key) => ({ key, name: recipe(key)?.name ?? key })) : [];
   return (
     <div className="space-y-6">
       <LifeHeader eyebrow={weekRange(v.start, end)} title="Meals">
@@ -85,6 +89,7 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
           <span className="text-sm text-mint">Plan next week →</span>
         </Link>
       )}
+      {rateNow.length > 0 && <RateEaten dishes={rateNow} />}
       {v.plan ? <Planned key={v.start} s={s} v={v} /> : <Unplanned s={s} v={v} />}
     </div>
   );
