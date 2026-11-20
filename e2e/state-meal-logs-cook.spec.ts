@@ -12,7 +12,7 @@ test.setTimeout(150_000);
 const TODAY = "2026-11-16";
 
 type Claude = Awaited<ReturnType<typeof connectClaude>>;
-type Routine = { kind: string; title: string; detail: string; done: boolean; cook_id?: string }[];
+type Routine = { kind: string; title: string; detail: string; done: boolean; slot?: string; cook_id?: string }[];
 
 const dayAfter = (date: string, days: number) =>
   new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
@@ -31,31 +31,31 @@ const routineOn = async (claude: Claude, date: string) =>
 
 type Cook = { date: string; id: string; name: string; portions: number };
 
-/** The week's cooks not logged yet, planning the week if no earlier save test has. */
+/**
+ * The cooks not logged yet over the coming days. This meal week is planned first if
+ * nothing is planned today, as the other save tests do: an earlier one may leave only
+ * next week planned, whose cooks the Meals page doesn't show.
+ */
 async function cooksNotLogged(page: Page, request: APIRequestContext): Promise<Cook[]> {
   return withClaude(page, request, async (claude) => {
-    const find = async () => {
-      const found: Cook[] = [];
-      for (let i = 0; i < 7; i++) {
-        const date = dayAfter(TODAY, i);
-        for (const r of await routineOn(claude, date))
-          if (r.kind === "cook" && r.cook_id && !r.done)
-            found.push({
-              date,
-              id: r.cook_id,
-              name: r.title.replace(/^Cook /, ""),
-              portions: Number(/^(\d+) portions/.exec(r.detail)?.[1]),
-            });
-      }
-      return found;
-    };
-    let cooks = await find();
-    if (!cooks.length) {
+    const breakfast = (await routineOn(claude, TODAY)).find((r) => r.kind === "meal" && r.slot === "breakfast");
+    if (!breakfast || breakfast.detail === "Nothing planned") {
       const planned = await claude.call("plan_meal_week", {});
       expect(planned.isError, planned.text).toBe(false);
-      cooks = await find();
     }
-    return cooks;
+    const found: Cook[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = dayAfter(TODAY, i);
+      for (const r of await routineOn(claude, date))
+        if (r.kind === "cook" && r.cook_id && !r.done)
+          found.push({
+            date,
+            id: r.cook_id,
+            name: r.title.replace(/^Cook /, ""),
+            portions: Number(/^(\d+) portions/.exec(r.detail)?.[1]),
+          });
+    }
+    return found;
   });
 }
 
