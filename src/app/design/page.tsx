@@ -15,7 +15,7 @@ import {
   StatusPill,
   Tabs,
 } from "@/components/ui";
-import { LifeHeader } from "@/app/life/parts";
+import { LifeHeader, Steps } from "@/app/life/parts";
 import { DailyBars } from "@/components/daily-bars";
 
 export const metadata: Metadata = { title: "Design" };
@@ -314,7 +314,10 @@ export default async function DesignPage() {
         </div>
       </Section>
 
-      <Section title="Life pieces" note="The Life header, with the shared Tabs and Ring as they look on Life's greens.">
+      <Section
+        title="Life pieces"
+        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready) and Ring as they look on Life's greens."
+      >
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
             Life pages open with this header.
@@ -327,6 +330,15 @@ export default async function DesignPage() {
               { key: "fridge", label: "Fridge", href: "#life" },
             ]}
           />
+          <div className="card-life">
+            <Steps
+              steps={[
+                "Heat the oven to 200°C.",
+                "Prep Onions 3: 2 for Spaghetti bolognese, 1 for Cottage pie.",
+                "Then wash your hands, the board and the knife in hot soapy water.",
+              ]}
+            />
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <Ring value={2} max={3} label="Gym" sub="2 of 3" />
             <Ring value={17} max={21} label="Meals" sub="17 of 21" color="var(--color-sand)" />

@@ -27,6 +27,22 @@ export function LifeHeader({
   );
 }
 
+/** A numbered list of steps: a recipe's method, and the Cook view's get ready and box up. */
+export function Steps({ steps }: { steps: readonly string[] }) {
+  return (
+    <ol className="space-y-3">
+      {steps.map((step, i) => (
+        <li key={i} className="flex gap-3 text-sm">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mint/15 text-xs font-bold text-mint">
+            {i + 1}
+          </span>
+          <span className="min-w-0 text-bright">{step}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function weekdayShort(date: string): string {
   return new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 }
