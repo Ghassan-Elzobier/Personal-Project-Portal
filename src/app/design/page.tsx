@@ -314,7 +314,10 @@ export default async function DesignPage() {
         </div>
       </Section>
 
-      <Section title="Life pieces" note="The Life header, with the shared Tabs and Ring as they look on Life's greens.">
+      <Section
+        title="Life pieces"
+        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready) and Ring as they look on Life's greens."
+      >
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
             Life pages open with this header.
