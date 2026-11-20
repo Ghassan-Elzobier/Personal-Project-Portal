@@ -37,13 +37,13 @@ export type CookPlan = {
 const FRESH: Aisle[] = ["Fruit & veg"];
 const RAW: Aisle[] = ["Meat & fish"];
 
-/** How to tell each kind of raw meat or fish is done (FSA, "Cooking your food"). */
+/** How to tell each kind of raw meat or fish is done (FSA, "Cooking your food"), to follow "Done when". */
 const DONE: Record<Raw, string> = {
-  poultry: "no pink in the middle and the juices run clear, or 75°C in the thickest part",
-  pork: "no pink in the middle and the juices run clear, or 75°C in the thickest part",
-  mince: "no pink left anywhere and piping hot through, or 75°C in the middle",
-  "whole-cut": "browned all over; the inside can stay pink",
-  fish: "opaque all the way through and it flakes easily",
+  poultry: "the thickest piece has no pink in the middle and its juices run clear, or reads 75°C",
+  pork: "the thickest piece has no pink in the middle and its juices run clear, or reads 75°C",
+  mince: "there's no pink left in the meat and it's piping hot all through, or 75°C in the middle",
+  "whole-cut": "the beef is browned all over (the inside can stay pink)",
+  fish: "the fish is opaque all the way through and flakes easily",
 };
 
 const weekday = (date: string) =>
@@ -86,9 +86,10 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
     });
   const describe = (m: Merged) => {
     const ing = INGREDIENTS.get(m.item)!;
+    // Counted things split to the quarter, so the shares add up to the total (1.5 onions: ¾ and ¾).
+    const share = (q: number) => (ing.unit === "each" ? `${Math.round(q * 4) / 4}` : amount(ing, q));
     const base = `${ing.name} ${amount(ing, m.total)}`;
-    const split =
-      many && m.by.length > 1 ? `: ${m.by.map((b) => `${amount(ing, b.qty)} for ${b.name}`).join(", ")}` : "";
+    const split = many && m.by.length > 1 ? `: ${m.by.map((b) => `${share(b.qty)} for ${b.name}`).join(", ")}` : "";
     return `${base}${m.note && !split ? `, ${m.note}` : ""}${split}`;
   };
   const of = (pick: (aisle: Aisle) => boolean) =>
@@ -104,7 +105,7 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
     if (temps.length) ready.push(`Heat the ${kit} to ${temps[0]}°C.`);
   }
   const dry = of((a) => !FRESH.includes(a) && !RAW.includes(a));
-  if (dry.length) ready.push(`Weigh out: ${dry.map((m) => describe(m)).join("; ")}.`);
+  for (const m of dry) ready.push(`Weigh out ${describe(m)}.`);
   for (const m of of((a) => FRESH.includes(a))) ready.push(`Prep ${describe(m)}.`);
   const raw = of((a) => RAW.includes(a));
   if (raw.length) {
@@ -134,7 +135,7 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
       key: r.key,
       name: r.name,
       steps: r.steps,
-      done: checks.length ? `Done when the meat is ${checks.join("; the rest ")}.` : null,
+      done: checks.length ? `Done when ${checks.join(", and ")}.` : null,
       cooked,
     };
   });

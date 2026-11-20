@@ -18,7 +18,7 @@ const cook = (key: string, o: Partial<PrepCook> = {}): PrepCook => ({
 test("get ready runs marinades and heat first, then weighing, veg, and raw meat last with a wash after", () => {
   const { ready } = cookPlan([cook("bolognese"), cook("chicken-parm")]);
   const at = (re: RegExp) => ready.findIndex((s) => re.test(s));
-  const weigh = at(/^Weigh out: /);
+  const weigh = at(/^Weigh out /);
   const veg = at(/^Prep /);
   const meat = at(/^Raw meat and fish last/);
   const wash = at(/^Then wash your hands/);
@@ -52,7 +52,7 @@ test("every recipe with raw meat or fish says how to tell it is done", () => {
   for (const r of RECIPES) {
     const raw = r.lines.some((l) => INGREDIENTS.get(l.item)?.raw);
     const { dishes } = cookPlan([cook(r.key)]);
-    if (raw) assert.match(dishes[0].done ?? "", /^Done when the meat is /, `'${r.key}'`);
+    if (raw) assert.match(dishes[0].done ?? "", /^Done when (the|there)/, `'${r.key}'`);
     else assert.equal(dishes[0].done, null, `'${r.key}'`);
   }
 });
