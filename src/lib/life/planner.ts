@@ -9,6 +9,7 @@
 // fridge the evening before. Pure, so it is tested.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
+import { INGREDIENTS } from "./ingredients.ts";
 import { portionScale, SPLIT, type Slot } from "./nutrition.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
@@ -51,6 +52,7 @@ export type WeekPlan = {
     restore?: StapleBefore[];
     dropped?: DroppedBefore[];
     dates?: DateBefore[];
+    frozen?: FrozenOnArrival[];
   } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
@@ -87,6 +89,7 @@ export type Trip = {
   restore?: StapleBefore[];
   dropped?: DroppedBefore[];
   dates?: DateBefore[];
+  frozen?: FrozenOnArrival[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
 } & ShopTicks;
@@ -99,6 +102,9 @@ export type DroppedBefore = { item: string; qty: number; goodUntil: string | nul
 
 /** A use-by a shop moved, so Undo can put the old one back. */
 export type DateBefore = { item: string; goodUntil: string | null };
+
+/** Fresh food a shop put straight in the freezer, and the day it is first wanted, for a defrost reminder. */
+export type FrozenOnArrival = { item: string; for: string };
 
 /**
  * What has gone in the basket (in person) or the trolley (online), and what the shop
@@ -459,6 +465,17 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
         kind: "freeze",
         text: `Freeze ${n} ${n === 1 ? "portion" : "portions"} of ${r.name} once cool${r.keeps.rice ? " (within an hour: rice)" : ""}.`,
       });
+  }
+  // Fresh food a shop froze on arrival thaws in the fridge overnight (FSA), the evening before it's wanted.
+  for (const f of [...(plan.shop?.frozen ?? []), ...(plan.trips ?? []).flatMap((t) => t.frozen ?? [])]) {
+    const ing = INGREDIENTS.get(f.item);
+    if (!ing) continue;
+    out.push({
+      date: addDays(f.for, -1),
+      time: 21 * 60,
+      kind: "defrost",
+      text: `Move the ${ing.name.toLowerCase()} from the freezer to the fridge tonight, for tomorrow.`,
+    });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.time - b.time);
 }
