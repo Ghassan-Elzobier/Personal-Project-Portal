@@ -6,7 +6,7 @@
 import { addDays } from "../dates/week.ts";
 import type { SessionLog } from "../life/gym/progress.ts";
 import { buildList, listTotal } from "../life/shopping.ts";
-import { remainingNeeds, tripLists, weekView, type LifeState, type WeekView } from "../life/state.ts";
+import { kitchenFor, remainingNeeds, tripLists, weekView, type LifeState, type WeekView } from "../life/state.ts";
 import type { Salary } from "../jobs/salary.ts";
 import { allocate } from "../money/allocate.ts";
 import { mondayOf, nextPayday, type BudgetData } from "../money/budget.ts";
@@ -39,7 +39,7 @@ function shopDueBy(s: LifeState, v: WeekView, by: string): number {
       .reduce((t, x) => t + listTotal(x.lines).pence, 0);
   if (v.start > by || plan.shop?.deliveredOn) return 0;
   if (plan.shop?.orderedOn && plan.shop.orderedPence != null) return plan.shop.orderedPence;
-  return listTotal(buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, s.today)).pence;
+  return listTotal(buildList(remainingNeeds(s, v), kitchenFor(s, v), s.products, s.profile.food, s.today)).pence;
 }
 
 /** What the gym's bills cost a month, and a visit this month so far. Null without a gym bill. */

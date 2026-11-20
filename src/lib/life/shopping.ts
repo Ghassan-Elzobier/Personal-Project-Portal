@@ -126,6 +126,48 @@ function usablePack(item: Ingredient, product: Product | null | undefined): { qt
   return { qty: product.packQty, unit: product.packUnit };
 }
 
+/** Still good on a day: kept with no date, or a date on or after it. */
+export function goodOn(row: Pick<StockRow, "goodUntil">, date: string): boolean {
+  return !row.goodUntil || date <= row.goodUntil;
+}
+
+/**
+ * The kitchen comes off a need first, oldest use first, while the stock is still good
+ * on the day of each use. Returns what it covers, the uses left to buy for, and what
+ * is left of the stock after them, counted only while still good after the last use
+ * (food that goes off first is waste, not spare). The one rule every list, the
+ * planner and the next week use.
+ */
+export function fromKitchen(n: Need, kept: StockRow | undefined): { have: number; left: Use[]; over: number } {
+  let stock = Math.max(0, kept?.qty ?? 0);
+  let have = 0;
+  const left: Use[] = [];
+  const uses = [...(n.at ?? [{ date: n.firstUse, qty: n.qty, use: n.uses[0] ?? "" }])].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  for (const u of uses) {
+    const take = kept && goodOn(kept, u.date) ? Math.min(stock, u.qty) : 0;
+    stock -= take;
+    have += take;
+    if (u.qty - take > 1e-6) left.push({ ...u, qty: u.qty - take });
+  }
+  const last = uses[uses.length - 1]?.date ?? n.firstUse;
+  return { have, left, over: kept && goodOn(kept, last) ? stock : 0 };
+}
+
+/**
+ * The kitchen as a later week finds it: what these needs take comes off first, by the
+ * same rule. Staples keep their have, low or out.
+ */
+export function kitchenAfter(stock: StockRow[], needs: Need[]): StockRow[] {
+  const needOf = new Map(needs.map((n) => [n.item, n]));
+  return stock.map((row) => {
+    const n = needOf.get(row.item);
+    if (!n || INGREDIENTS.get(row.item)?.staple) return row;
+    return { ...row, qty: Math.max(0, row.qty - fromKitchen(n, row).have) };
+  });
+}
+
 /** Pack contents in the ingredient's own unit. */
 export function packInItemUnit(item: Ingredient, packQty: number, packUnit: Unit): number {
   const pack = packProblem(item, packQty, packUnit) ? item.pack : { qty: packQty, unit: packUnit };
@@ -152,11 +194,13 @@ export function buildList(
     const perPack = packInItemUnit(item, packQty, packUnit);
     let have: number;
     let packs: number;
+    // What the kitchen still has after this need, while it is good after its last use.
+    let over = 0;
     if (item.staple) {
       have = s?.status === "have" ? n.qty : 0;
       packs = s?.status === "have" ? 0 : 1;
     } else {
-      have = Math.max(0, s?.qty ?? 0);
+      ({ have, over } = fromKitchen(n, s));
       const short = n.qty - have;
       packs = short > 0 ? Math.max(1, Math.ceil(short / perPack - 0.02)) : 0;
     }
@@ -171,7 +215,7 @@ export function buildList(
       packUnit,
       pence: packs * unitPence,
       priced: product?.pence != null ? "yours" : "estimate",
-      spare: item.staple ? 0 : Math.max(0, have + packs * perPack - n.qty),
+      spare: item.staple ? 0 : Math.max(0, have + packs * perPack - n.qty) + over,
       link: product?.url ?? sainsburysSearch(item.search),
       product,
       checks: labelChecks(rules, item.watch).filter((t) => !product?.checked.includes(t)),
@@ -233,18 +277,7 @@ export function splitTrips(
       out[0].needs.push(n);
       continue;
     }
-    const kept = stockOf.get(n.item);
-    let have = Math.max(0, kept?.qty ?? 0);
-    const left: Use[] = [];
-    const uses = [...(n.at ?? [{ date: n.firstUse, qty: n.qty, use: n.uses[0] ?? "" }])].sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-    for (const u of uses) {
-      const usable = !kept?.goodUntil || u.date <= kept.goodUntil ? have : 0;
-      const take = Math.min(usable, u.qty);
-      have -= take;
-      if (u.qty - take > 1e-6) left.push({ ...u, qty: u.qty - take });
-    }
+    const { left } = fromKitchen(n, stockOf.get(n.item));
     if (!left.length) {
       covered.push(n.item);
       continue;
@@ -412,10 +445,27 @@ export function cookUse(r: Recipe, portions: number, scale: number): { item: str
   return [...merged].map(([item, qty]) => ({ item, qty: Math.round(qty * 10) / 10 }));
 }
 
-/** Fresh food close to its date, soonest first. */
+/**
+ * When a line's spare goes off: a new pack's life from the day it is bought, or the
+ * kitchen's own date when nothing is bought. Null when it keeps past next week (long
+ * life, or frozen on arrival), so next week's plan and list count it.
+ */
+export function spareUntil(l: ListLine, kept: StockRow | undefined, boughtOn: string): string | null {
+  if (l.spare <= 0 || l.item.staple || l.freezeOnArrival) return null;
+  if (l.packs === 0) return kept?.goodUntil ?? null;
+  const keeps = l.item.keeps;
+  return keeps !== undefined && keeps < LONG_LIFE_DAYS ? addDays(boughtOn, keeps) : null;
+}
+
+/** Fresh food past its date: none of it counts any more, and the Cupboard says so. */
+export function pastItsDate(stock: StockRow[], today: string): StockRow[] {
+  return stock.filter((s) => s.qty > 0 && !goodOn(s, today));
+}
+
+/** Fresh food close to its date and still good, soonest first. */
 export function soonToUse(stock: StockRow[], today: string, withinDays = 2): StockRow[] {
   return stock
-    .filter((s) => s.qty > 0 && s.goodUntil && dayGap(today, s.goodUntil) <= withinDays)
+    .filter((s) => s.qty > 0 && s.goodUntil && goodOn(s, today) && dayGap(today, s.goodUntil) <= withinDays)
     .sort((a, b) => (a.goodUntil ?? "").localeCompare(b.goodUntil ?? ""));
 }
 

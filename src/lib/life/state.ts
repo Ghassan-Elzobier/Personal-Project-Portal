@@ -33,6 +33,7 @@ import { INGREDIENTS } from "./ingredients.ts";
 import {
   buildList,
   carryMissing,
+  kitchenAfter,
   linesFor,
   listTotal,
   money,
@@ -434,6 +435,15 @@ export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")):
   return weekNeeds(v.plan, v.placements, { cooked, eaten, from: s.today });
 }
 
+/**
+ * The kitchen as a meal week finds it. This week's is what is in now; next week's is
+ * what this week leaves once its remaining cooks and meals have taken their share, so
+ * nothing is counted for both weeks.
+ */
+export function kitchenFor(s: LifeState, v: WeekView): StockRow[] {
+  return v.start <= s.weekStart ? s.stock : kitchenAfter(s.stock, remainingNeeds(s, weekView(s, "this")));
+}
+
 export type TripList = {
   trip: Trip;
   lines: ListLine[];
@@ -476,7 +486,7 @@ export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: 
   const done = trips.filter((t) => t.doneOn);
   const open = trips.filter((t) => !t.doneOn);
   if (!open.length) return { open: [], done, covered: [] };
-  const split = splitTrips(remainingNeeds(s, v), open, s.stock, s.products);
+  const split = splitTrips(remainingNeeds(s, v), open, kitchenFor(s, v), s.products);
   const carried = carryMissing(split.trips, Object.fromEntries(open.map((t) => [t.id, t.missing ?? []])));
   // Fresh food has come off already; staples still need their have / low / out.
   const staples = s.stock.filter((x) => INGREDIENTS.get(x.item)?.staple);
