@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import { shortDate } from "@/lib/dates/week";
-import { dayAfterHours, weeksFor } from "@/lib/study/pace";
+import { dayAfterHours, weeksFor, type Pace } from "@/lib/study/pace";
 import { spreadDates } from "@/lib/study/review";
 import { loadAllPlans, loadPlan, setPace, setRoadmapPace } from "./actions";
 
@@ -59,25 +59,29 @@ export function LoadAllButton({ label, className = "btn-primary" }: { label: str
   );
 }
 
-/** Dates all three plans together by hours a week, with an optional change of pace. Press it again after a slow week. */
+/**
+ * Dates all three plans together by hours a week, with an optional change of pace, and saves
+ * that pace as the weekly target. Press it again after a slow week. It opens on the pace last
+ * set; the page keys it to that pace, so a newly saved one starts the form again.
+ */
 export function RoadmapPaceForm({
   hoursLeft,
   today,
   dated,
   remaining,
-  defaultHours,
+  saved,
 }: {
   hoursLeft: number;
   today: string;
   dated: number;
   remaining: number;
-  defaultHours: number;
+  saved: Pace;
 }) {
-  const [hours, setHours] = useState(String(defaultHours));
+  const [hours, setHours] = useState(String(saved.hoursPerWeek));
   const [startOn, setStartOn] = useState(today);
-  const [changes, setChanges] = useState(false);
-  const [from, setFrom] = useState("");
-  const [later, setLater] = useState("18");
+  const [changes, setChanges] = useState(Boolean(saved.until));
+  const [from, setFrom] = useState(saved.until ?? "");
+  const [later, setLater] = useState(String(saved.thenHoursPerWeek ?? 18));
   const [pending, start] = useTransition();
   const pace = Number(hours);
   const laterPace = Number(later);

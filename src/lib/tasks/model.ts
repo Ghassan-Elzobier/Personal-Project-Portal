@@ -74,6 +74,8 @@ export type ReviewRow = {
   due_on: string | null;
   last_rating: string | null;
   last_reviewed_at: string | null;
+  /** What to check the recall against, in the tutor's words. Null for a card with none, and for a mentor. */
+  answer: string | null;
 };
 
 /** A comment found while totalling hours, with the task it belongs to. */

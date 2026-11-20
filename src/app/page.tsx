@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { requireAccess, type Access } from "@/lib/auth/access";
-import { configProblems, projectGid, timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
+import { configProblems, projectGid, timeZone, usesAsana } from "@/lib/config/env";
 import { PROJECTS, projectDef, type ProjectKey } from "@/lib/config/projects";
 import { addDays, shortDate, weekdayIndex, zonedParts } from "@/lib/dates/week";
-import { allTasks, attempt, bucketForToday, latestStatus, openTasks, thisWeek, today } from "@/lib/portal/data";
+import {
+  allTasks,
+  attempt,
+  bucketForToday,
+  latestStatus,
+  openTasks,
+  studyTarget,
+  thisWeek,
+  today,
+} from "@/lib/portal/data";
 import { loadScheduleWeek } from "@/lib/portal/schedule";
 import { studyTotals } from "@/lib/portal/stats";
 import { formatHours } from "@/lib/tasks/session-log";
@@ -50,7 +59,7 @@ async function OwnerHome() {
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
 
-  const [perProject, comments, schedule, study, overview, life, money] = await Promise.all([
+  const [perProject, comments, schedule, study, overview, life, money, target] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -71,6 +80,8 @@ async function OwnerHome() {
     usesAsana() ? null : attempt(() => loadStudy()),
     lifeLoad,
     loadToday(),
+    // The pace set on Study, for this week; the deployment's number until one is set.
+    studyTarget(week),
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -79,7 +90,6 @@ async function OwnerHome() {
   const open = perProject.flatMap((p) => (p.open.ok ? p.open.value : []));
   const buckets = bucketForToday(open, date);
   const totals = comments.ok ? studyTotals(comments.value, week, date, tz) : null;
-  const target = weeklyHoursTarget();
   const finishedCount = perProject.reduce((sum, p) => sum + (p.finished.ok ? p.finished.value.length : 0), 0);
   const native = !usesAsana();
 
