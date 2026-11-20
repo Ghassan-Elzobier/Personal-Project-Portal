@@ -1262,14 +1262,19 @@ function CookSession({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          className="btn-soft px-3 py-1.5 text-xs"
-          onClick={() => setMoving((m) => !m)}
-          aria-expanded={moving}
-        >
-          {moving ? "Cancel" : "Move"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/life/cook?day=${x.date}&at=${x.start}`} className="btn-life px-3 py-1.5 text-xs">
+            Open the cook
+          </Link>
+          <button
+            type="button"
+            className="btn-soft px-3 py-1.5 text-xs"
+            onClick={() => setMoving((m) => !m)}
+            aria-expanded={moving}
+          >
+            {moving ? "Cancel" : "Move"}
+          </button>
+        </div>
       </div>
       {moving && (
         <form

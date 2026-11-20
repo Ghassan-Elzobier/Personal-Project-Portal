@@ -9,6 +9,7 @@
 // fridge the evening before. Pure, so it is tested.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
+import { INGREDIENTS } from "./ingredients.ts";
 import { portionScale, SPLIT, type Slot } from "./nutrition.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
@@ -51,6 +52,7 @@ export type WeekPlan = {
     restore?: StapleBefore[];
     dropped?: DroppedBefore[];
     dates?: DateBefore[];
+    frozen?: FrozenOnArrival[];
   } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
@@ -87,6 +89,7 @@ export type Trip = {
   restore?: StapleBefore[];
   dropped?: DroppedBefore[];
   dates?: DateBefore[];
+  frozen?: FrozenOnArrival[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
 } & ShopTicks;
@@ -99,6 +102,9 @@ export type DroppedBefore = { item: string; qty: number; goodUntil: string | nul
 
 /** A use-by a shop moved, so Undo can put the old one back. */
 export type DateBefore = { item: string; goodUntil: string | null };
+
+/** Fresh food a shop put straight in the freezer, and the day it is first wanted, for a defrost reminder. */
+export type FrozenOnArrival = { item: string; for: string };
 
 /**
  * What has gone in the basket (in person) or the trolley (online), and what the shop
@@ -355,6 +361,18 @@ export function spareStaysCold(plan: WeekPlan, c: Cook): boolean {
   return Boolean(plan.mode === "fresh" && r && addDays(c.date, r.keeps.fridgeDays) >= addDays(plan.start, 7));
 }
 
+/**
+ * Portions of a planned cook that go in the freezer: the ones planned from the freezer,
+ * and the spare ones nobody is down to eat if the dish freezes, unless a fresh week's
+ * last cook keeps them cold for next week's first lunch.
+ */
+export function freezeCount(plan: WeekPlan, c: Cook, placements: Placement[]): number {
+  const placed = placements.filter((p) => p.cookId === c.id);
+  const frozen = placed.filter((p) => p.storage === "freezer").length;
+  const spareOnes = Math.max(0, c.portions - placed.length);
+  return Math.min(c.portions, frozen + (recipe(c.recipe)?.keeps.freezes && !spareStaysCold(plan, c) ? spareOnes : 0));
+}
+
 /** Portions left in each planned cook once the week is filled: these go to the freezer. */
 export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string; recipe: string; portions: number }[] {
   return plan.cooks
@@ -473,6 +491,17 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
         kind: "freeze",
         text: `Freeze ${n} ${n === 1 ? "portion" : "portions"} of ${r.name} once cool${r.keeps.rice ? " (within an hour: rice)" : ""}.`,
       });
+  }
+  // Fresh food a shop froze on arrival thaws in the fridge overnight (FSA), the evening before it's wanted.
+  for (const f of [...(plan.shop?.frozen ?? []), ...(plan.trips ?? []).flatMap((t) => t.frozen ?? [])]) {
+    const ing = INGREDIENTS.get(f.item);
+    if (!ing) continue;
+    out.push({
+      date: addDays(f.for, -1),
+      time: 21 * 60,
+      kind: "defrost",
+      text: `Move the ${ing.name.toLowerCase()} from the freezer to the fridge tonight, for tomorrow.`,
+    });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.time - b.time);
 }

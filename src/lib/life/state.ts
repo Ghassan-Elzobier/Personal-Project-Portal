@@ -353,8 +353,8 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       title: `Cook ${r.name}`,
       detail: `${c.portions} portions · ${r.totalMin} min`,
       done,
-      // The recipe at the amounts the list bought for this cook.
-      href: `/life/recipes/${c.recipe}?cook=${encodeURIComponent(c.id)}`,
+      // The session's Cook view: get ready, each dish at the amounts the list bought, box up.
+      href: `/life/cook?day=${c.date}&at=${c.start}`,
       cookId: c.id,
     });
   }

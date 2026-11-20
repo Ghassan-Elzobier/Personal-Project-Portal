@@ -18,7 +18,18 @@ import {
   type WeekPlan,
 } from "./planner";
 import { recipe } from "./recipes";
-import { buildList, cookUse, delivery, goodOn, landShop, undoOf, undoShop, weekNeeds, type Product } from "./shopping";
+import {
+  buildList,
+  cookUse,
+  delivery,
+  frozenOnArrival,
+  goodOn,
+  landShop,
+  undoOf,
+  undoShop,
+  weekNeeds,
+  type Product,
+} from "./shopping";
 import {
   openStock,
   placedMacros,
@@ -48,6 +59,7 @@ function refresh() {
     "/life",
     "/life/gym",
     "/life/kitchen",
+    "/life/cook",
     "/life/body",
     "/life/recipes",
     "/life/settings",
@@ -553,7 +565,11 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const lines = buildList(needs, v ? kitchenFor(s, v) : s.stock, s.products, s.profile.food, s.today);
     const changes = delivery(lines, got, s.today);
     const undo = await landInKitchen(changes, s);
-    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: s.today, got, ...undo } });
+    const frozen = frozenOnArrival(lines, got);
+    await store.savePlan(start, {
+      ...plan!,
+      shop: { ...plan!.shop, deliveredOn: s.today, got, ...undo, ...(frozen.length ? { frozen } : {}) },
+    });
     return { added: changes.length };
   });
 }
@@ -591,6 +607,7 @@ export function undoDelivery(start: string): Promise<Result> {
         restore: undefined,
         dropped: undefined,
         dates: undefined,
+        frozen: undefined,
       },
     });
     return {};
@@ -617,13 +634,16 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
     const lines = (v && tripLists(s, v).open.find((t) => t.trip.id === tripId)?.lines) ?? [];
     const changes = delivery(lines, got, s.today);
     const undo = await landInKitchen(changes, s);
+    const frozen = frozenOnArrival(lines, got);
     // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
     const pence = lines
       .filter((l) => l.packs > 0 && !l.item.staple && got.includes(l.item.key))
       .reduce((t, l) => t + l.pence, 0);
     await store.savePlan(start, {
       ...plan!,
-      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, doneOn: s.today, got, ...undo, pence } : t)),
+      trips: plan!.trips!.map((t) =>
+        t.id === tripId ? { ...t, doneOn: s.today, got, ...undo, ...(frozen.length ? { frozen } : {}), pence } : t,
+      ),
     });
     return { added: changes.length };
   }, true);
