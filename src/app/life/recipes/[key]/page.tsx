@@ -5,13 +5,13 @@ import { requireOwner } from "@/lib/auth/access";
 import { TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS } from "@/lib/life/ingredients";
 import { loadLife } from "@/lib/life/load";
-import { portionMacros, portionScale, SPLIT, verdict } from "@/lib/life/nutrition";
-import { cookScale } from "@/lib/life/planner";
+import { portionMacros, verdict } from "@/lib/life/nutrition";
 import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
-import { amount, linesFor, money } from "@/lib/life/shopping";
+import { amount, money } from "@/lib/life/shopping";
+import { recipeAmounts } from "@/lib/life/state";
 import { Chip, ErrorNote } from "@/components/ui";
-import { LifeHeader } from "../../parts";
+import { dayLabel, LifeHeader } from "../../parts";
 import { RateRecipe } from "./rate";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +23,18 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 
 const SPICE = ["No heat", "Warm", "Medium", "Hot"];
 
+/** "today", "tomorrow" or "on Saturday 21 Nov", to follow "The cook". */
+function cookDay(date: string, today: string): string {
+  const when = dayLabel(date, today);
+  return ["Today", "Tomorrow", "Yesterday"].includes(when) ? when.toLowerCase() : `on ${when}`;
+}
+
 export default async function RecipePage({
   params,
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ portions?: string }>;
+  searchParams: Promise<{ portions?: string; cook?: string }>;
 }) {
   const [, { key }, loaded] = await Promise.all([requireOwner(), params, loadLife()]);
   const r = recipe(key);
@@ -36,14 +42,13 @@ export default async function RecipePage({
   if (loaded.error !== undefined) return <ErrorNote message={loaded.error} />;
   const s = loaded.state;
   const v = verdict(r, s.profile.food);
-  const scale =
-    r.meal === "main"
-      ? cookScale(r, s.kcal)
-      : portionScale(r, s.kcal * (r.meal === "shake" ? SPLIT.shake : SPLIT.breakfast));
-  const wanted = Number((await searchParams).portions);
-  const portions = Number.isInteger(wanted) && wanted >= 1 && wanted <= 20 ? wanted : r.portions;
+  const ask = await searchParams;
+  const { planned, scale, portions, lines, changed } = recipeAmounts(s, r, {
+    cook: ask.cook,
+    portions: ask.portions === undefined ? undefined : Number(ask.portions),
+  });
   const per = portionMacros(r);
-  const lines = linesFor(r, portions, scale);
+  const cookQuery = planned ? `cook=${encodeURIComponent(planned.cook.id)}&` : "";
   const rating = s.ratings.find((x) => x.recipe === r.key);
 
   return (
@@ -110,7 +115,7 @@ export default async function RecipePage({
               {[Math.max(1, portions - 1), portions + 1].map((n, i) => (
                 <Link
                   key={i}
-                  href={`/life/recipes/${r.key}?portions=${n}`}
+                  href={`/life/recipes/${r.key}?${cookQuery}portions=${n}`}
                   scroll={false}
                   className="tap h-9 min-w-9 rounded-lg bg-white/5 text-body"
                   aria-label={i === 0 ? "Fewer portions" : "More portions"}
@@ -121,10 +126,18 @@ export default async function RecipePage({
               <span className="ml-1 tabular-nums">{portions} portions</span>
             </span>
           </div>
-          <p className="text-xs text-muted">
-            Sized to your {s.kcal.toLocaleString("en-GB")} kcal target: {Math.round(scale * 100)}% of the written
-            amounts.
-          </p>
+          {planned ? (
+            <p className={`text-xs ${changed ? "text-sand" : "text-muted"}`}>
+              {changed
+                ? `Changed from the ${planned.cook.portions} portions planned: these amounts no longer match your shopping list.`
+                : `The cook ${cookDay(planned.cook.date, s.today)}: ${planned.cook.portions} portions, sized to your target${(planned.cook.round ?? 1) > 1 ? " and a little bigger to finish the packs" : ""}. These are the amounts your shopping list bought.`}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">
+              Sized to your {s.kcal.toLocaleString("en-GB")} kcal target: {Math.round(scale * 100)}% of the written
+              amounts.
+            </p>
+          )}
           <ul className="divide-y divide-white/5 text-sm">
             {lines.map((l, i) => {
               const ing = INGREDIENTS.get(l.item)!;

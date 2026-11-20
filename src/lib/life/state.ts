@@ -6,6 +6,8 @@ import { addDays, weekdayIndex } from "../dates/week.ts";
 import {
   adjust,
   portionMacros,
+  portionScale,
+  SPLIT,
   targetsFor,
   trend,
   type Adjustment,
@@ -16,20 +18,23 @@ import {
 import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
 import {
   assign,
+  cookScale,
   mealWeekStart,
   reminders,
+  type Cook,
   type Placement,
   type Reminder,
   type StockBatch,
   type Trip,
   type WeekPlan,
 } from "./planner.ts";
-import { recipe } from "./recipes.ts";
+import { recipe, type Recipe } from "./recipes.ts";
 import { INGREDIENTS } from "./ingredients.ts";
 import {
   buildList,
   carryMissing,
   kitchenAfter,
+  linesFor,
   listTotal,
   money,
   splitTrips,
@@ -173,6 +178,48 @@ export function weekView(s: LifeState, which: "this" | "next"): WeekView {
     : { start: s.weekStart, plan: s.plan, placements: s.placements, reminders: s.reminders };
 }
 
+/** A planned cook of this recipe, this meal week or the next, and whether it is cooked. */
+export function plannedCook(
+  s: LifeState,
+  recipeKey: string,
+  cookId: string,
+): { cook: Cook; start: string; done: boolean } | null {
+  for (const v of [weekView(s, "this"), s.next]) {
+    const cook = v.plan?.cooks.find((c) => c.id === cookId && c.recipe === recipeKey);
+    if (cook)
+      return { cook, start: v.start, done: s.batches.some((b) => b.planStart === v.start && b.cookId === cookId) };
+  }
+  return null;
+}
+
+/**
+ * The portions and amounts a recipe page shows. Opened from a planned cook, they
+ * are that cook's: its portions at its size, pack round-up included, which are the
+ * amounts the shopping list bought and "Cooked it" takes out of the cupboard.
+ * Otherwise the recipe as written, sized to the target.
+ */
+export function recipeAmounts(s: LifeState, r: Recipe, ask: { cook?: string; portions?: number } = {}) {
+  const planned = ask.cook ? plannedCook(s, r.key, ask.cook) : null;
+  const scale =
+    planned?.cook.scale ??
+    (r.meal === "main"
+      ? cookScale(r, s.kcal)
+      : portionScale(r, s.kcal * (r.meal === "shake" ? SPLIT.shake : SPLIT.breakfast)));
+  const wanted = ask.portions;
+  const portions =
+    wanted !== undefined && Number.isInteger(wanted) && wanted >= 1 && wanted <= 20
+      ? wanted
+      : (planned?.cook.portions ?? r.portions);
+  return {
+    planned,
+    scale,
+    portions,
+    lines: linesFor(r, portions, scale),
+    /** Portions changed from the plan's, so the amounts no longer match the list. */
+    changed: planned !== null && portions !== planned.cook.portions,
+  };
+}
+
 /** The meal week a date belongs to, for Today and the Schedule across the changeover. */
 export function viewOn(s: LifeState, date: string): WeekView {
   return weekView(s, date >= s.next.start ? "next" : "this");
@@ -292,7 +339,8 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       title: `Cook ${r.name}`,
       detail: `${c.portions} portions · ${r.totalMin} min`,
       done,
-      href: "/life/kitchen?tab=fridge",
+      // The recipe at the amounts the list bought for this cook.
+      href: `/life/recipes/${c.recipe}?cook=${encodeURIComponent(c.id)}`,
       cookId: c.id,
     });
   }
