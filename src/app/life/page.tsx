@@ -9,6 +9,7 @@ import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
+  kitchenFor,
   placedMacros,
   remainingNeeds,
   tripLists,
@@ -22,7 +23,8 @@ import { ErrorNote, Tabs } from "@/components/ui";
 import { ActionButton } from "./kit";
 import { planWeek } from "./actions";
 import { clock, dayLabel, LifeHeader, SetupCard, weekRange, weekdayShort } from "./parts";
-import { AteThem, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { AteThem, RateEaten, WeekView, type Alt, type CookGroup, type DayView, type WeekCostView } from "./week-view";
+import { toRate } from "@/lib/life/to-rate";
 
 export const metadata: Metadata = { title: "Meals" };
 export const dynamic = "force-dynamic";
@@ -46,6 +48,9 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
   const short = which === "this" && !v.plan && isShortWeek(v.start, s.today);
   // In the last two days of a week, the next one wants planning and shopping.
   const nudge = which === "this" && !s.next.plan && s.today >= addDays(s.next.start, -2) && !short;
+  // Dishes eaten this week and not rated: a star each, so the planner learns what you like.
+  const rateNow =
+    which === "this" ? toRate(s.meals, s.ratings, s.today).map((key) => ({ key, name: recipe(key)?.name ?? key })) : [];
   return (
     <div className="space-y-6">
       <LifeHeader eyebrow={weekRange(v.start, end)} title="Meals">
@@ -87,6 +92,7 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
           <span className="text-sm text-mint">Plan next week →</span>
         </Link>
       )}
+      {rateNow.length > 0 && <RateEaten dishes={rateNow} />}
       {v.plan ? <Planned key={v.start} s={s} v={v} /> : short ? <ShortWeek s={s} v={v} /> : <Unplanned s={s} v={v} />}
     </div>
   );
@@ -331,7 +337,14 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
           .map((r) => `${clock(r.time)} · ${r.text}`),
       };
     });
-  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, plan.shop?.deliveredOn ?? null);
+  // The week's kitchen, as its lists see it: next week's is what this week leaves.
+  const lines = buildList(
+    remainingNeeds(s, v),
+    kitchenFor(s, v),
+    s.products,
+    s.profile.food,
+    plan.shop?.deliveredOn ?? null,
+  );
   const total = listTotal(lines);
   const shops = plan.mode === "fresh" ? freshShops(s, v) : null;
   const missing = v.start === s.weekStart ? unlogged(s, s.today).length : 0;
