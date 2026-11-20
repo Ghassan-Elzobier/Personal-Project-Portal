@@ -18,7 +18,7 @@ import {
   type Unit,
 } from "./ingredients.ts";
 import { packProblem } from "./pack.ts";
-import type { Placement, WeekPlan } from "./planner.ts";
+import type { DateBefore, DroppedBefore, Placement, WeekPlan } from "./planner.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
 export type Product = {
@@ -432,6 +432,63 @@ export function undoOf(
     restore: changes
       .filter((c) => c.status && before(c.item) !== c.status)
       .map((c) => ({ item: c.item, status: before(c.item) })),
+  };
+}
+
+/** One change to a kitchen stock row, as `life_stock` takes it. */
+export type StockChange = { item: string; qty?: number; status?: StockRow["status"]; good_until?: string | null };
+
+/**
+ * How a shop lands in the kitchen. A fresh pack of something whose remainder is past
+ * its date replaces that remainder (`set` to nothing first), rather than topping it up
+ * and giving it the new pack's date; then everything bought is added with its use-by.
+ * Also returns what Undo needs: the food replaced and the use-bys moved.
+ */
+export function landShop(
+  changes: { item: string; add: number; status: "have" | null; goodUntil: string | null }[],
+  stock: StockRow[],
+  on: string,
+): { set: StockChange[]; add: StockChange[]; dropped: DroppedBefore[]; dates: DateBefore[] } {
+  const rowOf = new Map(stock.map((r) => [r.item, r]));
+  const dropped: DroppedBefore[] = [];
+  const dates: DateBefore[] = [];
+  for (const c of changes) {
+    const row = rowOf.get(c.item);
+    if (c.add > 0 && row && row.qty > 0 && !goodOn(row, on))
+      dropped.push({ item: c.item, qty: row.qty, goodUntil: row.goodUntil });
+    if (c.goodUntil && (row?.goodUntil ?? null) !== c.goodUntil)
+      dates.push({ item: c.item, goodUntil: row?.goodUntil ?? null });
+  }
+  return {
+    set: dropped.map((d) => ({ item: d.item, qty: 0 })),
+    add: changes.map((c) => ({
+      item: c.item,
+      qty: c.add,
+      ...(c.status ? { status: c.status } : {}),
+      ...(c.goodUntil ? { good_until: c.goodUntil } : {}),
+    })),
+    dropped,
+    dates,
+  };
+}
+
+/**
+ * What takes a shop back exactly: its amounts off, staples' have / low / out and the
+ * old use-bys back (`add`), then the food it replaced back with its own date (`set`).
+ */
+export function undoShop(r: {
+  added?: { item: string; qty: number }[];
+  restore?: { item: string; status: StockRow["status"] }[];
+  dropped?: DroppedBefore[];
+  dates?: DateBefore[];
+}): { add: StockChange[]; set: StockChange[] } {
+  return {
+    add: [
+      ...(r.added ?? []).map((c) => ({ item: c.item, qty: -c.qty })),
+      ...(r.restore ?? []).map((x) => ({ item: x.item, status: x.status })),
+      ...(r.dates ?? []).map((d) => ({ item: d.item, good_until: d.goodUntil })),
+    ],
+    set: (r.dropped ?? []).map((d) => ({ item: d.item, qty: d.qty, good_until: d.goodUntil })),
   };
 }
 
