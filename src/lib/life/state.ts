@@ -18,6 +18,7 @@ import {
 import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
 import {
   assign,
+  firstShopFirst,
   cookScale,
   mealWeekStart,
   reminders,
@@ -31,18 +32,24 @@ import {
 import { recipe, type Recipe } from "./recipes.ts";
 import { INGREDIENTS } from "./ingredients.ts";
 import {
+  beforeShop,
   buildList,
   carryMissing,
   kitchenAfter,
   linesFor,
   listTotal,
   money,
+  needsOf,
+  packInItemUnit,
+  spareUntil,
   splitTrips,
+  usesOf,
   weekNeeds,
   type ListLine,
   type Need,
   type Product,
   type StockRow,
+  type Use,
 } from "./shopping.ts";
 import { consistency, nextWorkout, type SessionLog, type SetLog } from "./gym/progress.ts";
 import { workout } from "./gym/program.ts";
@@ -134,7 +141,13 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
       : null;
   const kcal = profile.goal.kcalOverride ?? targets?.kcal ?? 2600;
   const weekStart = mealWeekStart(today, profile.routine.cooks[0]?.weekday ?? 6);
-  const plan = raw.plans.find((p) => p.start === weekStart)?.data ?? null;
+  // A fresh week saved with its first shop after its first day gets it on that day.
+  const plans = raw.plans.map((p) =>
+    p.data.mode === "fresh" && p.data.trips
+      ? { ...p, data: { ...p.data, trips: firstShopFirst(p.data.start, today, p.data.trips) } }
+      : p,
+  );
+  const plan = plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
   const place = (p: WeekPlan | null) =>
     p
@@ -142,13 +155,14 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
       : [];
   const placements = place(plan);
   const nextStart = addDays(weekStart, 7);
-  const nextPlan = raw.plans.find((p) => p.start === nextStart)?.data ?? null;
+  const nextPlan = plans.find((p) => p.start === nextStart)?.data ?? null;
   const nextPlacements = place(nextPlan);
   const eaten = eatenShare(raw.meals, today);
   const adjustment =
     setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
   return {
     ...raw,
+    plans,
     today,
     profile,
     setUp,
@@ -441,7 +455,80 @@ export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")):
  * nothing is counted for both weeks.
  */
 export function kitchenFor(s: LifeState, v: WeekView): StockRow[] {
-  return v.start <= s.weekStart ? s.stock : kitchenAfter(s.stock, remainingNeeds(s, weekView(s, "this")));
+  if (v.start <= s.weekStart) return s.stock;
+  const thisWeek = needsOf(usesOf([...remainingNeeds(s, weekView(s, "this")), ...carriedBack(s)]));
+  return withSpare(kitchenAfter(s.stock, thisWeek), pendingSpare(s));
+}
+
+/** Open shops of a week, in order. */
+const openTrips = (v: WeekView) =>
+  (v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : [])
+    .filter((t) => !t.doneOn)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+
+/**
+ * Whether a use of next week's food goes on this week's last shop instead: it comes
+ * before next week's first shop, and this week still has a shop before it (Saturday's
+ * breakfast on Friday's shop). Null when there is nothing to carry.
+ */
+function carryRule(s: LifeState): ((u: Use) => boolean) | null {
+  const last = openTrips(weekView(s, "this")).at(-1);
+  const first = (s.next.plan?.mode === "fresh" ? (s.next.plan.trips ?? []) : [])
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)[0];
+  if (!last || !first) return null;
+  return (u) => beforeShop(u, first) && !beforeShop(u, last);
+}
+
+/** Next week's food that this week's last shop buys (see `carryRule`). */
+export function carriedBack(s: LifeState): Need[] {
+  const rule = carryRule(s);
+  return rule ? needsOf(usesOf(remainingNeeds(s, s.next)).filter(({ use }) => rule(use))) : [];
+}
+
+/**
+ * What this week's shops still to come will leave over, as kitchen rows: each pack's
+ * rest beyond what it is bought for, with the date it goes off. Next week counts it,
+ * so it isn't bought twice (pasta from Friday's shop, for Sunday's dinner).
+ */
+function pendingSpare(s: LifeState): StockRow[] {
+  const v = weekView(s, "this");
+  if (!v.plan) return [];
+  const shops =
+    v.plan.mode === "fresh"
+      ? tripLists(s, v).open.map((t) => ({ date: t.trip.date, lines: t.lines }))
+      : v.plan.shop?.deliveredOn
+        ? []
+        : [{ date: s.today, lines: buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, s.today) }];
+  return shops.flatMap(({ date, lines }) =>
+    lines
+      .filter((l) => l.packs > 0)
+      .map((l): StockRow => {
+        if (l.item.staple) return { item: l.item.key, qty: 0, status: "have", goodUntil: null };
+        const rest = Math.max(0, l.have + l.packs * packInItemUnit(l.item, l.packQty, l.packUnit) - l.need);
+        return {
+          item: l.item.key,
+          qty: rest,
+          status: null,
+          goodUntil: spareUntil({ ...l, spare: rest }, undefined, date),
+        };
+      }),
+  );
+}
+
+/** Kitchen rows with a shop's spare added: an empty row takes the spare's date, a stocked one keeps its own. */
+function withSpare(rows: StockRow[], spare: StockRow[]): StockRow[] {
+  const out = new Map(rows.map((r) => [r.item, { ...r }]));
+  for (const x of spare) {
+    const row = out.get(x.item);
+    if (!row) out.set(x.item, { ...x });
+    else if (x.status === "have") row.status = "have";
+    else {
+      if (!(row.qty > 0)) row.goodUntil = x.goodUntil;
+      row.qty += x.qty;
+    }
+  }
+  return [...out.values()];
 }
 
 export type TripList = {
@@ -486,7 +573,17 @@ export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: 
   const done = trips.filter((t) => t.doneOn);
   const open = trips.filter((t) => !t.doneOn);
   if (!open.length) return { open: [], done, covered: [] };
-  const split = splitTrips(remainingNeeds(s, v), open, kitchenFor(s, v), s.products);
+  // This week's last shop also buys next week's food wanted before next week's first shop.
+  const rule = carryRule(s);
+  const own = remainingNeeds(s, v);
+  const needs = !rule
+    ? own
+    : v.start === s.weekStart
+      ? needsOf(usesOf([...own, ...carriedBack(s)]))
+      : v.start === s.next.start
+        ? needsOf(usesOf(own).filter(({ use }) => !rule(use)))
+        : own;
+  const split = splitTrips(needs, open, kitchenFor(s, v), s.products);
   const carried = carryMissing(split.trips, Object.fromEntries(open.map((t) => [t.id, t.missing ?? []])));
   // Fresh food has come off already; staples still need their have / low / out.
   const staples = s.stock.filter((x) => INGREDIENTS.get(x.item)?.staple);

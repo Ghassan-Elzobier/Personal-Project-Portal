@@ -43,7 +43,8 @@ export type StockRow = {
 };
 
 /** One use of an ingredient: the day, how much, and the dish it is for. */
-export type Use = { date: string; qty: number; use: string };
+/** One use of an ingredient: the day, how much, what for, and the minute it is cooked or eaten. */
+export type Use = { date: string; qty: number; use: string; time?: number };
 
 export type Need = {
   item: string;
@@ -75,27 +76,54 @@ export function weekNeeds(
   done: { cooked?: Set<string>; eaten?: Set<string>; from?: string } = {},
 ): Need[] {
   const out = new Map<string, Need>();
-  const put = (item: string, qty: number, date: string, use: string) => {
+  const put = (item: string, qty: number, date: string, use: string, time: number) => {
     const n = out.get(item) ?? { item, qty: 0, firstUse: date, uses: [], at: [] };
     n.qty += qty;
     if (date < n.firstUse) n.firstUse = date;
     if (!n.uses.includes(use)) n.uses.push(use);
-    n.at!.push({ date, qty, use });
+    n.at!.push({ date, qty, use, time });
     out.set(item, n);
   };
   for (const c of plan.cooks) {
     const r = recipe(c.recipe);
     if (!r || done.cooked?.has(c.id)) continue;
-    for (const l of linesFor(r, c.portions, c.scale)) put(l.item, l.qty, c.date, r.name);
+    for (const l of linesFor(r, c.portions, c.scale)) put(l.item, l.qty, c.date, r.name, c.start);
   }
   for (const p of placements) {
     if ((p.source !== "daily" && p.source !== "fresh") || !p.recipe) continue;
     if (done.eaten?.has(p.id) || (done.from && p.date < done.from)) continue;
     const r = recipe(p.recipe);
     if (!r) continue;
-    for (const l of linesFor(r, 1, p.scale)) put(l.item, l.qty, p.date, r.name);
+    for (const l of linesFor(r, 1, p.scale)) put(l.item, l.qty, p.date, r.name, p.time);
   }
   return [...out.values()];
+}
+
+/** A use comes before a shop when it is on an earlier day, or that day before the shop starts. */
+export function beforeShop(u: Use, shop: { date: string; start?: number }): boolean {
+  if (u.date !== shop.date) return u.date < shop.date;
+  return u.time !== undefined && shop.start !== undefined && u.time < shop.start;
+}
+
+/** Needs made from uses, each item once: what a list buys for those uses. */
+export function needsOf(uses: { item: string; use: Use }[]): Need[] {
+  const out = new Map<string, Need>();
+  for (const { item, use: u } of uses) {
+    const n = out.get(item) ?? { item, qty: 0, firstUse: u.date, uses: [], at: [] };
+    n.qty += u.qty;
+    if (u.date < n.firstUse) n.firstUse = u.date;
+    if (!n.uses.includes(u.use)) n.uses.push(u.use);
+    n.at!.push(u);
+    out.set(item, n);
+  }
+  return [...out.values()];
+}
+
+/** Every use in some needs, with its item. */
+export function usesOf(needs: Need[]): { item: string; use: Use }[] {
+  return needs.flatMap((n) =>
+    (n.at ?? [{ date: n.firstUse, qty: n.qty, use: n.uses[0] ?? "" }]).map((use) => ({ item: n.item, use })),
+  );
 }
 
 export type ListLine = {
@@ -253,22 +281,25 @@ export type TripNeeds = {
  *   always for food that keeps for weeks (onions, pasta, tins).
  * - Staples go on the first shop; `buildList` buys them only when low or out.
  *
- * A use before the first shop goes on the first shop, flagged as early. Pure, so it is tested.
+ * "Before" counts the time of day: breakfast at 6 comes before a shop at 10 that day.
+ * A use earlier on the first shop's own day isn't bought at all (you eat it before you
+ * shop); one on an earlier day goes on the first shop, flagged as early. Pure, so it is tested.
  */
 export function splitTrips(
   needs: Need[],
-  trips: { id: string; date: string }[],
+  trips: { id: string; date: string; start?: number }[],
   stock: StockRow[],
   products: Product[],
 ): { trips: TripNeeds[]; covered: string[] } {
-  const out: TripNeeds[] = [...trips]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((t) => ({ id: t.id, date: t.date, needs: [], early: [] }));
+  const sorted = [...trips].sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0));
+  const out: TripNeeds[] = sorted.map((t) => ({ id: t.id, date: t.date, needs: [], early: [] }));
   const covered: string[] = [];
   if (!out.length) return { trips: out, covered };
   const stockOf = new Map(stock.map((x) => [x.item, x]));
   const productOf = new Map(products.map((x) => [x.item, x]));
-  const tripFor = (date: string) => out.reduce((at, t, i) => (t.date <= date ? i : at), 0);
+  /** The last shop before a use (by day and time), or the first shop for one before them all. */
+  const tripFor = (u: Use) => sorted.reduce((at, t, i) => (!beforeShop(u, t) ? i : at), 0);
+  const beforeAll = (u: Use) => beforeShop(u, sorted[0]);
 
   for (const n of needs) {
     const item = INGREDIENTS.get(n.item);
@@ -277,7 +308,8 @@ export function splitTrips(
       out[0].needs.push(n);
       continue;
     }
-    const { left } = fromKitchen(n, stockOf.get(n.item));
+    // Uses earlier on the first shop's own day come before it: no shop can buy for them.
+    const left = fromKitchen(n, stockOf.get(n.item)).left.filter((u) => !(u.date === sorted[0].date && beforeAll(u)));
     if (!left.length) {
       covered.push(n.item);
       continue;
@@ -289,7 +321,7 @@ export function splitTrips(
 
     const groups: { trip: number; uses: Use[] }[] = [];
     for (const u of left) {
-      const t = tripFor(u.date);
+      const t = tripFor(u);
       const g = groups[groups.length - 1];
       if (g && g.trip === t) g.uses.push(u);
       else groups.push({ trip: t, uses: [u] });
