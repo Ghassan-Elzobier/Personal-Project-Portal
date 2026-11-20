@@ -1,15 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "@/components/toaster";
+import type { AffordCheck } from "@/lib/money/displaces";
 import { useAction } from "../kit";
-import { savePlanned } from "./actions";
+import { checkAfford, savePlanned } from "./actions";
 
-/** Plan a purchase: what, how much, when, and how it's paid for. */
+const VERDICT: Record<AffordCheck["verdict"], string> = {
+  fits: "text-mint",
+  tight: "text-sand",
+  out: "text-coral",
+  unknown: "text-muted",
+};
+
+/** Plan a purchase: what, how much, when, and how it's paid for. "Can I afford it?" answers before you choose. */
 export function PlannedForm({ today }: { today: string }) {
   const empty = { name: "", amount: "", dueOn: today, funding: "allowance", weeks: 3 };
   const [v, setV] = useState(empty);
   const [open, setOpen] = useState(false);
   const { pending, run } = useAction();
+  // The answer belongs to the cost it was asked for: change the cost and it is gone, so it can't go stale.
+  const [answer, setAnswer] = useState<{ amount: string; check: AffordCheck; displaces: string } | null>(null);
+  const [checking, startCheck] = useTransition();
+  const asked = answer && answer.amount === v.amount ? answer : null;
+  const check = asked?.check ?? null;
 
   if (!open) {
     return (
@@ -88,9 +102,54 @@ export function PlannedForm({ today }: { today: string }) {
           </label>
         )}
       </div>
+      <div aria-live="polite">
+        {check && (
+          <div className="space-y-2 rounded-xl bg-white/5 p-3 text-sm">
+            <p className={VERDICT[check.verdict]}>{check.reason}</p>
+            {asked?.displaces && <p className="text-muted">{asked.displaces}</p>}
+            {check.options.length > 0 && (
+              <ul className="space-y-2" aria-label="Ways to pay for it">
+                {check.options.map((o) => {
+                  const chosen = v.funding === o.funding && (o.funding !== "spread" || v.weeks === o.weeks);
+                  return (
+                    <li key={`${o.funding}-${o.weeks}`}>
+                      <button
+                        type="button"
+                        aria-pressed={chosen}
+                        onClick={() =>
+                          setV({ ...v, funding: o.funding, weeks: o.funding === "spread" ? o.weeks : v.weeks })
+                        }
+                        className={`tap w-full justify-start px-3 py-2 text-left text-sm ring-1 ${chosen ? "bg-mint/15 text-white ring-mint/40" : "bg-white/8 text-bright ring-white/10 hover:bg-white/15"}`}
+                      >
+                        {o.text}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         <button type="submit" className="btn-life" disabled={pending} aria-busy={pending}>
           {pending ? "Planning…" : "Plan it"}
+        </button>
+        <button
+          type="button"
+          className="btn-soft"
+          disabled={checking || v.amount.trim() === ""}
+          aria-busy={checking}
+          onClick={() =>
+            startCheck(async () => {
+              const amount = v.amount;
+              const r = await checkAfford(amount);
+              if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+              setAnswer({ amount, check: r.check, displaces: r.displaces });
+            })
+          }
+        >
+          Can I afford it?
         </button>
         <button type="button" className="btn-soft" onClick={() => setOpen(false)}>
           Cancel
