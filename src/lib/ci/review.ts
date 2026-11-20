@@ -71,6 +71,18 @@ export function reviewPrompt(instructions: string, pr: { number: number; head: s
 
 export type Verdict = { ok: true; summary: string } | { ok: false; problem: string };
 
+/** Marks the note the check leaves on a pull request whose review is missing, so there is only ever one. */
+export const NOTE_MARKER = "<!-- claude-review-missing -->";
+
+/**
+ * The note for the pull request itself when the check fails: a red check should
+ * say why where the owner is looking, not only in a log. It is worded so that it
+ * can never pass for a review.
+ */
+export function missingNote(problem: string): string {
+  return `${NOTE_MARKER}\n**The Claude review check failed: this commit has no review.**\n\n${problem}`;
+}
+
 const RETRY = "Run the job again, or ask Claude for a review in a comment.";
 
 /**

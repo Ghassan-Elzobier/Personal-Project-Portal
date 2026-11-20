@@ -12,7 +12,8 @@
 //          repository's own instructions (.claude/commands/review-pr.md), taken
 //          from the base branch so a pull request can't rewrite its own review.
 //   check  fails the job unless a review comment on the pull request names the
-//          commit it is at. A review that posted nothing used to look like a pass.
+//          commit it is at, and then says why in a note on the pull request itself.
+//          A review that posted nothing used to look like a pass.
 //
 // Both read PR (the number), HEAD (its commit), BASE (the commit it is to merge
 // into) and GITHUB_REPOSITORY, and need gh signed in (GH_TOKEN in CI). check also
@@ -20,7 +21,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { checkReview, REVIEW_SCHEMA, reviewPrompt, scopeFor } from "../src/lib/ci/review.ts";
+import { checkReview, missingNote, NOTE_MARKER, REVIEW_SCHEMA, reviewPrompt, scopeFor } from "../src/lib/ci/review.ts";
 
 const INSTRUCTIONS = ".claude/commands/review-pr.md";
 const DIR = ".review";
@@ -63,13 +64,13 @@ function comments() {
     "--paginate",
     `repos/${repo}/issues/${pr}/comments?per_page=100`,
     "--jq",
-    ".[] | {author: .user.login, body: .body, createdAt: .created_at} | tojson",
+    ".[] | {id: .id, author: .user.login, body: .body, createdAt: .created_at} | tojson",
   ]);
   return lines
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line))
-    .map((c) => ({ author: c.author ?? "", body: c.body ?? "", createdAt: c.createdAt ?? "" }));
+    .map((c) => ({ id: c.id, author: c.author ?? "", body: c.body ?? "", createdAt: c.createdAt ?? "" }));
 }
 
 /** The review's instructions as the base branch has them; this checkout's copy when the base has none yet. */
@@ -158,13 +159,38 @@ function workflowChanged() {
   }
 }
 
+/**
+ * Says on the pull request itself why the check failed, in one note that is kept up
+ * to date, and takes the note away once there is a review. The check's own result
+ * never depends on this: a note that can't be written is only logged.
+ */
+function leaveNote(all, problem) {
+  const mine = all.filter((c) => c.author === "github-actions[bot]" && c.body.includes(NOTE_MARKER));
+  const call = (args) => {
+    const result = gh(["api", ...args]);
+    if (!result.ok) console.log(`The note on the pull request could not be updated: ${result.err}`);
+  };
+  if (problem === null) {
+    for (const note of mine) call(["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+    return;
+  }
+  const body = missingNote(problem);
+  const [first, ...extra] = mine;
+  for (const note of extra) call(["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+  if (!first) call(["-X", "POST", `repos/${repo}/issues/${pr}/comments`, "-f", `body=${body}`]);
+  else if (first.body !== body)
+    call(["-X", "PATCH", `repos/${repo}/issues/comments/${first.id}`, "-f", `body=${body}`]);
+}
+
 function check() {
+  const all = comments();
   const verdict = checkReview({
     head,
-    comments: comments(),
+    comments: all,
     answer: env.ANSWER,
     workflowChanged: !(env.ANSWER ?? "").trim() && workflowChanged(),
   });
+  leaveNote(all, verdict.ok ? null : verdict.problem);
   if (verdict.ok) return say(verdict.summary);
   say(verdict.problem);
   process.exit(1);

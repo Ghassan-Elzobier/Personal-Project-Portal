@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkReview, reviewedIn, reviewPrompt, REVIEW_SCHEMA, scopeFor, type PrComment } from "./review.ts";
+import {
+  checkReview,
+  missingNote,
+  NOTE_MARKER,
+  reviewedIn,
+  reviewPrompt,
+  REVIEW_SCHEMA,
+  scopeFor,
+  type PrComment,
+} from "./review.ts";
 
 // Made-up commits and comments. The review's own pieces: what a run is asked to
 // read, and whether a review of the head commit is really on the pull request.
@@ -136,6 +145,30 @@ test("a pull request that changes the review's own workflow has no review, and t
   );
 });
 
+test("a failed check says why on the pull request, in a note that can never pass for a review", () => {
+  const problems = [
+    checkReview({ head: HEAD, comments: [], answer: "" }),
+    checkReview({ head: HEAD, comments: [], answer: "", workflowChanged: true }),
+    checkReview({ head: HEAD, comments: [review(EARLIER)], answer: answer(HEAD) }),
+    checkReview({ head: HEAD, comments: [review(EARLIER)], answer: answer(EARLIER) }),
+    checkReview({ head: HEAD, comments: [review(HEAD)], answer: "{oops" }),
+  ].map((v) => (v.ok ? "" : v.problem));
+  for (const problem of problems) {
+    assert.notEqual(problem, "");
+    const note = missingNote(problem);
+    assert.equal(
+      note.startsWith(`${NOTE_MARKER}\n**The Claude review check failed: this commit has no review.**`),
+      true,
+    );
+    assert.equal(note.endsWith(problem), true);
+    // Posted by the job's own account, which is also allowed to post reviews: it must not read as one.
+    assert.deepEqual(reviewedIn(note), []);
+    const posted = comment("github-actions[bot]", note, 40);
+    assert.equal(checkReview({ head: HEAD, comments: [posted], answer: "" }).ok, false);
+    assert.deepEqual(scopeFor([posted], HEAD), { kind: "whole" });
+  }
+});
+
 // The workflow and the instructions, held to the promise in docs/FACTORY.md: a
 // review on opening and on every push, and a missing review fails the check.
 
@@ -156,6 +189,14 @@ test("a push by Claude itself is reviewed too: its CI fixes are fix-ups like any
   assert.match(workflow, /^ {10}allowed_bots: claude$/m);
   // Dependabot stays out: its runs get no secrets.
   assert.match(workflow, /github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/);
+});
+
+test("the check leaves its note before it fails, and takes it away once there is a review", () => {
+  assert.match(
+    script,
+    /leaveNote\(all, verdict\.ok \? null : verdict\.problem\);\n {2}if \(verdict\.ok\) return say\(verdict\.summary\);/,
+  );
+  assert.match(script, /c\.author === "github-actions\[bot\]" && c\.body\.includes\(NOTE_MARKER\)/);
 });
 
 test("a step with no AI checks the review was posted, even when the review step failed", () => {

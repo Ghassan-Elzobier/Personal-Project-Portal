@@ -340,7 +340,9 @@ mechanical:
   close together cancel the earlier run, and drafts wait until they're ready. Every
   review ends in one comment, "Reviewed abc1234: no issues found" or the findings on
   their lines, and a script then fails the **Claude review** check when no comment
-  names the head commit, so a review that posts nothing can't look like a pass. The
+  names the head commit, so a review that posts nothing can't look like a pass. When
+  it fails, it says why in a note on the pull request, and removes the note once the
+  commit has its review. The
   instructions are the factory's own (`.claude/commands/review-pr.md`, read from the
   base branch, so a pull request can't rewrite its own review); `/improve-factory`
   can tune them. Ask for another with `@claude review`, run `/review-pr` in a

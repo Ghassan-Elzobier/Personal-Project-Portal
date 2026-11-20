@@ -12,7 +12,8 @@
 #           prompt from .claude/commands/review-pr.md on the base branch (no AI)
 #   review  Claude follows those instructions and posts the review
 #   check   a script reads the pull request's comments and fails the job unless
-#           one from the review names the head commit (no AI)
+#           one from the review names the head commit. When it fails it says why
+#           in a note on the pull request, and removes the note once reviewed (no AI)
 # The instructions live in this repository, so /improve-factory can tune them, and
 # come from the base branch, so a pull request can't rewrite its own review.
 #
