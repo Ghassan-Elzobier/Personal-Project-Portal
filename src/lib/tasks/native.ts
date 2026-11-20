@@ -3,6 +3,7 @@ import { cache } from "react";
 import { PROJECTS, type ProjectKey } from "../config/projects";
 import { rpcAsCaller } from "../supabase/caller";
 import type { BenchmarkRow } from "../study/benchmarks";
+import type { SavedPace } from "../study/pace";
 import { now } from "@/lib/dates/clock";
 import {
   AsanaError,
@@ -290,4 +291,33 @@ export async function deleteBenchmark(gid: string): Promise<void> {
 
 export async function setDueDates(items: { gid: string; due_on: string }[]): Promise<void> {
   await rpc("tracker_set_due_dates", { p_items: items });
+}
+
+type PaceRow = {
+  hours_per_week: number;
+  starts_on: string;
+  changes_on: string | null;
+  then_hours_per_week: number | null;
+};
+
+/** The pace set on the Study page, or null before one is set. */
+export const studyPace = cache(async (): Promise<SavedPace | null> => {
+  const row = await rpc<PaceRow | null>("get_study_pace");
+  if (!row) return null;
+  const pace = { start: row.starts_on, hoursPerWeek: Number(row.hours_per_week) };
+  return row.changes_on && row.then_hours_per_week
+    ? { ...pace, until: row.changes_on, thenHoursPerWeek: Number(row.then_hours_per_week) }
+    : pace;
+});
+
+export async function saveStudyPace(pace: SavedPace): Promise<void> {
+  const changes = Boolean(pace.until && pace.thenHoursPerWeek);
+  await rpc("set_study_pace", {
+    p_pace: {
+      hours_per_week: pace.hoursPerWeek,
+      starts_on: pace.start,
+      changes_on: changes ? pace.until : null,
+      then_hours_per_week: changes ? pace.thenHoursPerWeek : null,
+    },
+  });
 }

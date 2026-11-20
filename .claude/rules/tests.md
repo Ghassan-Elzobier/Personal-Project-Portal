@@ -17,6 +17,10 @@ paths:
   in the `state` project, after every other suite and one file at a time
   (`playwright.config.ts`). Each test creates its own data and puts everything
   back as it found it, because the other suites' screenshots show that data.
+- A save test sets up, checks and undoes through the pages. Two helpers cover what
+  pages cannot do: `e2e/connector.ts` calls Claude's tools as Claude does, and
+  `e2e/owner-database.ts` calls the database's functions as the owner, for a
+  starting state no page builds or an undo no page offers (a loaded study plan).
 - Screenshots render in the Playwright Docker image (`scripts/e2e.sh`), never
   on the host. Update them only for an intended design change
   (`npm run test:e2e:update`), and look at every changed image before committing.
