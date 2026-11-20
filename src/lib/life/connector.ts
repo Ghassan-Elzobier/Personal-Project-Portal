@@ -108,7 +108,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "log_meal",
     title: "Log a meal",
     description:
-      "Mark a meal as eaten as planned, skipped, or something_else, or clear it. eaten takes the planned portion from the fridge or freezer. Use something_else when the owner ate, but not the planned meal (a friend cooked, a meal out, a sandwich on the go): the planned portion stays where it is and the day still counts the food, as an estimate from the planned meal. Give size for how it compared: lighter, about (the default) or bigger. It also works for a slot marked as eating out. Use skipped only when nothing was eaten.",
+      "Mark a meal as eaten as planned, skipped, or something_else, or clear it. eaten takes the planned portion from the fridge or freezer; if the planned cook it comes from wasn't logged, eaten logs that cook first (its portions go in, its ingredients come out) and the reply names it under cooked. Use something_else when the owner ate, but not the planned meal (a friend cooked, a meal out, a sandwich on the go): the planned portion stays where it is and the day still counts the food, as an estimate from the planned meal. Give size for how it compared: lighter, about (the default) or bigger. It also works for a slot marked as eating out. Use skipped only when nothing was eaten.",
     inputSchema: {
       type: "object",
       properties: {
@@ -142,6 +142,16 @@ export const LIFE_TOOLS: Tool[] = [
           ? {
               logged_as: { kcal: r.estimate.kcal, protein_g: r.estimate.protein },
               note: "An estimate from the planned meal. The planned portion was not taken from the kitchen.",
+            }
+          : {}),
+        ...(r.cooked?.length
+          ? {
+              cooked: r.cooked.map((c) => ({
+                cook_id: c.cookId,
+                recipe: c.name,
+                fridge: c.fridge,
+                freezer: c.freezer,
+              })),
             }
           : {}),
       });

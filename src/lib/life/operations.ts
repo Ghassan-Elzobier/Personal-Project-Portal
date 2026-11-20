@@ -1,13 +1,22 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { cooksToLog, eatenBeforeCooked, takenFromStock, type CookedNote } from "./cooked";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import { SPLIT, type Slot } from "./nutrition";
 import { otherMeal, type OtherSize } from "./other-meal";
 import { packProblem } from "./pack";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
-import { cookScale, sizeCooks, spareStaysCold, type ShopVia, type WeekMode, type WeekPlan } from "./planner";
+import {
+  cookScale,
+  sizeCooks,
+  spareStaysCold,
+  type Placement,
+  type ShopVia,
+  type WeekMode,
+  type WeekPlan,
+} from "./planner";
 import { recipe } from "./recipes";
 import { buildList, cookUse, delivery, goodOn, landShop, undoOf, undoShop, weekNeeds, type Product } from "./shopping";
 import {
@@ -287,23 +296,20 @@ export function logMeal(
   slot: Slot,
   status: "eaten" | "skipped" | "swapped" | null,
   size: OtherSize = "about",
-): Promise<Result<{ estimate?: MealEstimate }>> {
+): Promise<Result<{ estimate?: MealEstimate; cooked?: CookedNote[] }>> {
   return run(async () => {
-    const s = await state();
-    const p = s.placements.find((x) => x.date === day && x.slot === slot);
-    const m = p ? placedMacros(p) : null;
-    // Meals made on the spot (breakfasts, shakes, fresh dinners) use the cupboard as they are eaten.
-    const before = s.meals.find((x) => x.day === day && x.slot === slot)?.status;
-    const r = p?.recipe ? recipe(p.recipe) : undefined;
-    if (r && p && (p.source === "daily" || p.source === "fresh")) {
-      const was = before === "eaten";
-      const now = status === "eaten";
-      if (was !== now)
-        await store.changeStock(
-          cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })),
-          "add",
-        );
+    let s = await state();
+    let p = s.placements.find((x) => x.date === day && x.slot === slot);
+    // Eaten from a planned cook that wasn't logged: it was cooked, so log it first and
+    // the portion comes out of its batch like any other.
+    const cooked = status === "eaten" && p ? await logCooks(s, s.weekStart, cooksToLog([p])) : [];
+    if (cooked.length) {
+      s = await state();
+      p = s.placements.find((x) => x.date === day && x.slot === slot);
     }
+    const m = p ? placedMacros(p) : null;
+    const before = s.meals.find((x) => x.day === day && x.slot === slot)?.status;
+    await eatFromCupboard(p, before === "eaten", status === "eaten");
     if (status === "swapped") {
       // No recipe and no batch: the planned portion stays where it is, to be offered again.
       // With no meal planned for the slot, its share of the day's targets stands in.
@@ -323,17 +329,33 @@ export function logMeal(
       kcal: status === "eaten" ? (m?.kcal ?? null) : null,
       protein: status === "eaten" ? (m?.protein ?? null) : null,
     });
-    return {};
+    return cooked.length ? { cooked } : {};
   });
 }
 
-/** Every planned meal before today with nothing logged, as eaten. */
-export function logPastAsEaten(): Promise<Result<{ count: number }>> {
+/** Meals made on the spot (breakfasts, shakes, fresh dinners) use the cupboard as they are eaten. */
+async function eatFromCupboard(p: Placement | undefined, was: boolean, now: boolean) {
+  const r = p?.recipe ? recipe(p.recipe) : undefined;
+  if (!r || !p || (p.source !== "daily" && p.source !== "fresh") || was === now) return;
+  await store.changeStock(
+    cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })),
+    "add",
+  );
+}
+
+/**
+ * Every planned meal before today with nothing logged, as eaten: the cooks they came
+ * from are logged first, and meals made on the spot use the cupboard, as one tick does.
+ */
+export function logPastAsEaten(): Promise<Result<{ count: number; cooked?: CookedNote[] }>> {
   return run(async () => {
-    const s = await state();
+    const first = await state();
+    const cooked = await logCooks(first, first.weekStart, cooksToLog(unlogged(first, first.today)));
+    const s = cooked.length ? await state() : first;
     const todo = unlogged(s, s.today);
     for (const p of todo) {
       const m = placedMacros(p);
+      await eatFromCupboard(p, false, true);
       await store.logMeal({
         day: p.date,
         slot: p.slot,
@@ -344,7 +366,7 @@ export function logPastAsEaten(): Promise<Result<{ count: number }>> {
         protein: m?.protein ?? null,
       });
     }
-    return { count: todo.length };
+    return cooked.length ? { count: todo.length, cooked } : { count: todo.length };
   });
 }
 
@@ -379,29 +401,78 @@ export function rate(recipeKey: string, stars: number | null, note?: string): Pr
 /** Logs a planned cook: portions into the fridge (the later ones into the freezer), ingredients out of stock. */
 export function cookPlanned(start: string, cookId: string): Promise<Result> {
   return run(async () => {
-    const s = await state();
-    const plan = s.plans.find((p) => p.start === start)?.data;
-    const c = plan?.cooks.find((x) => x.id === cookId);
-    const r = c ? recipe(c.recipe) : undefined;
-    if (!plan || !c || !r) fail("That cook is not in the plan.");
-    const placed = viewFor(s, start)?.placements.filter((p) => p.cookId === cookId) ?? [];
-    const frozen = placed.filter((p) => p.storage === "freezer").length;
-    // Portions nobody is down to eat this week go in the freezer if they can, unless
-    // a fresh week's last cook keeps them in date for next week's first lunch.
-    const spare = Math.max(0, c!.portions - placed.length);
-    const freeze = frozen + (r!.keeps.freezes && !spareStaysCold(plan!, c!) ? spare : 0);
-    await store.cook({
-      recipe: r!.key,
-      day: s.today < c!.date ? s.today : c!.date,
-      portions: c!.portions,
-      scale: c!.scale,
-      freeze,
-      used: cookUse(r!, c!.portions, c!.scale),
-      planStart: start,
-      cookId,
-    });
+    await logCook(await state(), start, cookId);
     return {};
   });
+}
+
+/**
+ * Logs a planned cook from the state as loaded, and says where its portions went.
+ * Meals from it already logged as eaten (before the cook was) then take their
+ * portions, so the fridge holds only what is left.
+ */
+async function logCook(s: LifeState, start: string, cookId: string): Promise<CookedNote> {
+  const plan = s.plans.find((p) => p.start === start)?.data;
+  const c = plan?.cooks.find((x) => x.id === cookId);
+  const r = c ? recipe(c.recipe) : undefined;
+  if (!plan || !c || !r) fail("That cook is not in the plan.");
+  const placed = viewFor(s, start)?.placements.filter((p) => p.cookId === cookId) ?? [];
+  const frozen = placed.filter((p) => p.storage === "freezer").length;
+  // Portions nobody is down to eat this week go in the freezer if they can, unless
+  // a fresh week's last cook keeps them in date for next week's first lunch.
+  const spare = Math.max(0, c!.portions - placed.length);
+  const freeze = Math.min(c!.portions, frozen + (r!.keeps.freezes && !spareStaysCold(plan!, c!) ? spare : 0));
+  const batch = await store.cook({
+    recipe: r!.key,
+    day: s.today < c!.date ? s.today : c!.date,
+    portions: c!.portions,
+    scale: c!.scale,
+    freeze,
+    used: takenFromStock(cookUse(r!, c!.portions, c!.scale), s.stock),
+    planStart: start,
+    cookId,
+  });
+  const eatenAlready = s.meals.some(
+    (m) =>
+      m.status === "eaten" &&
+      !m.batchGid &&
+      placed.some((p) => p.cookId === cookId && p.date === m.day && p.slot === m.slot),
+  );
+  if (eatenAlready) {
+    const now = await state();
+    for (const { placement, meal } of eatenBeforeCooked(viewFor(now, start)?.placements ?? [], now.meals, cookId))
+      await store.logMeal({
+        day: meal.day,
+        slot: meal.slot,
+        status: "eaten",
+        recipe: meal.recipe,
+        batch: placement.batchGid,
+        kcal: meal.kcal,
+        protein: meal.protein,
+        note: meal.note,
+      });
+  }
+  return { cookId, name: r!.name, batch, fridge: c!.portions - freeze, freezer: freeze };
+}
+
+/**
+ * Logs each of these planned cooks, skipping one already logged (two quick ticks).
+ * Each cook reads the kitchen as the one before it left it, so what it records as
+ * taken from the cupboard, and Undo puts back, is what really came out.
+ */
+async function logCooks(s: LifeState, start: string, cookIds: string[]): Promise<CookedNote[]> {
+  const out: CookedNote[] = [];
+  let now = s;
+  for (const [i, id] of cookIds.entries()) {
+    if (i > 0) now = await state();
+    try {
+      out.push(await logCook(now, start, id));
+    } catch (e) {
+      const again = await state();
+      if (!again.batches.some((b) => b.planStart === start && b.cookId === id)) throw e;
+    }
+  }
+  return out;
 }
 
 /** Cooks something off-plan, for food made on a whim. */
@@ -412,7 +483,14 @@ export function cookExtra(recipeKey: string, portions: number): Promise<Result> 
     if (!r) fail("Unknown recipe.");
     if (!(portions >= 1 && portions <= 20)) fail("Between 1 and 20 portions.");
     const scale = cookScale(r!, s.kcal);
-    await store.cook({ recipe: r!.key, day: s.today, portions, scale, freeze: 0, used: cookUse(r!, portions, scale) });
+    await store.cook({
+      recipe: r!.key,
+      day: s.today,
+      portions,
+      scale,
+      freeze: 0,
+      used: takenFromStock(cookUse(r!, portions, scale), s.stock),
+    });
     return {};
   });
 }
