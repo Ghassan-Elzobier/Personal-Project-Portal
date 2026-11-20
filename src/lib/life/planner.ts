@@ -333,6 +333,20 @@ function compare(a: number[], b: number[]): number {
 }
 
 /**
+ * A week's shops with the first one on the week's first day (or today, for a week
+ * already running), before its first meals, when the routine's first shop day is
+ * later: a week from Saturday with shops on Sunday and Wednesday shops on Saturday
+ * and Wednesday. Left alone once any shop is done, or when the first shop is in time.
+ */
+export function firstShopFirst(start: string, today: string, trips: Trip[]): Trip[] {
+  if (!trips.length || trips.some((t) => t.doneOn)) return trips;
+  const firstDay = start > today ? start : today;
+  const sorted = [...trips].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  if (sorted[0].date <= firstDay) return trips;
+  return trips.map((t) => (t === sorted[0] ? { ...t, date: firstDay } : t));
+}
+
+/**
  * In a fresh week, a cook's spare portions (for next week's first lunch) stay in
  * the fridge when they are still in date at the start of next week.
  */

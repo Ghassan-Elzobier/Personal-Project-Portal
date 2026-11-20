@@ -18,6 +18,7 @@ import {
 import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
 import {
   assign,
+  firstShopFirst,
   cookScale,
   mealWeekStart,
   reminders,
@@ -140,7 +141,13 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
       : null;
   const kcal = profile.goal.kcalOverride ?? targets?.kcal ?? 2600;
   const weekStart = mealWeekStart(today, profile.routine.cooks[0]?.weekday ?? 6);
-  const plan = raw.plans.find((p) => p.start === weekStart)?.data ?? null;
+  // A fresh week saved with its first shop after its first day gets it on that day.
+  const plans = raw.plans.map((p) =>
+    p.data.mode === "fresh" && p.data.trips
+      ? { ...p, data: { ...p.data, trips: firstShopFirst(p.data.start, today, p.data.trips) } }
+      : p,
+  );
+  const plan = plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
   const place = (p: WeekPlan | null) =>
     p
@@ -148,13 +155,14 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
       : [];
   const placements = place(plan);
   const nextStart = addDays(weekStart, 7);
-  const nextPlan = raw.plans.find((p) => p.start === nextStart)?.data ?? null;
+  const nextPlan = plans.find((p) => p.start === nextStart)?.data ?? null;
   const nextPlacements = place(nextPlan);
   const eaten = eatenShare(raw.meals, today);
   const adjustment =
     setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
   return {
     ...raw,
+    plans,
     today,
     profile,
     setUp,

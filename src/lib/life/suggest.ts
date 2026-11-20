@@ -12,7 +12,7 @@ import { INGREDIENTS } from "./ingredients.ts";
 import { verdict } from "./nutrition.ts";
 import type { CookSession, LifeProfile } from "./profile.ts";
 import { mainProtein, recipe, RECIPES, type Recipe } from "./recipes.ts";
-import type { Cook, Trip, WeekMode, WeekPlan } from "./planner.ts";
+import { firstShopFirst, type Cook, type Trip, type WeekMode, type WeekPlan } from "./planner.ts";
 import { planCombo, type ComboSession, type Kitchen } from "./combo.ts";
 
 export type Rating = { recipe: string; stars: number };
@@ -335,15 +335,15 @@ function suggestFreshWeek(
   const shakes = rank(profile, "shake", ratings, lastHad, spare, today)
     .slice(0, 3)
     .map((r) => r.recipe.key);
-  const trips: Trip[] = catchUp(sessionDates(start, profile.routine.fresh.trips), today).map((t) => ({
-    id: `trip-${t.date}`,
-    date: t.date,
-    start: t.start,
-  }));
-  // The week's first shop comes on its first day, before its first meals, when the
-  // routine's first shop day is later (a week from Saturday, shops on Sunday).
-  const firstDay = start > today ? start : today;
-  if (trips[0] && trips[0].date > firstDay) trips[0] = { ...trips[0], id: `trip-${firstDay}`, date: firstDay };
+  const trips: Trip[] = firstShopFirst(
+    start,
+    today,
+    catchUp(sessionDates(start, profile.routine.fresh.trips), today).map((t) => ({
+      id: `trip-${t.date}`,
+      date: t.date,
+      start: t.start,
+    })),
+  );
   return {
     start,
     mode: "fresh",
