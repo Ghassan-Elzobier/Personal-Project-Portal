@@ -1,10 +1,30 @@
 # An independent review of each pull request, by a Claude session that did not
 # write the code: the inferential check that runs after the computational ones
-# (CI). On the Max plan it reviews when a PR is opened or marked ready, and again
-# when new commits are pushed, so fix-ups after a review are reviewed too. Pushes
-# close together cancel the earlier run, so only the latest commit is reviewed.
-# Ask for another with "@claude review" in a comment. Label a PR "skip-review" to
-# skip it. Dependabot updates are skipped.
+# (CI). It reviews when a PR is opened or marked ready, and again on every push,
+# so fix-ups after a review are reviewed too. Pushes close together cancel the
+# earlier run, so only the latest commit is reviewed.
+#
+# Every review ends in one comment that names the commit it covered ("Reviewed
+# abc1234: no issues found", or its findings, each also on its own line), and the
+# check fails when there is none: a review that says nothing must not look like a
+# pass. A failed check says why in a note on the pull request.
+#
+# The reviewer reads pull requests, so it is built to hold nothing worth taking:
+#   review  a script works out what to review (the whole pull request, or what
+#           changed since the commit the last review covered) and builds the
+#           prompt from .claude/commands/review-pr.md (no AI). Then Claude reads
+#           the diff and the checkout with a read-only token, no shell, no file
+#           edits, no web and no MCP servers or connectors, and answers in a fixed
+#           JSON shape.
+#   post    a script (no AI, and the only job that can write) checks the answer is
+#           about the head commit, and posts the review from it.
+# The scripts and the instructions come from the base branch, so a pull request
+# can't rewrite its own review; /improve-factory can tune them from there. (This
+# file is the pull request's own copy, as GitHub runs any pull_request workflow: a
+# change to it shows in the diff, for the owner to read.)
+#
+# Ask for another review in a comment to Claude, or run /review-pr in a session.
+# Label a PR "skip-review" to skip it. Dependabot updates are skipped.
 name: Claude review
 
 on:
@@ -20,6 +40,7 @@ permissions:
 
 jobs:
   review:
+    name: Review
     # Not for Dependabot: its runs get no secrets and the action refuses bot authors;
     # CI, the guard and the screenshots check dependency updates instead.
     # Drafts wait until they are marked ready.
@@ -30,20 +51,113 @@ jobs:
       !contains(github.event.pull_request.labels.*.name, 'skip-review')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Read-only: Claude runs in this job.
     permissions:
       contents: read
-      pull-requests: write
+      # Earlier reviews, for what this one has to cover.
+      pull-requests: read
       issues: read
-      id-token: write
+    outputs:
+      needed: ${{ steps.brief.outputs.needed }}
+      answer: ${{ steps.claude.outputs.structured_output }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - name: Take the review's own code from the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .review-base
+          sparse-checkout: |
+            scripts/review.mjs
+            src/lib/ci/review.ts
+            .claude/commands/review-pr.md
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Work out what to review (no AI)
+        id: brief
+        # The base branch's copy; this pull request's only while the base has none.
+        run: |
+          script=.review-base/scripts/review.mjs
+          [ -f "$script" ] || script=scripts/review.mjs
+          node --experimental-strip-types --no-warnings "$script" brief
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+      - name: Review
+        id: claude
+        # Skipped when this commit already has its review (the job was run again).
+        if: steps.brief.outputs.needed == 'true'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        env:
+          # The owner's claude.ai connectors (the Portal's own data among them) never load here.
+          ENABLE_CLAUDEAI_MCP_SERVERS: "false"
+          # A second layer: credentials stay out of anything Claude Code starts, such as its hooks.
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
-          plugins: "code-review@claude-plugins-official"
-          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          claude_args: '--model opus --allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # This job's read-only token, instead of the Claude app's, which can write.
+          github_token: ${{ github.token }}
+          # A push by Claude itself (a CI fix, a resolved conflict) is reviewed like any other:
+          # the action otherwise refuses a run started by a bot, and those are fix-ups too.
+          allowed_bots: claude
+          # The repository's own review instructions.
+          prompt: ${{ steps.brief.outputs.prompt }}
+          # It may read the checkout and nothing else. The project's settings allow a
+          # session to run npm scripts and push branches; none of that applies here.
+          claude_args: >-
+            --model opus
+            --max-turns 60
+            --permission-mode default
+            --strict-mcp-config
+            --disallowedTools "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,mcp__*,Read(./.git/**)"
+            --json-schema '${{ steps.brief.outputs.schema }}'
+
+  post:
+    name: Post the review
+    needs: review
+    # Also after a review that failed, to say on the pull request what is missing. Not
+    # after a cancelled run (a newer push has its own) or a skipped one.
+    if: ${{ !cancelled() && needs.review.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The only write in the workflow, held by a script with no AI.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Take the review's own code from the base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .review-base
+          sparse-checkout: |
+            scripts/review.mjs
+            src/lib/ci/review.ts
+            .claude/commands/review-pr.md
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check the answer and post the review (no AI)
+        run: |
+          script=.review-base/scripts/review.mjs
+          [ -f "$script" ] || script=scripts/review.mjs
+          node --experimental-strip-types --no-warnings "$script" post
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          NEEDED: ${{ needs.review.outputs.needed }}
+          ANSWER: ${{ needs.review.outputs.answer }}
