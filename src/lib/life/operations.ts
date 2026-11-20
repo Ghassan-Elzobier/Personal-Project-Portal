@@ -31,7 +31,7 @@ import {
   type Product,
 } from "./shopping";
 import {
-  openStock,
+  stockFor,
   placedMacros,
   remainingNeeds,
   tripLists,
@@ -144,12 +144,16 @@ export function applyAdjustment(): Promise<Result<{ kcal: number }>> {
 
 // ---------------------------------------------------------------- plans
 
-/** What the planner needs to cost a week: the kitchen as that week finds it, and your targets. */
+/**
+ * What the planner needs to size and cost a week: the kitchen as that week finds it
+ * (food, and cooked portions it can really use), and your targets.
+ */
 function kitchenOf(s: LifeState, start: string): Kitchen {
+  const v = viewFor(s, start) ?? weekView(s, "this");
   return {
-    stock: kitchenFor(s, viewFor(s, start) ?? weekView(s, "this")),
+    stock: kitchenFor(s, v),
     products: s.products,
-    batches: openStock(s),
+    batches: stockFor(s, v),
     kcal: s.kcal,
     routine: plannerRoutine(s.profile),
     rules: s.profile.food,
@@ -157,12 +161,14 @@ function kitchenOf(s: LifeState, start: string): Kitchen {
 }
 
 async function savePlan(s: LifeState, plan: WeekPlan) {
-  const sized = { ...plan, cooks: sizeCooks(plan, plannerRoutine(s.profile), s.kcal) };
+  // Cooked portions already in the kitchen are eaten first, so the cooks make fewer.
+  const kitchen = kitchenOf(s, plan.start);
+  const sized = { ...plan, cooks: sizeCooks(plan, kitchen.routine, kitchen.kcal, kitchen.batches) };
   // What the week costs, worked out again after each change until its food is bought;
   // after that the kitchen holds the week's food, so the figure would mislead and goes.
   const bought = Boolean(plan.shop?.deliveredOn || plan.trips?.some((t) => t.doneOn));
   const cheaper = plan.cost?.cheaper;
-  const cost = bought ? undefined : { ...weekCost(sized, kitchenOf(s, plan.start)), ...(cheaper ? { cheaper } : {}) };
+  const cost = bought ? undefined : { ...weekCost(sized, kitchen), ...(cheaper ? { cheaper } : {}) };
   const saved = { ...sized, cost };
   await store.savePlan(plan.start, saved);
   return saved;
