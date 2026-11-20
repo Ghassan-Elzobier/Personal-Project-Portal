@@ -28,7 +28,8 @@ async function aPlannedWeek(page: Page, request: APIRequestContext) {
   }
 }
 
-const cookLink = (page: Page) => page.locator('main a[href*="?cook="]');
+/** A link to a planned cook's recipe; relative, so it also works inside `has`. */
+const cookLink = (page: Page) => page.locator('a[href*="?cook="]');
 
 test("a planned cook's recipe opens at the cook's portions and size, from Meals and from the Kitchen", async ({
   page,
