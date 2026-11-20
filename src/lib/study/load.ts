@@ -212,6 +212,8 @@ export function buildRoadmap(plans: PlanProgress[]): Roadmap {
 export type ReviewItem = {
   gid: string;
   prompt: string;
+  /** What to check the recall against, when the card has one. */
+  answer: string | null;
   kind: string;
   step: number;
   dueOn: string;
@@ -246,6 +248,7 @@ export async function loadStudy(): Promise<StudyOverview> {
       {
         gid: r.gid,
         prompt: r.prompt,
+        answer: r.answer ?? null,
         kind: r.kind,
         step: r.step,
         dueOn: r.due_on,

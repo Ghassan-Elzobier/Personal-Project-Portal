@@ -120,14 +120,19 @@ export async function endSession(sessionGid: unknown, input: Json): Promise<Resu
   const status = input.status === "dropped" ? "dropped" : input.status === "done" ? "done" : null;
   if (!status) return { error: "status is done or dropped." };
   const result = await run(async () => {
-    // A check the owner got wrong comes back tomorrow without Claude having to ask.
+    // A check the owner got wrong comes back tomorrow without Claude having to ask,
+    // and what Claude said about it then is the answer on its card.
     const record = await store.readSession(session);
     const misses = record.answers
       .filter((a) => a.correct === false && ["check", "recall", "practice"].includes(a.kind))
-      .map((a) => a.question);
+      .map((a) => ({ question: a.question, feedback: a.feedback }));
     const chosen = list(input.review_prompts)
       .map(obj)
-      .map((r) => ({ prompt: text(r.prompt, 500), days: typeof r.days === "number" ? r.days : undefined }));
+      .map((r) => ({
+        prompt: text(r.prompt, 500),
+        days: typeof r.days === "number" ? r.days : undefined,
+        answer: typeof r.answer === "string" ? r.answer : undefined,
+      }));
     return store.endSession(session, status, text(input.summary, 2000), reviewsFor({ chosen, misses }));
   });
   return result.error !== undefined ? result : { reviews: result.value };

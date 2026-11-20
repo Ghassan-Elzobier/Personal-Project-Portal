@@ -11,7 +11,7 @@ export const TEACH_METHOD = [
   "4. RECORD as you go. After each answer call tutor_record_answer once, with their words in 'thinking' and your verdict in 'correct'. Their confidence and reasoning are evidence, so keep the surprises: sure and wrong is the most useful thing in the record.",
   "5. Write for the ear, not the form. No announcing what you are about to do, no labelled segments, no restating the map. Every sentence either installs understanding or checks it.",
   "6. SAVE what was taught with tutor_save_claims: each claim is one true statement in your own words with a short name, and each chain lists the claims that together give a conclusion. Never paste book text; for what the book says, use search_pmpp and read_pmpp and cite section and page.",
-  "7. END with tutor_end: a two-sentence summary, and review_prompts for the few claims worth recalling later, each written as a question the owner can answer from memory. Checks they missed come back on their own.",
+  "7. END with tutor_end: a two-sentence summary, and review_prompts for the few claims worth recalling later, each written as a question the owner can answer from memory. Give each its answer in your own words, never the book's: the owner recalls first, then checks against it. Checks they missed come back on their own, with your feedback as the answer.",
   "The session is finished when the goal feels obviously true to them, not when they can recite it.",
 ].join("\n");
 
