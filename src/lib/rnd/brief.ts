@@ -54,9 +54,14 @@ export function historySection(issues: PastIssue[], focusId: string, owner: stri
   return lines.join("\n");
 }
 
-/** What e2e/page-shots.spec.ts records about each page, beside its screenshot. */
+/** What e2e/page-shot.ts records about each page, beside its screenshot. */
 export type PageFacts = {
   path: string;
+  /**
+   * What a test set up before the shot, when the page is not as seeded: "bank
+   * connected". The seeded Money page is one card; the page in use is thirteen.
+   */
+  state?: string;
   shot: string;
   screens: number;
   tapTargets: number;
@@ -73,7 +78,10 @@ export type PageFacts = {
 
 /** The fewest taps from one page to each of the others, following the links each page shows. */
 export function tapsFrom(start: string, pages: PageFacts[]): Map<string, number> {
-  const byPath = new Map(pages.map((p) => [p.path, p]));
+  // A page shot in a set-up state as well keeps the links of its seeded state: that is where everyone starts.
+  const byPath = new Map(
+    [...pages].sort((a, b) => Number(Boolean(b.state)) - Number(Boolean(a.state))).map((p) => [p.path, p]),
+  );
   const taps = new Map([[start, 0]]);
   const queue = [start];
   for (let here = queue.shift(); here !== undefined; here = queue.shift()) {
@@ -94,14 +102,17 @@ export function pagesSection(pages: PageFacts[], focus: Focus): string {
   const mine = new Set(focus.pages ?? []);
   const taps = tapsFrom("/", pages);
   const rows = [...pages].sort(
-    (a, b) => Number(mine.has(b.path)) - Number(mine.has(a.path)) || a.path.localeCompare(b.path),
+    (a, b) =>
+      Number(mine.has(b.path)) - Number(mine.has(a.path)) ||
+      a.path.localeCompare(b.path) ||
+      (a.state ?? "").localeCompare(b.state ?? ""),
   );
   return [
     "| Page | Shot | Taps from Today | Screens long | Tap targets (under 24 / 48 px) | Links | Words | JS KB | LCP ms |",
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ...rows.map(
       (p) =>
-        `| ${p.path}${mine.has(p.path) ? " ★" : ""} | ${p.shot} | ${taps.get(p.path) ?? "–"} | ${p.screens} | ` +
+        `| ${p.path}${p.state ? ` (${p.state})` : ""}${mine.has(p.path) ? " ★" : ""} | ${p.shot} | ${taps.get(p.path) ?? "–"} | ${p.screens} | ` +
         `${p.tapTargets} (${p.under24} / ${p.under48}) | ${p.links.length} | ${p.words} | ${p.jsKb} | ${p.lcpMs} |`,
     ),
   ].join("\n");
