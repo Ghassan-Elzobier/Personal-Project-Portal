@@ -6,6 +6,7 @@ import { toast } from "@/components/toaster";
 import { clock } from "@/lib/dates/week";
 import type { Day, DayItem } from "@/lib/portal/day";
 import { cookPlanned, logMeal } from "./life/actions";
+import { moveBlock } from "./schedule/actions";
 
 const DOT: Record<DayItem["kind"], string> = {
   weigh: "bg-lavender",
@@ -44,6 +45,27 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
         }
         toast("In the fridge. The Kitchen says what to freeze.");
       }
+    });
+  // A missed study block goes to the free time it was offered. The page comes back with it
+  // there; Undo puts it where it was.
+  const [moving, startMove] = useTransition();
+  const move = (i: DayItem) =>
+    startMove(async () => {
+      const to = i.move;
+      if (!to) return;
+      const there = { source: to.source, id: to.id, duration: to.duration };
+      const r = await moveBlock({ ...there, date: to.date, start: to.start });
+      if (r.error) return void toast(r.error, { tone: "error" });
+      toast(`Moved to ${to.date === date ? "" : "tomorrow, "}${clock(to.start)}.`, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            startMove(async () => {
+              const back = await moveBlock({ ...there, date, start: i.start });
+              if (back.error) toast(back.error, { tone: "error" });
+            }),
+        },
+      });
     });
 
   return (
@@ -94,15 +116,39 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
                   className={`size-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
                   aria-hidden
                 />
-                {i.external ? (
-                  <a href={i.href} target="_blank" rel="noreferrer" className="min-w-0 flex-1">
-                    {body}
-                  </a>
-                ) : (
-                  <Link href={i.href} className="min-w-0 flex-1">
-                    {body}
-                  </Link>
-                )}
+                <div className="min-w-0 flex-1">
+                  {i.external ? (
+                    <a href={i.href} target="_blank" rel="noreferrer" className="block min-w-0">
+                      {body}
+                    </a>
+                  ) : (
+                    <Link href={i.href} className="block min-w-0">
+                      {body}
+                    </Link>
+                  )}
+                  {i.missed && (
+                    // On its own line under the name, so the offer never squeezes the name out on a phone.
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className="text-sand">Missed</span>
+                      {i.move && (
+                        <button
+                          type="button"
+                          onClick={() => move(i)}
+                          disabled={moving}
+                          aria-busy={moving}
+                          className="cursor-pointer rounded-full bg-sand/15 px-3 py-1.5 font-semibold text-sand ring-1 ring-sand/30 disabled:opacity-60"
+                        >
+                          {i.move.label}
+                        </button>
+                      )}
+                      {i.taskGid && (
+                        <Link href={`/log?task=${i.taskGid}`} className="text-muted underline underline-offset-2">
+                          Log it if you did study
+                        </Link>
+                      )}
+                    </p>
+                  )}
+                </div>
                 <Action
                   item={i}
                   isDone={isDone}
@@ -163,6 +209,8 @@ function Action({
       </span>
     );
   }
+  // A missed study block has its own line under its name: the move it is offered, and Log.
+  if (i.missed) return null;
   if (i.kind === "gym") return pill("/life/gym", "Start");
   if (i.kind === "weigh") return pill("/life/body", "Log");
   // A fresh week's shop, not the untimed "plan the week" nudge.

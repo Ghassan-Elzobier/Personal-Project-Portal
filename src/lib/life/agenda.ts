@@ -6,6 +6,7 @@
 // time inside its own window, so lunch stays a lunch and the shake stays after
 // the gym. Fixed things never move. Pure, so it is tested.
 
+import { overlaps } from "../calendar/free-slot.ts";
 import { addDays, weekdayIndex } from "../dates/week.ts";
 import { workout } from "./gym/program.ts";
 import { nextWorkout } from "./gym/progress.ts";
@@ -222,8 +223,6 @@ function rotation(s: LifeState, last: string): (date: string) => string {
     ahead.get(date) ??
     nextWorkout(s.sessions.filter((x) => x.day < date));
 }
-
-const overlaps = (a0: number, a1: number, b0: number, b1: number) => a0 < b1 && b0 < a1;
 
 /**
  * Moves clashing life items to the nearest free time in their window, most
