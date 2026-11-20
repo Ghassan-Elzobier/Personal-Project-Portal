@@ -246,7 +246,7 @@ export function buildList(
       spare: item.staple ? 0 : Math.max(0, have + packs * perPack - n.qty) + over,
       link: product?.url ?? sainsburysSearch(item.search),
       product,
-      checks: labelChecks(rules, item.watch).filter((t) => !product?.checked.includes(t)),
+      checks: labelChecks(rules, item.watch, item.compound).filter((t) => !product?.checked.includes(t)),
       firstUse: n.firstUse,
       freezeOnArrival: Boolean(
         packs > 0 && deliveredOn && item.storage === "fridge" && dayGap(deliveredOn, n.firstUse) > keepsDays,
