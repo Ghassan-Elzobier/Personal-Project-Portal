@@ -317,6 +317,46 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
   return placements;
 }
 
+/**
+ * Cooked portions nobody is down to eat (a meal swapped or skipped) fill the week's
+ * empty lunches and dinners from `from` on, soonest first, while they are still in
+ * date: fridge portions within their fridge days, freezer ones the day after a
+ * defrost reminder. Portions left over carry to next week.
+ */
+export function fillGaps(placements: Placement[], stock: StockBatch[], from: string): Placement[] {
+  const left = stock.map((b) => ({ ...b })).filter((b) => b.left > 0 && recipe(b.recipe)?.meal === "main");
+  return placements.map((p) => {
+    if (p.source !== "none" || (p.slot !== "lunch" && p.slot !== "dinner") || p.date < from) return p;
+    const b = left
+      .filter((x) => x.left > 0)
+      .filter((x) => x.location === "freezer" || daysBetween(x.cookedOn, p.date) <= recipe(x.recipe)!.keeps.fridgeDays)
+      .sort(
+        (a, b2) =>
+          Number(a.location === "freezer") - Number(b2.location === "freezer") || a.cookedOn.localeCompare(b2.cookedOn),
+      )[0];
+    if (!b) return p;
+    b.left -= 1;
+    return {
+      ...p,
+      recipe: b.recipe,
+      source: "stock",
+      batchGid: b.gid,
+      cookedOn: b.cookedOn,
+      storage: b.location,
+      defrostOn: b.location === "freezer" ? addDays(p.date, -1) : undefined,
+      scale: b.scale,
+    };
+  });
+}
+
+/** How many portions this week's meals still take from each batch: placed from it, with nothing logged. */
+export function stillToEat(placements: Placement[], logged: Set<string>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const p of placements)
+    if (p.batchGid && !logged.has(`${p.date}:${p.slot}`)) out.set(p.batchGid, (out.get(p.batchGid) ?? 0) + 1);
+  return out;
+}
+
 /** Lunch and dinner share a batch, so its portions aim between their two shares. */
 export function cookScale(r: Recipe, kcal: number): number {
   return portionScale(r, (kcal * (SPLIT.lunch + SPLIT.dinner)) / 2);
