@@ -8,15 +8,26 @@ import { loadLife } from "@/lib/life/load";
 import { loadToday } from "@/lib/money/load";
 import { spareStaysCold } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
-import { amount, AISLES, buildList, listTotal, money, packLabel, soonToUse, type ListLine } from "@/lib/life/shopping";
-import { remainingNeeds, tripLists, weekView, type WeekView } from "@/lib/life/state";
+import {
+  amount,
+  AISLES,
+  buildList,
+  listTotal,
+  money,
+  packLabel,
+  pastItsDate,
+  soonToUse,
+  spareUntil,
+  type ListLine,
+} from "@/lib/life/shopping";
+import { kitchenFor, remainingNeeds, tripLists, weekView, type WeekView } from "@/lib/life/state";
 import type { AgendaItem } from "@/lib/life/agenda";
 import { attempt } from "@/lib/portal/data";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import Link from "next/link";
 import { eligible, sessionDates } from "@/lib/life/suggest";
 import { ErrorNote, Tabs } from "@/components/ui";
-import { clock, dayLabel, LifeHeader, weekRange } from "../parts";
+import { clock, dayLabel, LifeHeader, weekdayShort, weekRange } from "../parts";
 import { CupboardView, DoneTrips, FridgeView, ShopView, type ShopLine } from "./views";
 
 export const metadata: Metadata = { title: "Kitchen" };
@@ -45,6 +56,7 @@ export default async function KitchenPage({
   const which = week === "next" ? "next" : "this";
   const v = weekView(s, which);
   const soon = soonToUse(s.stock, s.today);
+  const past = pastItsDate(s.stock, s.today);
   const current = ["shop", "fridge", "cupboard"].includes(tab) ? tab : "shop";
   const portions = s.open.reduce((n, b) => n + b.remaining, 0);
   const q = (t: string) => `/life/kitchen?tab=${t}${which === "next" ? "&week=next" : ""}`;
@@ -70,14 +82,14 @@ export default async function KitchenPage({
         tabs={[
           { key: "shop", label: "Shop", href: q("shop") },
           { key: "fridge", label: "Fridge", href: q("fridge"), count: portions },
-          { key: "cupboard", label: "Cupboard", href: q("cupboard"), count: soon.length },
+          { key: "cupboard", label: "Cupboard", href: q("cupboard"), count: soon.length + past.length },
         ]}
       />
       {current === "shop" && (
         <Shop key={v.start} s={s} v={v} weekLeft={which === "this" ? (money?.view.week.left ?? null) : null} />
       )}
       {current === "fridge" && <Fridge s={s} v={v} />}
-      {current === "cupboard" && <Cupboard s={s} soon={soon.map((x) => x.item)} />}
+      {current === "cupboard" && <Cupboard s={s} soon={soon.map((x) => x.item)} past={past.map((x) => x.item)} />}
     </div>
   );
 }
@@ -104,12 +116,12 @@ function Shop({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | null }
     (s.profile.shopping.deliveryWeekday !== null
       ? nextWeekday(s.today, s.profile.shopping.deliveryWeekday, plan.start)
       : s.today);
-  const lines = buildList(remainingNeeds(s, v), s.stock, s.products, s.profile.food, deliveryDay);
+  const lines = buildList(remainingNeeds(s, v), kitchenFor(s, v), s.products, s.profile.food, deliveryDay);
   const total = listTotal(lines);
   return (
     <ShopView
       start={plan.start}
-      lines={lines.map((l) => shopLine(s, l))}
+      lines={lines.map((l) => shopLine(s, l, deliveryDay))}
       aisles={AISLES}
       total={{
         price: money(total.pence),
@@ -174,7 +186,7 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
               when: `${dayLabel(trip.date, s.today)} · ${clock(trip.start)}`,
               early,
             }}
-            lines={lines.map((l) => shopLine(s, l))}
+            lines={lines.map((l) => shopLine(s, l, trip.date))}
             aisles={AISLES}
             total={{
               price: money(total.pence),
@@ -191,7 +203,7 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
             delivered={null}
             deliveryDay={dayLabel(trip.date, s.today)}
             ticks={{ ticked: trip.ticked ?? [], missing: trip.missing ?? [], via: trip.via }}
-            notFound={notFound.map((n) => ({ line: shopLine(s, n.line), to: titleOf(n.to) }))}
+            notFound={notFound.map((n) => ({ line: shopLine(s, n.line, trip.date), to: titleOf(n.to) }))}
             next={titleOf(open[i + 1]?.trip.id ?? null)}
             budgetPence={share(trip.id)}
             weekLeftPence={weekLeft}
@@ -216,7 +228,18 @@ function unchecked(s: S, lines: ListLine[]) {
     .map((l) => ({ item: l.item.key, name: l.item.name }));
 }
 
-function shopLine(s: S, l: ListLine): ShopLine {
+/** "75 g spare, goes off Sat" or "1.1 kg spare, kept for next week": what the plan does with a pack's rest. */
+function spareNote(s: S, l: ListLine, boughtOn: string): string | null {
+  if (l.spare <= 0 || l.item.staple) return null;
+  const until = spareUntil(
+    l,
+    s.stock.find((x) => x.item === l.item.key),
+    boughtOn,
+  );
+  return `${amount(l.item, l.spare)} spare, ${until ? `goes off ${weekdayShort(until)}` : "kept for next week"}`;
+}
+
+function shopLine(s: S, l: ListLine, boughtOn: string): ShopLine {
   return {
     item: l.item.key,
     name: l.item.name,
@@ -228,7 +251,7 @@ function shopLine(s: S, l: ListLine): ShopLine {
     pence: l.pence,
     price: money(l.pence),
     estimate: l.priced === "estimate",
-    spare: l.spare > 0 && !l.item.staple ? amount(l.item, l.spare) : null,
+    spare: spareNote(s, l, boughtOn),
     link: l.link,
     product: l.product
       ? {
@@ -364,7 +387,7 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
   );
 }
 
-function Cupboard({ s, soon }: { s: S; soon: string[] }) {
+function Cupboard({ s, soon, past }: { s: S; soon: string[]; past: string[] }) {
   const rows = [...INGREDIENTS.values()]
     .map((i) => {
       const st = s.stock.find((x) => x.item === i.key);
@@ -379,11 +402,13 @@ function Cupboard({ s, soon }: { s: S; soon: string[] }) {
         status: st?.status ?? null,
         goodUntil: st?.goodUntil ? dayLabel(st.goodUntil, s.today) : null,
         soon: soon.includes(i.key),
+        past: past.includes(i.key),
         known: Boolean(st),
       };
     })
     .sort(
       (a, b) =>
+        Number(b.past) - Number(a.past) ||
         Number(b.soon) - Number(a.soon) ||
         AISLES.indexOf(a.aisle) - AISLES.indexOf(b.aisle) ||
         a.name.localeCompare(b.name),

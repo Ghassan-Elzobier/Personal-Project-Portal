@@ -27,6 +27,7 @@ import {
 import { mainProtein, recipe, type Recipe } from "./recipes.ts";
 import {
   buildList,
+  goodOn,
   linesFor,
   money,
   packInItemUnit,
@@ -388,6 +389,15 @@ const PER_ITEM = 0.15;
 /** Whole packs: a dish grows by at most this much to finish one. */
 export const ROUND_MAX = 1.15;
 
+/**
+ * The kitchen as a week starting on `start` can use it: food already past its date
+ * counts as neither in stock nor waste. Food that goes off during the week is the
+ * list's to judge, use by use (`fromKitchen`).
+ */
+function goodFrom(k: Kitchen, start: string): Kitchen {
+  return { ...k, stock: k.stock.filter((row) => goodOn(row, start)) };
+}
+
 function comboItem(key: string, k: Kitchen): ComboItem | null {
   const ing = INGREDIENTS.get(key);
   if (!ing) return null;
@@ -408,7 +418,8 @@ function comboItem(key: string, k: Kitchen): ComboItem | null {
  * for as the list will (one shop, or a fresh week's shops). Waste is fresh food left
  * at the end, bought or already in, that goes off.
  */
-export function weekCost(plan: WeekPlan, k: Kitchen): WeekCost {
+export function weekCost(plan: WeekPlan, kitchen: Kitchen): WeekCost {
+  const k = goodFrom(kitchen, plan.start);
   const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   return costOfPlaced(sized, placed, k);
@@ -487,7 +498,8 @@ export function planCombo(input: {
   kitchen: Kitchen;
   cheaper?: boolean;
 }): { week: ComboWeek; cheaper: ComboWeek | null } | null {
-  const { week, sessions, ranked, kitchen: k } = input;
+  const { week, sessions, ranked } = input;
+  const k = goodFrom(input.kitchen, week.start);
   const fresh = week.mode === "fresh";
   const end = addDays(week.start, 7);
 
