@@ -45,6 +45,15 @@ export function takenFromStock(
     .filter((u) => u.qty > 0);
 }
 
+/**
+ * A message after logging, with word that next week is planning itself when that
+ * cook was this week's last (`planningNext` in the operation's answer).
+ */
+export function withNextWeek(message: string, answer: unknown): string {
+  const planning = typeof answer === "object" && answer !== null && "planningNext" in answer && answer.planningNext;
+  return planning ? `${message} That was this week's last cook, so next week is planning itself.` : message;
+}
+
 /** "Logged the cook too: Bolognese, 3 in the fridge and 2 in the freezer." */
 export function cookedNote(cooked: CookedNote[]): string | null {
   if (!cooked.length) return null;

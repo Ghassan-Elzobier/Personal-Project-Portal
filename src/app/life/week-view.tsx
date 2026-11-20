@@ -19,7 +19,7 @@ import {
   uncook,
 } from "./actions";
 import { ActionButton, Sheet, Stars, toastCooked, useAction } from "./kit";
-import { cookedNote } from "@/lib/life/cooked";
+import { cookedNote, withNextWeek } from "@/lib/life/cooked";
 import { Chip } from "@/components/ui";
 
 export type Alt = {
@@ -140,7 +140,7 @@ export function AteThem() {
           const r = await logPastAsEaten();
           if (r.error !== undefined) return void toast(r.error, { tone: "error" });
           const cooked = cookedNote(r.cooked ?? []);
-          toast(cooked ? `Logged as eaten. ${cooked}` : "Logged as eaten.");
+          toast(withNextWeek(cooked ? `Logged as eaten. ${cooked}` : "Logged as eaten.", r));
         })
       }
     >
@@ -192,14 +192,17 @@ export function WeekView({
       const r = await logMeal(day.date, meal.slot, status, size);
       if (r.error !== undefined) return void toast(r.error, { tone: "error" });
       // A meal from a cook that wasn't logged logs the cook too; Undo takes both back.
-      toastCooked(r.cooked, () =>
-        start_(async () => {
-          await logMeal(day.date, meal.slot, null);
-          for (const c of r.cooked ?? []) {
-            const back = await uncook(c.batch);
-            if (back.error) return void toast(back.error, { tone: "error" });
-          }
-        }),
+      toastCooked(
+        r.cooked,
+        () =>
+          start_(async () => {
+            await logMeal(day.date, meal.slot, null);
+            for (const c of r.cooked ?? []) {
+              const back = await uncook(c.batch);
+              if (back.error) return void toast(back.error, { tone: "error" });
+            }
+          }),
+        r,
       );
     });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "@/components/toaster";
-import { cookedNote, type CookedNote } from "@/lib/life/cooked";
+import { cookedNote, withNextWeek, type CookedNote } from "@/lib/life/cooked";
 
 // Small client pieces the Life pages share: a button that runs an action and
 // says what happened, a bottom sheet, and star ratings.
@@ -20,7 +20,8 @@ export function useAction() {
           toast(result.error, { tone: "error" });
           resolve(false);
         } else {
-          if (done) toast(done);
+          // A cook that was the week's last says next week is planning itself.
+          if (done) toast(withNextWeek(done, result));
           resolve(true);
         }
       }),
@@ -63,10 +64,13 @@ export function ActionButton({
   );
 }
 
-/** Says which cooks were logged because a meal from them was eaten, with Undo. */
-export function toastCooked(cooked: CookedNote[] | undefined, undo: () => void) {
+/**
+ * Says which cooks were logged because a meal from them was eaten, with Undo, and
+ * that next week is planning itself when one was the week's last (`answer`).
+ */
+export function toastCooked(cooked: CookedNote[] | undefined, undo: () => void, answer?: unknown) {
   const note = cookedNote(cooked ?? []);
-  if (note) toast(note, { action: { label: "Undo", onClick: undo } });
+  if (note) toast(withNextWeek(note, answer), { action: { label: "Undo", onClick: undo } });
 }
 
 /** A native dialog: a bottom sheet on phones, a centred panel on wider screens. */
