@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
@@ -1311,7 +1312,12 @@ function CookSession({
         {x.cooks.map((c) => (
           <li key={c.id} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
             <div className="min-w-0 flex-1">
-              <p className="font-medium">{c.name}</p>
+              <Link
+                href={`/life/recipes/${c.recipe}?cook=${encodeURIComponent(c.id)}`}
+                className="block font-medium hover:underline"
+              >
+                {c.name}
+              </Link>
               <p className="text-xs text-muted">
                 {c.portions} portions{c.freeze ? `, ${c.freeze} to freeze` : ""}
               </p>
