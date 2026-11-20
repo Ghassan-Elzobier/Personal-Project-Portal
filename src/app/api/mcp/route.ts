@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { noStore, origin, sha256Hex } from "@/lib/connector/oauth";
 import { INSTRUCTIONS, TOOLS } from "@/lib/connector/tools";
 import { reportServerError } from "@/lib/errors/store";
+import { checkArgs, withoutNulls } from "@/lib/mcp/tool";
 import { anonClient } from "@/lib/supabase/anon";
 import { runAsConnector } from "@/lib/supabase/caller";
 import { supabaseConfigured } from "@/lib/supabase/server";
@@ -97,11 +98,14 @@ async function handle(msg: RpcRequest, base: string): Promise<object | null> {
     case "tools/call": {
       const tool = TOOLS.find((t) => t.name === msg.params?.name);
       if (!tool) return fail(-32602, `Unknown tool: ${String(msg.params?.name)}`);
-      const args = msg.params?.arguments;
+      // A call is held to what the tool said it takes before the tool runs. A bad one goes
+      // back as a tool result, not a protocol error, so Claude can correct it and call again
+      // (MCP: "input validation errors"). It is the model's slip, not a bug, so nothing is reported.
+      const args = msg.params?.arguments ?? {};
+      const problem = checkArgs(tool.inputSchema, args);
+      if (problem) return reply({ content: [{ type: "text", text: problem }], isError: true });
       try {
-        const result = await tool.run(args && typeof args === "object" ? (args as Record<string, unknown>) : {}, {
-          base,
-        });
+        const result = await tool.run(withoutNulls(tool.inputSchema, args as Record<string, unknown>), { base });
         return reply({ content: [{ type: "text", text: result.text }], isError: result.isError ?? false });
       } catch (err) {
         console.error(`tool ${tool.name} failed`, err);

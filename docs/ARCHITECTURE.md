@@ -18,7 +18,7 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
    pure logic with tests beside it, plus each domain's data access
                            │
                            ▼
-   src/lib/dates · src/lib/config · src/lib/auth · src/lib/supabase  (infrastructure)
+   src/lib/dates · src/lib/config · src/lib/auth · src/lib/supabase · src/lib/mcp  (infrastructure)
                            │
                            ▼
    Supabase: the private `portal` schema, reached only through `public` RPCs
@@ -30,9 +30,19 @@ src/app (pages, server actions, routes)        src/lib/connector (Claude MCP ser
 - **Domains hold the logic.** Pure functions (planning, matching, progression,
   nutrition) are tested with node:test; I/O stays at the edges of the module.
 - **Infrastructure knows nothing above it.** The clock (`dates/clock.ts`), settings
-  (`config/`), access (`auth/`) and the Supabase clients. Domains call their RPCs
+  (`config/`), access (`auth/`), the Supabase clients, and what a Claude tool is
+  (`mcp/tool.ts`: the `Tool` type every module's tools share, and `checkArgs`, which
+  the connector's route runs on every call before the tool does). Domains call their RPCs
   through `rpcAsCaller` (`supabase/caller.ts`), which uses the browser session for a
   page and the token's hash for a Claude connector call.
+- **Every page is served with a Content-Security-Policy.** `src/proxy.ts` makes a
+  nonce for each request and `auth/csp.ts` builds the policy from it: only the
+  portal's own scripts run, and the browser loads pictures and data from the
+  portal alone. It is a second lock behind React's escaping, for the text the
+  portal shows from outside (adverts, merchant names, error messages). A new page
+  needs nothing. A script, picture or request from another site needs the policy
+  changed on purpose first: `e2e/csp.spec.ts` loads every page and fails on
+  anything the browser refused.
 - **Errors are tracked in production.** `src/instrumentation.ts` (server errors),
   `src/instrumentation-client.ts` and `app/error.tsx` (browser errors, through
   `/api/errors`) and the connector's tool handler all report to `src/lib/errors`.

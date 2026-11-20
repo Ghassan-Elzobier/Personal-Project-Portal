@@ -68,6 +68,12 @@ export async function savePlanned(input: ops.PlannedInput) {
   });
 }
 
+/** "Can I afford it?" for a cost typed in the purchase form. Reads only. */
+export async function checkAfford(amount: string) {
+  await requireOwner();
+  return ops.checkAfford(typeof amount === "string" ? amount.slice(0, 20) : "");
+}
+
 export async function cancelPlanned(id: number) {
   await requireOwner();
   return ops.cancelPlanned(id);

@@ -15,6 +15,7 @@ import { excerptForClaude } from "../library/query";
 import { CODE_MAP, PARTS, RENDERER, VIEWS, allFindings, codeLabel, viewById, viewForClaude } from "../lab/guide";
 import { achieved, latestResults } from "../lab/results";
 import { loadStudy } from "../study/load";
+import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { LIFE_INSTRUCTIONS, LIFE_TOOLS } from "../life/connector";
 import { MONEY_INSTRUCTIONS, MONEY_TOOLS } from "../money/connector";
 import * as lifeOps from "../life/operations";
@@ -24,19 +25,6 @@ import { TUTOR_INSTRUCTIONS } from "../tutor/method";
 // The portal's tools as Claude sees them through the connector. Reads run
 // freely; every write goes through src/lib/portal/operations.ts, the same code the
 // buttons use, and Claude's app asks the owner before running a write tool.
-
-type Json = Record<string, unknown>;
-
-export type ToolResult = { text: string; isError?: boolean };
-
-type Tool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Json;
-  annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
-  run: (args: Json, ctx: { base: string }) => Promise<ToolResult>;
-};
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DATE = {
@@ -63,8 +51,6 @@ const PROJECT = {
 const fullUrl = (url: string) =>
   url.startsWith("/") ? `${process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? ""}${url}` : url;
 
-const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
-const err = (message: string): ToolResult => ({ text: message, isError: true });
 const fromOp = (r: { error?: string }, done: unknown): ToolResult => (r.error ? err(r.error) : ok(done));
 
 function str(args: Json, key: string): string {

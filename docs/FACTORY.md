@@ -47,9 +47,10 @@ and computational checks come before AI judgement:
 | Every PR | CI **Checks**: format, lint (design and architecture rules), types, 268 unit tests, dead code | Regressions, one-off styles, boundary breaks, unused code |
 | Every PR | CI **Integration**: 193 database tests, every page at Pixel 7, 360 px and desktop, accessibility, screenshots | Broken pages, sideways scrolling, access leaks, visual change |
 | Every PR | **Guard**: migrations append-only, ratchets only tighten, existing tests need your label to change | An agent getting to green by weakening the checks |
-| Every PR, once | Claude review, in a fresh session that did not write the code | Logic and design problems the checks can't see |
+| Every PR, on every push | Claude review, in a fresh, read-only session that did not write the code. A script posts it, naming the commit it covered, and the check fails without one | Logic and design problems the checks can't see |
 | Merge | Release: migrate production; Vercel Deployment Checks hold the deploy until "Production database migrated" passes | Code going live before its database |
 | Weekly | Dependabot, CodeQL, secret scanning with push protection | Vulnerable dependencies, leaked keys |
+| Nightly, and before each migration | Backup: the data, encrypted to your key, kept 90 days (`docs/RESTORE.md`). CI's restore drill proves a copy comes back row for row | Lost data: a migration that drops the wrong rows passes every test and raises no alert |
 | Hourly | Error triage: production errors filed as issues and handed to Claude | Bugs no check caught, found by real use |
 
 Two rules make the checks trustworthy. Existing tests and screenshots are your
@@ -335,8 +336,19 @@ mechanical:
 - **Hooks and scripts do the mechanical work**: formatting, checks, the guard,
   the health report. They cost no usage.
 - **A review on opening and on every push.** Fix-ups after a review are reviewed
-  too; pushes close together cancel the earlier run, and drafts wait until they're
-  ready. Ask for another with `@claude review`, or label a PR `skip-review`.
+  too, a push by Claude's own CI fix among them: a later push is reviewed from the
+  commit the last review covered (or in full again, once main has been merged in).
+  Pushes close together cancel the earlier run, and drafts wait until they're ready.
+  The reviewer can only read: no shell, no edits, no web, and a token that can't
+  write. It answers in a fixed shape, and a script with no AI posts the review from
+  that answer: one comment, "Reviewed abc1234: no issues found" or its findings,
+  each also on its own line. With no usable answer the **Claude review** check
+  fails and says why in a note on the pull request, so a review that says nothing
+  can't look like a pass. The instructions are the factory's own
+  (`.claude/commands/review-pr.md`); they and the scripts run from the base branch,
+  so a pull request can't rewrite its own review, and `/improve-factory` can tune
+  them. Ask for another with `@claude review`, run `/review-pr` in a session, or
+  label a PR `skip-review`.
 - **Room for longer jobs.** The turn caps allow harder fixes: 150 for `@claude` and
   error fixes, 120 for CI fixes, 80 for conflicts.
 - **Up to five error fixes a day.** The triage is a script and costs nothing; each
@@ -416,11 +428,14 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    - Sunday 21:00, "Improve the factory": `Run /improve-factory.`
 7. **Locally.** `git config blame.ignoreRevsFile .git-blame-ignore-revs`, so blame
    skips the formatting commit. `fnm` and `nvm` pick up `.nvmrc` (Node 24).
-8. **Error triage.** Nothing is required: it uses the release job's secrets and
+8. **Backups.** Make a key pair and set the repository variable
+   `BACKUP_PUBLIC_KEY` (`docs/RESTORE.md`, about five minutes). Until then nothing
+   is backed up, and a release that migrates says so.
+9. **Error triage.** Nothing is required: it uses the release job's secrets and
    creates its labels the first time it files an issue. To change the daily limit
    on fixes, set the repository variable `ERROR_AUTOFIX_PER_DAY`. To try it, run
    "Error triage" from the Actions tab.
-9. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
+10. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
    its `rnd` label the first time it files. Its first runs say "No page shots"
    until CI on main has captured the pages once, on the next merge. To run it
    less often, set the repository variable `RND_RUNS_PER_DAY`; to try it, run

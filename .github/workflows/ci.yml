@@ -1,6 +1,7 @@
 # Every pull request and every push to main. Two jobs, both required to merge:
 #   Checks       fast and deterministic: format, lint, types, unit tests, dead code
-#   Integration  the database tests and the end-to-end suite on a local Supabase
+#   Integration  the database tests and the end-to-end suite on a local Supabase,
+#                then the restore drill: a backup of that database restores row for row
 # The same commands run locally (npm run check, npm run test:db, npm run test:e2e).
 name: CI
 
@@ -74,6 +75,11 @@ jobs:
           path: test-results/page-shots/
           if-no-files-found: error
           retention-days: 14
+      # The Backup and Release workflows copy the live data; this proves a copy comes back.
+      # Last, because it wipes the database: back it up as production is (encrypted, to a
+      # throwaway key), reset it, restore it, and compare every row (scripts/backup.sh).
+      - name: Restore drill
+        run: bash scripts/backup.sh drill
       - name: Keep the report when something failed
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

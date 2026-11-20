@@ -1,5 +1,6 @@
 import "server-only";
 import { clock } from "../dates/week";
+import { err, ok, type Json, type Tool } from "../mcp/tool";
 import { resolve, workout } from "./gym/program";
 import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
@@ -14,24 +15,11 @@ import { isReturning, placedMacros, routineFor, viewOn } from "./state";
 // ("65.4 kg", "skipped lunch", "bench 60 for 5"). Writes go through the same
 // operations as the buttons. None of this reaches tasks, so mentors never see it.
 
-type Json = Record<string, unknown>;
-type ToolResult = { text: string; isError?: boolean };
-type Tool = {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Json;
-  annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
-  run: (args: Json, ctx: { base: string }) => Promise<ToolResult>;
-};
-
 const DATE = {
   type: "string",
   pattern: "^\\d{4}-\\d{2}-\\d{2}$",
   description: "Day, YYYY-MM-DD. Leave out for today.",
 };
-const ok = (value: unknown): ToolResult => ({ text: JSON.stringify(value, null, 1) });
-const err = (message: string): ToolResult => ({ text: message, isError: true });
 const day = (args: Json) =>
   typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday();
 

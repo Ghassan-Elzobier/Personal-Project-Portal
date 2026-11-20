@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
+import { nextSet, setLabel } from "@/lib/life/gym/next-set";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
 import { Stars } from "../kit";
@@ -33,6 +34,22 @@ export type ItemView = {
 export type BlockView = { title: string; superset: boolean; items: ItemView[] };
 
 type Logged = Record<string, { kg: number | null; reps: number; rir: number | null }>;
+
+const rowId = (key: string, position: number) => `set-${key}-${position}`;
+const FINISH = "finish-session";
+
+/**
+ * Brings a set's row, or the Finish card, to the middle of the screen, clear of the
+ * bars that stick to its edges, and puts the focus on its button. Only ever on a
+ * tap: the page never moves by itself in the middle of a set.
+ */
+function goTo(id: string) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  const calm = window.matchMedia(REDUCED_MOTION).matches;
+  target.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+  document.getElementById(`${id}-button`)?.focus({ preventScroll: true });
+}
 
 export function SessionLogger({
   day,
@@ -70,6 +87,22 @@ export function SessionLogger({
   const total = blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.target.length, 0), 0);
   const done = Object.keys(logged).length;
 
+  // The next set, worked out from what is ticked. It has no state of its own, so it
+  // moves the moment a set is ticked and is the same after a reload.
+  const next = nextSet(
+    blocks.map((b) => ({ superset: b.superset, items: b.items.map((i) => ({ key: i.key, sets: i.target.length })) })),
+    new Set(Object.keys(logged)),
+  );
+  const nextItem = next ? blocks.flatMap((b) => b.items).find((i) => i.key === next.key) : undefined;
+  const nextLabel =
+    next && nextItem
+      ? setLabel(nextItem, next.position, {
+          kg: suggestKg(nextItem, next.position, logged),
+          reps: (nextItem.target[next.position - 1] ?? { reps: nextItem.range[0] }).reps,
+        })
+      : null;
+  const jump = () => goTo(next ? rowId(next.key, next.position) : FINISH);
+
   const save = (item: ItemView, position: number, value: Logged[string] | null) =>
     start(async () => {
       setLogged({ id: `${item.key}:${position}`, value });
@@ -88,7 +121,20 @@ export function SessionLogger({
 
   return (
     <>
-      <div className="sticky top-14 z-10 -mx-5 bg-primary/90 px-5 py-2 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:px-3">
+      <div className="sticky top-14 z-10 -mx-5 space-y-2 bg-primary/90 px-5 py-2 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:px-3">
+        {!finished && (
+          <button
+            type="button"
+            onClick={jump}
+            className="flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-xl bg-white/8 px-3 text-left text-sm ring-1 ring-white/10 transition hover:bg-white/15"
+          >
+            <span className="shrink-0 text-xs font-semibold text-mint">{nextLabel ? "Next" : "All sets done"}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{nextLabel ?? "Finish the session"}</span>
+            <span className="shrink-0 text-muted" aria-hidden>
+              ›
+            </span>
+          </button>
+        )}
         <div className="flex items-center gap-3">
           <div
             className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"
@@ -137,12 +183,18 @@ export function SessionLogger({
             {b.superset ? " · alternate between these" : ""}
           </h2>
           {b.items.map((item) => (
-            <Exercise key={item.key} item={item} logged={logged} onSave={save} />
+            <Exercise
+              key={item.key}
+              item={item}
+              logged={logged}
+              onSave={save}
+              next={!finished && next?.key === item.key ? next.position : null}
+            />
           ))}
         </section>
       ))}
 
-      <section className="space-y-3 card-life" aria-labelledby="finish-title">
+      <section id={FINISH} className="scroll-mt-40 space-y-3 card-life" aria-labelledby="finish-title">
         <h2 id="finish-title" className="font-semibold">
           {finished ? "Session done" : "Finish"}
         </h2>
@@ -160,6 +212,7 @@ export function SessionLogger({
         />
         <div className="flex flex-wrap gap-2">
           <button
+            id={`${FINISH}-button`}
             type="button"
             disabled={!started && done === 0}
             onClick={() =>
@@ -188,7 +241,7 @@ export function SessionLogger({
         </div>
       </section>
 
-      {rest && <RestBar rest={rest} onDone={() => setRest(null)} />}
+      {rest && <RestBar rest={rest} onDone={() => setRest(null)} next={nextLabel} onJump={nextLabel ? jump : null} />}
     </>
   );
 }
@@ -197,10 +250,13 @@ function Exercise({
   item,
   logged,
   onSave,
+  next,
 }: {
   item: ItemView;
   logged: Logged;
   onSave: (item: ItemView, position: number, value: Logged[string] | null) => void;
+  /** The number of this exercise's set that comes next in the session, when it is this one's turn. */
+  next: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [extra, setExtra] = useState(0);
@@ -263,6 +319,7 @@ function Exercise({
             suggest={suggestKg(item, pos, logged)}
             logged={logged[`${item.key}:${pos}`]}
             onSave={onSave}
+            isNext={pos === next}
           />
         ))}
       </ol>
@@ -371,6 +428,7 @@ function SetRow({
   suggest,
   logged,
   onSave,
+  isNext,
 }: {
   item: ItemView;
   position: number;
@@ -378,6 +436,8 @@ function SetRow({
   suggest: number | null;
   logged?: Logged[string];
   onSave: (item: ItemView, position: number, value: Logged[string] | null) => void;
+  /** The set the session comes to next: marked, so it is easy to find after a jump. */
+  isNext: boolean;
 }) {
   // Untouched, the weight follows the suggestion; once typed in, it is yours.
   const [typed, setKg] = useState<string | null>(logged?.kg != null ? logged.kg.toString() : null);
@@ -391,7 +451,9 @@ function SetRow({
   const bump = (d: number) => setKg(String(Math.max(0, Math.round(((Number(kg) || 0) + d) * 100) / 100)));
   return (
     <li
-      className={`flex flex-wrap items-center gap-2 rounded-xl p-2 ${done ? "bg-mint/10 ring-1 ring-mint/25" : "bg-white/5"}`}
+      id={rowId(item.key, position)}
+      aria-current={isNext && !done ? "step" : undefined}
+      className={`flex scroll-mt-40 scroll-mb-48 flex-wrap items-center gap-2 rounded-xl p-2 ${done ? "bg-mint/10 ring-1 ring-mint/25" : isNext ? "bg-white/5 ring-1 ring-mint/60" : "bg-white/5"}`}
     >
       <span className="w-6 text-center text-xs text-muted tabular-nums">{position}</span>
       {item.weighted && (
@@ -467,6 +529,7 @@ function SetRow({
           if (k !== null && !Number.isFinite(k)) return toast("Enter the weight in kg.", { tone: "error" });
           onSave(item, position, { kg: k, reps: r, rir: rir === "" ? null : Number(rir) });
         }}
+        id={`${rowId(item.key, position)}-button`}
         aria-pressed={done}
         aria-label={done ? `Undo set ${position}` : `Done set ${position}`}
         className={`ml-auto tap size-11 rounded-full text-lg ring-1 ${done ? "bg-mint text-primary ring-mint" : "text-mint ring-mint/40 hover:bg-mint/10"}`}
@@ -477,7 +540,18 @@ function SetRow({
   );
 }
 
-function RestBar({ rest, onDone }: { rest: { until: number; total: number; name: string }; onDone: () => void }) {
+function RestBar({
+  rest,
+  onDone,
+  next,
+  onJump,
+}: {
+  rest: { until: number; total: number; name: string };
+  onDone: () => void;
+  /** The set that comes next, as the bar at the top names it. Null when every set is done. */
+  next: string | null;
+  onJump: (() => void) | null;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);
@@ -493,19 +567,36 @@ function RestBar({ rest, onDone }: { rest: { until: number; total: number; name:
   }, [left, onDone]);
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, "0");
+  const line = next
+    ? left === 0
+      ? `Go: ${next}`
+      : `Rest, then ${next}`
+    : left === 0
+      ? "Go: every set is done"
+      : `Rest after ${rest.name}`;
+  const body = (
+    <>
+      <span className="block truncate text-xs text-body">{line}</span>
+      <span className="block text-2xl font-bold tabular-nums">{left === 0 ? "Now" : `${mm}:${ss}`}</span>
+      <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
+        <span className="block h-full bg-mint" style={{ width: `${(1 - left / rest.total) * 100}%` }} />
+      </span>
+    </>
+  );
   return (
     <div
       className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-2xl bg-fern px-4 py-3 shadow-2xl ring-1 ring-mint/30 md:inset-x-auto md:right-6 md:bottom-6 md:w-80"
       role="timer"
       aria-live="off"
     >
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-body">{left === 0 ? "Go: next set" : `Rest after ${rest.name}`}</p>
-        <p className="text-2xl font-bold tabular-nums">{left === 0 ? "Now" : `${mm}:${ss}`}</p>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-mint" style={{ width: `${(1 - left / rest.total) * 100}%` }} />
-        </div>
-      </div>
+      {onJump ? (
+        // The whole of it is the way to the next set: tap it when the rest is over, or before.
+        <button type="button" onClick={onJump} className="min-w-0 flex-1 cursor-pointer text-left">
+          {body}
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1">{body}</div>
+      )}
       <button type="button" onClick={onDone} className="btn-soft px-3 py-1.5 text-sm">
         Skip
       </button>
