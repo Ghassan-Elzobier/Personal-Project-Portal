@@ -29,32 +29,69 @@ async function withClaude<T>(page: Page, request: APIRequestContext, run: (claud
 const routineOn = async (claude: Claude, date: string) =>
   (JSON.parse((await claude.call("get_life_day", { date })).text) as { routine: Routine }).routine;
 
-/** A cook from this meal week's plan not logged yet, planning the week if no earlier save test has. */
-async function aCookToEatFrom(page: Page, request: APIRequestContext) {
+type Cook = { date: string; id: string; name: string; portions: number };
+
+/** The week's cooks not logged yet, planning the week if no earlier save test has. */
+async function cooksNotLogged(page: Page, request: APIRequestContext): Promise<Cook[]> {
   return withClaude(page, request, async (claude) => {
     const find = async () => {
+      const found: Cook[] = [];
       for (let i = 0; i < 7; i++) {
         const date = dayAfter(TODAY, i);
-        const cook = (await routineOn(claude, date)).find((r) => r.kind === "cook" && r.cook_id && !r.done);
-        if (cook)
-          return {
-            date,
-            id: cook.cook_id!,
-            name: cook.title.replace(/^Cook /, ""),
-            portions: Number(/^(\d+) portions/.exec(cook.detail)?.[1]),
-          };
+        for (const r of await routineOn(claude, date))
+          if (r.kind === "cook" && r.cook_id && !r.done)
+            found.push({
+              date,
+              id: r.cook_id,
+              name: r.title.replace(/^Cook /, ""),
+              portions: Number(/^(\d+) portions/.exec(r.detail)?.[1]),
+            });
       }
-      return null;
+      return found;
     };
-    let cook = await find();
-    if (!cook) {
+    let cooks = await find();
+    if (!cooks.length) {
       const planned = await claude.call("plan_meal_week", {});
       expect(planned.isError, planned.text).toBe(false);
-      cook = await find();
+      cooks = await find();
     }
-    expect(cook, "the planned week has something to cook").toBeTruthy();
-    return cook!;
+    return cooks;
   });
+}
+
+type Meal = { cook: Cook; day: string; slot: string };
+
+/**
+ * A lunch or dinner on the Meals page, not ticked yet, from a cook that isn't logged.
+ * Not every cook has one: a week's last cook can feed next week, and earlier save
+ * tests leave the week as they found it, not as a fresh plan would be.
+ */
+async function aMealFromAnUnloggedCook(page: Page, request: APIRequestContext): Promise<Meal> {
+  const cooks = await cooksNotLogged(page, request);
+  await page.goto("/life");
+  const ate = page.getByRole("button", { name: /^Ate (Lunch|Dinner)$/ });
+  for (const cook of cooks)
+    for (const card of await page.getByRole("region", { name: "Days" }).getByRole("article").all()) {
+      const row = card.getByRole("listitem").filter({ hasText: cook.name }).filter({ has: ate }).first();
+      if (!(await row.count())) continue;
+      const label = await row.getByRole("button", { name: /^Ate (Lunch|Dinner)$/ }).getAttribute("aria-label");
+      return { cook, day: await card.getByRole("heading").first().innerText(), slot: label!.replace(/^Ate /, "") };
+    }
+  throw new Error(`No lunch or dinner this week comes from a cook that isn't logged (${cooks.length} cooks)`);
+}
+
+/** That meal's row on the Meals page, found by its day and slot, and its tick either way round. */
+function mealRow(page: Page, m: Meal) {
+  const tickName = new RegExp(`^(Ate|Untick) ${m.slot}$`);
+  const row = page
+    .getByRole("region", { name: "Days" })
+    .getByRole("article")
+    .filter({ has: page.getByRole("heading", { name: m.day, exact: true }) })
+    .getByRole("listitem")
+    .filter({ hasText: m.cook.name })
+    .filter({ has: page.getByRole("button", { name: tickName }) })
+    .first();
+  return { row, tick: row.getByRole("button", { name: tickName }) };
 }
 
 const cookDone = (page: Page, request: APIRequestContext, cook: { date: string; id: string }) =>
@@ -63,17 +100,6 @@ const cookDone = (page: Page, request: APIRequestContext, cook: { date: string; 
     request,
     async (claude) => (await routineOn(claude, cook.date)).find((r) => r.cook_id === cook.id)?.done,
   );
-
-/** A meal from the cook on the Meals page, and its tick. */
-function mealFrom(page: Page, name: string) {
-  const row = page
-    .getByRole("region", { name: "Days" })
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .filter({ has: page.getByRole("button", { name: /^(Ate|Untick) (Lunch|Dinner)$/ }) })
-    .first();
-  return { row, tick: row.getByRole("button", { name: /^(Ate|Untick) (Lunch|Dinner)$/ }) };
-}
 
 /** Portions left of the cook's batches in the Kitchen, fridge and freezer together. */
 async function portionsLeft(page: Page, name: string): Promise<number> {
@@ -95,11 +121,12 @@ test("a meal ticked from a cook that wasn't logged logs the cook, and the portio
   request,
 }) => {
   page.on("dialog", (dialog) => void dialog.accept());
-  const cook = await aCookToEatFrom(page, request);
+  const meal = await aMealFromAnUnloggedCook(page, request);
+  const { cook } = meal;
   const before = await cupboard(page);
 
   await page.goto("/life");
-  const { row, tick } = mealFrom(page, cook.name);
+  const { row, tick } = mealRow(page, meal);
   await tick.click();
   await expect(page.getByText(`Logged the cook too: ${cook.name}`, { exact: false })).toBeVisible();
   await expect(tick).toHaveAttribute("aria-pressed", "true");
@@ -112,8 +139,9 @@ test("a meal ticked from a cook that wasn't logged logs the cook, and the portio
 
   // Back as it was: the meal unticked, the cook undone in the Kitchen.
   await page.goto("/life");
-  await row.getByRole("button", { name: /^Untick (Lunch|Dinner)$/ }).click();
+  await tick.click();
   await expect(tick).toHaveAttribute("aria-pressed", "false");
+  await expect(row).toBeVisible();
   await page.goto("/life/kitchen?tab=fridge");
   const undo = page.getByRole("listitem").filter({ hasText: cook.name }).getByRole("button", { name: "Undo cook" });
   await undo.first().click();
@@ -123,11 +151,12 @@ test("a meal ticked from a cook that wasn't logged logs the cook, and the portio
 });
 
 test("Undo in the toast takes back the meal and the cook, and the cupboard is as it was", async ({ page, request }) => {
-  const cook = await aCookToEatFrom(page, request);
+  const meal = await aMealFromAnUnloggedCook(page, request);
+  const { cook } = meal;
   const before = await cupboard(page);
 
   await page.goto("/life");
-  const { tick } = mealFrom(page, cook.name);
+  const { tick } = mealRow(page, meal);
   await tick.click();
   await expect(page.getByText(`Logged the cook too: ${cook.name}`, { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).click();

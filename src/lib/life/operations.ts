@@ -451,12 +451,18 @@ async function logCook(s: LifeState, start: string, cookId: string): Promise<Coo
   return { cookId, name: r!.name, batch, fridge: c!.portions - freeze, freezer: freeze };
 }
 
-/** Logs each of these planned cooks, skipping one already logged (two quick ticks). */
+/**
+ * Logs each of these planned cooks, skipping one already logged (two quick ticks).
+ * Each cook reads the kitchen as the one before it left it, so what it records as
+ * taken from the cupboard, and Undo puts back, is what really came out.
+ */
 async function logCooks(s: LifeState, start: string, cookIds: string[]): Promise<CookedNote[]> {
   const out: CookedNote[] = [];
-  for (const id of cookIds) {
+  let now = s;
+  for (const [i, id] of cookIds.entries()) {
+    if (i > 0) now = await state();
     try {
-      out.push(await logCook(s, start, id));
+      out.push(await logCook(now, start, id));
     } catch (e) {
       const again = await state();
       if (!again.batches.some((b) => b.planStart === start && b.cookId === id)) throw e;
