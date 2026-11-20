@@ -1,29 +1,48 @@
 #!/usr/bin/env node
-// The pull request review's helper (.github/workflows/claude-review.yml). The
-// review is a Claude session; the two steps here run before and after it and need
-// no AI. The decisions are in src/lib/ci/review.ts, with tests beside them.
+// The pull request review's two steps that need no AI
+// (.github/workflows/claude-review.yml). Between them a Claude session reads the
+// pull request and answers in a fixed JSON shape; it can't write anything. The
+// decisions are in src/lib/ci/review.ts, with tests beside them.
 //
 //   node --experimental-strip-types --no-warnings scripts/review.mjs brief
-//   node --experimental-strip-types --no-warnings scripts/review.mjs check
+//   node --experimental-strip-types --no-warnings scripts/review.mjs post [--dry-run]
 //
 //   brief  works out what this run reviews (the whole pull request, or only what
 //          changed since the commit the last review covered), writes it to .review/
 //          for the reviewer to read, and hands the workflow the prompt: the
-//          repository's own instructions (.claude/commands/review-pr.md), taken
-//          from the base branch so a pull request can't rewrite its own review.
-//   check  fails the job unless a review comment on the pull request names the
-//          commit it is at, and then says why in a note on the pull request itself.
-//          A review that posted nothing used to look like a pass.
+//          repository's own instructions (.claude/commands/review-pr.md).
+//   post   checks the reviewer's answer is about the commit the pull request is
+//          at, then posts the review: one comment that names the commit and lists
+//          every finding, and each finding again on its own line where the diff
+//          shows that line. With no usable answer it fails, and says why in a note
+//          on the pull request. --dry-run prints what it would post.
 //
-// Both read PR (the number), HEAD (its commit), BASE (the commit it is to merge
-// into) and GITHUB_REPOSITORY, and need gh signed in (GH_TOKEN in CI). check also
-// reads ANSWER, the review's JSON answer.
+// The workflow runs this file from the base branch's copy, beside the base
+// branch's instructions, so a pull request can't rewrite its own review.
+//
+// Both read PR (the number), HEAD (its commit) and GITHUB_REPOSITORY, and need gh
+// signed in (GH_TOKEN in CI). post also reads NEEDED (what brief decided) and
+// ANSWER, the review's JSON answer.
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { checkReview, missingNote, NOTE_MARKER, REVIEW_SCHEMA, reviewPrompt, scopeFor } from "../src/lib/ci/review.ts";
+import { fileURLToPath } from "node:url";
+import {
+  commentable,
+  incremental,
+  missingNote,
+  NOTE_MARKER,
+  place,
+  quiet,
+  readReview,
+  REVIEW_SCHEMA,
+  reviewBody,
+  reviewPrompt,
+  scopeFor,
+} from "../src/lib/ci/review.ts";
 
-const INSTRUCTIONS = ".claude/commands/review-pr.md";
+// Beside this copy of the script: the base branch's, when the workflow runs it from there.
+const INSTRUCTIONS = fileURLToPath(new URL("../.claude/commands/review-pr.md", import.meta.url));
 const DIR = ".review";
 const SHA = /^[0-9a-f]{40}$/;
 
@@ -31,14 +50,15 @@ const env = process.env;
 const repo = env.GITHUB_REPOSITORY ?? "";
 const pr = Number(env.PR);
 const head = env.HEAD ?? "";
+const dryRun = process.argv.includes("--dry-run");
 
-function gh(args) {
-  const result = spawnSync("gh", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+function gh(args, input) {
+  const result = spawnSync("gh", args, { encoding: "utf8", input, maxBuffer: 64 * 1024 * 1024 });
   return { ok: result.status === 0, out: result.stdout ?? "", err: (result.stderr ?? "").trim() };
 }
 
-function ghOrFail(args) {
-  const result = gh(args);
+function ghOrFail(args, input) {
+  const result = gh(args, input);
   if (!result.ok) throw new Error(`gh ${args.slice(0, 2).join(" ")} failed: ${result.err}`);
   return result.out;
 }
@@ -73,19 +93,15 @@ function comments() {
     .map((c) => ({ id: c.id, author: c.author ?? "", body: c.body ?? "", createdAt: c.createdAt ?? "" }));
 }
 
-/** The review's instructions as the base branch has them; this checkout's copy when the base has none yet. */
-function instructions() {
-  const base = env.BASE ?? "";
-  if (SHA.test(base)) {
-    const onBase = gh([
-      "api",
-      "-H",
-      "Accept: application/vnd.github.raw",
-      `repos/${repo}/contents/${INSTRUCTIONS}?ref=${base}`,
-    ]);
-    if (onBase.ok && onBase.out.trim()) return { text: onBase.out, from: "the base branch" };
-  }
-  return { text: readFileSync(INSTRUCTIONS, "utf8"), from: "this pull request (the base branch has none yet)" };
+const diffOf = (path) => gh(["api", "-H", "Accept: application/vnd.github.diff", path]);
+
+/** The pull request's own work since `since`, as a diff, or null when those commits can't be reviewed by themselves. */
+function sinceDiff(since) {
+  const range = `repos/${repo}/compare/${since}...${head}`;
+  const shape = gh(["api", range, "--jq", "{status: .status, commits: [.commits[] | {parents: (.parents | length)}]}"]);
+  if (!shape.ok || !incremental(JSON.parse(shape.out))) return null;
+  const changed = diffOf(range);
+  return changed.ok ? changed.out : null;
 }
 
 function brief() {
@@ -99,20 +115,12 @@ function brief() {
 
   rmSync(DIR, { recursive: true, force: true });
   mkdirSync(DIR, { recursive: true });
-  const diff = (path) => ghOrFail(["api", "-H", "Accept: application/vnd.github.diff", path]);
-  writeFileSync(`${DIR}/pr.diff`, diff(`repos/${repo}/pulls/${pr}`));
-  let since = scope.kind === "since" ? scope.sha : null;
-  if (since) {
-    const changed = gh([
-      "api",
-      "-H",
-      "Accept: application/vnd.github.diff",
-      `repos/${repo}/compare/${since}...${head}`,
-    ]);
-    // The earlier commit can be gone (a branch pushed again from scratch): then the whole pull request is reviewed.
-    if (changed.ok) writeFileSync(`${DIR}/since.diff`, changed.out);
-    else since = null;
-  }
+  const whole = diffOf(`repos/${repo}/pulls/${pr}`);
+  if (!whole.ok) throw new Error(`The pull request's diff could not be read: ${whole.err}`);
+  writeFileSync(`${DIR}/pr.diff`, whole.out);
+  const changed = scope.kind === "since" ? sinceDiff(scope.sha) : null;
+  const since = changed === null ? null : scope.sha;
+  if (changed !== null) writeFileSync(`${DIR}/since.diff`, changed);
   const info = JSON.parse(ghOrFail(["api", `repos/${repo}/pulls/${pr}`]));
   writeFileSync(
     `${DIR}/description.md`,
@@ -127,79 +135,105 @@ function brief() {
       "",
       since
         ? `An earlier review covered ${since}. Review only what changed since then: \`${DIR}/since.diff\`. The whole pull request is in \`${DIR}/pr.diff\`, for context.`
-        : `This is its first review. Review the whole pull request: \`${DIR}/pr.diff\`.`,
+        : scope.kind === "since"
+          ? `An earlier review covered ${scope.sha}, but the branch has taken in other work since (a merge of the base branch, or a fresh push), so review the whole pull request again: \`${DIR}/pr.diff\`.`
+          : `This is its first review. Review the whole pull request: \`${DIR}/pr.diff\`.`,
       "",
       `Its title and description are in \`${DIR}/description.md\`. The checkout holds the code as it would be once merged.`,
       "",
-      `Start the review comment's second line with "Reviewed ${head}".`,
+      `The commit to give as reviewed_sha: ${head}`,
       "",
     ].join("\n"),
   );
 
-  const source = instructions();
-  output("prompt", reviewPrompt(source.text, { number: pr, head }));
+  output("prompt", reviewPrompt(readFileSync(INSTRUCTIONS, "utf8"), { number: pr, head }));
   say(
     since
-      ? `Reviewing what changed since ${since.slice(0, 7)}, up to ${head.slice(0, 7)}. Instructions from ${source.from}.`
-      : `Reviewing the whole pull request at ${head.slice(0, 7)}. Instructions from ${source.from}.`,
+      ? `Reviewing what changed since ${since.slice(0, 7)}, up to ${head.slice(0, 7)}.`
+      : `Reviewing the whole pull request at ${head.slice(0, 7)}.`,
   );
 }
 
-/** Whether this pull request changes the workflow that is running: Claude's action then skips itself. */
-function workflowChanged() {
-  // "owner/repo/.github/workflows/claude-review.yml@refs/pull/12/merge"
-  const path = /^[^/]+\/[^/]+\/(.+)@/.exec(env.GITHUB_WORKFLOW_REF ?? "")?.[1];
-  const base = env.BASE ?? "";
-  if (!path || !SHA.test(base)) return false;
-  const onBase = gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${repo}/contents/${path}?ref=${base}`]);
-  try {
-    return !onBase.ok || onBase.out !== readFileSync(path, "utf8");
-  } catch {
+/** Makes a call that changes the pull request, or prints it under --dry-run. Returns whether it went through. */
+function write(what, args, body) {
+  if (dryRun) {
+    console.log(`\n[dry run] ${what}:\n${body ?? ""}`);
     return true;
   }
+  const result = gh(["api", ...args, ...(body === undefined ? [] : ["-F", "body=@-"])], body);
+  if (!result.ok) console.log(`${what} failed: ${result.err}`);
+  return result.ok;
 }
 
 /**
- * Says on the pull request itself why the check failed, in one note that is kept up
- * to date, and takes the note away once there is a review. The check's own result
+ * Says on the pull request itself why there is no review, in one note that is kept
+ * up to date, and takes the note away once there is a review. The job's own result
  * never depends on this: a note that can't be written is only logged.
  */
 function leaveNote(all, problem) {
   const mine = all.filter((c) => c.author === "github-actions[bot]" && c.body.includes(NOTE_MARKER));
-  const call = (args) => {
-    const result = gh(["api", ...args]);
-    if (!result.ok) console.log(`The note on the pull request could not be updated: ${result.err}`);
-  };
   if (problem === null) {
-    for (const note of mine) call(["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+    for (const note of mine) write("Removing the note", ["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
     return;
   }
   const body = missingNote(problem);
   const [first, ...extra] = mine;
-  for (const note of extra) call(["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
-  if (!first) call(["-X", "POST", `repos/${repo}/issues/${pr}/comments`, "-f", `body=${body}`]);
-  else if (first.body !== body)
-    call(["-X", "PATCH", `repos/${repo}/issues/comments/${first.id}`, "-f", `body=${body}`]);
+  for (const note of extra)
+    write("Removing a second note", ["-X", "DELETE", `repos/${repo}/issues/comments/${note.id}`]);
+  if (!first) write("The note", ["-X", "POST", `repos/${repo}/issues/${pr}/comments`], body);
+  else if (first.body !== body) write("The note", ["-X", "PATCH", `repos/${repo}/issues/comments/${first.id}`], body);
 }
 
-function check() {
+function post() {
   const all = comments();
-  const verdict = checkReview({
-    head,
-    comments: all,
-    answer: env.ANSWER,
-    workflowChanged: !(env.ANSWER ?? "").trim() && workflowChanged(),
-  });
-  leaveNote(all, verdict.ok ? null : verdict.problem);
-  if (verdict.ok) return say(verdict.summary);
-  say(verdict.problem);
-  process.exit(1);
+  // The job was run again on a commit that has its review: nothing to post.
+  if (env.NEEDED === "false") {
+    leaveNote(all, null);
+    return say(`Commit ${head.slice(0, 7)} already has its review.`);
+  }
+  const read = readReview(env.ANSWER, head);
+  if (!read.ok) {
+    leaveNote(all, read.problem);
+    say(read.problem);
+    process.exit(1);
+  }
+  const { review } = read;
+
+  // The review itself: one comment that names the commit and lists every finding.
+  if (!write("The review", ["-X", "POST", `repos/${repo}/issues/${pr}/comments`], reviewBody(review, head))) {
+    say("The review could not be posted, so the pull request has none.");
+    process.exit(1);
+  }
+  // And each finding on its own line, where the diff shows that line. One that can't be pinned is in the comment above.
+  const whole = review.findings.length ? diffOf(`repos/${repo}/pulls/${pr}`) : null;
+  const { inline } = place(review.findings, whole?.ok ? commentable(whole.out) : new Map());
+  for (const finding of inline) {
+    const comment = JSON.stringify({
+      commit_id: head,
+      path: finding.file,
+      line: finding.line,
+      side: "RIGHT",
+      body: quiet(finding.body),
+    });
+    if (dryRun) console.log(`\n[dry run] On ${finding.file}:${finding.line}:\n${quiet(finding.body)}`);
+    else if (!gh(["api", "-X", "POST", `repos/${repo}/pulls/${pr}/comments`, "--input", "-"], comment).ok)
+      console.log(
+        `The finding on ${finding.file}:${finding.line} could not be pinned to its line; it is in the review comment.`,
+      );
+  }
+  leaveNote(all, null);
+  const n = review.findings.length;
+  say(
+    n === 0
+      ? `Reviewed ${head.slice(0, 7)}: no issues found.`
+      : `Reviewed ${head.slice(0, 7)}: ${n} ${n === 1 ? "finding" : "findings"}, posted on the pull request.`,
+  );
 }
 
-const commands = { brief, check };
+const commands = { brief, post };
 const command = commands[process.argv[2]];
 if (!command || !repo || !Number.isInteger(pr) || pr < 1 || !SHA.test(head)) {
-  console.error("Usage: review.mjs brief|check, with PR, HEAD and GITHUB_REPOSITORY set.");
+  console.error("Usage: review.mjs brief|post [--dry-run], with PR, HEAD and GITHUB_REPOSITORY set.");
   process.exit(2);
 }
 command();
