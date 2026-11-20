@@ -282,6 +282,8 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
       detail,
       done: cooks.length > 0 && left.length === 0,
       cookIds: left.map((c) => c.id),
+      // One dish opens its recipe at the planned amounts; two open the Kitchen, whose rows link to each.
+      href: cooks.length === 1 ? `/life/recipes/${cooks[0].recipe}?cook=${encodeURIComponent(cooks[0].id)}` : base.href,
     };
   }
   return { ...base, kind: "life", detail: until };

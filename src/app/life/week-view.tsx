@@ -191,7 +191,10 @@ export function WeekView({
               {g.items.map((c) => (
                 <li key={c.id} className="flex min-w-0 items-center gap-3 rounded-xl bg-white/5 p-3">
                   <div className="min-w-0 flex-1">
-                    <Link href={`/life/recipes/${c.recipe}`} className="line-clamp-2 block font-medium hover:underline">
+                    <Link
+                      href={`/life/recipes/${c.recipe}?cook=${encodeURIComponent(c.id)}`}
+                      className="line-clamp-2 block font-medium hover:underline"
+                    >
                       {c.name}
                     </Link>
                     <p className="text-xs text-muted tabular-nums">
