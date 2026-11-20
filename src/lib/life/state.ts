@@ -117,14 +117,22 @@ export type LifeState = LifeRaw & {
   next: WeekView;
 };
 
+/** A batch made from this plan's cook is in the plan already: don't count it twice. */
+const ownBatch = (b: Batch, plan: WeekPlan | null) =>
+  Boolean(plan && b.planStart === plan.start && b.cookId && plan.cooks.some((c) => c.id === b.cookId));
+
 /** Batches the planner can draw on besides the plan's own cooks. */
 function openForPlan(batches: Batch[], plan: WeekPlan | null) {
-  // A batch made from this plan's cook is in the plan already: don't count it twice.
-  return batches.filter(
-    (b) =>
-      b.remaining > 0 && !(plan && b.planStart === plan.start && b.cookId && plan.cooks.some((c) => c.id === b.cookId)),
-  );
+  return batches.filter((b) => b.remaining > 0 && !ownBatch(b, plan));
 }
+
+/** What a plan can draw on from the kitchen: its open batches, less what `taken` says earlier meals take. */
+function stockLeft(batches: Batch[], plan: WeekPlan | null, taken = new Map<string, number>()): StockBatch[] {
+  return openForPlan(batches, plan).map((b) => ({ ...toStock(b), left: b.remaining - (taken.get(b.gid) ?? 0) }));
+}
+
+/** Meals logged (eaten, skipped or swapped), as "date:slot". */
+const loggedOf = (meals: MealLog[]) => new Set(meals.map((m) => `${m.day}:${m.slot}`));
 
 export function buildState(raw: LifeRaw, today: string): LifeState {
   const profile = parseProfile(raw.profile);
@@ -151,20 +159,9 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   );
   const plan = plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
-  const place = (p: WeekPlan | null, taken = new Map<string, number>()) =>
-    p
-      ? withCooked(
-          assign(
-            p,
-            plannerRoutine(profile),
-            openForPlan(raw.batches, p).map((b) => ({ ...toStock(b), left: b.remaining - (taken.get(b.gid) ?? 0) })),
-            kcal,
-          ),
-          raw.batches,
-          p,
-        )
-      : [];
-  const logged = new Set(raw.meals.map((m) => `${m.day}:${m.slot}`));
+  const place = (p: WeekPlan | null, taken?: Map<string, number>) =>
+    p ? withCooked(assign(p, plannerRoutine(profile), stockLeft(raw.batches, p, taken), kcal), raw.batches, p) : [];
+  const logged = loggedOf(raw.meals);
   // A portion this week's own cook made that no meal is down for any more (a meal
   // swapped or skipped) fills an empty lunch or dinner this week, then carries on.
   const placed = place(plan);
@@ -261,9 +258,25 @@ export function viewOn(s: LifeState, date: string): WeekView {
   return weekView(s, date >= s.next.start ? "next" : "this");
 }
 
-/** Cooked portions in the fridge and freezer, as a new week's plan would draw on them. */
-export function openStock(s: LifeState): StockBatch[] {
-  return openForPlan(s.batches, null).map(toStock);
+/**
+ * Cooked portions in the fridge and freezer a week's plan can really use, for sizing
+ * its cooks and costing it. Next week gets what is left once this week's meals have
+ * taken theirs. This week gets the batches not made from its own cooks, as the week
+ * found them: portions eaten from them this week count, so a cook's size stays put
+ * while the week eats into the kitchen.
+ */
+export function stockFor(s: LifeState, v: { start: string; plan: WeekPlan | null }): StockBatch[] {
+  if (v.start > s.weekStart)
+    return stockLeft(s.batches, v.plan, stillToEat(s.placements, loggedOf(s.meals))).filter((b) => b.left > 0);
+  const end = addDays(v.start, 7);
+  const eaten = new Map<string, number>();
+  for (const m of s.meals)
+    if (m.status === "eaten" && m.batchGid && m.day >= v.start && m.day < end)
+      eaten.set(m.batchGid, (eaten.get(m.batchGid) ?? 0) + 1);
+  return s.batches
+    .filter((b) => !ownBatch(b, v.plan))
+    .map((b) => ({ ...toStock(b), left: Math.min(b.portions, b.remaining + (eaten.get(b.gid) ?? 0)) }))
+    .filter((b) => b.left > 0);
 }
 
 const toStock = (b: Batch): StockBatch => ({
