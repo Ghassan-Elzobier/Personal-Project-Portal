@@ -18,7 +18,7 @@ import {
   type Unit,
 } from "./ingredients.ts";
 import { packProblem } from "./pack.ts";
-import type { DateBefore, DroppedBefore, Placement, WeekPlan } from "./planner.ts";
+import type { DateBefore, DroppedBefore, FrozenOnArrival, Placement, WeekPlan } from "./planner.ts";
 import { recipe, type Recipe } from "./recipes.ts";
 
 export type Product = {
@@ -470,6 +470,13 @@ export function landShop(
     dropped,
     dates,
   };
+}
+
+/** Fresh food a shop put straight in the freezer, with the day it is first wanted, for a defrost reminder. */
+export function frozenOnArrival(lines: ListLine[], got: string[]): FrozenOnArrival[] {
+  return lines
+    .filter((l) => l.freezeOnArrival && l.packs > 0 && got.includes(l.item.key))
+    .map((l) => ({ item: l.item.key, for: l.firstUse }));
 }
 
 /**
