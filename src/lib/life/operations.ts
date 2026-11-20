@@ -11,7 +11,7 @@ import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
 import {
   cookScale,
   sizeCooks,
-  spareStaysCold,
+  freezeCount,
   type Placement,
   type ShopVia,
   type WeekMode,
@@ -429,11 +429,9 @@ async function logCook(s: LifeState, start: string, cookId: string): Promise<Coo
   const r = c ? recipe(c.recipe) : undefined;
   if (!plan || !c || !r) fail("That cook is not in the plan.");
   const placed = viewFor(s, start)?.placements.filter((p) => p.cookId === cookId) ?? [];
-  const frozen = placed.filter((p) => p.storage === "freezer").length;
-  // Portions nobody is down to eat this week go in the freezer if they can, unless
-  // a fresh week's last cook keeps them in date for next week's first lunch.
-  const spare = Math.max(0, c!.portions - placed.length);
-  const freeze = Math.min(c!.portions, frozen + (r!.keeps.freezes && !spareStaysCold(plan!, c!) ? spare : 0));
+  // The same count the Kitchen and the Cook view show: planned from the freezer, and
+  // spare portions if the dish freezes (unless a fresh week keeps them for next week).
+  const freeze = freezeCount(plan!, c!, placed);
   const batch = await store.cook({
     recipe: r!.key,
     day: s.today < c!.date ? s.today : c!.date,

@@ -18,10 +18,12 @@ import {
 import { ageOn, isSetUp, parseProfile, plannerRoutine, type LifeProfile } from "./profile.ts";
 import {
   assign,
+  fillGaps,
   firstShopFirst,
   cookScale,
   mealWeekStart,
   reminders,
+  stillToEat,
   type Cook,
   type Placement,
   type Reminder,
@@ -149,14 +151,34 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   );
   const plan = plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
-  const place = (p: WeekPlan | null) =>
+  const place = (p: WeekPlan | null, taken = new Map<string, number>()) =>
     p
-      ? withCooked(assign(p, plannerRoutine(profile), openForPlan(raw.batches, p).map(toStock), kcal), raw.batches, p)
+      ? withCooked(
+          assign(
+            p,
+            plannerRoutine(profile),
+            openForPlan(raw.batches, p).map((b) => ({ ...toStock(b), left: b.remaining - (taken.get(b.gid) ?? 0) })),
+            kcal,
+          ),
+          raw.batches,
+          p,
+        )
       : [];
-  const placements = place(plan);
+  const logged = new Set(raw.meals.map((m) => `${m.day}:${m.slot}`));
+  // A portion this week's own cook made that no meal is down for any more (a meal
+  // swapped or skipped) fills an empty lunch or dinner this week, then carries on.
+  const placed = place(plan);
+  const taking = stillToEat(placed, logged);
+  const freed = plan
+    ? raw.batches
+        .filter((b) => b.planStart === plan.start && b.cookId && b.remaining > (taking.get(b.gid) ?? 0))
+        .map((b) => ({ ...toStock(b), left: b.remaining - (taking.get(b.gid) ?? 0) }))
+    : [];
+  const placements = freed.length ? fillGaps(placed, freed, today) : placed;
   const nextStart = addDays(weekStart, 7);
   const nextPlan = plans.find((p) => p.start === nextStart)?.data ?? null;
-  const nextPlacements = place(nextPlan);
+  // Next week draws only on what this week's meals leave in each batch.
+  const nextPlacements = place(nextPlan, stillToEat(placements, logged));
   const eaten = eatenShare(raw.meals, today);
   const adjustment =
     setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
