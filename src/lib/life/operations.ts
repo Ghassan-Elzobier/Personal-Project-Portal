@@ -14,12 +14,11 @@ import {
   spareStaysCold,
   type Placement,
   type ShopVia,
-  type StapleBefore,
   type WeekMode,
   type WeekPlan,
 } from "./planner";
 import { recipe } from "./recipes";
-import { buildList, cookUse, delivery, goodOn, undoOf, weekNeeds, type Product } from "./shopping";
+import { buildList, cookUse, delivery, goodOn, landShop, undoOf, undoShop, weekNeeds, type Product } from "./shopping";
 import {
   openStock,
   placedMacros,
@@ -553,23 +552,27 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const needs = v ? remainingNeeds(s, v) : weekNeeds(plan!, []);
     const lines = buildList(needs, v ? kitchenFor(s, v) : s.stock, s.products, s.profile.food, s.today);
     const changes = delivery(lines, got, s.today);
-    if (changes.length)
-      await store.changeStock(
-        changes.map((c) => ({
-          item: c.item,
-          qty: c.add,
-          ...(c.status ? { status: c.status } : {}),
-          ...(c.goodUntil ? { good_until: c.goodUntil } : {}),
-        })),
-        "add",
-      );
-    const { added, restore } = undoOf(changes, s.stock);
-    await store.savePlan(start, {
-      ...plan!,
-      shop: { ...plan!.shop, deliveredOn: s.today, got, added, ...(restore.length ? { restore } : {}) },
-    });
+    const undo = await landInKitchen(changes, s);
+    await store.savePlan(start, { ...plan!, shop: { ...plan!.shop, deliveredOn: s.today, got, ...undo } });
     return { added: changes.length };
   });
+}
+
+/**
+ * Puts a shop into the kitchen (a fresh pack replaces a remainder past its date) and
+ * returns what Undo needs to put the kitchen back exactly as it was.
+ */
+async function landInKitchen(changes: ReturnType<typeof delivery>, s: LifeState) {
+  const landed = landShop(changes, s.stock, s.today);
+  if (landed.set.length) await store.changeStock(landed.set, "set");
+  if (landed.add.length) await store.changeStock(landed.add, "add");
+  const { added, restore } = undoOf(changes, s.stock);
+  return {
+    added,
+    ...(restore.length ? { restore } : {}),
+    ...(landed.dropped.length ? { dropped: landed.dropped } : {}),
+    ...(landed.dates.length ? { dates: landed.dates } : {}),
+  };
 }
 
 export function undoDelivery(start: string): Promise<Result> {
@@ -577,22 +580,29 @@ export function undoDelivery(start: string): Promise<Result> {
     const s = await state();
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan?.shop?.deliveredOn) fail("No delivery to undo.");
-    await unshop(plan!.shop!.added ?? [], plan!.shop!.restore ?? []);
+    await unshop(plan!.shop!);
     await store.savePlan(start, {
       ...plan!,
-      shop: { ...plan!.shop, deliveredOn: undefined, got: undefined, added: undefined, restore: undefined },
+      shop: {
+        ...plan!.shop,
+        deliveredOn: undefined,
+        got: undefined,
+        added: undefined,
+        restore: undefined,
+        dropped: undefined,
+        dates: undefined,
+      },
     });
     return {};
   });
 }
 
 /** Puts the kitchen back as it was before a shop: its food out again, its staples to how they were. */
-async function unshop(added: { item: string; qty: number }[], restore: StapleBefore[]) {
-  const changes = [
-    ...added.map((c) => ({ item: c.item, qty: -c.qty })),
-    ...restore.map((r) => ({ item: r.item, status: r.status })),
-  ];
-  if (changes.length) await store.changeStock(changes, "add");
+/** Takes a shop back out of the kitchen, exactly: amounts, staples, dates and the food it replaced. */
+async function unshop(record: Parameters<typeof undoShop>[0]) {
+  const undo = undoShop(record);
+  if (undo.add.length) await store.changeStock(undo.add, "add");
+  if (undo.set.length) await store.changeStock(undo.set, "set");
 }
 
 /** A fresh week's shop is done: what you got goes into stock, fresh food with its use-by. */
@@ -606,26 +616,14 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
     const v = viewFor(s, start);
     const lines = (v && tripLists(s, v).open.find((t) => t.trip.id === tripId)?.lines) ?? [];
     const changes = delivery(lines, got, s.today);
-    if (changes.length)
-      await store.changeStock(
-        changes.map((c) => ({
-          item: c.item,
-          qty: c.add,
-          ...(c.status ? { status: c.status } : {}),
-          ...(c.goodUntil ? { good_until: c.goodUntil } : {}),
-        })),
-        "add",
-      );
-    const { added, restore } = undoOf(changes, s.stock);
+    const undo = await landInKitchen(changes, s);
     // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
     const pence = lines
       .filter((l) => l.packs > 0 && !l.item.staple && got.includes(l.item.key))
       .reduce((t, l) => t + l.pence, 0);
     await store.savePlan(start, {
       ...plan!,
-      trips: plan!.trips!.map((t) =>
-        t.id === tripId ? { ...t, doneOn: s.today, got, added, ...(restore.length ? { restore } : {}), pence } : t,
-      ),
+      trips: plan!.trips!.map((t) => (t.id === tripId ? { ...t, doneOn: s.today, got, ...undo, pence } : t)),
     });
     return { added: changes.length };
   }, true);
@@ -680,7 +678,7 @@ export function undoTrip(start: string, tripId: string): Promise<Result> {
     const plan = s.plans.find((p) => p.start === start)?.data;
     const trip = plan?.trips?.find((t) => t.id === tripId);
     if (!plan || !trip?.doneOn) fail("No shop to undo.");
-    await unshop(trip!.added ?? [], trip!.restore ?? []);
+    await unshop(trip!);
     await store.savePlan(start, {
       ...plan!,
       trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),
