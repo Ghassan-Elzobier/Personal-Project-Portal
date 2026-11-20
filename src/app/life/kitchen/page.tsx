@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays, shortDate } from "@/lib/dates/week";
 import { TAG_LABELS } from "@/lib/life/allergens";
-import { INGREDIENTS, packFromSlug } from "@/lib/life/ingredients";
+import { INGREDIENTS } from "@/lib/life/ingredients";
+import { linkDisagrees, packUnits } from "@/lib/life/pack";
 import { loadLife } from "@/lib/life/load";
 import { loadToday } from "@/lib/money/load";
 import { spareStaysCold } from "@/lib/life/planner";
@@ -249,8 +250,15 @@ function shopLine(s: S, l: ListLine): ShopLine {
     uses: l.uses,
     staple: Boolean(l.item.staple),
     defaultPack: { qty: l.item.pack.qty, unit: l.item.pack.unit },
-    slugPack: l.product ? packFromSlug(l.product.url) : null,
+    units: packUnits(l.item),
+    packCheck: packCheck(l),
   };
+}
+
+/** The link's own pack size, when the saved one disagrees with it. */
+function packCheck(l: ListLine): string | null {
+  const linked = l.product ? linkDisagrees(l.item, l.product) : null;
+  return linked ? packLabel(linked.qty, linked.unit) : null;
 }
 
 /** The next given weekday on or after today, but not after the plan starts. */

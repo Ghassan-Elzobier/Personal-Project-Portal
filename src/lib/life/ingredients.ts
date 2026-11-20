@@ -1383,20 +1383,3 @@ export function isSainsburysProduct(url: string): boolean {
     return false;
   }
 }
-
-/** Pack size from a Sainsbury's product slug like "...-thigh-fillets-1kg" or "...-x6". */
-export function packFromSlug(url: string): { qty: number; unit: Unit } | null {
-  const slug = url.split("/").pop()?.toLowerCase() ?? "";
-  const weight = /(?:^|-)(\d+(?:\.\d+)?)(kg|g|ml|l|litre|litres)(?:-|$)/.exec(slug);
-  if (weight) {
-    const n = Number(weight[1]);
-    const u = weight[2];
-    if (u === "kg") return { qty: n * 1000, unit: "g" };
-    if (u === "g") return { qty: n, unit: "g" };
-    if (u === "ml") return { qty: n, unit: "ml" };
-    return { qty: n * 1000, unit: "ml" };
-  }
-  const count = /(?:^|-)x?(\d{1,2})(?:-?pack|-?pk)?(?:-|$)/.exec(slug.replace(/-(\d+)-pack/, "-x$1"));
-  if (count && /x\d|pack|pk/.test(slug)) return { qty: Number(count[1]), unit: "each" };
-  return null;
-}

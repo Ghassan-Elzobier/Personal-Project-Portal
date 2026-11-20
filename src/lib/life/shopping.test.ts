@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NO_RULES, type FoodRules } from "./allergens.ts";
-import { isSainsburysProduct, packFromSlug } from "./ingredients.ts";
+import { isSainsburysProduct } from "./ingredients.ts";
+import { packFromSlug } from "./pack.ts";
 import { buildList, carryMissing, cookUse, delivery, listTotal, soonToUse, splitTrips, type Need } from "./shopping.ts";
 
 const rules: FoodRules = {
@@ -139,7 +140,7 @@ test("Sainsbury's product links only, and pack sizes from their slugs", () => {
     { qty: 1000, unit: "g" },
   );
   assert.deepEqual(packFromSlug("https://www.sainsburys.co.uk/gol-ui/product/sainsburys-whole-milk-2-27l"), {
-    qty: 27000,
+    qty: 2270,
     unit: "ml",
   });
 });
