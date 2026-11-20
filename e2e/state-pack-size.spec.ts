@@ -46,7 +46,7 @@ test("a pasted link reads 2-27l as 2.27 litres, and a pack that disagrees with i
   await line.getByRole("button", { name: "Pick", exact: true }).click();
   await sheet(page).getByLabel("Product link").fill(MILK);
   await expect(sheet(page).getByLabel("Pack", { exact: true })).toHaveValue("2270");
-  await expect(sheet(page).getByLabel("Unit", { exact: true })).toHaveValue("ml");
+  await expect(sheet(page).getByRole("combobox", { name: /^Unit/ })).toHaveValue("ml");
   await sheet(page).getByLabel("Name", { exact: true }).fill("Example pack-size milk");
   await sheet(page).getByRole("button", { name: "Save product" }).click();
   await expect(sheet(page)).toBeHidden();
