@@ -5,7 +5,8 @@ import { useOptimistic, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import { clock } from "@/lib/dates/week";
 import type { Day, DayItem } from "@/lib/portal/day";
-import { cookPlanned, logMeal } from "./life/actions";
+import { cookPlanned, logMeal, uncook } from "./life/actions";
+import { toastCooked } from "./life/kit";
 import { moveBlock } from "./schedule/actions";
 
 const DOT: Record<DayItem["kind"], string> = {
@@ -36,8 +37,19 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
       const next = !done[i.key];
       setDone({ key: i.key, done: next });
       if (i.kind === "meal" && i.slot) {
-        const r = await logMeal(date, i.slot, next ? "eaten" : null);
-        if (r.error) toast(r.error, { tone: "error" });
+        const slot = i.slot;
+        const r = await logMeal(date, slot, next ? "eaten" : null);
+        if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+        // A meal from a cook that wasn't logged logs the cook too; Undo takes both back.
+        toastCooked(r.cooked, () =>
+          start(async () => {
+            await logMeal(date, slot, null);
+            for (const c of r.cooked ?? []) {
+              const back = await uncook(c.batch);
+              if (back.error) return void toast(back.error, { tone: "error" });
+            }
+          }),
+        );
       } else if (i.kind === "cook" && i.cookIds && day.planStart) {
         for (const id of i.cookIds) {
           const r = await cookPlanned(day.planStart, id);
