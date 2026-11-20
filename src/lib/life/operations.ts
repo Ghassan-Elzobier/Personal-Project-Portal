@@ -34,6 +34,7 @@ import {
   stockFor,
   placedMacros,
   remainingNeeds,
+  shouldPlanNext,
   tripLists,
   kitchenFor,
   unlogged,
@@ -177,9 +178,15 @@ async function savePlan(s: LifeState, plan: WeekPlan) {
 /**
  * Fills the week from the menu in one go. Replaces any plan not yet cooked from.
  * `mode` picks a batch week or a fresh one; left out, a re-plan keeps the week's mode.
- * `cheaper` picks the cheapest good week rather than the best value.
+ * `cheaper` picks the cheapest good week rather than the best value. `auto` marks a
+ * week that planned itself (`planNextWhenDone`), so the pages say so.
  */
-export function planWeek(start?: string, mode?: WeekMode, cheaper = false): Promise<Result<{ start: string }>> {
+export function planWeek(
+  start?: string,
+  mode?: WeekMode,
+  cheaper = false,
+  auto = false,
+): Promise<Result<{ start: string }>> {
   return run(async () => {
     const s = await state();
     const week = start ?? s.weekStart;
@@ -206,6 +213,7 @@ export function planWeek(start?: string, mode?: WeekMode, cheaper = false): Prom
             )
           : undefined,
       createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today,
+      ...(auto ? { auto: true } : {}),
     });
     return { start: week };
   }, true);
@@ -314,13 +322,19 @@ export function logMeal(
   slot: Slot,
   status: "eaten" | "skipped" | "swapped" | null,
   size: OtherSize = "about",
-): Promise<Result<{ estimate?: MealEstimate; cooked?: CookedNote[] }>> {
+): Promise<Result<{ estimate?: MealEstimate; cooked?: CookedNote[]; planningNext?: boolean }>> {
   return run(async () => {
     let s = await state();
     let p = s.placements.find((x) => x.date === day && x.slot === slot);
     // Eaten from a planned cook that wasn't logged: it was cooked, so log it first and
     // the portion comes out of its batch like any other.
     const cooked = status === "eaten" && p ? await logCooks(s, s.weekStart, cooksToLog([p])) : [];
+    const planningNext =
+      cooked.length > 0 &&
+      planNextWhenDone(
+        s,
+        cooked.map((c) => c.cookId),
+      );
     if (cooked.length) {
       s = await state();
       p = s.placements.find((x) => x.date === day && x.slot === slot);
@@ -347,7 +361,7 @@ export function logMeal(
       kcal: status === "eaten" ? (m?.kcal ?? null) : null,
       protein: status === "eaten" ? (m?.protein ?? null) : null,
     });
-    return cooked.length ? { cooked } : {};
+    return cooked.length ? { cooked, ...(planningNext ? { planningNext } : {}) } : {};
   });
 }
 
@@ -365,10 +379,16 @@ async function eatFromCupboard(p: Placement | undefined, was: boolean, now: bool
  * Every planned meal before today with nothing logged, as eaten: the cooks they came
  * from are logged first, and meals made on the spot use the cupboard, as one tick does.
  */
-export function logPastAsEaten(): Promise<Result<{ count: number; cooked?: CookedNote[] }>> {
+export function logPastAsEaten(): Promise<Result<{ count: number; cooked?: CookedNote[]; planningNext?: boolean }>> {
   return run(async () => {
     const first = await state();
     const cooked = await logCooks(first, first.weekStart, cooksToLog(unlogged(first, first.today)));
+    const planningNext =
+      cooked.length > 0 &&
+      planNextWhenDone(
+        first,
+        cooked.map((c) => c.cookId),
+      );
     const s = cooked.length ? await state() : first;
     const todo = unlogged(s, s.today);
     for (const p of todo) {
@@ -384,7 +404,9 @@ export function logPastAsEaten(): Promise<Result<{ count: number; cooked?: Cooke
         protein: m?.protein ?? null,
       });
     }
-    return cooked.length ? { count: todo.length, cooked } : { count: todo.length };
+    return cooked.length
+      ? { count: todo.length, cooked, ...(planningNext ? { planningNext } : {}) }
+      : { count: todo.length };
   });
 }
 
@@ -416,12 +438,36 @@ export function rate(recipeKey: string, stars: number | null, note?: string): Pr
 
 // ---------------------------------------------------------------- kitchen
 
-/** Logs a planned cook: portions into the fridge (the later ones into the freezer), ingredients out of stock. */
-export function cookPlanned(start: string, cookId: string): Promise<Result> {
+/**
+ * Logs a planned cook: portions into the fridge (the later ones into the freezer),
+ * ingredients out of stock. `planningNext`: it was this week's last, so next week is
+ * planning itself.
+ */
+export function cookPlanned(start: string, cookId: string): Promise<Result<{ planningNext: boolean }>> {
   return run(async () => {
-    await logCook(await state(), start, cookId);
-    return {};
+    const s = await state();
+    await logCook(s, start, cookId);
+    return { planningNext: start === s.weekStart && planNextWhenDone(s, [cookId]) };
   });
+}
+
+/**
+ * Next week plans itself, in this week's mode, once this week's last planned cook is
+ * logged and next week has no plan (`shouldPlanNext`, given the state before the cooks
+ * were logged). It runs after the answer has gone back, so the tap doesn't wait, and
+ * never replaces a plan, even one made in the meantime. Says whether it will.
+ */
+function planNextWhenDone(s: LifeState, cookedIds: string[]): boolean {
+  if (!shouldPlanNext(s, cookedIds)) return false;
+  const { start } = s.next;
+  const mode = s.plan?.mode ?? "batch";
+  after(async () => {
+    const now = await loadLife();
+    if (now.error !== undefined || now.state.next.start !== start || now.state.next.plan) return;
+    const planned = await planWeek(start, mode, false, true);
+    if (planned.error !== undefined) console.error("Next week did not plan itself:", planned.error);
+  });
+  return true;
 }
 
 /**
