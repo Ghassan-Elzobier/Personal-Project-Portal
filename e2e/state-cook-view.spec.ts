@@ -35,15 +35,17 @@ test("a cook session opens from the Kitchen as one page, and Cooked it there log
   page.on("dialog", (dialog) => void dialog.accept());
   await aPlannedWeek(page, request);
   await page.goto("/life/kitchen?tab=fridge");
-  const open = page.getByRole("link", { name: "Open the cook" }).first();
-  await expect(open).toBeVisible();
-  // The session's first dish, as the Kitchen counts it: "4 portions, 1 to freeze".
+  // A session card with a dish still to cook, and that dish as the Kitchen counts it:
+  // "4 portions, 1 to freeze". Earlier save tests may leave a session cooked.
+  const cookedIt = page.getByRole("button", { name: "Cooked it" });
   const card = page
-    .locator("div")
-    .filter({ has: open })
-    .filter({ has: page.getByRole("button", { name: "Cooked it" }) })
-    .last();
-  const row = card.getByRole("listitem").first();
+    .locator(".card-life")
+    .filter({ has: page.getByRole("link", { name: "Open the cook" }) })
+    .filter({ has: cookedIt })
+    .first();
+  const open = card.getByRole("link", { name: "Open the cook" });
+  await expect(open).toBeVisible();
+  const row = card.getByRole("listitem").filter({ has: cookedIt }).first();
   const name = await row.getByRole("link").first().innerText();
   const [, portions, freeze] = /(\d+) portions(?:, (\d+) to freeze)?/.exec(await row.innerText())!;
   const href = await open.getAttribute("href");
