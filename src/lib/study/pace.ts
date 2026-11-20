@@ -30,3 +30,36 @@ export function dayAfterHours(start: string, hours: number, pace: Pace): string 
 export function weeksFor(start: string, hours: number, pace: Pace): number {
   return Math.max(Math.ceil((daysBetween(start, dayAfterHours(start, hours, pace)) + 1) / 7), 1);
 }
+
+/** A pace as the owner set it on the Study page: the hours, and the day they start. */
+export type SavedPace = Pace & { start: string };
+
+/**
+ * The pace to save for what the pace form sent. A change that does not come after
+ * the start is left out, as dayAfterHours leaves it out of the dates.
+ */
+export function savedAs(hoursPerWeek: number, start: string, then?: { from: string; hoursPerWeek: number }): SavedPace {
+  return then && then.from > start
+    ? { start, hoursPerWeek, until: then.from, thenHoursPerWeek: then.hoursPerWeek }
+    : { start, hoursPerWeek };
+}
+
+/**
+ * The hours of study a week is counted against, given its Monday. A change of pace
+ * counts for the whole week it falls in, so the target moves once, as that week
+ * starts, and never part-way through one.
+ */
+export function weekTarget(pace: Pace, weekStart: string): number {
+  if (pace.until && pace.thenHoursPerWeek && pace.until <= addDays(weekStart, 6)) return pace.thenHoursPerWeek;
+  return pace.hoursPerWeek;
+}
+
+/**
+ * The pace as it stands on a day, for the pace form to open on. Once the change
+ * has come, the later hours are the pace and there is no change left to show.
+ */
+export function paceOn(pace: Pace, day: string): Pace {
+  if (!pace.until || !pace.thenHoursPerWeek) return { hoursPerWeek: pace.hoursPerWeek };
+  if (pace.until <= day) return { hoursPerWeek: pace.thenHoursPerWeek };
+  return { hoursPerWeek: pace.hoursPerWeek, until: pace.until, thenHoursPerWeek: pace.thenHoursPerWeek };
+}

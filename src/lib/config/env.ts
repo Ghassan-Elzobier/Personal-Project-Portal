@@ -32,6 +32,7 @@ export function timeZone(): string {
   }
 }
 
+/** The deployment's weekly study hours. Pages ask studyTarget (src/lib/portal/data.ts), which prefers the pace set on Study. */
 export function weeklyHoursTarget(): number | null {
   const n = Number(process.env.PORTAL_WEEKLY_HOURS_TARGET);
   return Number.isFinite(n) && n > 0 ? n : null;

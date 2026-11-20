@@ -5,9 +5,10 @@ import { requireOwner } from "@/lib/auth/access";
 import { timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { projectDef } from "@/lib/config/projects";
 import { loadJobBoard, phaseMarket, unitMarket, type JobBoard } from "@/lib/jobs/load";
-import { attempt } from "@/lib/portal/data";
+import { attempt, savedPace } from "@/lib/portal/data";
 import { recentCommits } from "@/lib/study/github";
 import { loadStudy, panelFor, type PlanProgress, type StudyOverview, type UnitRow } from "@/lib/study/load";
+import { paceOn } from "@/lib/study/pace";
 import { listComments } from "@/lib/tasks/native";
 import { loadUnitSessions } from "@/lib/tutor/load";
 import { bookHref } from "@/lib/library/links";
@@ -47,6 +48,10 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
   // What the market says about each unit. The page works the same without it.
   const loadedBoard = await attempt(() => loadJobBoard(overview));
   const board = loadedBoard.ok ? loadedBoard.value : null;
+  // The roadmap's pace form opens on the pace last set, as it stands today. Before
+  // any is set it opens on the deployment's number, or 12 hours.
+  const saved = current ? null : await savedPace();
+  const pace = paceOn(saved ?? { hoursPerWeek: weeklyHoursTarget() ?? 12 }, overview.today);
 
   return (
     <div className="space-y-6">
@@ -65,7 +70,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
         <RoadmapView
           roadmap={overview.roadmap}
           today={overview.today}
-          defaultHours={weeklyHoursTarget() ?? 12}
+          pace={pace}
           market={board ? phaseMarket(board) : undefined}
         />
       ) : current.loaded ? (

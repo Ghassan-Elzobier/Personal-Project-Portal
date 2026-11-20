@@ -69,7 +69,8 @@ steps that mention Asana then apply to the Tasks page instead.
       exist (`/api/1.0/projects/<gid>/custom_field_settings`). List any that
       are missing for Ghassan to add.
 - [ ] Set `PORTAL_TIMEZONE=Europe/London`, and `PORTAL_WEEKLY_HOURS_TARGET`
-      if he wants one.
+      if he wants one. It only counts until a pace is set on the Study page;
+      from then on that pace is the weekly target.
 
 ## 3. Google (SETUP.md section 3 and "Google sign-in")
 

@@ -9,9 +9,10 @@ import {
   type AsanaTask,
 } from "../tasks/tracker";
 import { projectGid, timeZone, usesAsana, weeklyHoursTarget } from "../config/env";
-import { studySnapshot } from "../tasks/native";
+import { studyPace, studySnapshot } from "../tasks/native";
 import { type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
+import { weekTarget, type SavedPace } from "../study/pace";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
 import { now } from "@/lib/dates/clock";
 
@@ -107,6 +108,25 @@ export async function allTasks(key: ProjectKey): Promise<TaskView[]> {
   return tasks.map((t) => toView(t, key));
 }
 
+/**
+ * The pace the owner set on the Study page. Null before one is set, and null when
+ * it cannot be read, so that no page waits on it or fails for it.
+ */
+export async function savedPace(): Promise<SavedPace | null> {
+  if (usesAsana()) return null;
+  const pace = await attempt(() => studyPace());
+  return pace.ok ? pace.value : null;
+}
+
+/**
+ * The hours of study a week is counted against: the pace set on the Study page,
+ * for that week, or the deployment's number until a pace is set.
+ */
+export async function studyTarget(week: Week = thisWeek()): Promise<number | null> {
+  const pace = await savedPace();
+  return pace ? weekTarget(pace, week.start) : weeklyHoursTarget();
+}
+
 export type TodayBuckets = {
   overdue: TaskView[];
   dueToday: TaskView[];
@@ -185,16 +205,16 @@ export async function weekSummary(
   const suggestedStatus: StatusType =
     overdue.length > 2 ? "off_track" : blocked.length > 0 || overdue.length > 0 ? "at_risk" : "on_track";
 
-  const target = weeklyHoursTarget();
+  // The weekly log reports all study hours against the week's target; the other drafts have none.
+  const target = options.studyHours !== undefined ? await studyTarget(week) : null;
   const draft = statusDraft({
     practice: usesAsana() ? null : await weekPractice(key, week, inWeek),
     status: suggestedStatus,
     done: done.map((t) => ({ name: t.name, hours: hoursByTask.get(t.gid) ?? 0, evidence: t.evidence })),
     next: next.map((t) => t.name),
     blocked: blocked.map((t) => `${t.name} (${t.stage?.toLowerCase()})`),
-    // The weekly log reports all study hours against the weekly target.
     hours: options.studyHours ?? hours,
-    target: options.studyHours !== undefined ? target : null,
+    target,
   });
 
   return {
