@@ -426,7 +426,9 @@ export function weekCost(plan: WeekPlan, kitchen: Kitchen): WeekCost {
 }
 
 function costOfPlaced(plan: WeekPlan, placed: Placement[], k: Kitchen): WeekCost {
-  const needs = weekNeeds(plan, placed);
+  // Meals before the plan was made are history: nothing is bought for them.
+  const from = plan.createdOn;
+  const needs = weekNeeds(plan, placed, from ? { from } : {});
   const lists =
     plan.mode === "fresh" && plan.trips?.length
       ? splitTrips(needs, plan.trips, k.stock, k.products).trips.map((t) =>
@@ -468,7 +470,7 @@ function costOfPlaced(plan: WeekPlan, placed: Placement[], k: Kitchen): WeekCost
   let kcal = 0;
   for (const p of placed) {
     const r = p.recipe ? recipe(p.recipe) : undefined;
-    if (r) kcal += portionMacros(r).kcal * p.scale;
+    if (r && !(from && p.date < from)) kcal += portionMacros(r).kcal * p.scale;
   }
   return { pence, cupboard, waste: Math.round(waste), items, trips, kcal: Math.round(kcal) };
 }

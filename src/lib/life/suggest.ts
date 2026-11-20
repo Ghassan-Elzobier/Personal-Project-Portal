@@ -143,6 +143,7 @@ export function weekendFresh(
 /** Cook sessions of a meal week starting on `start`, from the routine. */
 const daysUntil = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+const weekdayOf = (d: string) => (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 export function sessionDates(
   start: string,
@@ -196,6 +197,125 @@ export function suggestWeek(
     (r) => !r.recipe.tags.includes("weekend"),
   );
   return combine(plan, profile, ranked, today, kitchen);
+}
+
+/** Days of the meal week from `start` still to come, today included: all seven before it starts. */
+export function daysLeft(start: string, today: string): number {
+  return Math.max(0, daysUntil(today > start ? today : start, addDays(start, 7)));
+}
+
+/** A week with this many days left or fewer is planned lean, for just those days. */
+export const SHORT_WEEK_DAYS = 2;
+
+export function isShortWeek(start: string, today: string): boolean {
+  const n = daysLeft(start, today);
+  return n >= 1 && n <= SHORT_WEEK_DAYS;
+}
+
+/** Today's dinner can still be bought and cooked up to this long after its usual time. */
+const LATE_DINNER = 120;
+
+/** The dinners a week still has: each day left, today's while there is time to make it. */
+export function dinnersLeft(profile: LifeProfile, start: string, today: string, now = 0): string[] {
+  const out: string[] = [];
+  for (let d = today > start ? today : start; d < addDays(start, 7); d = addDays(d, 1))
+    if (d > today || now < profile.routine.dinner + LATE_DINNER) out.push(d);
+  return out;
+}
+
+/**
+ * A short week's one shop: on the first day with a dinner to buy for, at the
+ * routine's shop time that weekday when it is still to come and an hour before
+ * dinner or earlier, and otherwise an hour before dinner (or now, when that has gone).
+ */
+export function shortWeekShop(profile: LifeProfile, date: string, today: string, now = 0): Trip {
+  const latest = profile.routine.dinner - 60;
+  const from = date === today ? Math.ceil(now / 5) * 5 : 0;
+  const routine = profile.routine.fresh.trips
+    .filter((t) => t.weekday === weekdayOf(date) && t.start >= from && t.start <= latest)
+    .map((t) => t.start)
+    .sort((a, b) => a - b);
+  return { id: `trip-${date}`, date, start: Math.min(23 * 60 + 55, routine[0] ?? Math.max(latest, from)) };
+}
+
+/**
+ * A week planned with two days or fewer left: only what those days need. Each dinner
+ * still to come is cooked fresh, one portion eaten that evening, picked from the menu
+ * (quick dishes on weeknights). Lunches come from cooked portions in the kitchen, or
+ * stay unplanned; breakfasts and shakes are the daily ones; nothing is batch cooked;
+ * and one shop buys it all, before the first dinner.
+ */
+export function suggestShortWeek(
+  profile: LifeProfile,
+  start: string,
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+  now = 0,
+): WeekPlan {
+  const ranked = rank(profile, "main", ratings, lastHad, spare, today);
+  // The routine's short weeknight cook is how long a weeknight dinner may take.
+  const limits = profile.routine.fresh.cooks.map((c) => c.minutes ?? 0).filter((m) => m > 0);
+  const quick = limits.length ? Math.min(...limits) : null;
+  const picks: Recipe[] = [];
+  const fresh: WeekPlan["fresh"] = [];
+  for (const date of dinnersLeft(profile, start, today, now)) {
+    const weeknight = weekdayOf(date) < 5;
+    const left = ranked.filter(
+      (r) => !picks.some((p) => p.key === r.recipe.key) && !(weeknight && r.recipe.tags.includes("weekend")),
+    );
+    const inTime = weeknight && quick ? left.filter((r) => r.recipe.totalMin <= quick) : left;
+    // Nothing fits the time: the quickest few, rather than no dinner at all.
+    const pool = inTime.length ? inTime : [...left].sort((a, b) => a.recipe.totalMin - b.recipe.totalMin).slice(0, 3);
+    const pick = pickSpread(
+      pool.map((r) => ({ ...r, score: r.score - (weeknight ? r.recipe.activeMin / 20 : 0) })),
+      1,
+      [],
+      picks,
+    )[0];
+    if (!pick) continue;
+    picks.push(pick);
+    fresh.push({ date, slot: "dinner", recipe: pick.key });
+  }
+  const breakfasts = rank(profile, "breakfast", ratings, lastHad, spare, today);
+  const dailyBreakfast = breakfasts.find((r) => r.recipe.daily)?.recipe ?? breakfasts[0]?.recipe;
+  const shakes = rank(profile, "shake", ratings, lastHad, spare, today)
+    .slice(0, 3)
+    .map((r) => r.recipe.key);
+  return {
+    start,
+    mode: "fresh",
+    short: true,
+    cooks: [],
+    trips: fresh.length ? [shortWeekShop(profile, fresh[0].date, today, now)] : [],
+    breakfast: dailyBreakfast?.key ?? "",
+    shake: shakes[0] ?? "",
+    shakes,
+    fresh,
+    out: [],
+  };
+}
+
+/**
+ * The week `planWeek` saves: with two days or fewer left, just those days
+ * (`suggestShortWeek`) whatever the mode; otherwise the whole week (`suggestWeek`).
+ * `now` is minutes after midnight, for what is still to come today.
+ */
+export function suggestPlan(
+  profile: LifeProfile,
+  start: string,
+  ratings: Rating[],
+  lastHad: LastHad,
+  spare: Record<string, number>,
+  today: string,
+  mode: WeekMode = "batch",
+  kitchen?: Kitchen & { cheaper?: boolean },
+  now = 0,
+): WeekPlan {
+  return isShortWeek(start, today)
+    ? suggestShortWeek(profile, start, ratings, lastHad, spare, today, now)
+    : suggestWeek(profile, start, ratings, lastHad, spare, today, mode, kitchen);
 }
 
 /** The menu's picks replaced by the set planCombo chooses, in the same sessions. */
