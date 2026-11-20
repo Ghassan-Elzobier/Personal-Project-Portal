@@ -205,7 +205,12 @@ export const TUTOR_TOOLS: Tool[] = [
         },
         confidence: { type: ["integer", "null"], minimum: 0, maximum: 100 },
         thinking: { type: "string", maxLength: 2000, description: "Their reasoning, as they said it." },
-        feedback: { type: "string", maxLength: 1000, description: "What you told them about it." },
+        feedback: {
+          type: "string",
+          maxLength: 1000,
+          description:
+            "What you told them about it. For a wrong answer, say the right one in your own words: a missed check comes back as a recall card, and this is the answer they check against.",
+        },
         options: { type: "array", maxItems: 8, items: { type: "string" } },
       },
       required: ["session", "kind", "question"],
@@ -271,7 +276,7 @@ export const TUTOR_TOOLS: Tool[] = [
     name: "tutor_end",
     title: "End a tutoring session",
     description:
-      "Close the session with a short summary. For a session on a study unit, review_prompts adds the claims worth recalling to the owner's review queue, each as a question they can answer from memory; checks they got wrong are added by themselves. Mark it dropped if it was abandoned.",
+      "Close the session with a short summary. For a session on a study unit, review_prompts adds the claims worth recalling to the owner's review queue, each as a question they can answer from memory, with the answer they will check their recall against; checks they got wrong are added by themselves. Mark it dropped if it was abandoned.",
     inputSchema: {
       type: "object",
       properties: {
@@ -285,6 +290,12 @@ export const TUTOR_TOOLS: Tool[] = [
             type: "object",
             properties: {
               prompt: { type: "string", maxLength: 500 },
+              answer: {
+                type: "string",
+                maxLength: 1000,
+                description:
+                  "The answer, in your own words (the claim's statement), never book text. The owner sees it only after trying to recall, then rates themselves against it.",
+              },
               days: { type: "integer", minimum: 1, maximum: 30 },
             },
             required: ["prompt"],

@@ -31,6 +31,7 @@ import { openTasks, thisWeek, today } from "./data";
 import { isProjectKey, PROJECTS, type ProjectKey } from "../config/projects";
 import { planFor, planPayload, planUnits, PLANS } from "../study/plans";
 import { nextReview, spreadDates, type ExerciseStatus } from "../study/review";
+import { savedAs } from "../study/pace";
 import { scheduleRoadmap } from "../study/roadmap";
 import { addHours, formatHours, parseSessionForm, sessionComment, STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { addDays, shortDate, weekdayIndex, zonedInstant } from "../dates/week";
@@ -545,7 +546,10 @@ export async function loadAllPlans(): Promise<OpResult & { added?: number }> {
   }
 }
 
-/** Dates the main path of all three plans at so many hours a week, in roadmap order. */
+/**
+ * Dates the main path of all three plans at so many hours a week, in roadmap order,
+ * and saves that pace: it is the weekly target Today and the Sunday update count against.
+ */
 export async function setRoadmapPace(
   hoursPerWeek: number,
   start: string,
@@ -576,6 +580,8 @@ export async function setRoadmapPace(
       const task = byRef.get(d.ref);
       return task && !task.due_at ? [{ gid: task.gid, due_on: d.dueOn }] : [];
     });
+    // The pace first: if it cannot be saved, no date has moved and the message below is true.
+    await native.saveStudyPace(savedAs(hoursPerWeek, start, then));
     await native.setDueDates(items);
     revalidateTasks();
     return { count: items.length, last: items.at(-1)?.due_on };

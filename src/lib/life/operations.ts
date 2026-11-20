@@ -6,6 +6,7 @@ import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
 import { SPLIT, type Slot } from "./nutrition";
 import { otherMeal, type OtherSize } from "./other-meal";
+import { packProblem } from "./pack";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
 import {
   cookScale,
@@ -680,10 +681,12 @@ export function saveProduct(input: {
   checked: Tag[];
 }): Promise<Result> {
   return run(async () => {
-    if (!INGREDIENTS.has(input.item)) fail("Unknown ingredient.");
+    const item = INGREDIENTS.get(input.item);
+    if (!item) fail("Unknown ingredient.");
     const url = input.url.trim().split("?")[0];
     if (!isSainsburysProduct(url)) fail("Paste a Sainsbury's product link (sainsburys.co.uk/gol-ui/product/…).");
-    if (!(input.packQty > 0)) fail("Give the pack size.");
+    const problem = packProblem(item!, input.packQty, input.packUnit);
+    if (problem) fail(problem);
     const product: Product = {
       item: input.item,
       url,

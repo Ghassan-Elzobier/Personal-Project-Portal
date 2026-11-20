@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Roadmap, RoadmapPhase, RoadmapUnit } from "@/lib/study/load";
+import type { Pace } from "@/lib/study/pace";
 import { CUDA_TO_VULKAN, TOOLS } from "@/lib/study/roadmap";
 import { LoadAllButton, RoadmapPaceForm } from "./plan-controls";
 
@@ -32,12 +33,13 @@ export function RoadmapTab({ roadmap, active }: { roadmap: Roadmap; active: bool
 export function RoadmapView({
   roadmap,
   today,
-  defaultHours,
+  pace,
   market,
 }: {
   roadmap: Roadmap;
   today: string;
-  defaultHours: number;
+  /** The pace last set, as it stands today: what the pace form opens on. */
+  pace: Pace;
   market?: Map<number, { name: string; must: number; soft: number }[]>;
 }) {
   const { phases, missing, hoursLeft, dated, remaining } = roadmap;
@@ -75,12 +77,14 @@ export function RoadmapView({
             <span className="text-muted tabular-nums">about {Math.round(hoursLeft)} hours left, a rough guess</span>
           </summary>
           <div className="mt-3">
+            {/* Keyed to the saved pace: when it changes, the form starts again from it. */}
             <RoadmapPaceForm
+              key={`${pace.hoursPerWeek} ${pace.until ?? ""} ${pace.thenHoursPerWeek ?? ""}`}
               hoursLeft={hoursLeft}
               today={today}
               dated={dated}
               remaining={remaining}
-              defaultHours={defaultHours}
+              saved={pace}
             />
           </div>
         </details>

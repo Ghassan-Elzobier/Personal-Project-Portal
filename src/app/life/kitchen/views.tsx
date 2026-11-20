@@ -6,6 +6,7 @@ import type { Tag } from "@/lib/life/allergens";
 import { aislesToVisit, basketProgress, pounds, toggle } from "@/lib/life/basket";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
 import { parsePrice, smartList, toAdd } from "@/lib/life/order";
+import { packFromSlug } from "@/lib/life/pack";
 import {
   confirmDelivery,
   confirmTrip,
@@ -53,7 +54,10 @@ export type ShopLine = {
   uses: string[];
   staple: boolean;
   defaultPack: { qty: number; unit: Unit };
-  slugPack: { qty: number; unit: Unit } | null;
+  /** The units a pack of it can be given in. */
+  units: Unit[];
+  /** The pack size its link gives, when the saved pack disagrees with it. */
+  packCheck: string | null;
 };
 
 export function ShopView({
@@ -409,6 +413,7 @@ export function ShopView({
                       <div className="mt-1 flex flex-wrap gap-1">
                         {trip?.early.includes(l.item) && <Chip tone="sand">Wanted {l.firstUse}, before this shop</Chip>}
                         {l.freeze && <Chip tone="ice">Freeze on arrival · for {l.firstUse}</Chip>}
+                        {l.packCheck && <Chip tone="sand">Check the pack size: its link says {l.packCheck}</Chip>}
                         {l.checks.map((c) => (
                           <Chip key={c.tag} tone="sand">
                             Check label: {c.label.split(" (")[0]}
@@ -733,18 +738,18 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
   const p = line.product;
   const [url, setUrl] = useState(p?.url ?? "");
   const [name, setName] = useState(p?.name ?? "");
-  const [qty, setQty] = useState(String(p?.packQty ?? line.slugPack?.qty ?? line.defaultPack.qty));
-  const [unit, setUnit] = useState<Unit>(p?.packUnit ?? line.slugPack?.unit ?? line.defaultPack.unit);
+  const saved = p && line.units.includes(p.packUnit) ? p : null;
+  const [qty, setQty] = useState(String(saved?.packQty ?? line.defaultPack.qty));
+  const [unit, setUnit] = useState<Unit>(saved?.packUnit ?? line.defaultPack.unit);
   const [price, setPrice] = useState(p?.pence != null ? (p.pence / 100).toFixed(2) : "");
   const [checked, setChecked] = useState<Set<string>>(new Set(p?.checked ?? []));
   const { pending, run } = useAction();
   const fromSlug = (u: string) => {
     const slug = u.split("?")[0].split("/").pop() ?? "";
-    const m = /(\d+(?:\.\d+)?)(kg|g|ml|l)(?:-|$)/.exec(slug);
-    if (m) {
-      const n = Number(m[1]);
-      setQty(String(m[2] === "kg" || m[2] === "l" ? n * 1000 : n));
-      setUnit(m[2] === "ml" || m[2] === "l" ? "ml" : "g");
+    const pack = packFromSlug(u);
+    if (pack && line.units.includes(pack.unit)) {
+      setQty(String(pack.qty));
+      setUnit(pack.unit);
     }
     if (!name)
       setName(
@@ -830,9 +835,11 @@ function ProductForm({ line, onDone }: { line: ShopLine; onDone: () => void }) {
         <label className="col-span-1 block">
           <span className="field-label">Unit</span>
           <select className="field-input" value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
-            <option value="g">g</option>
-            <option value="ml">ml</option>
-            <option value="each">each</option>
+            {line.units.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
           </select>
         </label>
         <label className="col-span-1 block">
