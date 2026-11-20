@@ -51,6 +51,8 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
   // Dishes eaten this week and not rated: a star each, so the planner learns what you like.
   const rateNow =
     which === "this" ? toRate(s.meals, s.ratings, s.today).map((key) => ({ key, name: recipe(key)?.name ?? key })) : [];
+  // Next week planned itself when this week's last cook was logged: say so, and where.
+  const plannedItself = which === "this" && Boolean(s.next.plan?.auto);
   return (
     <div className="space-y-6">
       <LifeHeader eyebrow={weekRange(v.start, end)} title="Meals">
@@ -90,6 +92,20 @@ export default async function MealsPage({ searchParams }: { searchParams: Promis
             <span className="text-sm text-body">Plan it now so the shopping can arrive before the first cook.</span>
           </span>
           <span className="text-sm text-mint">Plan next week →</span>
+        </Link>
+      )}
+      {plannedItself && (
+        <Link
+          href="/life?week=next"
+          className="flex flex-wrap items-center justify-between gap-3 card-life transition hover:ring-mint/30"
+        >
+          <span className="min-w-0">
+            <span className="block font-semibold">Next week is planned</span>
+            <span className="text-sm text-body">
+              It planned itself once this week&apos;s last cook was done. Swap anything you like.
+            </span>
+          </span>
+          <span className="text-sm text-mint">See next week →</span>
         </Link>
       )}
       {rateNow.length > 0 && <RateEaten dishes={rateNow} />}

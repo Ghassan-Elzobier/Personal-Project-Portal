@@ -7,6 +7,7 @@ import { clock } from "@/lib/dates/week";
 import type { Day, DayItem } from "@/lib/portal/day";
 import { cookPlanned, logMeal, uncook } from "./life/actions";
 import { toastCooked } from "./life/kit";
+import { withNextWeek } from "@/lib/life/cooked";
 import { moveBlock } from "./schedule/actions";
 
 const DOT: Record<DayItem["kind"], string> = {
@@ -41,21 +42,26 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
         const r = await logMeal(date, slot, next ? "eaten" : null);
         if (r.error !== undefined) return void toast(r.error, { tone: "error" });
         // A meal from a cook that wasn't logged logs the cook too; Undo takes both back.
-        toastCooked(r.cooked, () =>
-          start(async () => {
-            await logMeal(date, slot, null);
-            for (const c of r.cooked ?? []) {
-              const back = await uncook(c.batch);
-              if (back.error) return void toast(back.error, { tone: "error" });
-            }
-          }),
+        toastCooked(
+          r.cooked,
+          () =>
+            start(async () => {
+              await logMeal(date, slot, null);
+              for (const c of r.cooked ?? []) {
+                const back = await uncook(c.batch);
+                if (back.error) return void toast(back.error, { tone: "error" });
+              }
+            }),
+          r,
         );
       } else if (i.kind === "cook" && i.cookIds && day.planStart) {
+        let planningNext = false;
         for (const id of i.cookIds) {
           const r = await cookPlanned(day.planStart, id);
-          if (r.error) return void toast(r.error, { tone: "error" });
+          if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+          planningNext ||= r.planningNext;
         }
-        toast("In the fridge. The Kitchen says what to freeze.");
+        toast(withNextWeek("In the fridge. The Kitchen says what to freeze.", { planningNext }));
       }
     });
   // A missed study block goes to the free time it was offered. The page comes back with it

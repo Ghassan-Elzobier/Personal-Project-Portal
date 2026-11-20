@@ -24,6 +24,10 @@ const DATE = {
 const day = (args: Json) =>
   typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday();
 
+/** Said when a cook was this week's last and next week had no plan, so it is planning itself. */
+const NEXT_WEEK_PLANNING =
+  "That was this week's last cook, so next week is planning itself in the same mode, in a moment. See it with get_life_day for a day of next week, or on the Meals page under Next week.";
+
 export const LIFE_TOOLS: Tool[] = [
   {
     name: "get_life_day",
@@ -154,6 +158,7 @@ export const LIFE_TOOLS: Tool[] = [
               })),
             }
           : {}),
+        ...(r.planningNext ? { next_week: NEXT_WEEK_PLANNING } : {}),
       });
     },
   },
@@ -285,7 +290,7 @@ export const LIFE_TOOLS: Tool[] = [
       if (cooked(s).length)
         return err(`${r.name} is already logged as cooked. To undo it, use Undo cook in the Kitchen.`);
       const done = await ops.cookPlanned(v.start, c.id);
-      if (done.error) return err(done.error);
+      if (done.error !== undefined) return err(done.error);
       const after = await loadLife();
       const batches = after.error === undefined ? cooked(after.state) : [];
       const frozen = batches.filter((b) => b.location === "freezer").reduce((n, b) => n + b.portions, 0);
@@ -295,6 +300,7 @@ export const LIFE_TOOLS: Tool[] = [
         to_the_fridge: c.portions - frozen,
         to_the_freezer: frozen,
         page: `${base}/life/kitchen?tab=fridge`,
+        ...(done.planningNext ? { next_week: NEXT_WEEK_PLANNING } : {}),
       });
     },
   },

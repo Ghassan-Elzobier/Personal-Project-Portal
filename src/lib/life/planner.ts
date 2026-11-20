@@ -69,6 +69,11 @@ export type WeekPlan = {
   short?: boolean;
   /** A fresh week's shops, in date order. */
   trips?: Trip[];
+  /**
+   * Planned by itself once the week before's last cook was logged (`shouldPlanNext`),
+   * so the pages can say so. A re-plan by the owner leaves it off.
+   */
+  auto?: boolean;
   /** The day the plan was made: days before it are history, not missed meals. */
   createdOn?: string;
   /**

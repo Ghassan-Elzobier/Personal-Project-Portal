@@ -106,6 +106,20 @@ export function yourDay(
       href: "/life",
     });
   }
+  // On the day next week planned itself (this week's last cook was logged), Today says so.
+  if (s && date === s.today && date < s.next.start && s.next.plan?.auto && s.next.plan.createdOn === date) {
+    items.push({
+      key: "next-week",
+      start: -1,
+      end: -1,
+      kind: "shop",
+      title: "Next week is planned",
+      detail: "It planned itself after this week's last cook",
+      done: false,
+      skipped: false,
+      href: "/life?week=next",
+    });
+  }
   items.sort((a, b) => a.start - b.start || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 
   // The untimed "plan the week" nudge is never next; a shop at a time is.

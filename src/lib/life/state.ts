@@ -463,6 +463,19 @@ export function effort(s: LifeState, monday: string): Effort {
   };
 }
 
+/**
+ * Whether logging these cooks finishes this week's cooking while next week has no
+ * plan yet, so next week can plan itself. Only a cook of this week's plan counts: a
+ * week with nothing to cook, or a cook from next week, plans nothing.
+ */
+export function shouldPlanNext(s: LifeState, cookedIds: string[]): boolean {
+  const cooks = s.plan?.cooks ?? [];
+  if (s.next.plan || !cookedIds.some((id) => cooks.some((c) => c.id === id))) return false;
+  const done = new Set(cookedIds);
+  for (const b of s.batches) if (b.planStart === s.weekStart && b.cookId) done.add(b.cookId);
+  return cooks.every((c) => done.has(c.id));
+}
+
 /** Planned meals on past days with nothing logged, for a one-tap "I ate them". */
 export function unlogged(s: LifeState, before: string): Placement[] {
   const from = s.plan?.createdOn ?? s.plan?.start ?? before;
