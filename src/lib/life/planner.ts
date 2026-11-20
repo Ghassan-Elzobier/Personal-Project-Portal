@@ -26,6 +26,12 @@ export type Cook = {
   round?: number;
   /** Why the planner picked it, in a few words. */
   why?: string[];
+  /**
+   * A week's last cook: how many of its portions are for next week's lunches and
+   * dinners before next week's first cook and still in date then, so they stay in the
+   * fridge rather than the freezer (`keptCold`).
+   */
+  forNextWeek?: number;
 };
 
 export type WeekPlan = {
@@ -157,7 +163,15 @@ export type Routine = {
   /** On these weekdays (0 = Monday) the shake comes straight after training, which ends at gymEnd. */
   gymDays?: number[];
   gymEnd?: number;
+  /** The routine's cook sessions for a batch week and a fresh one, so a week knows when next week's first cook is. */
+  cooks?: RoutineCook[];
+  fresh?: { cooks: RoutineCook[] };
+  /** Weekend dinners the routine cooks fresh (0 to 2), on Saturday then Sunday when no session falls there. */
+  weekendFresh?: number;
 };
+
+/** A cook session in the routine: weekday (0 = Monday), start, and the minutes it may take. */
+type RoutineCook = { weekday: number; start: number; minutes?: number | null };
 
 /** When a slot is eaten on a date. */
 export function slotTime(routine: Routine, date: string, slot: Slot): number {
@@ -401,24 +415,29 @@ export function firstShopFirst(start: string, today: string, trips: Trip[]): Tri
 }
 
 /**
- * In a fresh week, a cook's spare portions (for next week's first lunch) stay in
- * the fridge when they are still in date at the start of next week.
+ * How many of a cook's spare portions stay in the fridge for next week's first meals.
+ * A fresh week keeps its spare cold while it is still in date at the start of next
+ * week; a batch week keeps cold the ones its last cook makes for next week's meals
+ * before its first cook that are still in date then (`forNextWeek`).
  */
-export function spareStaysCold(plan: WeekPlan, c: Cook): boolean {
+export function keptCold(plan: WeekPlan, c: Cook, spareOnes: number): number {
   const r = recipe(c.recipe);
-  return Boolean(plan.mode === "fresh" && r && addDays(c.date, r.keeps.fridgeDays) >= addDays(plan.start, 7));
+  if (!r) return 0;
+  if (plan.mode === "fresh") return addDays(c.date, r.keeps.fridgeDays) >= addDays(plan.start, 7) ? spareOnes : 0;
+  return Math.min(spareOnes, c.forNextWeek ?? 0);
 }
 
 /**
  * Portions of a planned cook that go in the freezer: the ones planned from the freezer,
- * and the spare ones nobody is down to eat if the dish freezes, unless a fresh week's
- * last cook keeps them cold for next week's first lunch.
+ * and the spare ones nobody is down to eat if the dish freezes, less those the week's
+ * last cook keeps cold for next week's first meals.
  */
 export function freezeCount(plan: WeekPlan, c: Cook, placements: Placement[]): number {
   const placed = placements.filter((p) => p.cookId === c.id);
   const frozen = placed.filter((p) => p.storage === "freezer").length;
   const spareOnes = Math.max(0, c.portions - placed.length);
-  return Math.min(c.portions, frozen + (recipe(c.recipe)?.keeps.freezes && !spareStaysCold(plan, c) ? spareOnes : 0));
+  const spareFrozen = recipe(c.recipe)?.keeps.freezes ? spareOnes - keptCold(plan, c, spareOnes) : 0;
+  return Math.min(c.portions, frozen + spareFrozen);
 }
 
 /** Portions left in each planned cook once the week is filled: these go to the freezer. */
@@ -432,10 +451,55 @@ export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string
     .filter((s) => s.portions > 0);
 }
 
+/** A week's cook sessions from the routine, in order, each with when its food can be ready. */
+function routineSessions(start: string, cooks: RoutineCook[]): { date: string; at: number }[] {
+  return cooks
+    .map((c) => ({ date: addDays(start, (c.weekday - weekdayIndex(start) + 7) % 7), at: c.start + (c.minutes ?? 0) }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
+}
+
+/**
+ * Next week's lunches and dinners before its first cook, for this week's last cook to
+ * feed. Next week's first cook is the routine's, for the same kind of week; a weekend
+ * dinner the routine cooks fresh is left out. Without the routine's sessions, next
+ * week's first lunch.
+ */
+export function beforeNextCook(
+  start: string,
+  mode: WeekMode | undefined,
+  routine: Routine,
+): { date: string; slot: Slot }[] {
+  const next = addDays(start, 7);
+  const cooks = mode === "fresh" ? routine.fresh?.cooks : routine.cooks;
+  if (!cooks?.length) return [{ date: next, slot: "lunch" }];
+  const sessions = routineSessions(next, cooks);
+  const days = weekDays(next);
+  const freshDinners = [...days.filter((d) => weekdayIndex(d) === 5), ...days.filter((d) => weekdayIndex(d) === 6)]
+    .filter((d) => !sessions.some((x) => x.date === d))
+    .slice(0, routine.weekendFresh ?? 0);
+  const out: { date: string; slot: Slot }[] = [];
+  for (const date of days)
+    for (const slot of ["lunch", "dinner"] as const) {
+      if (date > sessions[0].date || (date === sessions[0].date && routine[slot] >= sessions[0].at)) return out;
+      if (!(slot === "dinner" && freshDinners.includes(date))) out.push({ date, slot });
+    }
+  return out;
+}
+
+/** The last day a week's last session feeds: next week's last meal before its first cook, or next week's start. */
+export function lastFeedsUntil(start: string, mode: WeekMode | undefined, routine: Routine): string {
+  const end = addDays(start, 7);
+  const last = beforeNextCook(start, mode, routine).at(-1)?.date;
+  return last && last > end ? last : end;
+}
+
 /**
  * How many portions each cook should make: the lunches and dinners from when its
- * session is ready to when the next one is, split across the session's recipes,
- * plus the first lunch of the next week. Fresh meals and meals out are left out.
+ * session is ready to when the next one is, split across the session's recipes.
+ * Fresh meals and meals out are left out. The last session also makes next week's
+ * lunches and dinners before its first cook (`beforeNextCook`): the first of them
+ * always, frozen if it must be, and the rest while they are still in date, which it
+ * keeps cold for them (`forNextWeek`).
  *
  * Cooked portions already in the kitchen (`stock`) are eaten first where the week
  * puts them (`assign`), so a session makes that many fewer for its days, spread
@@ -449,15 +513,25 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number, stock:
   const mains = plan.cooks.filter((c) => recipe(c.recipe)?.meal === "main");
   const sessions = [...new Set(mains.map((c) => minuteOf(plan.start, c.date, c.start)))].sort((a, b) => a - b);
   const slots: number[] = [];
-  for (const date of [...days, addDays(plan.start, 7)]) {
+  for (const date of days) {
     for (const slot of ["lunch", "dinner"] as Slot[]) {
       const id = slotId(date, slot);
       if (fresh.has(id) || out.has(id)) continue;
-      // The next week's first lunch is in, so leftovers cover the gap before its first cook.
-      if (date === addDays(plan.start, 7) && slot === "dinner") continue;
       slots.push(minuteOf(plan.start, date, routine[slot]));
     }
   }
+  const last = mains.filter((c) => minuteOf(plan.start, c.date, c.start) === sessions.at(-1));
+  const inDate = (c: Cook, date: string) => daysBetween(c.date, date) <= recipe(c.recipe)!.keeps.fridgeDays;
+  const ahead = beforeNextCook(plan.start, plan.mode, routine).filter(
+    (x, i) => i === 0 || last.some((c) => inDate(c, x.date)),
+  );
+  for (const x of ahead) slots.push(minuteOf(plan.start, x.date, routine[x.slot]));
+  // Each of those meals still in date goes to a dish of the last session that keeps for it, in turn.
+  const share = new Map<string, number>();
+  ahead.forEach((x, i) => {
+    const fits = last.filter((c) => inDate(c, x.date));
+    if (fits.length) share.set(fits[i % fits.length].id, (share.get(fits[i % fits.length].id) ?? 0) + 1);
+  });
   const readyOf = (at: number) =>
     at +
     Math.max(
@@ -490,7 +564,11 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number, stock:
           portions: c.portions || breakfastPortions(plan, c, r),
           scale: portionScale(r, kcal * SPLIT.breakfast),
         };
-      return { ...c, portions: sizes.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
+      const main: Cook = { ...c, portions: sizes.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
+      // Its share of next week's first meals that are still in date then stays in the fridge.
+      if (last.includes(c)) main.forNextWeek = share.get(c.id) ?? 0;
+      else delete main.forNextWeek;
+      return main;
     });
   const cooks = withSizes(sized);
   if (!stock.some((b) => b.left > 0) || !windows.length) return cooks;
@@ -557,8 +635,8 @@ export function reminders(plan: WeekPlan, placements: Placement[]): Reminder[] {
   for (const s of spare(plan, placements)) {
     const r = recipe(s.recipe);
     const c = plan.cooks.find((x) => x.id === s.cookId);
-    if (r?.keeps.freezes && !(c && spareStaysCold(plan, c)))
-      freezeByCook.set(s.cookId, (freezeByCook.get(s.cookId) ?? 0) + s.portions);
+    const n = r?.keeps.freezes ? s.portions - (c ? keptCold(plan, c, s.portions) : 0) : 0;
+    if (n > 0) freezeByCook.set(s.cookId, (freezeByCook.get(s.cookId) ?? 0) + n);
   }
   for (const c of plan.cooks) {
     const n = freezeByCook.get(c.id);

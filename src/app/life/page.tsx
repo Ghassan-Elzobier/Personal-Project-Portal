@@ -4,7 +4,7 @@ import { requireOwner } from "@/lib/auth/access";
 import { addDays } from "@/lib/dates/week";
 import { lifeMinutes, loadLife } from "@/lib/life/load";
 import { portionMacros } from "@/lib/life/nutrition";
-import { spare, spareStaysCold, weekDays, type WeekPlan } from "@/lib/life/planner";
+import { keptCold, spare, weekDays, type WeekPlan } from "@/lib/life/planner";
 import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
@@ -284,6 +284,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
       groups.push(g);
     }
     const m = portionMacros(r);
+    const spareOnes = left.find((x) => x.cookId === c.id)?.portions ?? 0;
     g.items.push({
       id: c.id,
       recipe: r.key,
@@ -294,8 +295,8 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
       protein: Math.round(m.protein * c.scale),
       minutes: r.totalMin,
       cooked: cooked.has(c.id),
-      spare: left.find((x) => x.cookId === c.id)?.portions ?? 0,
-      spareCold: spareStaysCold(plan, c),
+      spare: spareOnes,
+      spareCold: keptCold(plan, c, spareOnes),
       why: c.why?.[0],
     });
   }

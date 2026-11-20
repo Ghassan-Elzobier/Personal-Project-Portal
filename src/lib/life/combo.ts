@@ -10,13 +10,13 @@
 // list will be, and a dish whose pack would be part-used grows by up to 15% to finish
 // it. Same inputs, same week. Pure, so it is tested.
 
-import { addDays } from "../dates/week.ts";
 import type { FoodRules } from "./allergens.ts";
 import { INGREDIENTS } from "./ingredients.ts";
 import { portionMacros } from "./nutrition.ts";
 import {
   assign,
   cookScale,
+  lastFeedsUntil,
   sizeCooks,
   type Cook,
   type Placement,
@@ -503,12 +503,13 @@ export function planCombo(input: {
   const { week, sessions, ranked } = input;
   const k = goodFrom(input.kitchen, week.start);
   const fresh = week.mode === "fresh";
-  const end = addDays(week.start, 7);
+  // The last session also feeds next week's first meals, before next week's first cook.
+  const until = lastFeedsUntil(week.start, week.mode, k.routine);
 
   // The dishes each session may take, and how it scores them.
   const allowed = sessions.map((s, i) => {
     if (!fresh) return ranked.map((r) => ({ r, score: r.score }));
-    const covers = daysUntil(s.date, sessions[i + 1]?.date ?? end);
+    const covers = daysUntil(s.date, sessions[i + 1]?.date ?? until);
     const weeknight = weekdayOf(s.date) < 5;
     const inTime = ranked.filter((r) => !s.minutes || r.recipe.totalMin <= s.minutes);
     const safe = inTime.filter((r) => r.recipe.keeps.fridgeDays >= covers);

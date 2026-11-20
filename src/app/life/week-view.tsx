@@ -51,8 +51,8 @@ export type CookGroup = {
     minutes: number;
     cooked: boolean;
     spare: number;
-    /** The spare portions stay in the fridge for next week's first lunch. */
-    spareCold?: boolean;
+    /** Spare portions that stay in the fridge for next week's first meals; the rest are frozen. */
+    spareCold?: number;
     /** Why the planner picked it ("Shares the peppers with …"). */
     why?: string;
   }[];
@@ -296,11 +296,7 @@ export function WeekView({
                           ? "portion"
                           : "portions"}{" "}
                       · {c.kcal} kcal · {c.protein} g · {c.minutes} min
-                      {c.spare > 0
-                        ? c.spareCold
-                          ? ` · ${c.spare} for next week's first lunch`
-                          : ` · ${c.spare} spare to freeze`
-                        : ""}
+                      {spareNote(c.spare, c.spareCold)}
                     </p>
                     {c.why && <p className="text-xs text-mint">{c.why}</p>}
                   </div>
@@ -592,6 +588,16 @@ export function WeekView({
         )}
       </Sheet>
     </>
+  );
+}
+
+/** A cook's spare portions: those kept in the fridge for next week's first meals, and those to freeze. */
+function spareNote(spare: number, cold = 0): string {
+  const kept = Math.min(spare, cold);
+  const frozen = spare - kept;
+  return (
+    (kept > 0 ? ` · ${kept} for next week's first ${kept === 1 ? "lunch" : "meals"}` : "") +
+    (frozen > 0 ? ` · ${frozen} spare to freeze` : "")
   );
 }
 

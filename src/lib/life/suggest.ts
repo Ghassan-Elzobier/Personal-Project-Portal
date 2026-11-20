@@ -12,7 +12,7 @@ import { INGREDIENTS } from "./ingredients.ts";
 import { verdict } from "./nutrition.ts";
 import type { CookSession, LifeProfile } from "./profile.ts";
 import { mainProtein, recipe, RECIPES, type Recipe } from "./recipes.ts";
-import { firstShopFirst, type Cook, type Trip, type WeekMode, type WeekPlan } from "./planner.ts";
+import { firstShopFirst, lastFeedsUntil, type Cook, type Trip, type WeekMode, type WeekPlan } from "./planner.ts";
 import { planCombo, type ComboSession, type Kitchen } from "./combo.ts";
 
 export type Rating = { recipe: string; stars: number };
@@ -414,8 +414,9 @@ function suggestBatchWeek(
  * A fresh week: one dish per short session, each feeding the days until the next,
  * so nothing has to wait in the freezer, and the routine's shop trips. A dish must
  * fit the session's time; rice dishes (one day in the fridge) go to sessions that
- * only cover a day. The mornings use the daily breakfast, so no session cooks two
- * things.
+ * only cover a day. The last session also feeds next week's first meals, before
+ * next week's first cook. The mornings use the daily breakfast, so no session cooks
+ * two things.
  */
 function suggestFreshWeek(
   profile: LifeProfile,
@@ -425,7 +426,7 @@ function suggestFreshWeek(
   spare: Record<string, number>,
   today: string,
 ): WeekPlan {
-  const end = addDays(start, 7);
+  const until = lastFeedsUntil(start, "fresh", profile.routine);
   const ranked = rank(profile, "main", ratings, lastHad, spare, today).filter(
     (r) => !r.recipe.tags.includes("weekend"),
   );
@@ -433,7 +434,7 @@ function suggestFreshWeek(
   const picks: Recipe[] = [];
   const cooks: Cook[] = [];
   sessions.forEach((x, i) => {
-    const covers = daysUntil(x.date, sessions[i + 1]?.date ?? end);
+    const covers = daysUntil(x.date, sessions[i + 1]?.date ?? until);
     const weeknight = (new Date(`${x.date}T00:00:00Z`).getUTCDay() + 6) % 7 < 5;
     const left = ranked.filter((r) => !picks.some((p) => p.key === r.recipe.key));
     const inTime = left.filter((r) => !x.minutes || r.recipe.totalMin <= x.minutes);
