@@ -42,7 +42,8 @@ export default async function RecipePage({
   if (!r) notFound();
   if (loaded.error !== undefined) return <ErrorNote message={loaded.error} />;
   const s = loaded.state;
-  const v = verdict(r, s.profile.food);
+  // Labels you already checked on the product you buy are not asked about again.
+  const v = verdict(r, s.profile.food, new Map(s.products.map((p) => [p.item, p.checked])));
   const ask = await searchParams;
   const { planned, scale, portions, lines, changed } = recipeAmounts(s, r, {
     cook: ask.cook,

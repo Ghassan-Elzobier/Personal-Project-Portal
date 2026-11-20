@@ -176,16 +176,26 @@ export function splitWatch(w: Watch): { tag: Tag; form: Form } {
  * Tags to look for on a product's label, for this person's rules only. Egg baked
  * into bread is not worth a check for someone who eats baked egg.
  */
-export function labelChecks(rules: FoodRules, watch: readonly Watch[] | undefined): Tag[] {
-  if (!watch) return [];
+export function labelChecks(rules: FoodRules, watch: readonly Watch[] | undefined, compound?: Form): Tag[] {
   const out: Tag[] = [];
-  for (const w of watch) {
+  for (const w of watch ?? []) {
     const { tag, form } = splitWatch(w);
     const rule = ruleFor(rules, tag);
     if (!rule || rule.allowForms?.includes(form)) continue;
     if (!out.includes(tag)) out.push(tag);
   }
+  // A mixed product (a sauce, stock, sausages, bread) can hide anything you avoid,
+  // depending on the brand, in the form its hidden ingredients take: egg in bread is baked.
+  if (compound)
+    for (const rule of rules.rules)
+      if (rule.level === "avoid" && !rule.allowForms?.includes(compound) && !out.includes(rule.tag)) out.push(rule.tag);
   return out;
+}
+
+/** Every tag worth confirming on a product's label: what some brands add, and for a mixed product every food you avoid. */
+export function labelTags(rules: FoodRules, watch: readonly Watch[] | undefined, compound?: Form): Tag[] {
+  const tags = (watch ?? []).map((w) => splitWatch(w).tag);
+  return [...new Set([...tags, ...labelChecks(rules, [], compound)])];
 }
 
 function cap(s: string): string {

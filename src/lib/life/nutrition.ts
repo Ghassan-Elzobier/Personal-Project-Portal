@@ -55,7 +55,11 @@ export type Verdict = {
   disliked: string[];
 };
 
-export function verdict(r: Recipe, rules: FoodRules): Verdict {
+/**
+ * What a recipe means for your food rules: blocked, noted, labels to check (less any
+ * you already checked on the product you buy, in `checked`), and what you dislike.
+ */
+export function verdict(r: Recipe, rules: FoodRules, checked?: ReadonlyMap<string, readonly Tag[]>): Verdict {
   const blocked: Finding[] = [];
   const notes: Finding[] = [];
   const checks: Verdict["checks"] = [];
@@ -70,7 +74,7 @@ export function verdict(r: Recipe, rules: FoodRules): Verdict {
       if (f.verdict === "blocked") blocked.push(f);
       else notes.push(f);
     }
-    const tags = labelChecks(rules, item.watch);
+    const tags = labelChecks(rules, item.watch, item.compound).filter((t) => !checked?.get(item.key)?.includes(t));
     if (tags.length) checks.push({ item: item.name, tags });
     if (rules.dislikes.includes(item.key) || item.traits?.some((trait) => rules.avoidTraits.includes(trait)))
       disliked.push(item.name);
