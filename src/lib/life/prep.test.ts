@@ -33,7 +33,10 @@ test("an ingredient two dishes share is listed once, with its total and what eac
   const name = INGREDIENTS.get(shared)!.name;
   const mentions = cookPlan([a, b]).ready.filter((s) => s.includes(name));
   assert.equal(mentions.length, 1, `'${name}'`);
-  assert.match(mentions[0], new RegExp(`for ${a.recipe.name}.*for ${b.recipe.name}|for ${b.recipe.name}.*for ${a.recipe.name}`));
+  assert.match(
+    mentions[0],
+    new RegExp(`for ${a.recipe.name}.*for ${b.recipe.name}|for ${b.recipe.name}.*for ${a.recipe.name}`),
+  );
 });
 
 test("every recipe that states an oven or air fryer heat has it in get ready", () => {
@@ -60,7 +63,10 @@ test("box up puts every portion somewhere, with the fridge's eat-by day, and say
   const eatBy = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(
     new Date(Date.parse("2026-11-18T12:00:00Z") + fridgeDays * 86_400_000),
   );
-  assert.equal(boxUp[0], `${recipe("bolognese")!.name}: 5 boxes, 3 in the fridge (eat by ${eatBy}) and 2 in the freezer.`);
+  assert.equal(
+    boxUp[0],
+    `${recipe("bolognese")!.name}: 5 boxes, 3 in the fridge (eat by ${eatBy}) and 2 in the freezer.`,
+  );
   assert.ok(boxUp.some((s) => /within 2 hours/.test(s)));
 });
 
@@ -78,5 +84,8 @@ test("two dishes that both need the air fryer are flagged", () => {
   const air = RECIPES.filter((r) => r.kit.includes("air fryer") && r.meal === "main").slice(0, 2);
   assert.equal(air.length, 2);
   const { warnings } = cookPlan(air.map((r) => cook(r.key)));
-  assert.ok(warnings.some((w) => /both use the air fryer/.test(w)), warnings.join("\n"));
+  assert.ok(
+    warnings.some((w) => /both use the air fryer/.test(w)),
+    warnings.join("\n"),
+  );
 });

@@ -49,6 +49,7 @@ function refresh() {
     "/life",
     "/life/gym",
     "/life/kitchen",
+    "/life/cook",
     "/life/body",
     "/life/recipes",
     "/life/settings",

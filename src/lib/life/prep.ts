@@ -87,7 +87,8 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
   const describe = (m: Merged) => {
     const ing = INGREDIENTS.get(m.item)!;
     const base = `${ing.name} ${amount(ing, m.total)}`;
-    const split = many && m.by.length > 1 ? `: ${m.by.map((b) => `${amount(ing, b.qty)} for ${b.name}`).join(", ")}` : "";
+    const split =
+      many && m.by.length > 1 ? `: ${m.by.map((b) => `${amount(ing, b.qty)} for ${b.name}`).join(", ")}` : "";
     return `${base}${m.note && !split ? `, ${m.note}` : ""}${split}`;
   };
   const of = (pick: (aisle: Aisle) => boolean) =>
@@ -116,10 +117,14 @@ export function cookPlan(cooks: PrepCook[]): CookPlan {
   const warnings: string[] = [];
   const airFryers = order.filter((c) => c.recipe.kit.includes("air fryer"));
   if (airFryers.length > 1)
-    warnings.push(`${airFryers.map((c) => c.recipe.name).join(" and ")} both use the air fryer: cook one after the other.`);
+    warnings.push(
+      `${airFryers.map((c) => c.recipe.name).join(" and ")} both use the air fryer: cook one after the other.`,
+    );
   const ovenTemps = [...new Set(heat.filter((h) => h.kit === "oven").map((h) => h.c))];
   if (ovenTemps.length > 1)
-    warnings.push(`The oven is wanted at ${ovenTemps.map((t) => `${t}°C`).join(" and ")}: cook the hotter one first, or one after the other.`);
+    warnings.push(
+      `The oven is wanted at ${ovenTemps.map((t) => `${t}°C`).join(" and ")}: cook the hotter one first, or one after the other.`,
+    );
 
   const dishes = order.map(({ id, recipe: r, cooked }) => {
     const kinds = [...new Set(r.lines.map((l) => INGREDIENTS.get(l.item)?.raw).filter((k) => k !== undefined))];

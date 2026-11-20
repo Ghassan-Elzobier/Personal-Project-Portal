@@ -6,7 +6,7 @@ import { INGREDIENTS } from "@/lib/life/ingredients";
 import { linkDisagrees, packUnits } from "@/lib/life/pack";
 import { loadLife } from "@/lib/life/load";
 import { loadToday } from "@/lib/money/load";
-import { spareStaysCold } from "@/lib/life/planner";
+import { freezeCount } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
 import {
   amount,
@@ -336,20 +336,13 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
       note: a?.moved ?? a?.clash,
       clash: Boolean(a?.clash),
       catchUp: !routineSessions.includes(key) && date === plan?.createdOn,
-      cooks: cooks.map((c) => {
-        const placed = v.placements.filter((p) => p.cookId === c.id);
-        const freeze = placed.filter((p) => p.storage === "freezer").length;
-        return {
-          id: c.id,
-          name: recipe(c.recipe)?.name ?? c.recipe,
-          recipe: c.recipe,
-          portions: c.portions,
-          freeze:
-            freeze +
-            Math.max(0, c.portions - placed.length) *
-              (recipe(c.recipe)?.keeps.freezes && !spareStaysCold(plan!, c) ? 1 : 0),
-        };
-      }),
+      cooks: cooks.map((c) => ({
+        id: c.id,
+        name: recipe(c.recipe)?.name ?? c.recipe,
+        recipe: c.recipe,
+        portions: c.portions,
+        freeze: freezeCount(plan!, c, v.placements),
+      })),
     };
   });
   const batches = s.open
