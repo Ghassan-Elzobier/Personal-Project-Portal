@@ -185,7 +185,19 @@ async function OwnerHome() {
       <YourDay
         date={date}
         now={now}
-        day={yourDay(date, schedule.ok ? schedule.value.blocks : null, life.state ?? null, now)}
+        day={yourDay(
+          date,
+          schedule.ok ? schedule.value.blocks : null,
+          life.state ?? null,
+          now,
+          // This week's session logs say which study blocks were kept. Without them nothing is called missed.
+          comments.ok
+            ? {
+                logs: comments.value.map((c) => ({ taskGid: c.taskGid, ...zonedParts(new Date(c.createdAt), tz) })),
+                lastDay: week.end,
+              }
+            : null,
+        )}
         error={schedule.ok ? undefined : `The schedule could not be read: ${schedule.error}`}
       />
 

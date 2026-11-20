@@ -65,6 +65,7 @@ export function WeekPlanner({
   today,
   nowMinutes,
   googleReady,
+  missed,
 }: {
   days: string[];
   blocks: Block[];
@@ -72,6 +73,8 @@ export function WeekPlanner({
   today: string;
   nowMinutes: number;
   googleReady: boolean;
+  /** Study blocks that passed with no session logged, by id: drawn faded and dashed. */
+  missed: string[];
 }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +196,7 @@ export function WeekPlanner({
                     setDialog({ mode: "new", date: d, start, tab: googleReady ? "life" : "work" })
                   }
                   onBlockClick={(block) => setDialog(dialogFor(block))}
+                  missed={missed}
                 />
               ))}
             </div>
@@ -217,7 +221,7 @@ export function WeekPlanner({
             {(byDay.get(mobileDay) ?? []).map((b) => (
               <li key={b.id}>
                 <button className="w-full text-left" onClick={() => setDialog(dialogFor(b))}>
-                  <BlockCard block={b} compact={false} />
+                  <BlockCard block={b} compact={false} missed={missed.includes(b.id)} />
                 </button>
               </li>
             ))}
@@ -346,7 +350,9 @@ function DayColumn({
   onDrop,
   onEmptyClick,
   onBlockClick,
+  missed,
 }: {
+  missed: string[];
   date: string;
   blocks: Block[];
   hours: number[];
@@ -410,7 +416,7 @@ function DayColumn({
               e.dataTransfer.effectAllowed = "move";
             }}
             onClick={() => onBlockClick(b)}
-            title={b.note}
+            title={b.note ?? (missed.includes(b.id) ? "Missed: no session was logged" : undefined)}
             className="absolute z-20 overflow-hidden p-0.5 text-left"
             style={{
               top,
@@ -419,7 +425,7 @@ function DayColumn({
               width: `${100 / lane.lanes}%`,
             }}
           >
-            <BlockCard block={b} compact />
+            <BlockCard block={b} compact missed={missed.includes(b.id)} />
           </button>
         );
       })}
@@ -444,11 +450,11 @@ function blockStyle(block: Block): string {
   return "bg-white/5 ring-white/15 text-muted [background-image:repeating-linear-gradient(45deg,transparent_0,transparent_6px,rgba(255,255,255,0.04)_6px,rgba(255,255,255,0.04)_12px)]";
 }
 
-function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
+function BlockCard({ block, compact, missed = false }: { block: Block; compact: boolean; missed?: boolean }) {
   const short = block.end - block.start < 45;
   return (
     <span
-      className={`flex size-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`flex size-full flex-col rounded-lg px-2 text-xs ring-1 ${compact && block.end - block.start < 25 ? "py-0 leading-4" : "py-1"} transition hover:brightness-110 ${blockStyle(block)} ${block.editable ? "cursor-grab active:cursor-grabbing" : ""} ${missed ? "border border-dashed border-white/70 opacity-60" : ""}`}
     >
       <span
         className={`font-semibold ${compact ? (short ? "truncate" : "line-clamp-2") : ""} ${block.completed ? "line-through" : ""}`}
@@ -464,6 +470,7 @@ function BlockCard({ block, compact }: { block: Block; compact: boolean }) {
       {!compact && block.note && (
         <span className={`mt-0.5 ${block.clash ? "text-coral" : "opacity-75"}`}>{block.note}</span>
       )}
+      {!compact && missed && <span className="mt-0.5">Missed: no session was logged</span>}
     </span>
   );
 }
@@ -478,8 +485,12 @@ function Legend() {
         <span className="size-3 rounded-sm bg-linear-to-b from-royal/60 to-lavender/50" /> Study sessions on a task
       </p>
       <p className="flex items-center gap-2">
-        <span className="size-3 rounded-sm bg-mint/40" /> Life: meals, cooking and gym from your plans, moved around
-        study when they clash
+        <span className="size-3 shrink-0 rounded-sm border border-dashed border-white/70 bg-royal/40 opacity-60" />{" "}
+        Study that passed with no session logged: Today offers it a new time
+      </p>
+      <p className="flex items-center gap-2">
+        <span className="size-3 shrink-0 rounded-sm bg-mint/40" /> Life: meals, cooking and gym from your plans, moved
+        around study when they clash
       </p>
       <p className="flex items-center gap-2">
         <span className="size-3 rounded-sm bg-sand/25 ring-2 ring-coral" /> Life item with nowhere to move to

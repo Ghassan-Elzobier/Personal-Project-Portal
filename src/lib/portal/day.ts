@@ -4,8 +4,9 @@
 // whether a meal is eaten, what a cook makes and whether it is done, and the
 // defrost and freeze reminders. Pure, so it is tested.
 
+import { nextFreeSlot, type Taken } from "../calendar/free-slot.ts";
 import { LIFE_KINDS, type LifeKind } from "../calendar/life-blocks.ts";
-import { clock } from "../dates/week.ts";
+import { addDays, clock } from "../dates/week.ts";
 import type { Slot } from "../life/nutrition.ts";
 import { recipe } from "../life/recipes.ts";
 import { placedMacros, routineFor, viewOn, type LifeState, type RoutineItem } from "../life/state.ts";
@@ -32,7 +33,27 @@ export type DayItem = {
   /** Why it moved for a clash, or why it could not. */
   note?: string;
   clash?: boolean;
+  /** A study block that has ended with no session logged for its task since it began. */
+  missed?: boolean;
+  /** Where a missed block could go: the next free time, as one tap. */
+  move?: Move;
 };
+
+/** A session the owner logged, placed in the portal's time zone. */
+export type SessionLog = { taskGid: string; date: string; minutes: number };
+
+/** A move the Schedule's own action takes as it is, and what the button says. */
+export type Move = {
+  source: "asana" | "session";
+  id: string;
+  date: string;
+  start: number;
+  duration: number;
+  label: string;
+};
+
+/** What Today knows beyond the blocks: this week's session logs, and the last day whose blocks it holds. */
+export type Kept = { logs: SessionLog[]; lastDay: string };
 
 export type Day = { items: DayItem[]; nextKey: string | null; summary: string | null; planStart: string | null };
 
@@ -53,13 +74,20 @@ const ORDER: DayItem["kind"][] = [
  * The day, from the Schedule's blocks for it and the Life state. Without blocks
  * (the Schedule could not be read) the Life items stand alone at their planned times.
  */
-export function yourDay(date: string, blocks: Block[] | null, s: LifeState | null, now: number): Day {
+export function yourDay(
+  date: string,
+  blocks: Block[] | null,
+  s: LifeState | null,
+  now: number,
+  kept: Kept | null = null,
+): Day {
   const routine = s ? routineFor(s, date) : [];
   const v = s ? viewOn(s, date) : null;
   const items: DayItem[] = [];
 
   if (blocks) {
     for (const b of blocks.filter((x) => x.date === date)) items.push(fromBlock(b, date, routine, s));
+    if (kept) markMissed(items, blocks, date, now, kept);
   } else {
     for (const r of routine) if (r.kind !== "defrost" && r.kind !== "freeze") items.push(fromRoutine(r));
   }
@@ -100,6 +128,58 @@ export function yourDay(date: string, blocks: Block[] | null, s: LifeState | nul
     summary: parts.length ? parts.join(" · ") : null,
     planStart: v?.plan?.start ?? null,
   };
+}
+
+/**
+ * The study blocks that were missed, by id, as of `now` on `today`.
+ *
+ * Missed: the block has ended, its task is not done, and no session was logged for
+ * that task on the block's day from its start on. (A session logged before the
+ * block began was other work.) The Schedule marks them, and Today offers each a
+ * new time.
+ */
+export function missedBlocks(blocks: Block[], today: string, now: number, logs: SessionLog[]): Set<string> {
+  const missed = new Set<string>();
+  for (const b of blocks) {
+    if (b.source !== "asana" && b.source !== "session") continue;
+    const over = b.date < today || (b.date === today && b.end <= now);
+    if (!over || b.completed) continue;
+    const task = b.taskGid ?? b.id.split(":")[0];
+    if (logs.some((l) => l.taskGid === task && l.date === b.date && l.minutes >= b.start)) continue;
+    missed.add(b.id);
+  }
+  return missed;
+}
+
+/**
+ * Marks today's missed study blocks, and offers each the next free time: the first
+ * gap of the block's own length from now, around everything on the Schedule, or
+ * tomorrow morning when today is full and tomorrow's blocks are known. Two missed
+ * blocks are never offered the same time.
+ */
+function markMissed(items: DayItem[], blocks: Block[], date: string, now: number, kept: Kept) {
+  const taken: Taken[] = blocks.map((b) => ({ date: b.date, start: b.start, end: b.end }));
+  const tomorrow = addDays(date, 1);
+  const missed = missedBlocks(blocks, date, now, kept.logs);
+  const study = blocks.filter((b) => b.date === date && missed.has(b.id)).sort((a, b) => a.start - b.start);
+  for (const b of study) {
+    const item = items.find((i) => i.key === b.id);
+    if (!item) continue;
+    item.missed = true;
+    if (!b.editable) continue;
+    const duration = b.end - b.start;
+    const free = nextFreeSlot(taken, date, now, duration, tomorrow <= kept.lastDay ? tomorrow : null);
+    if (!free) continue;
+    taken.push({ date: free.date, start: free.start, end: free.start + duration });
+    item.move = {
+      source: b.source as Move["source"],
+      id: b.id.split(":")[0],
+      date: free.date,
+      start: free.start,
+      duration,
+      label: free.date === date ? `Move to ${clock(free.start)}` : `Tomorrow ${clock(free.start)}`,
+    };
+  }
 }
 
 function fromRoutine(r: RoutineItem): DayItem {

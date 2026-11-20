@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { timeZone } from "@/lib/config/env";
+import { attempt } from "@/lib/portal/data";
+import { missedBlocks } from "@/lib/portal/day";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
+import { listSessionComments } from "@/lib/tasks/tracker";
 import { addDays, dateIn, shortDate, zonedParts } from "@/lib/dates/week";
 import { ErrorNote, PageHeader } from "@/components/ui";
 import { disconnectGoogle } from "./actions";
@@ -36,12 +39,24 @@ export default async function SchedulePage({
   const params = await searchParams;
   const week = resolveWeek(params.week);
   const showInvites = params.invites === "show";
-  const data = await loadScheduleWeek(week, { showInvites });
+  // The week's session logs say which study blocks were kept. If they can't be read, none is called missed.
+  const [data, comments] = await Promise.all([
+    loadScheduleWeek(week, { showInvites }),
+    attempt(() => listSessionComments(week.startsAt)),
+  ]);
   const keep = showInvites ? "&invites=show" : "";
   const googleReady = typeof data.google === "object" && "email" in data.google;
   const tz = timeZone();
   const now = zonedParts(clockNow(), tz);
   const thisWeek = dateIn(clockNow(), tz);
+  const missed = comments.ok
+    ? missedBlocks(
+        data.blocks,
+        now.date,
+        now.minutes,
+        comments.value.map((c) => ({ taskGid: c.taskGid, ...zonedParts(new Date(c.createdAt), tz) })),
+      )
+    : new Set<string>();
   const note = params.google ? GOOGLE_NOTES[params.google] : null;
 
   return (
@@ -101,6 +116,7 @@ export default async function SchedulePage({
         today={thisWeek}
         nowMinutes={now.minutes}
         googleReady={googleReady}
+        missed={[...missed]}
       />
     </div>
   );
