@@ -34,9 +34,9 @@ export type Product = {
 
 export type StockRow = {
   item: string;
-  /** In the ingredient's own unit. */
+  /** In the ingredient's own unit. For a staple, a rough count from its last shop (0: not counted). */
   qty: number;
-  /** For staples, which are not counted. */
+  /** For staples: what the list goes by (staples-count.ts turns a counted one low). */
   status: "have" | "low" | "out" | null;
   /** Fresh food: the last day it is good. */
   goodUntil: string | null;
@@ -531,7 +531,7 @@ export function undoShop(r: {
   };
 }
 
-/** What a cook takes out of the kitchen. Staples are not counted. */
+/** What a cook takes out of the kitchen, staples aside: `stapleUse` (staples-count.ts) counts those. */
 export function cookUse(r: Recipe, portions: number, scale: number): { item: string; qty: number }[] {
   const merged = new Map<string, number>();
   for (const l of linesFor(r, portions, scale)) {
