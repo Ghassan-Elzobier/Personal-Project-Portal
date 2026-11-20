@@ -489,12 +489,32 @@ export function unlogged(s: LifeState, before: string): Placement[] {
   );
 }
 
-/** What a week's food still needs: cooks not done yet and meals still to come. */
-export function remainingNeeds(s: LifeState, v: WeekView = weekView(s, "this")): Need[] {
+/**
+ * What a week's food still needs: cooks not done yet and meals still to come. `also`
+ * counts a cook (by id) or a meal (`day:slot`) being logged right now as done.
+ */
+export function remainingNeeds(
+  s: LifeState,
+  v: WeekView = weekView(s, "this"),
+  also: { cook?: string; meal?: string } = {},
+): Need[] {
   if (!v.plan) return [];
   const cooked = new Set(s.batches.filter((b) => b.planStart === v.start && b.cookId).map((b) => b.cookId!));
   const eaten = new Set(s.meals.filter((m) => m.status !== "skipped").map((m) => `${m.day}:${m.slot}`));
+  if (also.cook) cooked.add(also.cook);
+  if (also.meal) eaten.add(also.meal);
   return weekNeeds(v.plan, v.placements, { cooked, eaten, from: s.today });
+}
+
+/**
+ * What this meal week and the next still need, for how long the cupboard's staples
+ * will last. `also` leaves out what is being logged now: a cook in the week starting
+ * `start`, or a meal (`day:slot`).
+ */
+export function needsAhead(s: LifeState, also: { start?: string; cook?: string; meal?: string } = {}): Need[] {
+  return [weekView(s, "this"), s.next].flatMap((v) =>
+    remainingNeeds(s, v, { meal: also.meal, cook: v.start === also.start ? also.cook : undefined }),
+  );
 }
 
 /**

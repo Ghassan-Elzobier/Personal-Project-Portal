@@ -14,6 +14,7 @@ import {
   cookExtra,
   cookPlanned,
   markOrdered,
+  markStaple,
   moveCookSession,
   removeProduct,
   saveProduct,
@@ -1118,7 +1119,8 @@ export function CupboardView({
       </div>
       {filter === "staples" && (
         <p className="px-1 text-xs text-muted">
-          Staples aren&apos;t weighed. Mark one low or out and it goes on the next list.
+          Staples a shop brings count down as you cook, and turn low when they won&apos;t last the week. Mark one low or
+          out and it goes on the next list.
         </p>
       )}
       {shown.length ? (
@@ -1129,13 +1131,15 @@ export function CupboardView({
                 <p className={`font-medium ${r.past ? "text-coral" : r.soon ? "text-sand" : ""}`}>{r.name}</p>
                 <p className="text-xs text-muted">
                   {r.staple
-                    ? r.status === "have"
-                      ? "Have it"
-                      : r.status === "low"
-                        ? "Running low"
-                        : r.status === "out"
-                          ? "Out"
-                          : "Not checked"
+                    ? `${
+                        r.status === "have"
+                          ? "Have it"
+                          : r.status === "low"
+                            ? "Running low"
+                            : r.status === "out"
+                              ? "Out"
+                              : "Not checked"
+                      }${r.amount ? ` · about ${r.amount} left` : ""}`
                     : (r.amount ?? "None")}
                   {r.past
                     ? " · past its date: no longer counted"
@@ -1178,7 +1182,7 @@ function StapleToggle({ item, status }: { item: string; status: "have" | "low" |
           disabled={pending}
           aria-busy={pending}
           aria-pressed={status === s}
-          onClick={() => void run(() => setStock([{ item, status: s }], "set"))}
+          onClick={() => void run(() => markStaple(item, s))}
           className={`min-h-9 rounded-lg px-2.5 text-xs ${status === s ? (s === "have" ? "bg-mint text-primary" : s === "low" ? "bg-sand text-primary" : "bg-coral text-white") : "bg-white/5 text-muted"}`}
         >
           {s === "have" ? "Have" : s === "low" ? "Low" : "Out"}

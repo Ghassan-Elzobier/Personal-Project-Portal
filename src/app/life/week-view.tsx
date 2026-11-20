@@ -159,6 +159,7 @@ export function WeekView({
   options,
   canReplan,
   mode = "batch",
+  short = false,
   shops = 0,
   cost = null,
 }: {
@@ -172,6 +173,8 @@ export function WeekView({
   canReplan: boolean;
   /** A fresh week: short cooks of one dish and `shops` small shops. */
   mode?: "batch" | "fresh";
+  /** Planned with two days or fewer left: fresh dinners and one shop, no cooks. */
+  short?: boolean;
   shops?: number;
   /** What the week costs as planned, until its food is bought. */
   cost?: WeekCostView | null;
@@ -226,14 +229,16 @@ export function WeekView({
               >
                 Pick again
               </ActionButton>
-              <ActionButton
-                action={() => planWeek(start, other)}
-                className="text-sm text-muted hover:text-white"
-                confirm={`Plan this week again as a ${other} week?`}
-                done={`Planned a ${other} week.`}
-              >
-                Make it a {other} week
-              </ActionButton>
+              {!short && (
+                <ActionButton
+                  action={() => planWeek(start, other)}
+                  className="text-sm text-muted hover:text-white"
+                  confirm={`Plan this week again as a ${other} week?`}
+                  done={`Planned a ${other} week.`}
+                >
+                  Make it a {other} week
+                </ActionButton>
+              )}
             </div>
           )}
         </div>
@@ -255,13 +260,21 @@ export function WeekView({
             )}
           </div>
         )}
-        {mode === "fresh" && (
+        {short ? (
           <p className="text-sm text-body">
-            <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
-            dish
-            {shops ? ` and ${shops} ${shops === 1 ? "shop" : "shops"}` : ""}, each feeding the days until the next.
-            Nothing goes in the freezer.
+            <Chip tone="mint">Rest of the week</Chip> Each dinner is cooked fresh on the night
+            {shops ? `, and ${shops === 1 ? "one shop buys" : `${shops} shops buy`} what it needs` : ""}. Nothing is
+            batch cooked.
           </p>
+        ) : (
+          mode === "fresh" && (
+            <p className="text-sm text-body">
+              <Chip tone="mint">Fresh week</Chip> {groups.length} short {groups.length === 1 ? "cook" : "cooks"} of one
+              dish
+              {shops ? ` and ${shops} ${shops === 1 ? "shop" : "shops"}` : ""}, each feeding the days until the next.
+              Nothing goes in the freezer.
+            </p>
+          )
         )}
         {groups.map((g) => (
           <div key={g.key} className="space-y-2">

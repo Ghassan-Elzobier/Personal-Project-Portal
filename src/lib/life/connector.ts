@@ -308,7 +308,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "plan_meal_week",
     title: "Plan this week's meals",
     description:
-      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. The mains are chosen together so they share packs and little is wasted; each says why it was picked, and the week says what it costs. Only when the week has no cooking done yet. mode 'batch' is two long cooks of two dishes and one shop; 'fresh' is short cooks of one dish every couple of days and two or three small shops, with nothing frozen. Left out, a re-plan keeps the week's mode. cheaper: true picks the cheapest good week instead of the best value.",
+      "Fill this meal week from the menu in one go: recipes for each cook session sized to the calorie target, plus the shopping list. The mains are chosen together so they share packs and little is wasted; each says why it was picked, and the week says what it costs. Only when the week has no cooking done yet. mode 'batch' is two long cooks of two dishes and one shop; 'fresh' is short cooks of one dish every couple of days and two or three small shops, with nothing frozen. Left out, a re-plan keeps the week's mode. cheaper: true picks the cheapest good week instead of the best value. With two days or fewer left in the week, it plans just those days instead, whatever the mode (rest_of_week in the reply): a dinner cooked fresh each night, lunches from cooked food in the kitchen, the daily breakfast and shakes, and one small shop before dinner, with no batch cook. If the owner would rather skip to next week, don't call it; next week is planned from the Meals page.",
     inputSchema: {
       type: "object",
       properties: { mode: { type: "string", enum: ["batch", "fresh"] }, cheaper: { type: "boolean" } },
@@ -330,11 +330,14 @@ export const LIFE_TOOLS: Tool[] = [
           ...(c.why?.length ? { why: c.why } : {}),
         })) ?? [];
       const shops = plan?.trips?.map((t) => ({ day: t.date, at: clock(t.start) }));
+      const fresh = plan?.fresh.map((f) => ({ day: f.date, meal: f.slot, recipe: recipe(f.recipe)?.name })) ?? [];
       const cost = plan?.cost;
       return ok({
         planned: "start" in r ? r.start : null,
         mode: plan?.mode ?? "batch",
+        ...(plan?.short ? { rest_of_week: true } : {}),
         cooks,
+        ...(fresh.length ? { cooked_fresh: fresh } : {}),
         ...(shops ? { shops } : {}),
         ...(cost
           ? {

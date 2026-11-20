@@ -48,7 +48,10 @@ export type Ingredient = {
   storage: Storage;
   /** Days a fresh pack keeps once home, for "use soon" warnings. */
   keeps?: number;
-  /** Kept in the cupboard and tracked as have / low / out, not by the gram. */
+  /**
+   * Kept in the cupboard and bought by have / low / out. A shop counts roughly how
+   * much came in, and cooking counts it down (staples-count.ts).
+   */
   staple?: boolean;
   /** Bought raw: the Cook view says how to tell it is done. */
   raw?: Raw;

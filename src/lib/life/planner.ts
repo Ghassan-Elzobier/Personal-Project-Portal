@@ -56,6 +56,11 @@ export type WeekPlan = {
   } & ShopTicks;
   /** "fresh": short cooks of one dish and several small shops. Missing means batch. */
   mode?: WeekMode;
+  /**
+   * Planned with two days or fewer left, for just those days: fresh dinners and one
+   * shop, no cooks (`suggestShortWeek`). Its mode is "fresh", for the shop.
+   */
+  short?: boolean;
   /** A fresh week's shops, in date order. */
   trips?: Trip[];
   /**
@@ -272,8 +277,11 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
       const sameDay =
         slot === "dinner" ? placements.find((p) => p.date === date && p.slot === "lunch")?.recipe : undefined;
       const recent = history[slot];
+      // Days before the plan was made are history: food in the kitchen is kept for the
+      // meals still to come, not placed on a lunch that is gone (a week planned late).
+      const past = plan.createdOn !== undefined && date < plan.createdOn;
       const candidates = pools
-        .filter((p) => p.left > 0 && p.recipe.meal === wantMeal && p.readyAt <= at)
+        .filter((p) => p.left > 0 && p.recipe.meal === wantMeal && p.readyAt <= at && !(past && p.location !== "plan"))
         .map((p) => ({ p, storage: storageFor(p, date) }))
         .filter((c): c is { p: Pool; storage: "fridge" | "freezer" } => c.storage !== null)
         .map((c) => {

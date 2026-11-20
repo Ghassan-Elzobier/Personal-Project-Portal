@@ -117,6 +117,11 @@ export async function setStock(
   return ops.setStock(changes, mode);
 }
 
+export async function markStaple(item: string, status: "have" | "low" | "out") {
+  await requireOwner();
+  return ops.markStaple(item, status);
+}
+
 export async function markOrdered(start: string, ordered: boolean, pence: number | null = null) {
   await requireOwner();
   return ops.markOrdered(start, ordered, pence);
