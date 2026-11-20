@@ -6,6 +6,7 @@ import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
 import { lifeToday, loadLife } from "./load";
 import type { Slot } from "./nutrition";
+import { isOtherSize } from "./other-meal";
 import * as ops from "./operations";
 import { recipe } from "./recipes";
 import { money } from "./shopping";
@@ -106,12 +107,17 @@ export const LIFE_TOOLS: Tool[] = [
     name: "log_meal",
     title: "Log a meal",
     description:
-      "Mark a planned meal as eaten or skipped, or clear it. Eating from a batch takes a portion from the fridge or freezer.",
+      "Mark a meal as eaten as planned, skipped, or something_else, or clear it. eaten takes the planned portion from the fridge or freezer. Use something_else when the owner ate, but not the planned meal (a friend cooked, a meal out, a sandwich on the go): the planned portion stays where it is and the day still counts the food, as an estimate from the planned meal. Give size for how it compared: lighter, about (the default) or bigger. It also works for a slot marked as eating out. Use skipped only when nothing was eaten.",
     inputSchema: {
       type: "object",
       properties: {
         slot: { type: "string", enum: ["breakfast", "lunch", "shake", "dinner"] },
-        status: { type: "string", enum: ["eaten", "skipped", "clear"] },
+        status: { type: "string", enum: ["eaten", "skipped", "something_else", "clear"] },
+        size: {
+          type: "string",
+          enum: ["lighter", "about", "bigger"],
+          description: "With something_else: how the meal compared with the planned one.",
+        },
         date: DATE,
       },
       required: ["slot", "status"],
@@ -119,9 +125,25 @@ export const LIFE_TOOLS: Tool[] = [
     },
     annotations: { readOnlyHint: false, idempotentHint: true },
     async run(args) {
-      const status = args.status === "clear" ? null : (args.status as "eaten" | "skipped");
-      const r = await ops.logMeal(day(args), args.slot as Slot, status);
-      return r.error ? err(r.error) : ok({ slot: args.slot, status: args.status, date: day(args) });
+      const status =
+        args.status === "clear"
+          ? null
+          : args.status === "something_else"
+            ? "swapped"
+            : (args.status as "eaten" | "skipped");
+      const r = await ops.logMeal(day(args), args.slot as Slot, status, isOtherSize(args.size) ? args.size : "about");
+      if (r.error !== undefined) return err(r.error);
+      return ok({
+        slot: args.slot,
+        status: args.status,
+        date: day(args),
+        ...(r.estimate
+          ? {
+              logged_as: { kcal: r.estimate.kcal, protein_g: r.estimate.protein },
+              note: "An estimate from the planned meal. The planned portion was not taken from the kitchen.",
+            }
+          : {}),
+      });
     },
   },
   {

@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/auth/access";
 import type { Tag } from "@/lib/life/allergens";
 import type { Unit } from "@/lib/life/ingredients";
 import type { Slot } from "@/lib/life/nutrition";
+import { isOtherSize, type OtherSize } from "@/lib/life/other-meal";
 import * as ops from "@/lib/life/operations";
 import type { LifeProfile } from "@/lib/life/profile";
 
@@ -63,9 +64,14 @@ export async function setFresh(start: string, date: string, slot: Slot, recipe: 
   return ops.setFresh(start, date, slot, recipe);
 }
 
-export async function logMeal(day: string, slot: Slot, status: "eaten" | "skipped" | null) {
+export async function logMeal(
+  day: string,
+  slot: Slot,
+  status: "eaten" | "skipped" | "swapped" | null,
+  size?: OtherSize,
+) {
   await requireOwner();
-  return ops.logMeal(day, slot, status);
+  return ops.logMeal(day, slot, status, isOtherSize(size) ? size : "about");
 }
 
 export async function logPastAsEaten() {

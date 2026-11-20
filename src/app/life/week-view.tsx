@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
+import { OTHER_LABEL, OTHER_SIZES, type OtherSize } from "@/lib/life/other-meal";
 import { toast } from "@/components/toaster";
 import { pounds } from "@/lib/life/basket";
 import type { Slot } from "@/lib/life/nutrition";
@@ -72,11 +73,13 @@ export type DayView = {
 };
 
 const SLOT_LABEL: Record<Slot, string> = { breakfast: "Breakfast", lunch: "Lunch", shake: "Shake", dinner: "Dinner" };
+const OTHER_CHOICES = Object.keys(OTHER_SIZES) as OtherSize[];
 
 type Picker =
   | { kind: "swap"; cookId: string; meal: "main" | "breakfast"; current: string }
   | { kind: "daily"; slot: "breakfast" | "shake"; current: string }
-  | { kind: "meal"; day: DayView; meal: MealView }
+  // `other`: the sheet is asking how a meal eaten in place of the plan compared with it.
+  | { kind: "meal"; day: DayView; meal: MealView; other?: boolean }
   | { kind: "fresh"; day: DayView; meal: MealView }
   | null;
 
@@ -117,10 +120,10 @@ export function WeekView({
   const close = () => setPicker(null);
   const nameOf = (key: string) => [...options.breakfast, ...options.shake].find((a) => a.key === key)?.name ?? key;
 
-  const tick = (day: DayView, meal: MealView, status: "eaten" | "skipped" | null) =>
+  const tick = (day: DayView, meal: MealView, status: "eaten" | "skipped" | "swapped" | null, size?: OtherSize) =>
     start_(async () => {
       setLog({ id: meal.id, status });
-      const r = await logMeal(day.date, meal.slot, status);
+      const r = await logMeal(day.date, meal.slot, status, size);
       if (r.error) toast(r.error, { tone: "error" });
     });
 
@@ -294,10 +297,24 @@ export function WeekView({
                   <li key={m.id} className="flex min-w-0 items-center gap-3 py-2">
                     <button
                       type="button"
-                      disabled={!m.recipe}
-                      onClick={() => tick(d, m, eaten ? null : "eaten")}
+                      // With no meal planned (eating out, say) there is nothing to tick as planned: the
+                      // tick asks what was eaten instead, once the day has come.
+                      disabled={!m.recipe && !eaten && d.date > today}
+                      onClick={() =>
+                        eaten
+                          ? tick(d, m, null)
+                          : m.recipe
+                            ? tick(d, m, "eaten")
+                            : setPicker({ kind: "meal", day: d, meal: m, other: true })
+                      }
                       aria-pressed={eaten}
-                      aria-label={eaten ? `Untick ${SLOT_LABEL[m.slot]}` : `Ate ${SLOT_LABEL[m.slot]}`}
+                      aria-label={
+                        eaten
+                          ? `Untick ${SLOT_LABEL[m.slot]}`
+                          : m.recipe
+                            ? `Ate ${SLOT_LABEL[m.slot]}`
+                            : `Log ${SLOT_LABEL[m.slot]}`
+                      }
                       className={`tap size-11 shrink-0 rounded-full text-lg ring-1 ${eaten ? "bg-mint text-primary ring-mint" : status === "skipped" ? "bg-white/5 text-faint ring-white/10" : "bg-white/5 text-transparent ring-white/20 hover:text-mint/60"} disabled:opacity-30`}
                     >
                       {status === "skipped" ? "–" : "✓"}
@@ -322,6 +339,7 @@ export function WeekView({
                         <span className="block text-xs text-sky-300">From the freezer: defrost {m.defrost} night</span>
                       )}
                       {m.source === "fresh" && <span className="block text-xs text-sand">Cook fresh</span>}
+                      {status === "swapped" && <span className="block text-xs text-mint">Ate something else</span>}
                     </button>
                     {m.recipe && <span className="shrink-0 text-right text-xs text-faint tabular-nums">{m.kcal}</span>}
                   </li>
@@ -385,7 +403,29 @@ export function WeekView({
         onClose={close}
         title={picker?.kind === "meal" ? `${picker.day.label}: ${SLOT_LABEL[picker.meal.slot]}` : ""}
       >
-        {picker?.kind === "meal" && (
+        {picker?.kind === "meal" && picker.other && (
+          <div className="space-y-2">
+            <p className="text-sm text-body">
+              How did it compare with {picker.meal.name ? "the planned meal" : "a usual meal"}? A rough size is enough.
+            </p>
+            {OTHER_CHOICES.map((size) => (
+              <button
+                key={size}
+                type="button"
+                className="btn-soft w-full justify-start"
+                onClick={() => (tick(picker.day, picker.meal, "swapped", size), close())}
+              >
+                {OTHER_LABEL[size]}
+              </button>
+            ))}
+            <p className="text-xs text-muted">
+              {picker.meal.recipe
+                ? "The planned portion stays in the kitchen, and the day still counts the food."
+                : "The day counts the food, as an estimate."}
+            </p>
+          </div>
+        )}
+        {picker?.kind === "meal" && !picker.other && (
           <div className="space-y-2">
             {picker.meal.recipe && (
               <Link
@@ -403,6 +443,15 @@ export function WeekView({
                 onClick={() => (tick(picker.day, picker.meal, "skipped"), close())}
               >
                 I skipped it
+              </button>
+            )}
+            {picker.day.date <= today && logs[picker.meal.id] !== "swapped" && (
+              <button
+                type="button"
+                className="btn-soft w-full justify-start"
+                onClick={() => setPicker({ ...picker, other: true })}
+              >
+                I ate something else
               </button>
             )}
             {logs[picker.meal.id] && (

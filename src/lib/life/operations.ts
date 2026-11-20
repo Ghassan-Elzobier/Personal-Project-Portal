@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
 import { loadLife } from "./load";
-import type { Slot } from "./nutrition";
+import { SPLIT, type Slot } from "./nutrition";
+import { otherMeal, type OtherSize } from "./other-meal";
 import { parseProfile, plannerRoutine, type LifeProfile } from "./profile";
 import {
   cookScale,
@@ -274,8 +275,21 @@ export function setFresh(start: string, date: string, slot: Slot, recipeKey: str
 
 // ---------------------------------------------------------------- eating
 
-/** Logs a planned meal as eaten or skipped, taking the portion from its batch. */
-export function logMeal(day: string, slot: Slot, status: "eaten" | "skipped" | null): Promise<Result> {
+/** What was put in the log for a meal eaten in place of the planned one: an estimate. */
+export type MealEstimate = { kcal: number; protein: number | null };
+
+/**
+ * Logs a meal: eaten as planned (the portion comes out of its batch), skipped, or
+ * `swapped`, something else eaten in its place. A swapped meal takes nothing from the
+ * fridge, freezer or cupboard, and counts as food eaten: an estimate from the planned
+ * meal and `size` (other-meal.ts). Null clears the log.
+ */
+export function logMeal(
+  day: string,
+  slot: Slot,
+  status: "eaten" | "skipped" | "swapped" | null,
+  size: OtherSize = "about",
+): Promise<Result<{ estimate?: MealEstimate }>> {
   return run(async () => {
     const s = await state();
     const p = s.placements.find((x) => x.date === day && x.slot === slot);
@@ -291,6 +305,16 @@ export function logMeal(day: string, slot: Slot, status: "eaten" | "skipped" | n
           cookUse(r, 1, p.scale).map((u) => ({ item: u.item, qty: now ? -u.qty : u.qty })),
           "add",
         );
+    }
+    if (status === "swapped") {
+      // No recipe and no batch: the planned portion stays where it is, to be offered again.
+      // With no meal planned for the slot, its share of the day's targets stands in.
+      const other = otherMeal(size, m, {
+        kcal: s.kcal * SPLIT[slot],
+        protein: s.targets ? s.targets.protein * SPLIT[slot] : null,
+      });
+      await store.logMeal({ day, slot, status, recipe: null, batch: null, ...other });
+      return { estimate: { kcal: other.kcal, protein: other.protein } };
     }
     await store.logMeal({
       day,
