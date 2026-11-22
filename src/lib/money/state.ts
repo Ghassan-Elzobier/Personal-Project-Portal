@@ -285,8 +285,28 @@ export function bankMessage(code: string): string {
   return "Lunch Flow's answer didn't make sense. Try again later.";
 }
 
-/** A line about the feed when something needs you, most urgent first; null when all is well. */
-export function feedNote(s: MoneyState): { tone: "warn" | "error"; text: string } | null {
+/**
+ * Hours without a good sync before it counts as stopped. Vercel runs the sync four
+ * times a day and may skip one during a deploy, so this allows for a few missed runs.
+ */
+export const SYNC_OVERDUE_HOURS = 12;
+
+/**
+ * Whether the bank sync has gone quiet: no good sync since `lastOk` (or, before the
+ * first one, since `since`, when the bank was connected) for SYNC_OVERDUE_HOURS. Worked
+ * out from the time now, because a sync that never runs never writes a status.
+ */
+export function syncOverdue(lastOk: string | null, now: Date, since: string | null = null): boolean {
+  const from = Date.parse(lastOk ?? since ?? "");
+  if (!Number.isFinite(from)) return false;
+  return now.getTime() - from > SYNC_OVERDUE_HOURS * 3_600_000;
+}
+
+/**
+ * A line about the feed when something needs you, most urgent first; null when all
+ * is well. Given `now`, it also says when the sync has stopped running.
+ */
+export function feedNote(s: MoneyState, now?: Date): { tone: "warn" | "error"; text: string } | null {
   if (!s.connection) return null;
   if (s.connection.status === "off") return { tone: "warn", text: "Disconnected. Your history is kept." };
   const code = s.lastSync?.errorCode;
@@ -298,6 +318,10 @@ export function feedNote(s: MoneyState): { tone: "warn" | "error"; text: string 
       tone: "warn",
       text: "No new bank data for 3 days. Check Lunch Flow: the bank link may need reconfirming.",
     };
+  if (now && syncOverdue(s.lastOk, now, s.connection.createdAt)) {
+    const when = s.lastOk ? `The last good bank sync was ${ago(s.lastOk, now)}` : "The bank hasn't synced yet";
+    return { tone: "warn", text: `${when}. Balances and alerts may be out of date.` };
+  }
   if (s.lastSync?.outcome === "rate-limited") return { tone: "warn", text: bankMessage("HTTP_429") };
   return null;
 }

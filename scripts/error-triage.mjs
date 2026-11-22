@@ -3,7 +3,9 @@
 // (portal.error_groups) into GitHub issues, keeps their counts current, reopens
 // a fixed bug that came back, and says which issues to hand to Claude for a
 // fix. .github/workflows/error-triage.yml runs it every 30 minutes; the decisions
-// themselves are in src/lib/errors/issue.ts, with tests beside them.
+// themselves are in src/lib/errors/issue.ts, with tests beside them. It also
+// watches the scheduled bank sync, which fails without recording an error when
+// the cron never reaches it (src/lib/errors/sync-health.ts).
 //
 //   node --experimental-strip-types --no-warnings scripts/error-triage.mjs [--local] [--dry-run]
 //
@@ -26,6 +28,15 @@ import {
   queryRows,
   NO_AUTOFIX,
 } from "../src/lib/errors/issue.ts";
+import {
+  SYNC_HEALTH_QUERY,
+  SYNC_MARKER,
+  SYNC_TITLE,
+  decideSync,
+  syncClosedComment,
+  syncHealthFrom,
+  syncIssueBody,
+} from "../src/lib/errors/sync-health.ts";
 
 const flags = new Set(process.argv.slice(2));
 const local = flags.has("--local");
@@ -208,3 +219,60 @@ for (const group of groups) {
 
 console.log(`${groups.length} error groups triaged; ${fix.length} handed to Claude (${usedToday} of ${perDay} today).`);
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `fix=${JSON.stringify(fix)}\n`);
+
+/** The one open issue about the bank sync, found by its marker, if any. */
+function openSyncIssue() {
+  const found = ghOrFail(
+    ["issue", "list", "--repo", repo, "--state", "open", "--label", "error-report"].concat([
+      "--search",
+      `"${SYNC_MARKER.slice(5, -4)}" in:body`,
+      "--json",
+      "number,body",
+      "--limit",
+      "5",
+    ]),
+  );
+  return JSON.parse(found).find((issue) => issue.body.includes(SYNC_MARKER))?.number ?? null;
+}
+
+/** Files, keeps or closes the issue that says the scheduled bank sync has stopped. */
+function checkBankSync() {
+  const health = syncHealthFrom(sql(SYNC_HEALTH_QUERY)[0]);
+  const now = new Date();
+  const number = openSyncIssue();
+  const action = decideSync(health, now, number !== null);
+  console.log(`${dryRun ? "[dry run] " : ""}bank sync: ${action}${number ? ` #${number}` : ""}`);
+  if (dryRun) {
+    if (action === "file" || action === "update") console.log(syncIssueBody(health, now));
+    return;
+  }
+  if (action === "file") {
+    for (const [name, color, description] of LABELS) {
+      gh(["label", "create", name, "--repo", repo, "--color", color, "--description", description]);
+    }
+    // Not handed to Claude: a stopped cron is a setting in Vercel, not a bug in the code.
+    ghOrFail(
+      ["issue", "create", "--repo", repo, "--title", SYNC_TITLE, "--body-file", "-"].concat([
+        "--label",
+        "bug",
+        "--label",
+        "error-report",
+        "--label",
+        NO_AUTOFIX,
+      ]),
+      syncIssueBody(health, now),
+    );
+  } else if (action === "update") {
+    ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], syncIssueBody(health, now));
+  } else if (action === "close") {
+    ghOrFail(["issue", "close", String(number), "--repo", repo, "--comment", syncClosedComment(health)]);
+  }
+}
+
+// After the error groups, and never in their way: a failure here warns on the run
+// rather than failing it, so the bugs above still go to Claude.
+try {
+  checkBankSync();
+} catch (error) {
+  console.log(`::warning::Bank sync check failed: ${error instanceof Error ? error.message : error}`);
+}
