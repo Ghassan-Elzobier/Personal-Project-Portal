@@ -20,7 +20,7 @@ import {
   spareUntil,
   type ListLine,
 } from "@/lib/life/shopping";
-import { kitchenFor, remainingNeeds, tripLists, weekView, type WeekView } from "@/lib/life/state";
+import { cookedIds, kitchenFor, remainingNeeds, tripLists, weekView, type WeekView } from "@/lib/life/state";
 import type { AgendaItem } from "@/lib/life/agenda";
 import { attempt } from "@/lib/portal/data";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
@@ -297,7 +297,7 @@ function nextWeekday(today: string, weekday: number, start: string): string {
  */
 async function Fridge({ s, v }: { s: S; v: WeekView }) {
   const plan = v.plan;
-  const cooked = new Set(s.batches.filter((b) => plan && b.planStart === plan.start && b.cookId).map((b) => b.cookId!));
+  const cooked = cookedIds(s, plan?.start);
   const left = (plan?.cooks ?? []).filter((c) => !cooked.has(c.id));
   // The Schedule's weeks these cooks fall in, arranged around study and events.
   const weeks = [...new Set(left.map((c) => resolveWeek(c.date).start))];

@@ -6,7 +6,7 @@ import { loadLife } from "@/lib/life/load";
 import { freezeCount } from "@/lib/life/planner";
 import { cookPlan } from "@/lib/life/prep";
 import { recipe } from "@/lib/life/recipes";
-import { viewOn } from "@/lib/life/state";
+import { cookBatches, viewOn } from "@/lib/life/state";
 import { Empty, ErrorNote } from "@/components/ui";
 import { cookPlanned } from "../actions";
 import { ActionButton } from "../kit";
@@ -59,7 +59,7 @@ export default async function CookPage({ searchParams }: { searchParams: Promise
               scale: c.scale,
               freeze: freezeCount(plan, c, v.placements),
               date: c.date,
-              cooked: s.batches.some((b) => b.planStart === v.start && b.cookId === c.id),
+              cooked: cookBatches(s, v.start, c.id).length > 0,
             },
           ]
         : [];

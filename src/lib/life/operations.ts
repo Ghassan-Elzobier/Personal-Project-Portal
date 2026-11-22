@@ -32,6 +32,8 @@ import {
 } from "./shopping";
 import { countDown, countedDelivery, markByHand, putBack, stapleUse, staplesAhead } from "./staples-count";
 import {
+  cookBatches,
+  cookedIds,
   needsAhead,
   stockFor,
   placedMacros,
@@ -254,7 +256,7 @@ export function swapCook(start: string, cookId: string, recipeKey: string): Prom
     const c = plan.cooks.find((x) => x.id === cookId);
     const r = recipe(recipeKey);
     if (!c || !r) fail("That recipe or cook is not in the plan.");
-    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId)) fail("That one is cooked already.");
+    if (cookBatches(s, start, cookId).length) fail("That one is cooked already.");
     if (recipe(c!.recipe)?.meal !== r!.meal) fail("Swap a main for a main and a breakfast for a breakfast.");
     c!.recipe = recipeKey;
     // The planner's reasons and whole-pack portions were for the dish that was there.
@@ -266,8 +268,7 @@ export function swapCook(start: string, cookId: string, recipeKey: string): Prom
 
 export function removeCook(start: string, cookId: string): Promise<Result> {
   return editPlan(start, (plan, s) => {
-    if (s.batches.some((b) => b.planStart === start && b.cookId === cookId))
-      fail("That one is cooked already: undo the cook in the Kitchen first.");
+    if (cookBatches(s, start, cookId).length) fail("That one is cooked already: undo the cook in the Kitchen first.");
     plan.cooks = plan.cooks.filter((c) => c.id !== cookId);
   });
 }
@@ -286,7 +287,7 @@ export function moveCookSession(
       fail("Pick a day in this meal week.");
     if (to.date < s.today) fail("Pick today or a day still to come.");
     if (!Number.isInteger(to.at) || to.at < 6 * 60 || to.at > 22 * 60) fail("Pick a time between 06:00 and 22:00.");
-    const cooked = new Set(s.batches.filter((b) => b.planStart === start && b.cookId).map((b) => b.cookId!));
+    const cooked = cookedIds(s, start);
     const moving = plan.cooks.filter((c) => c.date === from.date && c.start === from.at && !cooked.has(c.id));
     if (!moving.length) fail("Nothing left to cook in that session.");
     for (const c of moving) {
@@ -579,7 +580,7 @@ async function logCooks(s: LifeState, start: string, cookIds: string[]): Promise
       out.push(await logCook(now, start, id));
     } catch (e) {
       const again = await state();
-      if (!again.batches.some((b) => b.planStart === start && b.cookId === id)) throw e;
+      if (!cookBatches(again, start, id).length) throw e;
     }
   }
   return out;
