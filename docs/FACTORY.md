@@ -153,7 +153,8 @@ A failed check on a pull request is investigated before you have to (`.github/wo
 **When another pull request merges, the rest are checked for conflicts** (`.github/workflows/pr-conflicts.yml`).
 GitHub only shows a conflict on the pull request itself, so on every push to main the workflow looks at
 each open pull request, says which files now conflict, and on your own `claude/` branches has Claude merge
-main in, resolve it and push, twice at most. The friction log is the usual culprit: every pull request
+main in, resolve it and push, twice at most. The fix runs in a second, dispatched run of the same workflow, because
+the Claude action can't run on a push (a test holds every workflow to that). The friction log is the usual culprit: every pull request
 appends to its end, and the resolution is always to keep every line.
 
 Fork pull requests are never touched, and the log is read as data. The Integration job also retries
