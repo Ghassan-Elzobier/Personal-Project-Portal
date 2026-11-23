@@ -134,6 +134,12 @@ export async function setBill(id: number, status: "active" | "ignored") {
   return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");
 }
 
+export async function setCategoryBudget(key: string, amount: string) {
+  await requireOwner();
+  if (typeof key !== "string" || typeof amount !== "string") return { error: "Say the amount in pounds." };
+  return ops.setCategoryBudget(key.slice(0, 40), amount.slice(0, 20));
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);
