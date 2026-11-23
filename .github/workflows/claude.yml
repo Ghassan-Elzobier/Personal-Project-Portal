@@ -57,6 +57,9 @@ jobs:
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Commits carry the owner's name, as everything else in this repository does.
+          bot_id: ${{ github.repository_owner_id }}
+          bot_name: ${{ github.repository_owner }}
           # Single quotes, and no apostrophes inside them: the action splits these like a shell.
           claude_args: >-
             --max-turns 150
