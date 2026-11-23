@@ -116,6 +116,8 @@ export function ShopView({
     missed: boolean;
     /** The days it may move to: the rest of its meal week. */
     days: { date: string; label: string }[];
+    /** Where Move starts for a missed shop: a time still to come. */
+    offer?: { date: string; start: number };
   };
   /** What is in the basket or trolley, what the shop didn't have, and which way, as saved. */
   ticks?: Ticks;
@@ -301,8 +303,8 @@ export function ShopView({
           <MoveWhen
             key={`${trip.id}:${trip.date}:${trip.start}`}
             days={trip.days}
-            date={trip.date}
-            time={trip.start}
+            date={trip.offer?.date ?? trip.date}
+            time={trip.offer?.start ?? trip.start}
             submit="Move shop"
             pending={movePending}
             onMove={moveTo}

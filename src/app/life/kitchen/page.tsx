@@ -5,7 +5,7 @@ import { labelTags, TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS } from "@/lib/life/ingredients";
 import { linkDisagrees, packUnits } from "@/lib/life/pack";
 import { lifeMinutes, loadLife } from "@/lib/life/load";
-import { SHOP_MINUTES } from "@/lib/life/shop-move";
+import { EARLIEST, LATEST, SHOP_MINUTES } from "@/lib/life/shop-move";
 import { loadToday } from "@/lib/money/load";
 import { freezeCount } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
@@ -169,6 +169,10 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
     days.push({ date: d, label: dayLabel(d, s.today) });
   const missed = (t: { date: string; start: number }) =>
     t.date < s.today || (t.date === s.today && t.start + SHOP_MINUTES <= now);
+  // Where Move starts for a missed shop: the next quarter hour today, or tomorrow at its own time once today is over.
+  const soon = Math.max(EARLIEST, Math.ceil((now + 1) / 15) * 15);
+  const fromNow = (t: { start: number }) =>
+    soon <= LATEST ? { date: s.today, start: soon } : { date: addDays(s.today, 1), start: t.start };
   return (
     <div className="space-y-8">
       {done.length > 0 && (
@@ -198,6 +202,7 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
               // Being ticked off in the shop is under way, not missed.
               missed: missed(trip) && !trip.ticked?.length,
               days,
+              ...(missed(trip) ? { offer: fromNow(trip) } : {}),
             }}
             lines={lines.map((l) => shopLine(s, l, trip.date))}
             aisles={AISLES}
