@@ -4,7 +4,15 @@ import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
-import { allocate, suggestGoals } from "@/lib/money/allocate";
+import {
+  addMonths,
+  allocate,
+  debtOrders,
+  payoff,
+  suggestDebts,
+  suggestGoals,
+  type DebtOrder,
+} from "@/lib/money/allocate";
 import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
 import type { Forecast } from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
@@ -26,6 +34,7 @@ import {
   registerSyncKey,
   addSuggestedGoals,
   moveGoal,
+  orderDebts,
   removeGoal,
   removeIncome,
   setBill,
@@ -33,6 +42,7 @@ import {
 } from "./actions";
 import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
+import { DebtForm } from "./debt-form";
 import { GoalForm } from "./goal-form";
 import { PayForm } from "./pay-form";
 import { PaymentList } from "./payments";
@@ -465,6 +475,8 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
   const plan = allocate(budget, payday);
   const share = (id: number) => plan?.shares.find((s) => s.id === id);
   const suggested = suggestGoals(budget, today);
+  const debtsFound = suggestDebts(budget);
+  const debts = goals.filter((g) => g.kind === "debt");
   const moves = plan?.shares.filter((s) => s.pence > 0) ?? [];
   return (
     <section aria-labelledby="goals-title" className="space-y-3 card-life">
@@ -530,33 +542,60 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
                 {s && (
                   <p className={`text-xs tabular-nums ${s.slipped ? "text-coral" : "text-muted"}`}>
                     {s.pence > 0 ? `${pounds(s.pence)} on ${dayMonth(payday)}` : `Nothing on ${dayMonth(payday)}`}
-                    {s.finish && ` · there by ${monthYear(s.finish)}`}
+                    {s.finish && !(g.kind === "debt" && g.paymentPence) && ` · there by ${monthYear(s.finish)}`}
                     {s.slipped && " · behind its pace"}
                   </p>
                 )}
+                {g.kind === "debt" && g.paymentPence ? (
+                  <DebtClears goal={g} owed={now} payday={payday} extra={s?.pence ?? 0} finish={s?.finish ?? null} />
+                ) : null}
               </li>
             );
           })}
         </ol>
       )}
-      {suggested.length > 0 && (
-        <div className="space-y-2 rounded-xl bg-white/5 p-3 text-sm">
+      {debts.length >= 2 && (
+        <DebtChoice
+          orders={debtOrders(
+            debts.map((g) => ({ id: g.id, owed: savedNow(g), payment: g.paymentPence ?? 0, aprBp: g.aprBp })),
+            plan ? debts.reduce((t, g) => t + (share(g.id)?.pence ?? 0), 0) / ((plan.weeks * 7) / 30.4) : 0,
+          )}
+          current={debts.map((g) => g.id)}
+          payday={payday}
+        />
+      )}
+      {debts.length > 0 && <DebtAdvice />}
+      {(suggested.length > 0 || debtsFound.length > 0) && (
+        <div className="space-y-3 rounded-xl bg-white/5 p-3 text-sm">
           <p className="font-medium">Suggested from your bills and spending</p>
-          <ul className="space-y-1 text-body">
-            {suggested.map((g) => (
-              <li key={g.name} className="tabular-nums">
-                {g.name}: {pounds(g.targetPence)}
-                {g.dueOn ? ` by ${dayMonth(g.dueOn)}` : ""}, {g.held === "account" ? "in the account" : "in a saver"}
-              </li>
-            ))}
-          </ul>
-          <ActionButton
-            action={addSuggestedGoals}
-            className="btn-soft px-3 py-1.5 text-xs"
-            done="Added. Change the order any time."
-          >
-            Add {suggested.length === 1 ? "it" : "these"}
-          </ActionButton>
+          {debtsFound.map((d) => (
+            <div key={d.billId} className="space-y-2">
+              <p className="text-body tabular-nums">
+                {d.name}: {pounds(d.paymentPence)} a month. What&apos;s owed now?
+              </p>
+              <DebtForm billId={d.billId} name={d.name} />
+            </div>
+          ))}
+          {suggested.length > 0 && (
+            <div className="space-y-2">
+              <ul className="space-y-1 text-body">
+                {suggested.map((g) => (
+                  <li key={g.name} className="tabular-nums">
+                    {g.name}: {pounds(g.targetPence)}
+                    {g.dueOn ? ` by ${dayMonth(g.dueOn)}` : ""},{" "}
+                    {g.held === "account" ? "in the account" : "in a saver"}
+                  </li>
+                ))}
+              </ul>
+              <ActionButton
+                action={addSuggestedGoals}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Added. Change the order any time."
+              >
+                Add {suggested.length === 1 ? "it" : "these"}
+              </ActionButton>
+            </div>
+          )}
         </div>
       )}
       {plan === null ? (
@@ -604,6 +643,101 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
         </div>
       </details>
     </section>
+  );
+}
+
+/** When a debt clears at its payment, and with this payday's extra; and the interest still to pay. */
+function DebtClears({
+  goal: g,
+  owed,
+  payday,
+  extra,
+  finish,
+}: {
+  goal: Goal;
+  owed: number;
+  payday: string;
+  extra: number;
+  finish: string | null;
+}) {
+  if (owed <= 0) return null;
+  const payment = g.paymentPence ?? 0;
+  const at = payoff(owed, payment, g.aprBp);
+  return (
+    <div className="space-y-0.5 text-xs text-body tabular-nums">
+      <p>
+        {at.months === null
+          ? `Not cleared at ${pounds(payment)} a month: the interest is as much as the payment`
+          : `Cleared by ${monthYear(addMonths(payday, at.months - 1))} at ${pounds(payment)} a month`}
+        {extra > 0 && finish && `, ${monthYear(finish)} with this payday's ${pounds(extra)} extra`}
+      </p>
+      {(g.aprBp ?? 0) > 0 && at.months !== null && <p>About {pounds(at.interestPence)} interest still to pay</p>}
+    </div>
+  );
+}
+
+const ORDER_NAME: Record<DebtOrder["by"], string> = {
+  rate: "Highest interest first",
+  balance: "Smallest balance first",
+};
+
+/** Which debt the extra goes to first: each order with when the last debt clears and the interest it costs. */
+function DebtChoice({ orders, current, payday }: { orders: DebtOrder[]; current: number[]; payday: string }) {
+  return (
+    <div className="space-y-2" role="group" aria-labelledby="debt-order-title">
+      <p id="debt-order-title" className="text-sm font-medium">
+        Extra goes to
+      </p>
+      {orders.every((o) => o.months === orders[0].months && o.interestPence === orders[0].interestPence) && (
+        <p className="text-xs text-muted">With nothing extra to pay, both orders come out the same.</p>
+      )}
+      {orders.map((o) => {
+        const chosen = o.order.join() === current.join();
+        return (
+          <ActionButton
+            key={o.by}
+            action={orderDebts.bind(null, o.by)}
+            className={`tap flex w-full flex-col items-start rounded-xl px-3 py-2 text-left text-sm ring-1 ${chosen ? "bg-mint/15 ring-mint/40" : "bg-white/5 ring-white/10 hover:bg-white/10"}`}
+            done="The debts are in that order now."
+            pressed={chosen}
+          >
+            <span className={chosen ? "text-mint" : undefined}>{ORDER_NAME[o.by]}</span>
+            <span className="text-xs text-muted tabular-nums">
+              {o.months === null
+                ? "Not all cleared at these payments"
+                : `Last one cleared ${monthYear(addMonths(payday, o.months - 1))} · about ${pounds(o.interestPence)} interest`}
+            </span>
+          </ActionButton>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Free debt advice, linked: the portal gives none of its own. */
+function DebtAdvice() {
+  const link = "text-mint underline";
+  return (
+    <p className="text-xs text-muted">
+      Free, confidential debt advice:{" "}
+      <a className={link} href="https://www.stepchange.org/" target="_blank" rel="noopener noreferrer">
+        StepChange
+      </a>
+      ,{" "}
+      <a className={link} href="https://nationaldebtline.org/" target="_blank" rel="noopener noreferrer">
+        National Debtline
+      </a>{" "}
+      and{" "}
+      <a
+        className={link}
+        href="https://www.moneyhelper.org.uk/en/money-troubles/dealing-with-debt"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        MoneyHelper
+      </a>
+      .
+    </p>
   );
 }
 
