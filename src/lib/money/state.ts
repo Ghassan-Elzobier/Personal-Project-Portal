@@ -2,6 +2,7 @@
 // accounts with their latest balance, and how the syncs are going, in words. Pure,
 // so it is tested; load.ts reads the data and calls it.
 
+import { mondayOf } from "./budget.ts";
 import type { AccountKind } from "./map";
 
 export type MoneyAccount = {
@@ -254,6 +255,30 @@ export function byDay(txns: Txn[]): { day: string | null; txns: Txn[]; out: numb
     out: list.filter((t) => t.pence < 0).reduce((s, t) => s - t.pence, 0),
     in: list.filter((t) => t.pence > 0).reduce((s, t) => s + t.pence, 0),
   }));
+}
+
+/**
+ * Transactions by money week (Monday to Sunday), newest first, each with its days
+ * from byDay and what went out and came in. Pending ones count in this week, the
+ * week of `today`.
+ */
+export function byWeek(
+  txns: Txn[],
+  today: string,
+): { monday: string; days: ReturnType<typeof byDay>; out: number; in: number }[] {
+  const weeks = new Map<string, ReturnType<typeof byDay>>();
+  for (const d of byDay(txns)) {
+    const monday = mondayOf(d.day ?? today);
+    weeks.set(monday, [...(weeks.get(monday) ?? []), d]);
+  }
+  return [...weeks]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([monday, days]) => ({
+      monday,
+      days,
+      out: days.reduce((s, d) => s + d.out, 0),
+      in: days.reduce((s, d) => s + d.in, 0),
+    }));
 }
 
 /** "£3,185.60", and "−£42.05" for money owed. */

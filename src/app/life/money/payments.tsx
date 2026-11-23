@@ -2,7 +2,10 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
-import { byDay, KIND_NAMES, pounds, txnName, type Category, type CategoryKind, type Txn } from "@/lib/money/state";
+import { Fold } from "@/components/ui";
+import { addDays, shortDate } from "@/lib/dates/week";
+import { mondayOf } from "@/lib/money/budget";
+import { byWeek, KIND_NAMES, pounds, txnName, type Category, type CategoryKind, type Txn } from "@/lib/money/state";
 import { Sheet } from "../kit";
 import { setCategory } from "./actions";
 
@@ -21,13 +24,27 @@ function dayName(day: string, today: string): string {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 }
 
+/** "This week", "Last week", then "9–15 Nov" (or "26 Oct – 1 Nov" across a month). */
+function weekName(monday: string, today: string): string {
+  const thisWeek = mondayOf(today);
+  if (monday === thisWeek) return "This week";
+  if (monday === addDays(thisWeek, -7)) return "Last week";
+  const [from, to] = [shortDate(monday), shortDate(addDays(monday, 6))];
+  const [fromDay, fromMonth] = from.split(" ");
+  return fromMonth === to.split(" ")[1] ? `${fromDay}–${to}` : `${from} – ${to}`;
+}
+
 /**
- * The payments by day. Tapping one opens its categories; the choice shows at once, and
- * "Always" makes it a rule for that merchant, which sorts its other payments too.
+ * The payments by money week, then by day. This week, last week and the newest week
+ * with something to sort start open, and a week stays open once a payment in it is
+ * tapped; each week's header says what went out, came in and is still to sort. Tapping
+ * one opens its categories; the choice shows at once, and "Always" makes it a rule for that merchant, which sorts its other payments too.
  */
 export function PaymentList({ txns, categories, today }: { txns: Txn[]; categories: Category[]; today: string }) {
   const [open, setOpen] = useState<Txn | null>(null);
   const [always, setAlways] = useState(true);
+  // Weeks the owner has sorted in stay open, even once nothing in them is left to sort.
+  const [worked, setWorked] = useState<string[]>([]);
   const [, start] = useTransition();
   const [sorted, setSorted] = useOptimistic(
     Object.fromEntries(txns.map((t) => [t.id, t.categoryId])) as Record<number, number | null>,
@@ -45,51 +62,76 @@ export function PaymentList({ txns, categories, today }: { txns: Txn[]; categori
     });
   };
 
+  const weeks = byWeek(txns, today);
+  const toSortIn = (w: (typeof weeks)[number]) =>
+    w.days.reduce((n, d) => n + d.txns.filter((t) => !sorted[t.id]).length, 0);
+  // The newest week with something still to sort is open too, so the next one is a tap away.
+  const nextToSort = weeks.find((w) => toSortIn(w) > 0)?.monday;
+
   return (
     <>
-      <div className="space-y-4">
-        {byDay(txns).map((d) => (
-          <div key={d.day ?? "pending"} className="space-y-1">
-            <p className="flex justify-between gap-3 eyebrow">
-              <span>{d.day ? dayName(d.day, today) : "Pending"}</span>
-              {d.out > 0 && <span className="tabular-nums">{pounds(-d.out)}</span>}
-            </p>
-            <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
-              {d.txns.map((t) => {
-                const cat = sorted[t.id];
-                return (
-                  <li key={t.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAlways(true);
-                        setOpen(t);
-                      }}
-                      className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-white/5"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm">{txnName(t)}</span>
-                        <span className="block truncate text-xs text-muted">
-                          {[
-                            cat ? nameOf.get(cat) : "Not sorted",
-                            t.status === "pending" ? "Pending" : METHOD[t.method],
-                            t.source === "statement" ? "From a statement" : null,
-                            t.note,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      </span>
-                      <span className={`shrink-0 text-sm tabular-nums ${t.pence > 0 ? "text-mint" : "text-bright"}`}>
-                        {t.pence > 0 ? `+${pounds(t.pence)}` : pounds(t.pence)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      <div className="space-y-2">
+        {weeks.map((w) => {
+          const toSort = toSortIn(w);
+          return (
+            <Fold
+              key={w.monday}
+              open={w.monday >= addDays(mondayOf(today), -7) || w.monday === nextToSort || worked.includes(w.monday)}
+              title={<span className="font-medium text-body">{weekName(w.monday, today)}</span>}
+              meta={[`${pounds(w.out)} out`, `${pounds(w.in)} in`, toSort > 0 ? `${toSort} to sort` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              <div className="space-y-4 pt-1 pb-2">
+                {w.days.map((d) => (
+                  <div key={d.day ?? "pending"} className="space-y-1">
+                    <p className="flex justify-between gap-3 eyebrow">
+                      <span>{d.day ? dayName(d.day, today) : "Pending"}</span>
+                      {d.out > 0 && <span className="tabular-nums">{pounds(-d.out)}</span>}
+                    </p>
+                    <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+                      {d.txns.map((t) => {
+                        const cat = sorted[t.id];
+                        return (
+                          <li key={t.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAlways(true);
+                                setOpen(t);
+                                setWorked((ws) => (ws.includes(w.monday) ? ws : [...ws, w.monday]));
+                              }}
+                              className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-white/5"
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm">{txnName(t)}</span>
+                                <span className="block truncate text-xs text-muted">
+                                  {[
+                                    cat ? nameOf.get(cat) : "Not sorted",
+                                    t.status === "pending" ? "Pending" : METHOD[t.method],
+                                    t.source === "statement" ? "From a statement" : null,
+                                    t.note,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
+                              </span>
+                              <span
+                                className={`shrink-0 text-sm tabular-nums ${t.pence > 0 ? "text-mint" : "text-bright"}`}
+                              >
+                                {t.pence > 0 ? `+${pounds(t.pence)}` : pounds(t.pence)}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </Fold>
+          );
+        })}
       </div>
       <Sheet open={open !== null} onClose={() => setOpen(null)} title="What was this for?">
         {open && (
