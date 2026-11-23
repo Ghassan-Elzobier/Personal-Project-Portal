@@ -10,7 +10,10 @@
 # A change to how a page looks changes its screenshots, so the build starts the
 # local database and may re-render them (npm run test:e2e:update): it reads each
 # changed image and lists them in the pull request, and the guard still waits for
-# the owner's approved-test-change label. What the owner adds to a proposal in a
+# the owner's approved-test-change label. Claude pushes its branch, with commits
+# under the owner's name, and writes what the pull request should say; a last job,
+# on a fresh runner, opens it under the owner's account with OWNER_PR_TOKEN, which
+# never reaches Claude. What the owner adds to a proposal in a
 # comment is built with it (GitHub vouches for who wrote a comment; the issue's own
 # text came from the web, so it can't speak for the owner).
 # A proposal filed seconds before can be missing from the issue list for a moment,
@@ -147,6 +150,9 @@ jobs:
           BASH_MAX_TIMEOUT_MS: "1800000"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Commits carry the owner's name, as everything else in this repository does.
+          bot_id: ${{ github.repository_owner_id }}
+          bot_name: ${{ github.repository_owner }}
           prompt: |
             Issue #${{ matrix.issue }} in this repository is an R&D proposal, and the owner wants
             proposals built straight away. Read it with `gh issue view ${{ matrix.issue }} --comments`.
@@ -172,11 +178,13 @@ jobs:
                change explains, and list them in the pull request so the owner can look before
                adding the `approved-test-change` label. An image you did not mean to change is a
                bug to fix, never one to re-render.
-            4. Commit on a new branch named `claude/rnd-${{ matrix.issue }}-<short-name>`, push it,
-               and open a pull request with `gh pr create`, filling in
-               .github/pull_request_template.md. Its body must end with "Closes #${{ matrix.issue }}".
+            4. Commit on a new branch named `claude/rnd-${{ matrix.issue }}-<short-name>` and push it.
+               Don't open the pull request yourself: the next job opens it under the owner's
+               account. Write what it needs into `.rnd-pr/` (git ignores it): the branch name in
+               `.rnd-pr/branch.txt`, a one-line title in `.rnd-pr/title.txt`, and the description
+               in `.rnd-pr/body.md`, filling in .github/pull_request_template.md. Its body must end with "Closes #${{ matrix.issue }}".
                Say in it what you assumed and what is left. No AI attribution anywhere.
-            5. Comment on the issue with the pull request's link, in one line.
+            5. The next job comments on the issue with the pull request's link, so you needn't.
 
             Files under .github/workflows cannot be pushed from here: if the change needs one, build
             the rest and say in the pull request exactly what the owner must apply by hand.
@@ -184,7 +192,7 @@ jobs:
           claude_args: >-
             --max-turns 150
             --model opus
-            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm test),Bash(npm run guard),Bash(npm run test:e2e:*),Bash(npx prettier:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm test),Bash(npm run guard),Bash(npm run test:e2e:*),Bash(npx prettier:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr view:*)"
       # The run log hides what Claude did. #140's first build ended after 5 turns with no
       # pull request and no comment, and its job still went green; this keeps the record.
       - name: Keep what Claude did, for 14 days
@@ -196,6 +204,17 @@ jobs:
           path: ${{ steps.build.outputs.execution_file }}
           if-no-files-found: ignore
           retention-days: 14
+      # What the pull request should say goes to the next job as data; that job, on a
+      # runner Claude never touched, opens it with the owner's token.
+      - name: Hand the pull request Claude asked for to the next job
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pr-${{ matrix.issue }}
+          path: .rnd-pr/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 1
       - name: Fail if the build left neither a pull request nor a word on the issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -204,4 +223,46 @@ jobs:
           SINCE: ${{ steps.started.outputs.at }}
           # Printed in the log when the build left no mark: the action itself hides it.
           TRANSCRIPT: ${{ steps.build.outputs.execution_file }}
+          PR_REQUEST: .rnd-pr/body.md
         run: node --experimental-strip-types --no-warnings scripts/rnd.mjs built
+
+  open:
+    name: "Open #${{ matrix.issue }}'s pull request as the owner"
+    needs: [pick, build]
+    # After every build, even one that failed: a pushed branch still gets its pull request.
+    if: always() && needs.pick.result == 'success' && needs.pick.outputs.issues != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        issue: ${{ fromJSON(needs.pick.outputs.issues) }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # main as it is, never the build's workspace: the owner's token meets no code Claude wrote.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Take the pull request Claude asked for
+        # Absent when Claude built nothing and said why on the issue.
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: pr-${{ matrix.issue }}
+          path: pr
+      - name: Open it under the owner's account (no AI)
+        env:
+          ISSUE: ${{ matrix.issue }}
+          REPO: ${{ github.repository }}
+          PR_DIR: pr
+          # A fine-grained token of the owner's, for this repository only, that can open pull
+          # requests (docs/FACTORY.md). Pull requests it opens run CI, as the owner's do.
+          OWNER_TOKEN: ${{ secrets.OWNER_PR_TOKEN }}
+          COMMENT_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types --no-warnings scripts/rnd-open.mjs
