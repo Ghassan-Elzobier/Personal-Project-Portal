@@ -37,6 +37,7 @@ export function ActionButton({
   confirm,
   disabled,
   label,
+  pressed,
 }: {
   action: () => Promise<Outcome>;
   done?: string;
@@ -45,12 +46,15 @@ export function ActionButton({
   confirm?: string;
   disabled?: boolean;
   label?: string;
+  /** A toggle: whether it is the one chosen now. */
+  pressed?: boolean;
 }) {
   const { pending, run } = useAction();
   return (
     <button
       type="button"
       aria-label={label}
+      aria-pressed={pressed}
       disabled={pending || disabled}
       aria-busy={pending}
       onClick={() => {
