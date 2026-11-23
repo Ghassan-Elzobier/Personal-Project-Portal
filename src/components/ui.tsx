@@ -139,6 +139,50 @@ export function TaskLink({ href, className, children }: { href: string; classNam
   );
 }
 
+/**
+ * A fold that opens in place: a native details/summary, so the keyboard and screen
+ * readers work without script. The whole header row is the 44 px target, with
+ * optional `meta` beside a chevron that turns when it opens. `open` is only how it
+ * starts. globals.css animates it where the browser can (.fold).
+ */
+export function Fold({
+  title,
+  meta,
+  open,
+  className = "",
+  children,
+}: {
+  title: ReactNode;
+  meta?: ReactNode;
+  open?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details open={open} className={`group fold text-sm ${className}`}>
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-1 text-muted hover:text-body [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
+          <span className="min-w-0">{title}</span>
+          {meta && <span className="text-xs tabular-nums">{meta}</span>}
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          className="size-4 shrink-0 transition-transform group-open:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 /** A progress ring, for the week's effort. */
 export function Ring({
   value,

@@ -7,6 +7,7 @@ import {
   DueDate,
   Empty,
   ErrorNote,
+  Fold,
   PageHeader,
   Ring,
   ScrollX,
@@ -304,6 +305,24 @@ export default async function DesignPage() {
               }))}
             />
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Fold"
+        note="Extra detail that opens in place. The whole row is the target, the chevron turns as it opens, and meta keeps a total in view while it is closed."
+      >
+        <div className="space-y-1 card">
+          <Fold title="Where it goes">
+            <p className="pb-2 text-body">The detail, shown once it opens.</p>
+          </Fold>
+          <Fold
+            title={<span className="font-medium text-body">This week</span>}
+            meta="£84.15 out · £0.00 in · 2 to sort"
+            open
+          >
+            <p className="pb-2 text-body">Open to start with: open sets only how it starts.</p>
+          </Fold>
         </div>
       </Section>
 

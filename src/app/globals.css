@@ -158,6 +158,26 @@ dialog.sheet::backdrop {
   backdrop-filter: blur(4px);
 }
 
+/* A Fold opens and closes smoothly where the browser can animate to its natural
+   height (Chrome 129+); elsewhere it opens at once. Reduced motion turns it off. */
+@utility fold {
+  @supports (interpolate-size: allow-keywords) {
+    interpolate-size: allow-keywords;
+    &::details-content {
+      block-size: 0;
+      /* The margin keeps the focus ring of a row at the edge in view. */
+      overflow: clip;
+      overflow-clip-margin: 4px;
+      transition:
+        block-size 0.2s ease,
+        content-visibility 0.2s allow-discrete;
+    }
+    &[open]::details-content {
+      block-size: auto;
+    }
+  }
+}
+
 /* The navigation bar creeps towards the end while a page loads. */
 @keyframes nav-progress {
   from {
