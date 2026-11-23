@@ -294,6 +294,15 @@ better, where every visit gives you what you need in the fewest taps.
    says why on the issue and builds nothing. A sweep builds its three strongest
    (`RND_BUILD_PER_RUN`); the rest say "Build it" and wait for you to ask Claude
    on the issue. To build one by hand, "Run workflow" on R&D build with its number.
+   To add to a proposal before it is built, comment on it: the build reads your
+   comments as yours, and everyone else's, and the proposal's own text, as data
+   (that text came from the web, so it can't speak for you). A build that
+   changes how a page looks re-renders the screenshots that show it, on the
+   local database the job starts, reads every changed image and lists them in
+   the pull request; the guard still waits for your `approved-test-change` label
+   after you have looked.
+   A build that leaves neither a pull request nor a comment fails, and what
+   Claude did is kept with the run for 14 days.
 6. **You decide.** Merge the pull request, and the issue closes. Decline one by
    closing the issue (and its pull request) as not planned, with a reason if you
    have one: the next run on that focus reads it and won't bring the idea back

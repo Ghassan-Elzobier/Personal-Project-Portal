@@ -19,6 +19,7 @@
 //   pick   once an R&D run ends (.github/workflows/rnd-build.yml): its marked
 //          proposals still open with no pull request, for Claude to build; or the
 //          one issue the owner names when building by hand
+//   built  after each build: fails when it left no pull request and no comment
 //
 //   FOCUS=gym node --experimental-strip-types --no-warnings scripts/rnd.mjs brief
 //   REQUEST="Move a missed shop" FOCUS=food node --experimental-strip-types --no-warnings scripts/rnd.mjs brief
@@ -38,7 +39,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { historySection, pagesSection, requestSection } from "../src/lib/rnd/brief.ts";
-import { alreadyBuilt, buildsPerRun, issueNumber, pickBuilds, toBuild } from "../src/lib/rnd/build.ts";
+import {
+  alreadyBuilt,
+  buildsPerRun,
+  issueNumber,
+  leftAMark,
+  PICK_PAUSE_MS,
+  PICK_TRIES,
+  pickBuilds,
+  toBuild,
+} from "../src/lib/rnd/build.ts";
 import { FOCI } from "../src/lib/rnd/foci.ts";
 import { LABEL, focusOf, fromRun, issueBody, issueTitle, updateComment } from "../src/lib/rnd/issue.ts";
 import { RESULT_SCHEMA } from "../src/lib/rnd/result.ts";
@@ -403,9 +413,13 @@ async function file() {
  * What R&D build builds (.github/workflows/rnd-build.yml): after a run, the proposals
  * it marked that are still open with no pull request on them; by hand, the one open
  * proposal the owner names. Writes issues=[…] to $GITHUB_OUTPUT.
+ *
+ * A proposal filed seconds before can be missing from GitHub's issue list for a
+ * little while: #139 was, 9 seconds after it was filed, and went unbuilt. So when
+ * a run's pick finds nothing, it asks again, PICK_TRIES times in all.
  */
-function pick() {
-  const open = openProposals();
+async function pick() {
+  let open = openProposals();
   const prs = ghJson(["api", `repos/${repo()}/pulls?state=open&per_page=100`]) ?? [];
   const built = alreadyBuilt(prs.map((p) => ({ body: p.body, branch: p.head?.ref ?? "" })));
   let issues;
@@ -417,13 +431,45 @@ function pick() {
     issues = [n];
   } else {
     if (!env.RUN_URL) fail("RUN_URL (the R&D run's address) or ISSUE is required.");
-    issues = pickBuilds(open, env.RUN_URL, built);
+    for (let tries = 1; ; tries++) {
+      issues = pickBuilds(open, env.RUN_URL, built);
+      if (issues.length || tries >= PICK_TRIES) break;
+      await pause(PICK_PAUSE_MS);
+      open = openProposals();
+    }
   }
   output("issues", JSON.stringify(issues));
   say(issues.length ? `Building ${issues.map((n) => `#${n}`).join(", ")}.` : "Nothing to build from this run.");
 }
 
-const commands = { plan, brief, file, pick };
+/**
+ * After a build (.github/workflows/rnd-build.yml): fails when it left no pull request
+ * for the issue and no comment on it, so a build that did nothing turns red instead
+ * of green. ISSUE is the proposal's number, SINCE when the build began.
+ */
+function built() {
+  const n = Number(env.ISSUE);
+  if (!Number.isInteger(n) || n <= 0) fail("ISSUE (the proposal's number) is required.");
+  // Only what this build said counts: a comment from before it began is someone else's.
+  const since = env.SINCE ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(since)) fail("SINCE (when the build began, ISO 8601) is required.");
+  const prs = ghJson(["api", `repos/${repo()}/pulls?state=open&per_page=100`]) ?? [];
+  const comments = ghJson(["api", `repos/${repo()}/issues/${n}/comments?per_page=100`]) ?? [];
+  const mark = leftAMark(
+    n,
+    prs.map((p) => ({ body: p.body, branch: p.head?.ref ?? "" })),
+    comments.map((c) => ({ author: c.user?.login ?? "", at: c.created_at ?? "" })),
+    since,
+  );
+  if (mark) return say(`#${n}: a pull request is open for it, or Claude said on the issue why not.`);
+  fail(
+    `#${n}: the build ended with no pull request and no comment on the issue. ` +
+      `What Claude did is in this run's build-${n}-transcript artifact.`,
+  );
+}
+
+const commands = { plan, brief, file, pick, built };
 const command = commands[process.argv[2]];
-if (!command) fail("Usage: node --experimental-strip-types scripts/rnd.mjs plan | brief | file [--dry-run] | pick");
+if (!command)
+  fail("Usage: node --experimental-strip-types scripts/rnd.mjs plan | brief | file [--dry-run] | pick | built");
 await command();

@@ -38,6 +38,14 @@ export function issueNumber(url: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * How often a run's pick asks for its proposals before it decides there are none,
+ * and how long it waits between: a just-filed issue can be missing from the list
+ * for a few seconds. Well inside the pick job's 5 minutes.
+ */
+export const PICK_TRIES = 5;
+export const PICK_PAUSE_MS = 15_000;
+
 export type OpenProposal = { number: number; body: string };
 
 /**
@@ -50,6 +58,20 @@ export function pickBuilds(open: OpenProposal[], runUrl: string, built: Set<numb
     .filter((i) => i.body.includes(BUILD_MARKER) && i.body.includes(`(${runUrl})`) && !built.has(i.number))
     .map((i) => i.number)
     .sort((a, b) => b - a);
+}
+
+/**
+ * Whether a build left a mark: a pull request open for the issue, or a comment on it
+ * by a bot (Claude saying why it built nothing) since the build began. A build that
+ * left neither did nothing the owner can see, and fails rather than going green.
+ */
+export function leftAMark(
+  issue: number,
+  prs: { body: string | null; branch: string }[],
+  comments: { author: string; at: string }[],
+  since: string,
+): boolean {
+  return alreadyBuilt(prs).has(issue) || comments.some((c) => c.author.endsWith("[bot]") && c.at >= since);
 }
 
 /** The issues open pull requests already build: their bodies close them, or their branches are named for them. */
