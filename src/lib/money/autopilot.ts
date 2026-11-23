@@ -12,7 +12,7 @@
 
 import { addDays } from "../dates/week.ts";
 import { allocate, currentPayday, payLanded } from "./allocate.ts";
-import { budgetView, mondayOf, savedNow, type BudgetData } from "./budget.ts";
+import { budgetView, mondayOf, savedNow, sharedOut, type BudgetData } from "./budget.ts";
 
 export type EngineState = { lastWeekClosed: string | null; lastPaydayDone: string | null };
 
@@ -22,6 +22,8 @@ export type Apply = {
   payday_done?: string;
   payday_transfers?: { payday: string; transfers: { goal: number; name: string; pence: number }[] };
   set_aside?: { goal: number; pence: number }[];
+  /** The real bill found for a regular cost (ongoing.ts), stored on the goal once. */
+  goal_bills?: { goal: number; bill: number }[];
   /** Last week as it closed, for the weekly summary. */
   last_week?: {
     week: string;
@@ -49,7 +51,7 @@ export function decide(
   const apply: Apply = {};
   const setAside = new Map<number, number>();
   const alerts: GoalAlert[] = [];
-  const goals = (data.goals ?? []).filter((g) => g.status === "active");
+  const goals = (data.goals ?? []).filter((g) => g.status === "active" && sharedOut(g));
   const room = (id: number) => {
     const g = goals.find((x) => x.id === id)!;
     return Math.max(0, (g.targetPence ?? 0) - savedNow(g) - (setAside.get(id) ?? 0));

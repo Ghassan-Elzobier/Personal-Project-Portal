@@ -3,6 +3,7 @@ import { addDays } from "../dates/week";
 import { decide } from "./autopilot";
 import { mondayOf, monthStart, parseBudget } from "./budget";
 import { spotPay } from "./forecast";
+import { billsToStore, withOngoing } from "./ongoing";
 import { adoptions, billAlerts, findBills, parseBill, parsePayments } from "./recurring";
 import * as store from "./store";
 
@@ -56,12 +57,16 @@ export async function runEngine(today: string, key?: string): Promise<{ adopted:
   // The plan, on the numbers as they now stand.
   const budget = ((await store.engineBudget(monthStart(today), mondayOf(today), key)) ?? {}) as Row;
   const s = (budget.settings ?? {}) as Row;
+  // Regular costs count as bills from their start (ongoing.ts); a real bill found for one is stored on it.
+  const data = withOngoing(parseBudget(budget), today);
   const { apply, alerts: goalAlerts } = decide(
-    parseBudget(budget),
+    data,
     { lastWeekClosed: str(s.last_week_closed), lastPaydayDone: str(s.last_payday_done) },
     rows(budget.goal_moves).map((m) => ({ goal: Number(m.goal), on: String(m.on), pence: Number(m.pence) })),
     today,
   );
+  const goalBills = billsToStore(data);
+  if (goalBills.length) apply.goal_bills = goalBills;
   if (Object.keys(apply).length) await store.engineApply(apply, key);
   if (goalAlerts.length) raised += await store.raiseAlerts(goalAlerts, key);
   return { adopted, alerts: raised };

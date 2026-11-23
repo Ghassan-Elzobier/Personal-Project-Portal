@@ -28,6 +28,7 @@ import {
   raiseAhead,
   raiseToGoals,
   savedNow,
+  sharedOut,
   stepStart,
   type BudgetData,
   type Goal,
@@ -164,14 +165,17 @@ export function allocate(data: BudgetData, from: string): Allocation | null {
   return plan;
 }
 
-/** The waterfall for the cycle from a payday, with a given pay; each share's finish left for allocate. */
-function shareOut(data: BudgetData, from: string, pay: number): Allocation {
+/**
+ * The waterfall for the cycle from a payday, with a given pay; each share's finish left
+ * for allocate. A regular cost isn't shared out: it is a bill by then (ongoing.ts).
+ */
+export function shareOut(data: BudgetData, from: string, pay: number): Allocation {
   const to = nextPayday(from, data.paydayRule, data.firstPayday);
   const days = daysBetween(from, to);
   const weeks = days / 7;
   const months = days / MONTH_DAYS;
   const goals = (data.goals ?? [])
-    .filter((g) => g.status === "active")
+    .filter((g) => g.status === "active" && sharedOut(g))
     .sort((a, b) => a.position - b.position || a.id - b.id);
 
   // 1. Bills on their days in the cycle; fixed categories without a bill found, by the
@@ -264,22 +268,13 @@ export const WALK_PAYDAYS = 36;
  */
 export function goalDates(data: BudgetData, from: string, paydays = WALK_PAYDAYS): Map<number, string | null> {
   const out = new Map<number, string | null>();
-  let goals = (data.goals ?? []).filter((g) => g.status === "active");
+  let goals = (data.goals ?? []).filter((g) => g.status === "active" && sharedOut(g));
   for (const g of goals) out.set(g.id, null);
   let day = from;
   for (let i = 0; i < paydays; i++) {
     const plan = allocate({ ...data, goals }, day);
     if (!plan) break;
-    const months = daysBetween(plan.from, plan.to) / MONTH_DAYS;
-    goals = goals.map((g) => {
-      const s = plan.shares.find((x) => x.id === g.id);
-      if (!s) return g;
-      if (g.kind === "debt") {
-        const paid = s.pence + Math.min(savedNow(g), (g.paymentPence ?? 0) * months);
-        return { ...g, savedPence: Math.max(0, g.savedPence - Math.round(paid)) };
-      }
-      return { ...g, savedPence: g.savedPence + s.pence };
-    });
+    goals = afterCycle(goals, plan);
     for (const g of goals) {
       const left = g.kind === "debt" ? savedNow(g) : (g.targetPence ?? 0) - savedNow(g);
       if (left <= 0 && out.get(g.id) === null) out.set(g.id, day.slice(0, 7));
@@ -288,6 +283,20 @@ export function goalDates(data: BudgetData, from: string, paydays = WALK_PAYDAYS
     day = plan.to;
   }
   return out;
+}
+
+/** The goals after a cycle's shares have gone to them: saved on, or a debt paid down by its share and payment. */
+export function afterCycle(goals: Goal[], plan: Allocation): Goal[] {
+  const months = daysBetween(plan.from, plan.to) / MONTH_DAYS;
+  return goals.map((g) => {
+    const s = plan.shares.find((x) => x.id === g.id);
+    if (!s) return g;
+    if (g.kind === "debt") {
+      const paid = s.pence + Math.min(savedNow(g), (g.paymentPence ?? 0) * months);
+      return { ...g, savedPence: Math.max(0, g.savedPence - Math.round(paid)) };
+    }
+    return { ...g, savedPence: g.savedPence + s.pence };
+  });
 }
 
 /**
@@ -323,7 +332,8 @@ export type Suggested = {
  * in the account.
  */
 export function suggestGoals(data: BudgetData, today: string): Suggested[] {
-  const bills = (data.bills ?? []).filter((b) => b.status === "active");
+  // Only bills Money found: a regular cost's made-up bill (negative id) is a goal already.
+  const bills = (data.bills ?? []).filter((b) => b.status === "active" && b.id > 0);
   const billed = billedCategories(bills);
   const essential = data.categories.reduce((s, c) => {
     if (c.kind === "groceries" || c.kind === "essentials") return s + (c.budgetPence ?? 0);

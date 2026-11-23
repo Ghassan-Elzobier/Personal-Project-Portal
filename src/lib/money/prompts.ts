@@ -64,7 +64,8 @@ export function prompts(
   }
 
   const tomorrow = addDays(today, 1);
-  for (const b of (data.bills ?? []).filter((x) => x.status === "active" && x.expectedPence >= 2_000)) {
+  // Only bills Money found: a regular cost's made-up bill (negative id) has no real debit to warn of.
+  for (const b of (data.bills ?? []).filter((x) => x.id > 0 && x.status === "active" && x.expectedPence >= 2_000)) {
     const due = dueUntil(b, today, tomorrow)[0];
     if (!due) continue;
     const short = b.expectedPence - (data.balancePence ?? 0);

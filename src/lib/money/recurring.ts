@@ -51,13 +51,15 @@ export type Bill = {
   createdAt: string;
   lastPaidOn: string | null;
   lastPence: number | null;
+  /** The first day it no longer falls due (a membership replaced by another); none counts from it. */
+  endsOn?: string | null;
   /** The owner's last answer to "do you still want this?", and its day (subscriptions.ts). */
   reviewedOn?: string | null;
   verdict?: "keep" | "cancel" | null;
 };
 
 /** The gaps between payments that count as each cadence, in days. */
-const GAP: Record<Cadence, [number, number]> = { weekly: [6, 8], monthly: [26, 35], yearly: [350, 380] };
+export const GAP: Record<Cadence, [number, number]> = { weekly: [6, 8], monthly: [26, 35], yearly: [350, 380] };
 /** A cycle's length in days, for "paid lately" and "ended". */
 export const CYCLE_DAYS: Record<Cadence, number> = { weekly: 7, monthly: 30.4, yearly: 365 };
 /** How many payments a cadence needs before it is a bill, and how many recent ones are looked at. */
@@ -201,7 +203,7 @@ export function findBills(payments: Payment[], today: string): Found[] {
   return found.sort((a, b) => a.ident.localeCompare(b.ident));
 }
 
-type Schedule = Pick<Bill, "cadence" | "anchorOn" | "lastPaidOn">;
+type Schedule = Pick<Bill, "cadence" | "anchorOn" | "lastPaidOn" | "endsOn">;
 
 /** The day of the occurrence nearest a payment: the one that payment paid. */
 function paidOccurrence(b: Schedule, paidOn: string): string {
@@ -240,19 +242,21 @@ export function nextDue(b: Schedule, today: string): string {
   return d;
 }
 
-/** The unpaid occurrences up to and including a day (a late one counts as still to pay). */
+/** The unpaid occurrences up to and including a day (a late one counts as still to pay), none from its end. */
 export function dueUntil(b: Schedule, today: string, until: string): string[] {
   const out: string[] = [];
-  for (let d = nextDue(b, today); d <= until && out.length < 60; d = following(b, d)) out.push(d);
+  const last = b.endsOn && b.endsOn <= until ? addDays(b.endsOn, -1) : until;
+  for (let d = nextDue(b, today); d <= last && out.length < 60; d = following(b, d)) out.push(d);
   return out;
 }
 
-/** A bill's days from `from` up to (not including) `to`, by its schedule alone: for a pay cycle ahead. */
-export function occurrencesIn(b: Pick<Bill, "cadence" | "anchorOn">, from: string, to: string): string[] {
+/** A bill's days from `from` up to (not including) `to`, by its schedule alone: for a pay cycle ahead. None from its end. */
+export function occurrencesIn(b: Pick<Bill, "cadence" | "anchorOn" | "endsOn">, from: string, to: string): string[] {
   let d = b.anchorOn;
   for (let i = 0; d < from && i < 2000; i++) d = following(b, d);
   const out: string[] = [];
-  for (; d < to && out.length < 60; d = following(b, d)) out.push(d);
+  const end = b.endsOn && b.endsOn < to ? b.endsOn : to;
+  for (; d < end && out.length < 60; d = following(b, d)) out.push(d);
   return out;
 }
 
