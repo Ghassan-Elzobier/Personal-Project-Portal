@@ -13,6 +13,8 @@ import { addDays, weekdayIndex } from "../dates/week.ts";
 import {
   allowanceFrom,
   budgetView,
+  cyclePayday,
+  EARLY_PAY_DAYS,
   mondayOf,
   nextPayday,
   paydayIn,
@@ -41,10 +43,20 @@ export type Forecast = {
 /** The budget, with its pay: the steps planned, and the latest pay received. */
 export type ForecastData = BudgetData;
 
+/** How close a pay must be to the plan's figure to count as it: within a fifth. */
+export const PAY_BAND = 0.2;
+
+/** Whether a pay is within PAY_BAND of the plan's figure. */
+export function nearPlan(pence: number, planned: number): boolean {
+  return Math.abs(pence - planned) <= planned * PAY_BAND;
+}
+
 /**
  * The pay among unsorted money in: the largest payment within 3 days of a payday (this
- * month's or last month's) that is at least half the pay expected then. The engine
- * sorts it as Pay, so the forecast learns the real figure. Nothing without a plan.
+ * month's or last month's) that is at least half the pay expected then. Failing that,
+ * pay that came early: the largest payment from EARLY_PAY_DAYS before the next payday
+ * to today, within PAY_BAND of its pay. The engine sorts it as Pay, so the forecast
+ * learns the real figure. Nothing without a plan.
  */
 export function spotPay(
   incoming: { id: number; madeOn: string; pence: number }[],
@@ -64,6 +76,14 @@ export function spotPay(
       if (near && t.pence >= expected / 2 && (!best || t.pence > best.pence)) best = t;
     }
   }
+  if (best) return best.id;
+  const next = nextPayday(today, data.paydayRule, data.firstPayday);
+  const expected = payOn(next, data.income ?? [], null);
+  if (expected <= 0) return null;
+  const from = addDays(next, -EARLY_PAY_DAYS);
+  for (const t of incoming)
+    if (t.madeOn >= from && t.madeOn <= today && nearPlan(t.pence, expected) && (!best || t.pence > best.pence))
+      best = t;
   return best?.id ?? null;
 }
 
@@ -75,15 +95,34 @@ function daysIn(month: string): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
+const stepOn = (payday: string, income: IncomeStep[]) =>
+  income.filter((s) => s.fromOn <= payday).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0];
+
 /**
  * The pay expected on a payday: the latest step starting on or before it. When a pay
- * has come in since that step began, it's that pay instead, so the first real payslip
- * replaces an estimate without anyone typing it in.
+ * has come in since that step began and is within PAY_BAND of it, it's that pay
+ * instead, so the first real payslip replaces an estimate without anyone typing it in.
+ * One far from the step (a pro-rata first month, back pay) leaves the step's figure.
  */
 export function payOn(payday: string, income: IncomeStep[], lastPay: Day | null): number {
-  const step = income.filter((s) => s.fromOn <= payday).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0];
-  if (lastPay && lastPay.day <= payday && (!step || lastPay.day >= step.fromOn)) return lastPay.pence;
+  const step = stepOn(payday, income);
+  if (
+    lastPay &&
+    lastPay.day <= payday &&
+    (!step || (lastPay.day >= step.fromOn && nearPlan(lastPay.pence, step.pence)))
+  )
+    return lastPay.pence;
   return step?.pence ?? 0;
+}
+
+/**
+ * The plan's figure a payday uses instead of the last pay, when that pay came in since
+ * the step began but was too far from it to learn. Null when the last pay is used.
+ */
+export function payIgnored(payday: string, income: IncomeStep[], lastPay: Day | null): number | null {
+  const step = stepOn(payday, income);
+  if (!lastPay || !step || lastPay.day > payday || lastPay.day < step.fromOn) return null;
+  return nearPlan(lastPay.pence, step.pence) ? null : step.pence;
 }
 
 /** A spread purchase's share of a week, or the whole of one paid from that week's amount. */
@@ -151,14 +190,10 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
     events.push({ day, name: p.name, pence: -p.pence });
   }
 
-  // Pay on each payday.
+  // Pay on each payday still to come (one paid early is in the balance already).
   const income = data.income ?? [];
   const paydays: Day[] = [];
-  for (
-    let p = nextPayday(today, data.paydayRule, data.firstPayday);
-    p <= end;
-    p = nextPayday(p, data.paydayRule, data.firstPayday)
-  ) {
+  for (let p = cyclePayday(data, today); p <= end; p = nextPayday(p, data.paydayRule, data.firstPayday)) {
     const pence = payOn(p, income, data.lastPay ?? null);
     paydays.push({ day: p, pence });
     if (pence > 0) {
@@ -218,7 +253,7 @@ function outlook(f: Forecast): Outlook {
 export function whatIf(data: ForecastData, today: string, change: Change): WhatIf | null {
   const base = forecast(data, today);
   if (!base) return null;
-  const next = nextPayday(today, data.paydayRule, data.firstPayday);
+  const next = cyclePayday(data, today);
   const changed: ForecastData = {
     ...data,
     income:
