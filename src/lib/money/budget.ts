@@ -80,6 +80,33 @@ export function nextPayday(today: string, rule: string, firstPayday: string | nu
   return d;
 }
 
+/**
+ * How far ahead of its payday a pay can land and still be that payday's pay. Employers
+ * often pay early before Christmas: HMRC's own example is pay on 19 December for 31.
+ */
+export const EARLY_PAY_DAYS = 14;
+
+type PayPlan = Pick<BudgetData, "paydayRule" | "firstPayday" | "lastPay">;
+
+/**
+ * The payday whose pay has already landed early: the next payday by the rule, when the
+ * latest pay came in on or before today and within EARLY_PAY_DAYS before it. Else null.
+ */
+export function paidEarly(data: PayPlan, today: string): string | null {
+  const payday = nextPayday(today, data.paydayRule, data.firstPayday);
+  const landed = data.lastPay?.day;
+  return landed && landed <= today && landed >= addDays(payday, -EARLY_PAY_DAYS) ? payday : null;
+}
+
+/**
+ * The next pay still to come: the next payday, or the one after it when that pay has
+ * already landed early. Safe-to-spend, the weekly amount and the forecast run to it.
+ */
+export function cyclePayday(data: PayPlan, today: string): string {
+  const early = paidEarly(data, today);
+  return nextPayday(early ?? today, data.paydayRule, data.firstPayday);
+}
+
 /** The Monday of a day's week. */
 export function mondayOf(day: string): string {
   return addDays(day, -weekdayIndex(day));
@@ -338,7 +365,7 @@ export function allowanceFrom(data: BudgetData): number | null {
 }
 
 export function budgetView(data: BudgetData, today: string): BudgetView {
-  const payday = nextPayday(today, data.paydayRule, data.firstPayday);
+  const payday = cyclePayday(data, today);
   const days = Math.round((Date.parse(`${payday}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   const weeks = Math.max(1, days / 7);
   const months = monthsTo(today, payday);
