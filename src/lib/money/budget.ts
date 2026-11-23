@@ -149,6 +149,16 @@ export type BudgetData = {
   unsortedWeeks?: number[];
   /** Last week as the engine closed it. */
   lastWeek?: LastWeek | null;
+  /** The owner's last Monday check-in (checkin.ts): the week it was on and what they chose. */
+  checkin?: CheckInRecord | null;
+};
+
+/** What the owner chose at a Monday check-in, for the week starting `week`. */
+export type CheckInRecord = {
+  week: string;
+  choice: "ok" | "keep" | "week" | "goal";
+  goal: number | null;
+  pence: number;
 };
 
 /** Take-home on each payday from a day on, until a later step. */
@@ -413,7 +423,9 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
       : safe === null
         ? floor
         : Math.min(target!, Math.max(floor, Math.floor((safe + spent) / Math.max(1, fromMonday) / 100) * 100));
-  const carry = auto || allowance === null ? 0 : Math.max(0, lastWeek - allowance);
+  // Last week's overspend comes off this one, unless the owner covered it from a goal.
+  const covered = data.checkin?.week === addDays(week, -7) && data.checkin.choice === "goal";
+  const carry = auto || allowance === null || covered ? 0 : Math.max(0, lastWeek - allowance);
   const perWeek = safe === null ? null : Math.floor(safe / weeks);
   return {
     payday,
@@ -499,7 +511,18 @@ export function parseBudget(raw: unknown): BudgetData {
         : null,
     goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
     paydayTransfers: parseTransfers(s.payday_transfers),
+    checkin: parseCheckIn(r.checkin),
   };
+}
+
+const CHOICES = ["ok", "keep", "week", "goal"] as const;
+
+function parseCheckIn(v: unknown): CheckInRecord | null {
+  if (!v || typeof v !== "object") return null;
+  const c = v as Row;
+  const choice = CHOICES.find((x) => x === c.choice);
+  if (!str(c.week) || !choice) return null;
+  return { week: str(c.week)!, choice, goal: num(c.goal), pence: num(c.pence) ?? 0 };
 }
 
 function parseTransfers(v: unknown): BudgetData["paydayTransfers"] {
