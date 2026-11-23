@@ -60,6 +60,11 @@ export async function savePayday(input: ops.PaydayInput) {
   return ops.savePayday({ firstPayday: text(input?.firstPayday), paydayRule: text(input?.paydayRule) });
 }
 
+export async function setWeeklyAmount(pence: number) {
+  await requireOwner();
+  return ops.setWeeklyAmount(typeof pence === "number" ? pence : NaN);
+}
+
 export async function savePlanned(input: ops.PlannedInput) {
   await requireOwner();
   const text = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");

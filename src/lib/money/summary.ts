@@ -8,6 +8,7 @@ import { addDays } from "../dates/week.ts";
 import { allocate } from "./allocate.ts";
 import { allowanceFrom, mondayOf, type BudgetData, type BudgetView } from "./budget.ts";
 import type { Day, Forecast } from "./forecast.ts";
+import { median } from "./median.ts";
 
 export type WeekSummary = {
   /** Last week's Monday. */
@@ -24,13 +25,6 @@ export type WeekSummary = {
 };
 
 const FLEXIBLE = new Set(["groceries", "essentials", "discretionary"]);
-
-function median(xs: number[]): number {
-  if (!xs.length) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
-}
 
 /** Last week against the usual: off by at least £5 and a quarter, biggest differences first. */
 function unusual(data: BudgetData): WeekSummary["unusual"] {

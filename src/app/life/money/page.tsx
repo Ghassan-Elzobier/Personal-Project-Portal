@@ -14,7 +14,15 @@ import {
   type BudgetView,
   type Goal,
 } from "@/lib/money/budget";
-import { FORECAST_DAYS, payIgnored, type Forecast } from "@/lib/money/forecast";
+import {
+  FORECAST_DAYS,
+  keepsAbove,
+  paceOutlook,
+  PACE_MATCH_PENCE,
+  payIgnored,
+  type Forecast,
+  type PaceOutlook,
+} from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
@@ -38,6 +46,7 @@ import {
   removeIncome,
   setBill,
   setClaudeAccess,
+  setWeeklyAmount,
 } from "./actions";
 import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
@@ -100,7 +109,7 @@ export default async function MoneyPage() {
       {connected && (
         <Summary s={weekSummary(loaded.budget, loaded.view, loaded.forecast, loaded.today)} today={loaded.today} />
       )}
-      {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
+      {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} today={loaded.today} />}
       {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
       {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
@@ -400,11 +409,13 @@ function Summary({ s, today }: { s: WeekSummary; today: string }) {
 }
 
 /** The next 13 weeks: the balance day by day, its lowest point, the paydays and each Monday's checkpoint. */
-function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
+function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: string }) {
   const bufferOn = (d: string) => (!budget.bufferFrom || budget.bufferFrom <= d ? budget.bufferPence : 0);
   const low = f.lowest;
   const under = low.pence < bufferOn(low.day);
   const unplanned = f.paydays.some((p) => p.pence === 0);
+  const pace = paceOutlook(budget, today);
+  const showPace = pace !== null && Math.abs(pace.pace - pace.plan) >= PACE_MATCH_PENCE;
   return (
     <section aria-labelledby="ahead-title" className="space-y-3 card-life">
       <h2 id="ahead-title" className="font-semibold">
@@ -416,12 +427,14 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
         bufferFrom={budget.bufferFrom}
         lowest={low}
         paydays={f.paydays.map((p) => p.day)}
-        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.`}
+        pace={showPace ? pace.points : undefined}
+        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.${showPace ? ` Dashed: at your recent pace, lowest ${pounds(pace.lowest.pence)}.` : ""}`}
       />
       <p className={`text-sm tabular-nums ${under ? "text-coral" : "text-body"}`}>
         Lowest: {pounds(low.pence)} on {longDay(low.day)}
         {!under ? "." : low.pence < 0 ? ", overdrawn." : ", under your buffer."}
       </p>
+      {pace && <Pace pace={pace} f={f} budget={budget} today={today} />}
       {f.paydays.length > 0 && (
         <p className="text-sm text-muted tabular-nums">
           Pay: {f.paydays.map((p) => `${dayMonth(p.day)} ${p.pence > 0 ? pounds(p.pence) : "not planned"}`).join(" · ")}
@@ -445,6 +458,52 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
         </details>
       )}
     </section>
+  );
+}
+
+/**
+ * The plan beside what you really spend: the balance at your recent pace, and when that
+ * would take you under the buffer before payday, the weekly amount that wouldn't, with
+ * one tap to live on it.
+ */
+function Pace({ pace, f, budget, today }: { pace: PaceOutlook; f: Forecast; budget: BudgetData; today: string }) {
+  if (Math.abs(pace.pace - pace.plan) < PACE_MATCH_PENCE)
+    return <p className="text-sm text-muted">Your recent pace matches your plan.</p>;
+  const payday = nextPayday(today, budget.paydayRule, budget.firstPayday);
+  const above = budget.bufferPence > 0 ? "above your buffer" : "above £0";
+  const planHolds = !f.underBuffer.some((d) => d < payday);
+  const amount = pace.shortBeforePayday ? keepsAbove(budget, today) : null;
+  const floor = budget.weeklyFloorPence ?? null;
+  return (
+    <div className="space-y-2">
+      <p className={`text-sm tabular-nums ${pace.lowest.pence < 0 ? "text-coral" : "text-body"}`}>
+        At your recent pace (the dashed line: {pounds(pace.pace)} a week, the middle of your past weeks):{" "}
+        {pace.payday && `${pounds(pace.payday.pence)} on payday ${dayMonth(pace.payday.day)}, `}
+        lowest {pounds(pace.lowest.pence)} on {longDay(pace.lowest.day)}.
+      </p>
+      {pace.shortBeforePayday && planHolds && (
+        <p className="text-sm text-body tabular-nums">
+          Your plan&apos;s {pounds(pace.plan)} a week keeps you {above} to payday.
+        </p>
+      )}
+      {amount !== null && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <p className="text-sm text-body tabular-nums">
+            {pounds(amount)} a week keeps you {above} to payday
+            {floor !== null && amount < floor ? `, under the least a week you set (${pounds(floor)}).` : "."}
+          </p>
+          {(floor === null || amount >= floor) && (
+            <ActionButton
+              action={setWeeklyAmount.bind(null, amount)}
+              className="btn-soft px-3 py-1.5 text-sm"
+              done={`You'll live on ${pounds(amount)} a week. Change it back under Your plan.`}
+            >
+              Live on {pounds(amount)} a week
+            </ActionButton>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

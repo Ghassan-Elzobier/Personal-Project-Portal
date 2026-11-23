@@ -199,6 +199,25 @@ export function savePayday(input: PaydayInput): Promise<Result> {
   });
 }
 
+/**
+ * The weekly amount alone, as the forecast suggested it ("Live on £W a week"). It is the
+ * lasting amount, not this week's only, and never under the autopilot's least a week.
+ */
+export function setWeeklyAmount(pence: number): Promise<Result> {
+  return run(async () => {
+    if (!Number.isInteger(pence) || pence < 0 || pence > 100_000_00)
+      throw new store.MoneyStoreError("Say the weekly amount in pounds.");
+    const today = dateIn(now(), timeZone());
+    const floor = parseBudget(await store.readBudget(monthStart(today), mondayOf(today))).weeklyFloorPence ?? null;
+    if (floor !== null && pence < floor)
+      throw new store.MoneyStoreError(
+        "That's under the least a week you set. Lower it under Your plan first, if you mean to.",
+      );
+    await store.saveSettings({ allowance_pence: pence });
+    return {};
+  });
+}
+
 export type PlannedInput = { name: string; amount: string; dueOn: string; funding: string; weeks: number };
 
 /** A purchase you plan: what, how much, when, and how it's paid for. */
