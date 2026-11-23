@@ -51,9 +51,13 @@ export async function saveSettings(input: ops.SettingsInput) {
     floor: text(input?.floor),
     buffer: text(input?.buffer),
     bufferFrom: text(input?.bufferFrom),
-    firstPayday: text(input?.firstPayday),
-    paydayRule: text(input?.paydayRule),
   });
+}
+
+export async function savePayday(input: ops.PaydayInput) {
+  await requireOwner();
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : "");
+  return ops.savePayday({ firstPayday: text(input?.firstPayday), paydayRule: text(input?.paydayRule) });
 }
 
 export async function savePlanned(input: ops.PlannedInput) {

@@ -288,9 +288,12 @@ better, where every visit gives you what you need in the fewest taps.
    bar it files nothing.
 5. **Built straight away.** When the run ends, R&D build
    (`.github/workflows/rnd-build.yml`) has Claude build each new proposal the run
-   marked: it checks the evidence against the code, follows `/ship`, and opens a
-   pull request on `claude/rnd-N-…` that says `Closes #N`, which goes through CI,
-   the guard and the review like any other. If the evidence doesn't hold up, it
+   marked: it checks the evidence against the code, follows `/ship`, and pushes
+   `claude/rnd-N-…` with its commits under your name. A job of its own, on a
+   runner Claude never touched, then opens the pull request under your account
+   with your `OWNER_PR_TOKEN` (setup step 11), saying `Closes #N`. It goes
+   through CI, the guard and the review like any other. Claude never sees the
+   token: it only writes what the pull request should say. If the evidence doesn't hold up, it
    says why on the issue and builds nothing. A sweep builds its three strongest
    (`RND_BUILD_PER_RUN`); the rest say "Build it" and wait for you to ask Claude
    on the issue. To build one by hand, "Run workflow" on R&D build with its number.
@@ -484,6 +487,15 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    until CI on main has captured the pages once, on the next merge. To run it
    less often, set the repository variable `RND_RUNS_PER_DAY`; to try it, run
    "R&D" from the Actions tab.
+11. **Pull requests under your account.** R&D build opens its pull requests as
+   you, so they sit with yours. On github.com: Settings, Developer settings,
+   Personal access tokens, Fine-grained tokens, Generate new token. Pick this
+   repository only; under Repository permissions, set Pull requests to "Read
+   and write" (Contents "Read-only" and Metadata come with it); give it up to a
+   year. Then in this repository: Settings, Secrets and variables, Actions, New
+   repository secret, named `OWNER_PR_TOKEN`. Until it's there, a build pushes its
+   branch and fails saying so, and you open the pull request by hand. Every
+   Claude job already commits under your name, with no token needed.
 
 ## Sources
 

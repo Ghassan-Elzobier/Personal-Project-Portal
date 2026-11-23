@@ -22,3 +22,6 @@ test-results/
 .rnd/
 # What a review run is asked to read (scripts/review.mjs brief); rebuilt every run.
 .review/
+
+# What an R&D build asks its pull request to say (rnd-build.yml); opened by the next job.
+.rnd-pr/
