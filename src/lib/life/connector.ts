@@ -10,7 +10,7 @@ import { isOtherSize } from "./other-meal";
 import * as ops from "./operations";
 import { recipe } from "./recipes";
 import { money } from "./shopping";
-import { isReturning, placedMacros, routineFor, viewOn } from "./state";
+import { cookBatches, isReturning, placedMacros, routineFor, viewOn } from "./state";
 
 // Life tools for the Claude connector: what today holds, and one-line logging
 // ("65.4 kg", "skipped lunch", "bench 60 for 5"). Writes go through the same
@@ -286,7 +286,7 @@ export const LIFE_TOOLS: Tool[] = [
         return err(
           `No such cook in the meal week of ${date}. Take cook_id from get_life_day for the day the cook is planned.`,
         );
-      const cooked = (state: typeof s) => state.batches.filter((b) => b.planStart === v.start && b.cookId === c.id);
+      const cooked = (state: typeof s) => cookBatches(state, v.start, c.id);
       if (cooked(s).length)
         return err(`${r.name} is already logged as cooked. To undo it, use Undo cook in the Kitchen.`);
       const done = await ops.cookPlanned(v.start, c.id);

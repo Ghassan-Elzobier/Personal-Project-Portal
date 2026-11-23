@@ -70,7 +70,7 @@ export default async function MoneyPage() {
     );
   }
   const s = loaded.state;
-  const note = feedNote(s);
+  const note = feedNote(s, now());
   const connected = s.connection !== null && s.connection.status !== "off";
 
   return (

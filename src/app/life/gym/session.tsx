@@ -271,7 +271,7 @@ function Exercise({
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="shrink-0 text-xs text-mint"
+            className="-my-1.5 tap shrink-0 rounded-full px-3 text-xs text-mint hover:bg-mint/10"
             aria-expanded={open}
           >
             {open ? "Hide tips" : "How"}
@@ -323,7 +323,11 @@ function Exercise({
           />
         ))}
       </ol>
-      <button type="button" onClick={() => setExtra((n) => n + 1)} className="text-xs text-muted hover:text-white">
+      <button
+        type="button"
+        onClick={() => setExtra((n) => n + 1)}
+        className="tap w-full bg-white/5 text-sm text-muted hover:bg-white/10 hover:text-white"
+      >
         + Add a set
       </button>
     </article>

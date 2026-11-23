@@ -117,9 +117,33 @@ export type LifeState = LifeRaw & {
   next: WeekView;
 };
 
+/**
+ * Whether a batch was logged from a cook of the meal week starting `start` (from that
+ * one cook, given `cookId`). No week (`start` missing) has no cooks.
+ */
+const fromCook = (b: Batch, start: string | null | undefined, cookId?: string) =>
+  Boolean(start) && b.planStart === start && (cookId === undefined ? Boolean(b.cookId) : b.cookId === cookId);
+
+/**
+ * The batches logged from a meal week's cooks, or from one of them. A cook can make
+ * more than one (a fridge and a freezer batch). This is the one answer to "is this
+ * cook done?": a cook is done once it has a batch.
+ */
+export function cookBatches(s: { batches: Batch[] }, start: string | null | undefined, cookId?: string): Batch[] {
+  return s.batches.filter((b) => fromCook(b, start, cookId));
+}
+
+/** The ids of a meal week's cooks that are done (see `cookBatches`). */
+export function cookedIds(s: { batches: Batch[] }, start: string | null | undefined): Set<string> {
+  return new Set(cookBatches(s, start).map((b) => b.cookId!));
+}
+
+/** A fresh week's shops, done or not; none for a week shopped any other way. */
+export const freshTrips = (v: { plan: WeekPlan | null }) => (v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : []);
+
 /** A batch made from this plan's cook is in the plan already: don't count it twice. */
 const ownBatch = (b: Batch, plan: WeekPlan | null) =>
-  Boolean(plan && b.planStart === plan.start && b.cookId && plan.cooks.some((c) => c.id === b.cookId));
+  Boolean(plan && fromCook(b, plan.start) && plan.cooks.some((c) => c.id === b.cookId));
 
 /** Batches the planner can draw on besides the plan's own cooks. */
 function openForPlan(batches: Batch[], plan: WeekPlan | null) {
@@ -167,8 +191,8 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   const placed = place(plan);
   const taking = stillToEat(placed, logged);
   const freed = plan
-    ? raw.batches
-        .filter((b) => b.planStart === plan.start && b.cookId && b.remaining > (taking.get(b.gid) ?? 0))
+    ? cookBatches(raw, plan.start)
+        .filter((b) => b.remaining > (taking.get(b.gid) ?? 0))
         .map((b) => ({ ...toStock(b), left: b.remaining - (taking.get(b.gid) ?? 0) }))
     : [];
   const placements = freed.length ? fillGaps(placed, freed, today) : placed;
@@ -219,8 +243,7 @@ export function plannedCook(
 ): { cook: Cook; start: string; done: boolean } | null {
   for (const v of [weekView(s, "this"), s.next]) {
     const cook = v.plan?.cooks.find((c) => c.id === cookId && c.recipe === recipeKey);
-    if (cook)
-      return { cook, start: v.start, done: s.batches.some((b) => b.planStart === v.start && b.cookId === cookId) };
+    if (cook) return { cook, start: v.start, done: cookBatches(s, v.start, cookId).length > 0 };
   }
   return null;
 }
@@ -293,7 +316,7 @@ const toStock = (b: Batch): StockBatch => ({
  * fridge or freezer one, as planned), so eating takes from it.
  */
 function withCooked(placements: Placement[], batches: Batch[], plan: WeekPlan): Placement[] {
-  const mine = batches.filter((b) => b.planStart === plan.start && b.cookId);
+  const mine = cookBatches({ batches }, plan.start);
   return placements.map((p) => {
     if (!p.cookId) return p;
     const rows = mine.filter((b) => b.cookId === p.cookId);
@@ -380,7 +403,7 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
   for (const c of v.plan?.cooks.filter((x) => x.date === date) ?? []) {
     const r = recipe(c.recipe);
     if (!r) continue;
-    const done = s.batches.some((b) => b.planStart === v.start && b.cookId === c.id);
+    const done = cookBatches(s, v.start, c.id).length > 0;
     items.push({
       key: `cook-${c.id}`,
       time: c.start,
@@ -468,11 +491,10 @@ export function effort(s: LifeState, monday: string): Effort {
  * plan yet, so next week can plan itself. Only a cook of this week's plan counts: a
  * week with nothing to cook, or a cook from next week, plans nothing.
  */
-export function shouldPlanNext(s: LifeState, cookedIds: string[]): boolean {
+export function shouldPlanNext(s: LifeState, logging: string[]): boolean {
   const cooks = s.plan?.cooks ?? [];
-  if (s.next.plan || !cookedIds.some((id) => cooks.some((c) => c.id === id))) return false;
-  const done = new Set(cookedIds);
-  for (const b of s.batches) if (b.planStart === s.weekStart && b.cookId) done.add(b.cookId);
+  if (s.next.plan || !logging.some((id) => cooks.some((c) => c.id === id))) return false;
+  const done = new Set([...cookedIds(s, s.weekStart), ...logging]);
   return cooks.every((c) => done.has(c.id));
 }
 
@@ -499,7 +521,7 @@ export function remainingNeeds(
   also: { cook?: string; meal?: string } = {},
 ): Need[] {
   if (!v.plan) return [];
-  const cooked = new Set(s.batches.filter((b) => b.planStart === v.start && b.cookId).map((b) => b.cookId!));
+  const cooked = cookedIds(s, v.start);
   const eaten = new Set(s.meals.filter((m) => m.status !== "skipped").map((m) => `${m.day}:${m.slot}`));
   if (also.cook) cooked.add(also.cook);
   if (also.meal) eaten.add(also.meal);
@@ -530,7 +552,7 @@ export function kitchenFor(s: LifeState, v: WeekView): StockRow[] {
 
 /** Open shops of a week, in order. */
 const openTrips = (v: WeekView) =>
-  (v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : [])
+  freshTrips(v)
     .filter((t) => !t.doneOn)
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
 
@@ -541,7 +563,7 @@ const openTrips = (v: WeekView) =>
  */
 function carryRule(s: LifeState): ((u: Use) => boolean) | null {
   const last = openTrips(weekView(s, "this")).at(-1);
-  const first = (s.next.plan?.mode === "fresh" ? (s.next.plan.trips ?? []) : [])
+  const first = freshTrips(s.next)
     .slice()
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)[0];
   if (!last || !first) return null;
@@ -615,7 +637,7 @@ type ShopOn = { trip: Trip; done: boolean; list: string; href: string };
  * ("6 items, about £14.20"). `open` saves working the lists out again.
  */
 export function shopsOn(s: LifeState, v: WeekView, date: string, open?: () => TripList[]): ShopOn[] {
-  const trips = v.plan?.mode === "fresh" ? (v.plan.trips ?? []).filter((t) => t.date === date) : [];
+  const trips = freshTrips(v).filter((t) => t.date === date);
   if (!trips.length) return [];
   const lists = open ? open() : tripLists(s, v).open;
   const href = v.start === s.weekStart ? "/life/kitchen" : "/life/kitchen?week=next";
@@ -637,7 +659,7 @@ export function shopsOn(s: LifeState, v: WeekView, date: string, open?: () => Tr
  * the kitchen.
  */
 export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: Trip[]; covered: string[] } {
-  const trips = v.plan?.mode === "fresh" ? (v.plan.trips ?? []) : [];
+  const trips = freshTrips(v);
   const done = trips.filter((t) => t.doneOn);
   const open = trips.filter((t) => !t.doneOn);
   if (!open.length) return { open: [], done, covered: [] };

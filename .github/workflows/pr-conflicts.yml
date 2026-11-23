@@ -2,6 +2,9 @@
 # checked for a merge conflict. The ones that now conflict are told which files
 # and, on the owner's own claude/ branches, Claude merges main in, resolves the
 # conflict and pushes to the same branch, at most twice per pull request.
+# The Claude action refuses push events, so a push run only checks and, when
+# there is something to fix, dispatches a second run of this workflow, which
+# checks again and resolves (src/lib/ci/conflict-dispatch.test.ts holds that).
 # Label a PR no-autofix to keep it for yourself. See docs/FACTORY.md.
 name: PR conflicts
 
@@ -25,6 +28,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      # To dispatch the run that resolves: GitHub starts dispatched runs even from this token.
+      actions: write
     outputs:
       fix: ${{ steps.check.outputs.fix }}
     env:
@@ -39,11 +44,16 @@ jobs:
           node-version-file: .nvmrc
       - id: check
         run: node --experimental-strip-types --no-warnings scripts/pr-conflicts.mjs
+      # Last, so the concurrency group cancelling this run for the dispatched one loses nothing.
+      - name: Hand the fix to a dispatched run
+        if: github.event_name == 'push' && steps.check.outputs.fix != '' && steps.check.outputs.fix != '[]'
+        run: gh workflow run pr-conflicts.yml --ref main --repo "$GITHUB_REPOSITORY"
 
   resolve:
     name: Resolve the conflict on #${{ matrix.item.pr }}
     needs: check
-    if: needs.check.outputs.fix != '' && needs.check.outputs.fix != '[]'
+    # Never on a push, which the Claude action refuses: the push run dispatches a run for this.
+    if: github.event_name != 'push' && needs.check.outputs.fix != '' && needs.check.outputs.fix != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
