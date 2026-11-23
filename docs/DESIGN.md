@@ -58,7 +58,9 @@ one-off.
 `StatusPill` built on it), `DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`,
 `TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone). `src/components/daily-bars.tsx`:
 `DailyBars`, a count per day (full size with its dates as text, or compact in a
-list row). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`.
+list row). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`. `src/app/life/kit.tsx` (client
+pieces): `ActionButton`, `Sheet`, `Stars`, and `MoveWhen`, the day-and-time picker that moves a
+cook session or a shop.
 
 A chip is a few words in a tone: `<Chip tone="sand">Due Fri</Chip>`. Never write a
 chip's colours by hand; a chip that is also a link takes `toneClass(tone)`. The

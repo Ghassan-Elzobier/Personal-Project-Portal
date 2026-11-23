@@ -4,12 +4,24 @@
 // whether a meal is eaten, what a cook makes and whether it is done, and the
 // defrost and freeze reminders. Pure, so it is tested.
 
-import { nextFreeSlot, type Taken } from "../calendar/free-slot.ts";
+import { MORNING, nextFreeSlot, type Taken } from "../calendar/free-slot.ts";
 import { LIFE_KINDS, type LifeKind } from "../calendar/life-blocks.ts";
 import { addDays, clock } from "../dates/week.ts";
 import type { Slot } from "../life/nutrition.ts";
+import type { Trip } from "../life/planner.ts";
 import { recipe } from "../life/recipes.ts";
-import { cookedIds, placedMacros, routineFor, viewOn, type LifeState, type RoutineItem } from "../life/state.ts";
+import { EARLIEST, LATEST, SHOP_MINUTES } from "../life/shop-move.ts";
+import {
+  cookedIds,
+  freshTrips,
+  placedMacros,
+  routineFor,
+  shopsOn,
+  tripLists,
+  viewOn,
+  type LifeState,
+  type RoutineItem,
+} from "../life/state.ts";
 import type { Block } from "./schedule.ts";
 
 export type DayItem = {
@@ -37,21 +49,28 @@ export type DayItem = {
   missed?: boolean;
   /** Where a missed block could go: the next free time, as one tap. */
   move?: Move;
-  /** The block's own day, when it is not today's: a study block carried from earlier in the week. */
+  /** The block's own day, when it is not today's: a study block or a shop carried from earlier in the week. */
   date?: string;
+  /** A fresh week's shop: which one, so a missed one can move. */
+  tripId?: string;
 };
 
 /** A session the owner logged, placed in the portal's time zone. */
 export type SessionLog = { taskGid: string; date: string; minutes: number };
 
-/** A move the Schedule's own action takes as it is, and what the button says. */
+/**
+ * A move one tap makes, and what the button says: a study block's goes to the
+ * Schedule's own action as it is; a shop's to Life's, which moves the week with it.
+ */
 export type Move = {
-  source: "asana" | "session";
+  source: "asana" | "session" | "shop";
   id: string;
   date: string;
   start: number;
   duration: number;
   label: string;
+  /** A shop's meal week. */
+  week?: string;
 };
 
 /** What Today knows beyond the blocks: this week's session logs, and the last day whose blocks it holds. */
@@ -62,7 +81,7 @@ export type Day = {
   nextKey: string | null;
   summary: string | null;
   planStart: string | null;
-  /** Study blocks missed on earlier days this week, still owed, each with a new time. */
+  /** Shops and study blocks missed on earlier days this week, still owed, each with a new time. */
   carried: DayItem[];
   /** Carried blocks beyond the few Today lists: they are on the Schedule. */
   carriedMore: number;
@@ -100,12 +119,19 @@ export function yourDay(
   const items: DayItem[] = [];
   let carried: DayItem[] = [];
   let carriedMore = 0;
+  // The Schedule's time, shared by every offer below so no two are offered the same time.
+  const taken: Taken[] = (blocks ?? []).map((b) => ({ date: b.date, start: b.start, end: b.end }));
 
   if (blocks) {
     for (const b of blocks.filter((x) => x.date === date)) items.push(fromBlock(b, date, routine, s));
-    if (kept) ({ carried, carriedMore } = markMissed(items, blocks, date, now, kept));
+    if (kept) ({ carried, carriedMore } = markMissed(items, blocks, date, now, kept, taken));
   } else {
     for (const r of routine) if (r.kind !== "defrost" && r.kind !== "freeze") items.push(fromRoutine(r));
+  }
+  // A missed shop comes first among the earlier misses: the week's food waits on it.
+  if (s) {
+    const lastDay = kept?.lastDay ?? blocks?.reduce((d, b) => (b.date > d ? b.date : d), date) ?? date;
+    carried = [...missedShops(items, s, date, now, blocks ? { taken, lastDay } : null), ...carried];
   }
   // Life's reminders are not on the Schedule: they take no time.
   for (const r of routine) if (r.kind === "defrost" || r.kind === "freeze") items.push(fromRoutine(r));
@@ -199,8 +225,8 @@ function markMissed(
   date: string,
   now: number,
   kept: Kept,
+  taken: Taken[],
 ): { carried: DayItem[]; carriedMore: number } {
-  const taken: Taken[] = blocks.map((b) => ({ date: b.date, start: b.start, end: b.end }));
   const missed = missedBlocks(blocks, date, now, kept.logs);
   const offer = (b: Block): Move | undefined => {
     if (!b.editable) return undefined;
@@ -253,6 +279,79 @@ function markMissed(
   return { carried, carriedMore: owed.length - shown.length };
 }
 
+/**
+ * A fresh week's shop that has gone by without being done is missed: today's is
+ * marked where it stands, and one from an earlier day of this meal week is carried
+ * to Today. Each is offered the next free half hour, from now until 22:00, or
+ * tomorrow from the morning while tomorrow is in its meal week and its blocks are
+ * known (`room`; without the Schedule there is no offer). Moving it moves the week
+ * with it (life/shop-move.ts). A shop with nothing left to buy is not on Today, and
+ * one being ticked off is under way, not missed.
+ */
+function missedShops(
+  items: DayItem[],
+  s: LifeState,
+  date: string,
+  now: number,
+  room: { taken: Taken[]; lastDay: string } | null,
+): DayItem[] {
+  const v = viewOn(s, date);
+  const lists = v.plan ? tripLists(s, v).open : [];
+  const gone = (t: Trip) => !t.ticked?.length && (t.date < date || (t.date === date && t.start + SHOP_MINUTES <= now));
+  const owed = lists.filter((x) => gone(x.trip) && x.lines.some((l) => l.packs > 0));
+  if (!owed.length) return [];
+  const last = addDays(v.start, 6);
+  const tomorrow = addDays(date, 1);
+  const offer = (t: Trip): Move | undefined => {
+    if (!room) return undefined;
+    const fits = (free: { date: string; start: number } | null) => (free && free.start <= LATEST ? free : null);
+    const free =
+      fits(nextFreeSlot(room.taken, date, Math.max(now, EARLIEST), SHOP_MINUTES)) ??
+      (tomorrow <= last && tomorrow <= room.lastDay
+        ? fits(nextFreeSlot(room.taken, tomorrow, MORNING, SHOP_MINUTES))
+        : null);
+    if (!free) return undefined;
+    room.taken.push({ date: free.date, start: free.start, end: free.start + SHOP_MINUTES });
+    return {
+      source: "shop",
+      id: t.id,
+      week: v.start,
+      date: free.date,
+      start: free.start,
+      duration: SHOP_MINUTES,
+      label: free.date === date ? `Move to ${clock(free.start)}` : `Tomorrow ${clock(free.start)}`,
+    };
+  };
+
+  for (const item of items) {
+    const x = item.kind === "shop" && item.tripId ? owed.find((o) => o.trip.id === item.tripId) : undefined;
+    if (!x || x.trip.date !== date) continue;
+    item.missed = true;
+    item.move = offer(x.trip);
+  }
+  return owed
+    .filter((x) => x.trip.date < date)
+    .map((x): DayItem => {
+      const shown = shopsOn(s, v, x.trip.date, () => lists).find((o) => o.trip.id === x.trip.id);
+      return {
+        key: `shop-${x.trip.id}`,
+        start: x.trip.start,
+        end: x.trip.start + SHOP_MINUTES,
+        kind: "shop",
+        title: "Shop",
+        // Its day stands where the time would: the detail keeps the time it had.
+        detail: [clock(x.trip.start), shown?.list].filter(Boolean).join(" · "),
+        done: false,
+        skipped: false,
+        href: shown?.href ?? "/life/kitchen",
+        missed: true,
+        move: offer(x.trip),
+        date: x.trip.date,
+        tripId: x.trip.id,
+      };
+    });
+}
+
 function fromRoutine(r: RoutineItem): DayItem {
   const kind = r.kind;
   return {
@@ -267,6 +366,7 @@ function fromRoutine(r: RoutineItem): DayItem {
     href: r.href,
     slot: kind === "meal" && r.placement?.recipe ? r.slot : undefined,
     cookIds: kind === "cook" && r.cookId && !r.done ? [r.cookId] : undefined,
+    tripId: kind === "shop" && r.key.startsWith("shop-") ? r.key.slice("shop-".length) : undefined,
   };
 }
 
@@ -324,6 +424,7 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
   }
   if (type === "shop") {
     const r = routine.find((x) => x.kind === "shop" && x.time === Number(rest));
+    const trip = s ? freshTrips(viewOn(s, date)).find((t) => t.date === date && t.start === Number(rest)) : undefined;
     return {
       ...base,
       kind: "shop",
@@ -331,6 +432,7 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
       detail: r?.detail ?? b.title.replace(/^Shop: /, ""),
       done: Boolean(r?.done),
       href: r?.href ?? b.url,
+      tripId: trip?.id,
     };
   }
   if (type === "cook" && s) {

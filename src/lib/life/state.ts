@@ -627,6 +627,8 @@ export type TripList = {
   early: string[];
   /** What this shop didn't have, and the shop it moved to (null: none left this week). */
   notFound: { line: ListLine; to: string | null }[];
+  /** The cooks and meals this shop buys fresh food for, as uses: what has to wait for it (shop-move.ts). */
+  uses: Use[];
 };
 
 type ShopOn = { trip: Trip; done: boolean; list: string; href: string };
@@ -687,6 +689,8 @@ export function tripLists(s: LifeState, v: WeekView): { open: TripList[]; done: 
         .flatMap((m) =>
           buildList([m.need], staples, s.products, s.profile.food, t.date).map((line) => ({ line, to: m.to })),
         ),
+      // Staples are bought ahead and last for weeks: no cook waits for one.
+      uses: t.needs.filter((n) => !INGREDIENTS.get(n.item)?.staple).flatMap((n) => n.at ?? []),
     })),
     done,
     covered: split.covered,

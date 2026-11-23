@@ -159,3 +159,72 @@ export function Stars({
     </span>
   );
 }
+
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/**
+ * Pick a new day and time for something planned: a cook session or a shop. The days
+ * are the ones it may go to (the rest of its meal week); `onMove` gets the day and
+ * minutes after midnight. Mount it fresh for each opening (it keeps what is typed),
+ * keyed to what it moves.
+ */
+export function MoveWhen({
+  days,
+  date,
+  time,
+  submit = "Move",
+  onMove,
+  pending = false,
+}: {
+  days: { date: string; label: string }[];
+  date: string;
+  /** Minutes after midnight it starts now. */
+  time: number;
+  /** What the button says: "Move", "Move shop". */
+  submit?: string;
+  onMove?: (date: string, minutes: number) => void;
+  pending?: boolean;
+}) {
+  const [day, setDay] = useState(days.some((d) => d.date === date) ? date : (days[0]?.date ?? date));
+  const [at, setAt] = useState(hhmm(time));
+  return (
+    <form
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const [h, m] = at.split(":").map(Number);
+        if (Number.isFinite(h) && Number.isFinite(m)) onMove?.(day, h * 60 + m);
+      }}
+    >
+      <label className="text-xs text-muted">
+        Day
+        <select
+          value={day}
+          onChange={(e) => setDay(e.target.value)}
+          className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
+        >
+          {days.map((d) => (
+            <option key={d.date} value={d.date}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-xs text-muted">
+        Time
+        <input
+          type="time"
+          value={at}
+          min="06:00"
+          max="22:00"
+          step={900}
+          onChange={(e) => setAt(e.target.value)}
+          className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
+        />
+      </label>
+      <button className="btn-life px-4 py-2" disabled={pending} aria-busy={pending}>
+        {submit}
+      </button>
+    </form>
+  );
+}

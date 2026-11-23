@@ -5,7 +5,7 @@ import { useOptimistic, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import { clock } from "@/lib/dates/week";
 import type { Day, DayItem } from "@/lib/portal/day";
-import { cookPlanned, logMeal, uncook } from "./life/actions";
+import { cookPlanned, logMeal, moveShop, uncook, undoShopMove } from "./life/actions";
 import { toastCooked } from "./life/kit";
 import { withNextWeek } from "@/lib/life/cooked";
 import { moveBlock } from "./schedule/actions";
@@ -65,12 +65,30 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
       }
     });
   // A missed study block goes to the free time it was offered. The page comes back with it
-  // there; Undo puts it where it was.
+  // there; Undo puts it where it was. A missed shop moves the week with it: the toast says
+  // which cooks and meals followed, and Undo puts the whole week back.
   const [moving, startMove] = useTransition();
   const move = (i: DayItem) =>
     startMove(async () => {
       const to = i.move;
       if (!to) return;
+      if (to.source === "shop") {
+        const week = to.week ?? day.planStart;
+        if (!week) return;
+        const r = await moveShop(week, to.id, { date: to.date, at: to.start });
+        if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+        toast(r.said, {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              startMove(async () => {
+                const back = await undoShopMove(week);
+                if (back.error) toast(back.error, { tone: "error" });
+              }),
+          },
+        });
+        return;
+      }
       const there = { source: to.source, id: to.id, duration: to.duration };
       const r = await moveBlock({ ...there, date: to.date, start: to.start });
       if (r.error) return void toast(r.error, { tone: "error" });
@@ -229,6 +247,11 @@ function Row({
             {i.taskGid && (
               <Link href={`/log?task=${i.taskGid}`} className="text-muted underline underline-offset-2">
                 Log it if you did study
+              </Link>
+            )}
+            {i.kind === "shop" && (
+              <Link href={i.href} className="text-muted underline underline-offset-2">
+                Shopped already? Put it away
               </Link>
             )}
           </p>

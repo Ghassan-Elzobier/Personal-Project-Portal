@@ -49,6 +49,16 @@ export async function moveCookSession(
   return ops.moveCookSession(start, from, to);
 }
 
+export async function moveShop(start: string, tripId: string, to: { date: string; at: number }) {
+  await requireOwner();
+  return ops.moveShop(start, tripId, to);
+}
+
+export async function undoShopMove(start: string) {
+  await requireOwner();
+  return ops.undoShopMove(start);
+}
+
 export async function setDaily(start: string, slot: "breakfast" | "shake", recipe: string) {
   await requireOwner();
   return ops.setDaily(start, slot, recipe);
