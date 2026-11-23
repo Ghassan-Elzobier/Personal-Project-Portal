@@ -196,4 +196,6 @@ jobs:
           ISSUE: ${{ matrix.issue }}
           REPO: ${{ github.repository }}
           SINCE: ${{ steps.started.outputs.at }}
+          # Printed in the log when the build left no mark: the action itself hides it.
+          TRANSCRIPT: ${{ steps.build.outputs.execution_file }}
         run: node --experimental-strip-types --no-warnings scripts/rnd.mjs built

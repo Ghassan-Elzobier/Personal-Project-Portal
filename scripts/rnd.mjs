@@ -42,6 +42,7 @@ import { historySection, pagesSection, requestSection } from "../src/lib/rnd/bri
 import {
   alreadyBuilt,
   buildsPerRun,
+  digest,
   issueNumber,
   leftAMark,
   PICK_PAUSE_MS,
@@ -462,9 +463,19 @@ function built() {
     since,
   );
   if (mark) return say(`#${n}: a pull request is open for it, or Claude said on the issue why not.`);
+  // The action hides the conversation, so the log shows it here: what Claude said and did.
+  const path = env.TRANSCRIPT ?? "";
+  let turns = null;
+  try {
+    turns = path && existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
+  } catch {
+    console.log("The transcript is not JSON.");
+  }
+  if (turns) for (const line of digest(turns)) console.log(line);
+  else console.log("No transcript to show.");
   fail(
     `#${n}: the build ended with no pull request and no comment on the issue. ` +
-      `What Claude did is in this run's build-${n}-transcript artifact.`,
+      `What Claude did is above, and in this run's build-${n}-transcript artifact.`,
   );
 }
 
