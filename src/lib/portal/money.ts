@@ -9,7 +9,7 @@ import { buildList, listTotal } from "../life/shopping.ts";
 import { kitchenFor, remainingNeeds, tripLists, weekView, type LifeState, type WeekView } from "../life/state.ts";
 import type { Salary } from "../jobs/salary.ts";
 import { allocate } from "../money/allocate.ts";
-import { mondayOf, nextPayday, type BudgetData } from "../money/budget.ts";
+import { cyclePayday, mondayOf, type BudgetData } from "../money/budget.ts";
 import { payOn } from "../money/forecast.ts";
 import { yearlyPence } from "../money/recurring.ts";
 import { pounds } from "../money/state.ts";
@@ -72,7 +72,7 @@ export function roleMoney(salary: Salary | null, data: BudgetData, today: string
       ? `About ${pounds(lo)} a month after tax and NI.`
       : `About ${pounds(lo)} to ${pounds(hi)} a month after tax and NI.`,
   ];
-  const payday = nextPayday(today, data.paydayRule, data.firstPayday);
+  const payday = cyclePayday(data, today);
   const now = payOn(payday, data.income ?? [], data.lastPay ?? null, data.paydayRule);
   if (now > 0) {
     const diff = mid - now;

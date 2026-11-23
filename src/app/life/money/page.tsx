@@ -5,8 +5,16 @@ import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
 import { allocate, suggestGoals } from "@/lib/money/allocate";
-import { nextPayday, savedNow, stepStart, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
-import { FORECAST_DAYS, type Forecast } from "@/lib/money/forecast";
+import {
+  cyclePayday,
+  nextPayday,
+  savedNow,
+  stepStart,
+  type BudgetData,
+  type BudgetView,
+  type Goal,
+} from "@/lib/money/budget";
+import { FORECAST_DAYS, payIgnored, type Forecast } from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
@@ -462,7 +470,7 @@ const monthYear = (month: string) =>
  */
 function Goals({ budget, today }: { budget: BudgetData; today: string }) {
   const goals = (budget.goals ?? []).filter((g) => g.status === "active");
-  const payday = nextPayday(today, budget.paydayRule, budget.firstPayday);
+  const payday = cyclePayday(budget, today);
   const plan = allocate(budget, payday);
   const share = (id: number) => plan?.shares.find((s) => s.id === id);
   const suggested = suggestGoals(budget, today);
@@ -622,6 +630,7 @@ function Pay({ budget, today }: { budget: BudgetData; today: string }) {
   }
   const chartEnd = addDays(today, FORECAST_DAYS - 1);
   const payday = { firstPayday: budget.firstPayday ?? "", paydayRule: rule };
+  const planned = payIgnored(cyclePayday(budget, today), steps, budget.lastPay ?? null, rule);
   return (
     <section aria-labelledby="pay-title" className="space-y-3 card-life">
       <h2 id="pay-title" className="font-semibold">
@@ -665,7 +674,14 @@ function Pay({ budget, today }: { budget: BudgetData; today: string }) {
           })}
         </ul>
       )}
-      {budget.lastPay && (
+      {budget.lastPay && planned !== null && (
+        <p className="text-sm text-body tabular-nums">
+          Last pay {pounds(budget.lastPay.pence)} on {dayMonth(budget.lastPay.day)} was far from the plan&apos;s{" "}
+          {pounds(planned)}, so later paydays use {pounds(planned)}. Change your pay below if{" "}
+          {pounds(budget.lastPay.pence)} is the new normal.
+        </p>
+      )}
+      {budget.lastPay && planned === null && (
         <p className="text-sm text-body tabular-nums">
           Last pay: {pounds(budget.lastPay.pence)} on {dayMonth(budget.lastPay.day)}. Later paydays use it until a step
           says otherwise.
