@@ -81,6 +81,10 @@ jobs:
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # This run is the one the push run dispatched with its own token, so its actor is
+          # GitHub Actions itself, and the action refuses a run a bot started unless it is
+          # named here. Only this repository's workflows can start one with that actor.
+          allowed_bots: github-actions
           prompt: |
             Pull request #${{ matrix.item.pr }} now conflicts with main. You are on its branch.
 
