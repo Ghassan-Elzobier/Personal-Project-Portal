@@ -126,6 +126,7 @@ jobs:
           done
           exit 1
       - name: Build the proposal and open a pull request
+        id: build
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         env:
           # The owner's claude.ai connectors (the Portal's own data among them) never load here.
@@ -176,3 +177,20 @@ jobs:
             --max-turns 150
             --model opus
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run check),Bash(npm test),Bash(npm run guard),Bash(npm run test:e2e:*),Bash(npx prettier:*),Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr view:*)"
+      # The run log hides what Claude did. #140's first build ended after 5 turns with no
+      # pull request and no comment, and its job still went green; this keeps the record.
+      - name: Keep what Claude did, for 14 days
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-${{ matrix.issue }}-transcript
+          path: ${{ steps.build.outputs.execution_file }}
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Fail if the build left neither a pull request nor a word on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ matrix.issue }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: node --experimental-strip-types --no-warnings scripts/rnd.mjs built

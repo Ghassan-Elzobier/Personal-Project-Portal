@@ -60,6 +60,20 @@ export function pickBuilds(open: OpenProposal[], runUrl: string, built: Set<numb
     .sort((a, b) => b - a);
 }
 
+/**
+ * Whether a build left a mark: a pull request open for the issue, or a comment on it
+ * by a bot (Claude saying why it built nothing) since the build began. A build that
+ * left neither did nothing the owner can see, and fails rather than going green.
+ */
+export function leftAMark(
+  issue: number,
+  prs: { body: string | null; branch: string }[],
+  comments: { author: string; at: string }[],
+  since: string,
+): boolean {
+  return alreadyBuilt(prs).has(issue) || comments.some((c) => c.author.endsWith("[bot]") && c.at >= since);
+}
+
 /** The issues open pull requests already build: their bodies close them, or their branches are named for them. */
 export function alreadyBuilt(prs: { body: string | null; branch: string }[]): Set<number> {
   const out = new Set<number>();

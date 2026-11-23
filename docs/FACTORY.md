@@ -301,6 +301,8 @@ better, where every visit gives you what you need in the fewest taps.
    local database the job starts, reads every changed image and lists them in
    the pull request; the guard still waits for your `approved-test-change` label
    after you have looked.
+   A build that leaves neither a pull request nor a comment fails, and what
+   Claude did is kept with the run for 14 days.
 6. **You decide.** Merge the pull request, and the issue closes. Decline one by
    closing the issue (and its pull request) as not planned, with a reason if you
    have one: the next run on that focus reads it and won't bring the idea back

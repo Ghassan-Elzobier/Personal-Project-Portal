@@ -19,6 +19,7 @@
 //   pick   once an R&D run ends (.github/workflows/rnd-build.yml): its marked
 //          proposals still open with no pull request, for Claude to build; or the
 //          one issue the owner names when building by hand
+//   built  after each build: fails when it left no pull request and no comment
 //
 //   FOCUS=gym node --experimental-strip-types --no-warnings scripts/rnd.mjs brief
 //   REQUEST="Move a missed shop" FOCUS=food node --experimental-strip-types --no-warnings scripts/rnd.mjs brief
@@ -42,6 +43,7 @@ import {
   alreadyBuilt,
   buildsPerRun,
   issueNumber,
+  leftAMark,
   PICK_PAUSE_MS,
   PICK_TRIES,
   pickBuilds,
@@ -440,7 +442,33 @@ async function pick() {
   say(issues.length ? `Building ${issues.map((n) => `#${n}`).join(", ")}.` : "Nothing to build from this run.");
 }
 
-const commands = { plan, brief, file, pick };
+/**
+ * After a build (.github/workflows/rnd-build.yml): fails when it left no pull request
+ * for the issue and no comment on it, so a build that did nothing turns red instead
+ * of green. ISSUE is the proposal's number.
+ */
+function built() {
+  const n = Number(env.ISSUE);
+  if (!Number.isInteger(n) || n <= 0) fail("ISSUE (the proposal's number) is required.");
+  const prs = ghJson(["api", `repos/${repo()}/pulls?state=open&per_page=100`]) ?? [];
+  const comments = ghJson(["api", `repos/${repo()}/issues/${n}/comments?per_page=100`]) ?? [];
+  // The build job runs for 90 minutes at most: a comment from before that is an older run's.
+  const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const mark = leftAMark(
+    n,
+    prs.map((p) => ({ body: p.body, branch: p.head?.ref ?? "" })),
+    comments.map((c) => ({ author: c.user?.login ?? "", at: c.created_at ?? "" })),
+    since,
+  );
+  if (mark) return say(`#${n}: a pull request is open for it, or Claude said on the issue why not.`);
+  fail(
+    `#${n}: the build ended with no pull request and no comment on the issue. ` +
+      `What Claude did is in this run's build-${n}-transcript artifact.`,
+  );
+}
+
+const commands = { plan, brief, file, pick, built };
 const command = commands[process.argv[2]];
-if (!command) fail("Usage: node --experimental-strip-types scripts/rnd.mjs plan | brief | file [--dry-run] | pick");
+if (!command)
+  fail("Usage: node --experimental-strip-types scripts/rnd.mjs plan | brief | file [--dry-run] | pick | built");
 await command();
