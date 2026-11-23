@@ -16,6 +16,7 @@ import {
   mondayOf,
   nextPayday,
   paydayIn,
+  stepStart,
   type BudgetData,
   type IncomeStep,
   type Planned,
@@ -57,7 +58,7 @@ export function spotPay(
   let best: { id: number; pence: number } | null = null;
   for (const payday of [paydayIn(prev, data.paydayRule), paydayIn(month, data.paydayRule)]) {
     if (data.firstPayday && payday < addDays(data.firstPayday, -3)) continue;
-    const expected = payOn(payday, data.income ?? [], null);
+    const expected = payOn(payday, data.income ?? [], null, data.paydayRule);
     if (expected <= 0) continue;
     for (const t of incoming) {
       const near = Math.abs(Date.parse(`${t.madeOn}T00:00:00Z`) - Date.parse(`${payday}T00:00:00Z`)) <= 3 * 86_400_000;
@@ -78,11 +79,17 @@ function daysIn(month: string): number {
 /**
  * The pay expected on a payday: the latest step starting on or before it. When a pay
  * has come in since that step began, it's that pay instead, so the first real payslip
- * replaces an estimate without anyone typing it in.
+ * replaces an estimate without anyone typing it in. Given the payday rule, a step
+ * starts on its month's payday (stepStart), whatever day of the month it was typed for,
+ * and a pay up to 3 days early (as spotPay finds it) counts as that payday's.
  */
-export function payOn(payday: string, income: IncomeStep[], lastPay: Day | null): number {
-  const step = income.filter((s) => s.fromOn <= payday).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0];
-  if (lastPay && lastPay.day <= payday && (!step || lastPay.day >= step.fromOn)) return lastPay.pence;
+export function payOn(payday: string, income: IncomeStep[], lastPay: Day | null, rule?: string): number {
+  const start = (s: IncomeStep) => (rule ? stepStart(s.fromOn, rule) : s.fromOn);
+  const step = income
+    .filter((s) => start(s) <= payday)
+    .sort((a, b) => start(b).localeCompare(start(a)) || b.fromOn.localeCompare(a.fromOn))[0];
+  const since = step && (rule ? addDays(start(step), -3) : step.fromOn);
+  if (lastPay && lastPay.day <= payday && (!step || lastPay.day >= since!)) return lastPay.pence;
   return step?.pence ?? 0;
 }
 
@@ -159,7 +166,7 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
     p <= end;
     p = nextPayday(p, data.paydayRule, data.firstPayday)
   ) {
-    const pence = payOn(p, income, data.lastPay ?? null);
+    const pence = payOn(p, income, data.lastPay ?? null, data.paydayRule);
     paydays.push({ day: p, pence });
     if (pence > 0) {
       take(p, -pence);
