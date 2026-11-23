@@ -139,6 +139,15 @@ export async function dismissAlert(id: number) {
   return ops.dismissAlert(id);
 }
 
+/** Today's Monday check-in: what happens to last week. */
+export async function checkIn(choice: string, goal: number | null) {
+  await requireOwner();
+  if (choice !== "ok" && choice !== "keep" && choice !== "week" && choice !== "goal")
+    return { error: "Pick what happens to last week." };
+  if (goal !== null && !Number.isInteger(goal)) return { error: "Pick a goal." };
+  return ops.checkIn(choice, goal);
+}
+
 export async function setClaudeAccess(level: string) {
   await requireOwner();
   if (level !== "off" && level !== "summary" && level !== "plan" && level !== "setup")
