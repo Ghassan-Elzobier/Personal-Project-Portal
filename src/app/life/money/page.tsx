@@ -4,8 +4,9 @@ import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
-import { allocate, suggestGoals } from "@/lib/money/allocate";
-import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
+import { allocate, goalDates, suggestGoals } from "@/lib/money/allocate";
+import { nextPayday, raiseAhead, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
+import { RAISE_SHARES } from "@/lib/money/operations";
 import type { Forecast } from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
@@ -28,6 +29,7 @@ import {
   moveGoal,
   removeGoal,
   removeIncome,
+  saveRaiseShare,
   setBill,
   setClaudeAccess,
 } from "./actions";
@@ -466,11 +468,34 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
   const share = (id: number) => plan?.shares.find((s) => s.id === id);
   const suggested = suggestGoals(budget, today);
   const moves = plan?.shares.filter((s) => s.pence > 0) ?? [];
+  // A higher pay ahead: each goal's date at the share chosen (half until then) and
+  // keeping it all, walking the paydays ahead.
+  const rise = raiseAhead(budget, today);
+  const split = budget.raiseGoalShareBp ?? DEFAULT_RAISE_SHARE;
+  const at = (bp: number) =>
+    goalDates({ ...budget, raiseGoalShareBp: bp, raiseSince: budget.raiseSince ?? today }, payday);
+  const dates = rise ? { split: at(split), keep: at(0) } : null;
   return (
     <section aria-labelledby="goals-title" className="space-y-3 card-life">
       <h2 id="goals-title" className="font-semibold">
         Goals
       </h2>
+      {rise && budget.raiseGoalShareBp == null && (
+        <div
+          role="group"
+          aria-labelledby="rise-title"
+          className="space-y-2 rounded-xl bg-mint/10 p-3 ring-1 ring-mint/30"
+        >
+          <p id="rise-title" className="text-sm font-medium">
+            Your pay rises on {dayMonth(rise.on)}. Where should the extra go?
+          </p>
+          <p className="text-xs text-body tabular-nums">
+            {pounds(rise.extra)} more a month. Pick the share for your goals; the rest raises your weekly amount. It
+            stands for every later rise, and you can change it under Your plan.
+          </p>
+          <RaiseShare chosen={null} />
+        </div>
+      )}
       <p className="text-sm text-muted">
         In this order, each payday pays the bills, keeps your least for each week, gives each goal its pace, then raises
         the week to your amount; anything left goes to the first goal.
@@ -530,8 +555,13 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
                 {s && (
                   <p className={`text-xs tabular-nums ${s.slipped ? "text-coral" : "text-muted"}`}>
                     {s.pence > 0 ? `${pounds(s.pence)} on ${dayMonth(payday)}` : `Nothing on ${dayMonth(payday)}`}
-                    {s.finish && ` · there by ${monthYear(s.finish)}`}
+                    {dates ? (
+                      <ThereBy split={dates.split.get(g.id) ?? null} keep={dates.keep.get(g.id) ?? null} />
+                    ) : (
+                      s.finish && ` · there by ${monthYear(s.finish)}`
+                    )}
                     {s.slipped && " · behind its pace"}
+                    {s.held && s.startsOn && ` · held: starts on ${dayMonth(s.startsOn)}, the first higher payday`}
                   </p>
                 )}
               </li>
@@ -607,6 +637,41 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
   );
 }
 
+/** Half of a rise to goals until the owner chooses: part of it committed, and the week still rises. */
+const DEFAULT_RAISE_SHARE = 5_000;
+
+/** A goal's date with the share of a rise chosen, and if you kept the whole rise. */
+function ThereBy({ split, keep }: { split: string | null; keep: string | null }) {
+  const when = (m: string | null) => (m ? monthYear(m) : "not within 3 years");
+  if (split === keep) return <>{` · there by ${when(split)}`}</>;
+  return <>{` · there by ${when(split)} with this split · ${when(keep)} if you keep it all`}</>;
+}
+
+/** The share of a pay rise for goals, one tap each; the one in force (or suggested) is marked. */
+function RaiseShare({ chosen }: { chosen: number | null }) {
+  const picked = chosen ?? DEFAULT_RAISE_SHARE;
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Share of a rise for goals">
+      {RAISE_SHARES.map((bp) => {
+        const on = bp === picked;
+        const pct = `${bp / 100}%`;
+        return (
+          <li key={bp}>
+            <ActionButton
+              action={saveRaiseShare.bind(null, bp)}
+              className={`btn px-3 py-1.5 text-sm tabular-nums ring-1 ${on ? "bg-mint/15 text-white ring-mint/40" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
+              done={`${pct} of each rise to goals.`}
+              label={`${pct} to goals${on ? (chosen === null ? " (suggested)" : " (current)") : ""}`}
+            >
+              {pct}
+            </ActionButton>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** Pay in pounds: take-home on each payday from a day on, and the latest pay that came in. */
 function Pay({ budget, payday }: { budget: BudgetData; payday: string }) {
   const steps = budget.income ?? [];
@@ -676,6 +741,13 @@ function Plan({ budget }: { budget: BudgetData }) {
       </p>
       {/* Keyed to what's saved, so the form always starts from the saved plan. */}
       <PlanForm key={JSON.stringify(values)} {...values} />
+      {budget.raiseGoalShareBp != null && (
+        <div className="space-y-2 text-sm">
+          <p className="font-medium">Of each pay rise, to goals</p>
+          <p className="text-xs text-muted">The rest raises your weekly amount.</p>
+          <RaiseShare chosen={budget.raiseGoalShareBp ?? null} />
+        </div>
+      )}
     </section>
   );
 }
