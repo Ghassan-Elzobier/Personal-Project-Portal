@@ -15,7 +15,6 @@ import {
   StatusPill,
   Tabs,
 } from "@/components/ui";
-import { MoveWhen } from "@/app/life/kit";
 import { LifeHeader, Steps } from "@/app/life/parts";
 import { DailyBars } from "@/components/daily-bars";
 
@@ -317,7 +316,7 @@ export default async function DesignPage() {
 
       <Section
         title="Life pieces"
-        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready), Ring, and the Move picker that takes a cook or a shop to another day and time, as they look on Life's greens."
+        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready) and Ring as they look on Life's greens."
       >
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
@@ -344,18 +343,6 @@ export default async function DesignPage() {
             <Ring value={2} max={3} label="Gym" sub="2 of 3" />
             <Ring value={17} max={21} label="Meals" sub="17 of 21" color="var(--color-sand)" />
             <Ring value={0} max={7} label="Weigh-ins" sub="0 of 7" color="var(--color-aqua)" />
-          </div>
-          <div className="card-life">
-            <MoveWhen
-              days={[
-                { date: "2026-11-16", label: "Today" },
-                { date: "2026-11-17", label: "Tomorrow" },
-                { date: "2026-11-18", label: "Wednesday 18 Nov" },
-              ]}
-              date="2026-11-16"
-              time={18 * 60}
-              submit="Move shop"
-            />
           </div>
         </div>
       </Section>
