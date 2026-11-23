@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
 import { aislesToVisit, basketProgress, pounds, toggle } from "@/lib/life/basket";
@@ -16,6 +16,7 @@ import {
   markOrdered,
   markStaple,
   moveCookSession,
+  moveShop,
   removeProduct,
   saveProduct,
   setBatch,
@@ -23,9 +24,10 @@ import {
   tickShop,
   uncook,
   undoDelivery,
+  undoShopMove,
   undoTrip,
 } from "../actions";
-import { ActionButton, Sheet, useAction } from "../kit";
+import { ActionButton, MoveWhen, Sheet, useAction } from "../kit";
 import { Chip, ErrorNote } from "@/components/ui";
 import { useTicks, type Ticks } from "./use-ticks";
 
@@ -99,8 +101,22 @@ export function ShopView({
   delivered: string | null;
   deliveryDay: string;
   unchecked: { item: string; name: string }[];
-  /** One shop of a fresh week: Done shopping replaces the delivery buttons. */
-  trip?: { id: string; title: string; when: string; early: string[] };
+  /**
+   * One shop of a fresh week: Done shopping replaces the delivery buttons, and Move
+   * takes it (and the cooks that need its food) to another day or time.
+   */
+  trip?: {
+    id: string;
+    title: string;
+    when: string;
+    early: string[];
+    date: string;
+    start: number;
+    /** Its time has gone and it isn't done. */
+    missed: boolean;
+    /** The days it may move to: the rest of its meal week. */
+    days: { date: string; label: string }[];
+  };
   /** What is in the basket or trolley, what the shop didn't have, and which way, as saved. */
   ticks?: Ticks;
   /** What this shop didn't have and the server has moved on (`to`: the shop it's on now). */
@@ -115,6 +131,26 @@ export function ShopView({
   const [pick, setPick] = useState<ShopLine | null>(null);
   const [arrive, setArrive] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  // Moving a fresh week's shop moves the week with it: the toast says what followed, and Undo puts it all back.
+  const [moving, setMoving] = useState(false);
+  const [movePending, startMove] = useTransition();
+  const moveTo = (date: string, at: number) =>
+    trip &&
+    startMove(async () => {
+      const r = await moveShop(start, trip.id, { date, at });
+      if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+      setMoving(false);
+      toast(r.said, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            startMove(async () => {
+              const back = await undoShopMove(start);
+              if (back.error) toast(back.error, { tone: "error" });
+            }),
+        },
+      });
+    });
   const saved = ticks ?? NO_TICKS;
   // Ticks open the list the way they were made; with none, it opens on the links.
   const [inStore, setInStore] = useState(saved.ticked.length + saved.missing.length > 0 && saved.via !== "online");
@@ -175,8 +211,16 @@ export function ShopView({
         {trip && (
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h2 className="text-lg font-semibold">{trip.title}</h2>
-            <p className="text-sm text-muted">{trip.when}</p>
+            <p className={`text-sm ${trip.missed ? "text-sand" : "text-muted"}`}>
+              {trip.missed ? `Missed: ${trip.when}` : trip.when}
+            </p>
           </div>
+        )}
+        {trip?.missed && (
+          <p className="text-sm text-body">
+            Its time has gone. Move it to when you&apos;ll shop: the cooks and meals that need its food move to after
+            it.
+          </p>
         )}
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-2xl font-bold tabular-nums">
@@ -215,6 +259,16 @@ export function ShopView({
               {inStore ? "Use the links" : "Shop in store"}
             </button>
           )}
+          {trip && trip.days.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoving((m) => !m)}
+              className={trip.missed && !moving ? "btn-life" : "btn-soft"}
+              aria-expanded={moving}
+            >
+              {moving ? "Cancel" : "Move"}
+            </button>
+          )}
           {!trip && !inStore && open && (
             <button type="button" onClick={() => setOrdering(true)} className="btn-life">
               I&apos;ve ordered it
@@ -243,6 +297,17 @@ export function ShopView({
             Copy for SmartLists
           </button>
         </div>
+        {moving && trip && (
+          <MoveWhen
+            key={`${trip.id}:${trip.date}:${trip.start}`}
+            days={trip.days}
+            date={trip.date}
+            time={trip.start}
+            submit="Move shop"
+            pending={movePending}
+            onMove={moveTo}
+          />
+        )}
         {!inStore && open && unpicked > 0 ? (
           <p className="text-xs text-faint">
             {unpicked === 1
@@ -1248,8 +1313,6 @@ function CookSession({
   days: { date: string; label: string }[];
 }) {
   const [moving, setMoving] = useState(false);
-  const [date, setDate] = useState(x.date);
-  const [time, setTime] = useState(clockOf(x.start));
   const { pending, run } = useAction();
   return (
     <div className="space-y-2 card-life p-0">
@@ -1281,47 +1344,21 @@ function CookSession({
         </div>
       </div>
       {moving && (
-        <form
-          className="flex flex-wrap items-end gap-2 px-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const [h, m] = time.split(":").map(Number);
-            void run(
-              () => moveCookSession(start, { date: x.date, at: x.start }, { date, at: h * 60 + m }),
-              "Moved. The Schedule and your calendar follow.",
-            ).then((ok) => ok && setMoving(false));
-          }}
-        >
-          <label className="text-xs text-muted">
-            Day
-            <select
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
-            >
-              {days.map((d) => (
-                <option key={d.date} value={d.date}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs text-muted">
-            Time
-            <input
-              type="time"
-              value={time}
-              min="06:00"
-              max="22:00"
-              step={900}
-              onChange={(e) => setTime(e.target.value)}
-              className="mt-1 block rounded-lg bg-white/5 p-2 text-sm text-white ring-1 ring-white/10"
-            />
-          </label>
-          <button className="btn-life px-4 py-2" disabled={pending} aria-busy={pending}>
-            Move
-          </button>
-        </form>
+        <div className="px-3">
+          <MoveWhen
+            key={x.key}
+            days={days}
+            date={x.date}
+            time={x.start}
+            pending={pending}
+            onMove={(date, at) =>
+              void run(
+                () => moveCookSession(start, { date: x.date, at: x.start }, { date, at }),
+                "Moved. The Schedule and your calendar follow.",
+              ).then((ok) => ok && setMoving(false))
+            }
+          />
+        </div>
       )}
       <ul className="divide-y divide-white/5">
         {x.cooks.map((c) => (

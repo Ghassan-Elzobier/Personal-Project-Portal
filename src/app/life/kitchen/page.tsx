@@ -4,7 +4,8 @@ import { addDays, shortDate } from "@/lib/dates/week";
 import { labelTags, TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS } from "@/lib/life/ingredients";
 import { linkDisagrees, packUnits } from "@/lib/life/pack";
-import { loadLife } from "@/lib/life/load";
+import { lifeMinutes, loadLife } from "@/lib/life/load";
+import { SHOP_MINUTES } from "@/lib/life/shop-move";
 import { loadToday } from "@/lib/money/load";
 import { freezeCount } from "@/lib/life/planner";
 import { recipe, RECIPES } from "@/lib/life/recipes";
@@ -161,6 +162,13 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
     const t = id ? v.plan?.trips?.find((x) => x.id === id) : undefined;
     return t ? tripTitle(t.date) : null;
   };
+  // A shop moves within its meal week, from today on; one whose time has gone is missed.
+  const now = lifeMinutes(s.today);
+  const days: { date: string; label: string }[] = [];
+  for (let d = s.today > v.start ? s.today : v.start; d <= addDays(v.start, 6); d = addDays(d, 1))
+    days.push({ date: d, label: dayLabel(d, s.today) });
+  const missed = (t: { date: string; start: number }) =>
+    t.date < s.today || (t.date === s.today && t.start + SHOP_MINUTES <= now);
   return (
     <div className="space-y-8">
       {done.length > 0 && (
@@ -185,6 +193,11 @@ function FreshShops({ s, v, weekLeft }: { s: S; v: WeekView; weekLeft: number | 
               title: tripTitle(trip.date),
               when: `${dayLabel(trip.date, s.today)} · ${clock(trip.start)}`,
               early,
+              date: trip.date,
+              start: trip.start,
+              // Being ticked off in the shop is under way, not missed.
+              missed: missed(trip) && !trip.ticked?.length,
+              days,
             }}
             lines={lines.map((l) => shopLine(s, l, trip.date))}
             aisles={AISLES}
