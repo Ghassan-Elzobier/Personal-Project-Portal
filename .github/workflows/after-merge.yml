@@ -1,0 +1,59 @@
+# After a pull request merges: the issue it was built for closes, and agent
+# branches main already holds are deleted. GitHub closes an issue a pull
+# request's body names ("Closes #N") and deletes the merged branch by itself;
+# this catches what it misses. A branch built on GitHub names its issue
+# (claude/issue-N-… from @claude, claude/rnd-N-… from R&D's build,
+# claude/fix-N-… from the error triage), so it closes even when the body only
+# says "addresses #N". Left-over claude/ branches go once main has every change
+# on them (by commit, or by an equal patch after a rebase) and no open pull
+# request uses them; any other branch is kept and listed in the run's summary.
+#
+# A script with no AI (scripts/after-merge.mjs, src/lib/ci/after-merge.ts).
+# Run it by hand to sweep every open issue as well. See docs/FACTORY.md.
+name: After merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: after-merge
+  cancel-in-progress: false
+
+jobs:
+  tidy:
+    name: Close the built issue and sweep spent branches
+    # Never for a fork's pull request: it gets no write token, and its branch is not ours.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # To delete spent claude/ branches.
+      contents: write
+      # To close the issue a merged branch was built for.
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          # The whole history, to tell which branches main already holds.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Close the built issue and sweep spent branches (no AI)
+        run: node --experimental-strip-types --no-warnings scripts/after-merge.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}

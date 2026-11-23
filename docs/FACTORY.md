@@ -19,10 +19,11 @@ hooks and checks, because all of them live in this repository.
 | --- | --- | --- |
 | Terminal or VS Code | Ask for the change. Big ones: plan mode first (Shift+Tab). | Claude follows `/ship`: branch, build, verify, pull request, CI green. |
 | Phone or browser | Start a task at claude.ai/code or in the Claude app's Code tab. | A cloud session does the same, then turns on auto-fix for its PR. |
-| GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work and answers in the thread. |
+| GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work, opens a pull request saying `Closes #N` (no "Create PR" link to tap), and answers in the thread. |
 | Nothing | The weekly routines run on their own (setup below). | A refactor PR and a factory-improvement PR, when there is something worth doing. |
 | Nothing: the live portal hits an error | The error triage runs every 30 minutes. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
-| Nothing: R&D runs four times a day | Each run takes one focus and researches how that part of the portal or the factory could be better ("Research and development" below). | An `rnd` issue with one proposal, its evidence and its sources, when one is worth your time. Build it by asking Claude on the issue; decline it by closing it as not planned. |
+| Nothing: R&D runs four times a day | Each run takes one focus and researches how that part of the portal or the factory could be better ("Research and development" below). | An `rnd` issue with one proposal, its evidence and its sources, when one is worth your time, and straight away a pull request that builds it. Merge it, or decline it by closing the issue as not planned. |
+| Phone or browser: an idea of your own | "Run workflow" on R&D, pick a focus and write your idea in the request box. | R&D researches your idea like any proposal, files it, and the build opens a pull request for it. |
 
 You review and merge. Merging deploys: the release workflow migrates the
 database, and Vercel waits for it before the new version goes live.
@@ -160,6 +161,15 @@ appends to its end, and the resolution is always to keep every line.
 Fork pull requests are never touched, and the log is read as data. The Integration job also retries
 starting the database itself, since a port clash there failed two pull requests in a row.
 
+**When a pull request merges, its issue closes and spent branches go** (`.github/workflows/after-merge.yml`,
+`scripts/after-merge.mjs`, no AI). GitHub closes an issue the body names ("Closes #N") and deletes the
+merged branch. A branch built on GitHub also names its issue (`claude/issue-N-…` from `@claude`,
+`claude/rnd-N-…` from R&D's build, `claude/fix-N-…` from the error triage), so its issue closes on merge
+even when the description forgot, with a comment saying which pull request built it. Then any `claude/`
+branch main already has every change of (by commit, or by an equal patch after a rebase) and no open pull
+request uses is deleted; any other branch is kept and listed in the run's summary. "Run workflow" on it
+sweeps every open issue too, bar the error triage's own, which it reopens on purpose.
+
 ## Debugging like a person
 
 A bug is fixed by seeing it fail, not by guessing. `/debug` (and the `debugger` agent) set the order:
@@ -276,11 +286,25 @@ better, where every visit gives you what you need in the fewest taps.
    change, "done when" checks, what else it weighed, and the risks. New evidence
    for an open proposal is added to that issue instead. When nothing clears the
    bar it files nothing.
-5. **You decide.** Build a proposal by asking Claude on its issue (`@claude build
-   this`); it follows `/ship` like any other change. Decline one by closing it as
-   not planned, with a reason if you have one: the next run on that focus reads
-   it and won't bring the idea back without evidence that answers you. While
-   eight proposals wait, R&D pauses itself, so it never runs ahead of your decisions.
+5. **Built straight away.** When the run ends, R&D build
+   (`.github/workflows/rnd-build.yml`) has Claude build each new proposal the run
+   marked: it checks the evidence against the code, follows `/ship`, and opens a
+   pull request on `claude/rnd-N-…` that says `Closes #N`, which goes through CI,
+   the guard and the review like any other. If the evidence doesn't hold up, it
+   says why on the issue and builds nothing. A sweep builds its three strongest
+   (`RND_BUILD_PER_RUN`); the rest say "Build it" and wait for you to ask Claude
+   on the issue. To build one by hand, "Run workflow" on R&D build with its number.
+6. **You decide.** Merge the pull request, and the issue closes. Decline one by
+   closing the issue (and its pull request) as not planned, with a reason if you
+   have one: the next run on that focus reads it and won't bring the idea back
+   without evidence that answers you. While eight proposals wait, R&D pauses
+   itself, so it never runs ahead of your decisions.
+
+**Your own idea.** "Run workflow" on R&D, pick the focus it belongs to, and write
+the idea in the request box (or `gh workflow run rnd.yml -f focus=food -f
+request="…"`). The brief puts your words first, as the run's question; R&D
+researches it by the same method, files the proposal, and the build opens its
+pull request. A sweep takes no request.
 
 In a session, ask for it by name ("ask the rnd agent how the gym page could work
 better"): the same method, the answer in the conversation, nothing filed.
@@ -308,10 +332,17 @@ any), and no @-mentions or references to other repositories that would reach
 anyone. A security weakness is never published: the run fails, naming only the
 area, and you look at it in a private session.
 
+The build that follows is a separate workflow, because it must write: it reads
+the checked proposal as data, gets none of your connectors, keeps the Claude
+credentials out of everything it runs (tests included), may run only a fixed
+list of commands (npm, git, and gh for issues and pull requests), and cannot
+merge. Its work reaches main only through a pull request you merge.
+
 **Your controls.** Repository variables: `RND_RUNS_PER_DAY` (0 to 4, 4 when unset;
-0 stops the schedule) and `RND_OPEN_LIMIT` (8 when unset). "Run workflow" on R&D
-in the Actions tab runs it now, on a focus you pick or on all of them at once
-(a sweep, above). The weekly `/improve-factory` pass reads the proposals you
+0 stops the schedule), `RND_OPEN_LIMIT` (8 when unset) and `RND_BUILD_PER_RUN`
+(0 to 15, 3 when unset; 0 files proposals without building them). "Run workflow"
+on R&D in the Actions tab runs it now, on a focus you pick, with your own request,
+or on all of them at once (a sweep, above). The weekly `/improve-factory` pass reads the proposals you
 declined, so the agent sharpens over time, and `npm run factory:metrics` counts
 proposals built and declined.
 
@@ -357,11 +388,13 @@ mechanical:
   unset).
 - **Weekly routines.** The refactor and the factory pass stay weekly: each opens a
   pull request for you to merge, so more often means more merging, not more value.
-- **R&D, up to four runs a day.** It runs more often because a proposal costs you
-  a glance, not a merge. Each run is one Opus session of up to 80 turns that only
-  reads and researches, and the AI is skipped while eight proposals wait. If a
-  month runs close to the limit, set `RND_RUNS_PER_DAY` to 2, 1 or 0. A sweep by
-  hand is one such session for every focus, all at once.
+- **R&D, up to four runs a day.** Each run is one Opus session of up to 80 turns
+  that only reads and researches, and the AI is skipped while eight proposals
+  wait. Each new proposal is then built: one more Opus session of up to 150
+  turns, like `@claude`, so a proposal now costs a merge decision rather than a
+  glance. If a month runs close to the limit, set `RND_BUILD_PER_RUN` to 0 (build
+  by asking on the issue) or `RND_RUNS_PER_DAY` to 2, 1 or 0. A sweep by hand is
+  one research session for every focus, all at once, and builds three.
 - **Habits.** `/clear` between unrelated tasks; plan big changes first so the
   build is right the first time; run parallel sessions when the tasks are truly
   separate, each in its own worktree.
@@ -395,7 +428,8 @@ owner's data go through the Claude connector instead, which runs on the plan.
 - R&D reads the open web, so its Claude step has a read-only token, no shell, no
   MCP servers or claude.ai connectors, and only a script with no AI files what it
   found, after checking it for secrets and personal details ("Research and
-  development" above).
+  development" above). Its build runs apart, reads the filed proposal as data,
+  keeps the Claude credentials out of what it runs, and only opens pull requests.
 - Nobody can push to main, including agents using your credentials in cloud
   sessions; you can still merge a PR whose checks fail, in an emergency.
 - `npm audit` for production dependencies is clean; Dependabot and CodeQL watch it.
