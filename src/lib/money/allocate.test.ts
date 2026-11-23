@@ -226,3 +226,16 @@ test("suggested goals: an emergency fund of three months of bills and groceries,
     "no suggestion it already has",
   );
 });
+
+test("a pay step ahead moves a goal's finish: a raise brings it closer, a cut pushes it back", () => {
+  const steady = plan({ goals: [goal({})] });
+  const base = allocate(steady, "2026-12-31")!.shares[0].finish!;
+  const step = (pence: number) =>
+    allocate(
+      { ...steady, income: [...steady.income!, { fromOn: "2027-02-26", pence, grossYearPence: null }] },
+      "2026-12-31",
+    )!.shares[0].finish!;
+  assert.ok(step(400_000) < base, `${step(400_000)} before ${base}`);
+  assert.ok(step(200_000) > base, `${step(200_000)} after ${base}`);
+  assert.equal(step(228_000), base, "the same pay changes nothing");
+});
