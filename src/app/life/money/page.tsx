@@ -28,6 +28,7 @@ import {
 } from "@/lib/money/budget";
 import {
   FORECAST_DAYS,
+  floorOutlook,
   keepsAbove,
   paceOutlook,
   PACE_MATCH_PENCE,
@@ -600,6 +601,7 @@ function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: s
   const unplanned = f.paydays.some((p) => p.pence === 0);
   const pace = paceOutlook(budget, today);
   const showPace = pace !== null && Math.abs(pace.pace - pace.plan) >= PACE_MATCH_PENCE;
+  const best = floorOutlook(budget, today);
   return (
     <section aria-labelledby="ahead-title" className="space-y-3 card-life">
       <h2 id="ahead-title" className="font-semibold">
@@ -612,8 +614,15 @@ function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: s
         lowest={low}
         paydays={f.paydays.map((p) => p.day)}
         pace={showPace ? pace.points : undefined}
-        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.${showPace ? ` Dashed: at your recent pace, lowest ${pounds(pace.lowest.pence)}.` : ""}`}
+        best={best?.points}
+        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.${showPace ? ` Dashed: at your recent pace, lowest ${pounds(pace.lowest.pence)}.` : ""}${best ? ` Dotted: spending ${pounds(best.floor)} a week, lowest ${pounds(best.lowest.pence)}.` : ""}`}
       />
+      {best && (
+        <p className="text-xs text-muted tabular-nums">
+          Solid: your plan, {pounds(best.plan)} a week.{showPace && " Dashed: your recent pace."} Dotted: keeping to{" "}
+          {pounds(best.floor)} a week, lowest {pounds(best.lowest.pence)} on {longDay(best.lowest.day)}.
+        </p>
+      )}
       <p className={`text-sm tabular-nums ${under ? "text-coral" : "text-body"}`}>
         Lowest: {pounds(low.pence)} on {longDay(low.day)}
         {!under ? "." : low.pence < 0 ? ", overdrawn." : ", under your buffer."}
