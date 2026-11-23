@@ -9,7 +9,8 @@
 
 import { addDays } from "../dates/week.ts";
 
-export type Cadence = "weekly" | "monthly" | "yearly";
+/** Fortnightly is only for regular costs the owner plans; bills found in the bank stay weekly, monthly or yearly. */
+export type Cadence = "weekly" | "fortnightly" | "monthly" | "yearly";
 
 /** Money out to a merchant: pence is positive here. */
 export type Payment = { madeOn: string; pence: number; merchantKey: string; name: string; categoryId: number | null };
@@ -59,14 +60,19 @@ export type Bill = {
 };
 
 /** The gaps between payments that count as each cadence, in days. */
-export const GAP: Record<Cadence, [number, number]> = { weekly: [6, 8], monthly: [26, 35], yearly: [350, 380] };
+export const GAP: Record<Cadence, [number, number]> = {
+  weekly: [6, 8],
+  fortnightly: [13, 15],
+  monthly: [26, 35],
+  yearly: [350, 380],
+};
 /** A cycle's length in days, for "paid lately" and "ended". */
-export const CYCLE_DAYS: Record<Cadence, number> = { weekly: 7, monthly: 30.4, yearly: 365 };
+export const CYCLE_DAYS: Record<Cadence, number> = { weekly: 7, fortnightly: 14, monthly: 30.4, yearly: 365 };
 /** How many payments a cadence needs before it is a bill, and how many recent ones are looked at. */
-const MIN: Record<Cadence, number> = { weekly: 4, monthly: 3, yearly: 2 };
-const RECENT: Record<Cadence, number> = { weekly: 8, monthly: 12, yearly: 3 };
+const MIN: Record<Cadence, number> = { weekly: 4, fortnightly: 3, monthly: 3, yearly: 2 };
+const RECENT: Record<Cadence, number> = { weekly: 8, fortnightly: 8, monthly: 12, yearly: 3 };
 /** Days a bill may be late before it counts as missed. */
-export const GRACE: Record<Cadence, number> = { weekly: 2, monthly: 5, yearly: 14 };
+export const GRACE: Record<Cadence, number> = { weekly: 2, fortnightly: 3, monthly: 5, yearly: 14 };
 
 const dayMs = 86_400_000;
 export const daysBetween = (a: string, b: string) =>
@@ -207,7 +213,7 @@ type Schedule = Pick<Bill, "cadence" | "anchorOn" | "lastPaidOn" | "endsOn">;
 
 /** The day of the occurrence nearest a payment: the one that payment paid. */
 function paidOccurrence(b: Schedule, paidOn: string): string {
-  if (b.cadence === "weekly") return paidOn;
+  if (b.cadence === "weekly" || b.cadence === "fortnightly") return paidOn;
   if (b.cadence === "monthly") {
     const dom = Number(b.anchorOn.slice(8, 10));
     const month = paidOn.slice(0, 7);
@@ -226,6 +232,7 @@ function paidOccurrence(b: Schedule, paidOn: string): string {
 /** The occurrence after one. */
 export function following(b: Pick<Bill, "cadence" | "anchorOn">, day: string): string {
   if (b.cadence === "weekly") return addDays(day, 7);
+  if (b.cadence === "fortnightly") return addDays(day, 14);
   if (b.cadence === "monthly") return inMonth(shiftMonth(day.slice(0, 7), 1), Number(b.anchorOn.slice(8, 10)));
   return inYear(Number(day.slice(0, 4)) + 1, b.anchorOn);
 }
@@ -260,9 +267,11 @@ export function occurrencesIn(b: Pick<Bill, "cadence" | "anchorOn" | "endsOn">, 
   return out;
 }
 
+const PER_YEAR: Record<Cadence, number> = { weekly: 52, fortnightly: 26, monthly: 12, yearly: 1 };
+
 /** What a bill costs in a year. */
 export function yearlyPence(b: Pick<Bill, "cadence" | "expectedPence">): number {
-  return b.expectedPence * (b.cadence === "weekly" ? 52 : b.cadence === "monthly" ? 12 : 1);
+  return b.expectedPence * PER_YEAR[b.cadence];
 }
 
 /** A bill not paid for two and a half cycles has ended (a cancelled subscription). */
@@ -366,6 +375,7 @@ export function billAlerts(found: Found[], bills: Bill[], today: string): BillAl
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+/** Bills found in the bank are never fortnightly (see Cadence). */
 const CADENCES: Cadence[] = ["weekly", "monthly", "yearly"];
 
 /** The payments the engine reads (money_engine_read), money out as positive pence. */

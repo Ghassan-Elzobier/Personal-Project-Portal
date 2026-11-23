@@ -756,7 +756,7 @@ function parseLastWeek(v: unknown): LastWeek | null {
 }
 
 const GOAL_KINDS = ["saving", "sinking", "debt", "recurring"] as const;
-const CADENCES = ["weekly", "monthly", "yearly"] as const;
+const CADENCES = ["weekly", "fortnightly", "monthly", "yearly"] as const;
 
 function parseRegular(g: Row): Regular {
   return {

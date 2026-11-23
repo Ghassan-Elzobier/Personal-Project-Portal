@@ -30,7 +30,7 @@ export function GoalForm({ bills = [] }: { bills?: Replaceable[] }) {
     saved: "",
     apr: "",
     payment: "",
-    cadence: "monthly" as "weekly" | "monthly" | "yearly",
+    cadence: "monthly" as "weekly" | "fortnightly" | "monthly" | "yearly",
     weekday: "",
     setup: "",
     replaces: "",
@@ -85,12 +85,13 @@ export function GoalForm({ bills = [] }: { bills?: Replaceable[] }) {
             <span className="field-label">How often</span>
             <select className="field-input" value={v.cadence} onChange={set("cadence")}>
               <option value="weekly">Each week</option>
+              <option value="fortnightly">Every two weeks</option>
               <option value="monthly">Each month</option>
               <option value="yearly">Each year</option>
             </select>
           </label>
         )}
-        {regular && v.cadence === "weekly" && (
+        {regular && (v.cadence === "weekly" || v.cadence === "fortnightly") && (
           <label className="block min-w-0">
             <span className="field-label">On (optional)</span>
             <select className="field-input" value={v.weekday} onChange={set("weekday")}>
