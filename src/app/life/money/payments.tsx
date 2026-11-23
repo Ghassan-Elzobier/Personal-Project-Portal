@@ -35,13 +35,16 @@ function weekName(monday: string, today: string): string {
 }
 
 /**
- * The payments by money week, then by day. This week and last week start open; each
- * week's header says what went out, came in and is still to sort. Tapping one opens its categories; the choice shows at once, and
- * "Always" makes it a rule for that merchant, which sorts its other payments too.
+ * The payments by money week, then by day. This week, last week and the newest week
+ * with something to sort start open, and a week stays open once a payment in it is
+ * tapped; each week's header says what went out, came in and is still to sort. Tapping
+ * one opens its categories; the choice shows at once, and "Always" makes it a rule for that merchant, which sorts its other payments too.
  */
 export function PaymentList({ txns, categories, today }: { txns: Txn[]; categories: Category[]; today: string }) {
   const [open, setOpen] = useState<Txn | null>(null);
   const [always, setAlways] = useState(true);
+  // Weeks the owner has sorted in stay open, even once nothing in them is left to sort.
+  const [worked, setWorked] = useState<string[]>([]);
   const [, start] = useTransition();
   const [sorted, setSorted] = useOptimistic(
     Object.fromEntries(txns.map((t) => [t.id, t.categoryId])) as Record<number, number | null>,
@@ -59,15 +62,21 @@ export function PaymentList({ txns, categories, today }: { txns: Txn[]; categori
     });
   };
 
+  const weeks = byWeek(txns, today);
+  const toSortIn = (w: (typeof weeks)[number]) =>
+    w.days.reduce((n, d) => n + d.txns.filter((t) => !sorted[t.id]).length, 0);
+  // The newest week with something still to sort is open too, so the next one is a tap away.
+  const nextToSort = weeks.find((w) => toSortIn(w) > 0)?.monday;
+
   return (
     <>
       <div className="space-y-2">
-        {byWeek(txns, today).map((w) => {
-          const toSort = w.days.reduce((n, d) => n + d.txns.filter((t) => !sorted[t.id]).length, 0);
+        {weeks.map((w) => {
+          const toSort = toSortIn(w);
           return (
             <Fold
               key={w.monday}
-              open={w.monday >= addDays(mondayOf(today), -7)}
+              open={w.monday >= addDays(mondayOf(today), -7) || w.monday === nextToSort || worked.includes(w.monday)}
               title={<span className="font-medium text-body">{weekName(w.monday, today)}</span>}
               meta={[`${pounds(w.out)} out`, `${pounds(w.in)} in`, toSort > 0 ? `${toSort} to sort` : null]
                 .filter(Boolean)
@@ -90,6 +99,7 @@ export function PaymentList({ txns, categories, today }: { txns: Txn[]; categori
                               onClick={() => {
                                 setAlways(true);
                                 setOpen(t);
+                                setWorked((ws) => (ws.includes(w.monday) ? ws : [...ws, w.monday]));
                               }}
                               className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-white/5"
                             >
