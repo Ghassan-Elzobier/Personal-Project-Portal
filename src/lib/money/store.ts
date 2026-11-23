@@ -79,6 +79,9 @@ export const saveIncome = (step: { from_on: string; pence: number; gross_year_pe
 export const removeIncome = (id: number) => owner<void>("money_remove_income", { p_id: id });
 /** A goal: add one, or change one by id. */
 export const saveGoal = (goal: Record<string, unknown>) => owner<number>("money_save_goal", { p: goal });
+/** The Monday check-in on a week: the choice, and for "goal" or "week" the overspend it moves. */
+export const checkIn = (week: string, choice: string, goal: number | null, pence: number) =>
+  owner<void>("money_check_in", { p_week: week, p_choice: choice, p_goal: goal, p_pence: pence });
 export const removeGoal = (id: number) => owner<void>("money_remove_goal", { p_id: id });
 export const moveGoal = (id: number, step: -1 | 1) => owner<void>("money_move_goal", { p_id: id, p_step: step });
 /** Claude at the plan level sets the high-level plan (the pay steps, for now). */

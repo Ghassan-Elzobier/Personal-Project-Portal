@@ -1,9 +1,41 @@
 import Link from "next/link";
 import type { BudgetView } from "@/lib/money/budget";
+import type { CheckIn } from "@/lib/money/checkin";
 import type { Prompt } from "@/lib/money/prompts";
 import { pounds } from "@/lib/money/state";
 import { ActionButton } from "./life/kit";
-import { dismissAlert } from "./life/money/actions";
+import { checkIn, dismissAlert } from "./life/money/actions";
+
+/**
+ * The Monday check-in: last week in one line, the category that moved most, and one tap
+ * to say what happens to it (checkin.ts). Neutral after an overspend: sand, never coral.
+ */
+export function MoneyCheckIn({ card }: { card: CheckIn }) {
+  return (
+    <section
+      aria-label="Last week"
+      className={`space-y-3 rounded-xl p-3 text-sm ring-1 ${card.over > 0 ? "bg-sand/10 ring-sand/30" : "bg-white/5 ring-white/10"}`}
+    >
+      <div className="space-y-1">
+        <p className={`font-semibold tabular-nums ${card.over > 0 ? "text-sand" : "text-bright"}`}>{card.line}</p>
+        {card.moved && <p className="text-body tabular-nums">{card.moved}</p>}
+        <p className="text-muted">{card.note}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {card.options.map((o) => (
+          <ActionButton
+            key={`${o.choice}:${o.goal ?? ""}`}
+            action={checkIn.bind(null, o.choice, o.goal ?? null)}
+            className="tap btn-soft px-3 py-1.5 text-sm"
+            done="Checked in: on to this week."
+          >
+            {o.label}
+          </ActionButton>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 /** Money speaking up on Today: at most two things that need you, each with where to see it. */
 export function MoneyPrompts({ prompts }: { prompts: Prompt[] }) {

@@ -5,7 +5,8 @@ import { moneySyncKey, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { suggestGoals } from "./allocate";
-import { mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
+import { budgetView, mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
+import { checkIn as checkInCard, type CheckInOption } from "./checkin";
 import { affordCheck, displacesText, type AffordCheck } from "./displaces";
 import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
@@ -386,6 +387,22 @@ export function removeGoal(id: number): Promise<Result> {
 export function moveGoal(id: number, step: -1 | 1): Promise<Result> {
   return run(async () => {
     await store.moveGoal(id, step);
+    return {};
+  });
+}
+
+/**
+ * The Monday check-in: what happens to last week. The choice must be one the card offers
+ * on the budget as it stands now, and the amount it moves is worked out here, never sent.
+ */
+export function checkIn(choice: CheckInOption["choice"], goal: number | null): Promise<Result> {
+  return run(async () => {
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const card = checkInCard(data, budgetView(data, today), today);
+    const option = card?.options.find((o) => o.choice === choice && (o.goal ?? null) === goal);
+    if (!card || !option) throw new store.MoneyStoreError("Last week is checked in already.");
+    await store.checkIn(card.week, option.choice, option.goal ?? null, card.over);
     return {};
   });
 }
