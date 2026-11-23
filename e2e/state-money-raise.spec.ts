@@ -47,7 +47,8 @@ async function putBack(page: Page, request: APIRequestContext) {
 
 async function addPay(page: Page, fromOn: string, pounds: string) {
   const { pay } = parts(page);
-  await pay.getByLabel("From the payday on").fill(fromOn);
+  // A label around a select takes in its options' text, so match the label's start.
+  await pay.getByRole("combobox", { name: /^From the payday on/ }).selectOption(fromOn);
   await pay.getByLabel("Take-home a month (£)").fill(pounds);
   await pay.getByRole("button", { name: "Save the pay" }).click();
 }
@@ -67,12 +68,12 @@ test("a pay rise ahead asks once where the extra goes, a tap saves it, and the g
   await page.getByRole("button", { name: "Connect Lunch Flow" }).click();
   await page.getByRole("button", { name: "Connect this account" }).click();
   try {
-    // The suite's clock is Monday 16 November: £2,000 a month since October, £2,400 from 29 January.
+    // The suite's clock is Monday 16 November: £2,000 a month from the next payday, £2,400 from 29 January.
     await plan.getByLabel("To live on each week (£)").fill("150");
     await plan.getByRole("button", { name: "Save the plan" }).click();
     await expect(parts(page).week.getByText("£150.00 left")).toBeVisible();
-    await addPay(page, "2026-10-30", "2000");
-    await expect(pay.getByText("£2,000.00 a month from 30 Oct")).toBeVisible();
+    await addPay(page, "2026-11-30", "2000");
+    await expect(pay.getByText("£2,000.00 a month from 30 Nov")).toBeVisible();
     await addPay(page, "2027-01-29", "2400");
     await expect(pay.getByText("£2,400.00 a month from 29 Jan")).toBeVisible();
     await goals.getByText("Add a goal").click();

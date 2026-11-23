@@ -458,17 +458,29 @@ export function stepOn(income: IncomeStep[] = [], day: string): number {
   return income.filter((s) => s.fromOn <= day).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0]?.pence ?? 0;
 }
 
+/**
+ * The pay a rise is measured from on a day: the step in force, or, before any pay has
+ * started (pay is added from the next payday on), the first step. The first pay is a
+ * start, not a rise.
+ */
+function basePay(income: IncomeStep[] = [], day: string): IncomeStep | null {
+  const sorted = [...income].sort((a, b) => a.fromOn.localeCompare(b.fromOn));
+  return sorted.filter((s) => s.fromOn <= day).at(-1) ?? sorted[0] ?? null;
+}
+
 /** A later pay step higher than the one in force today: the first payday it applies to, and by how much. */
 export function raiseAhead(data: BudgetData, today: string): { on: string; extra: number } | null {
-  const now = stepOn(data.income, today);
-  // The first pay is a start, not a rise.
-  if (now <= 0) return null;
+  const base = basePay(data.income, today);
+  if (!base || base.pence <= 0) return null;
   const higher = (data.income ?? [])
-    .filter((s) => s.fromOn > today && s.pence > now)
+    .filter((s) => s.fromOn > today && s.fromOn > base.fromOn && s.pence > base.pence)
     .sort((a, b) => a.fromOn.localeCompare(b.fromOn))[0];
   if (!higher) return null;
   // The first payday on or after the step's day.
-  return { on: nextPayday(addDays(higher.fromOn, -1), data.paydayRule, data.firstPayday), extra: higher.pence - now };
+  return {
+    on: nextPayday(addDays(higher.fromOn, -1), data.paydayRule, data.firstPayday),
+    extra: higher.pence - base.pence,
+  };
 }
 
 /**
@@ -477,7 +489,7 @@ export function raiseAhead(data: BudgetData, today: string): { on: string; extra
  */
 export function raiseExtra(data: BudgetData, payday: string): number {
   if (data.raiseGoalShareBp == null || !data.raiseSince) return 0;
-  return Math.max(0, stepOn(data.income, payday) - stepOn(data.income, data.raiseSince));
+  return Math.max(0, stepOn(data.income, payday) - (basePay(data.income, data.raiseSince)?.pence ?? 0));
 }
 
 /** The part of a payday's rise that goes to goals; the rest raises the weekly amount. */

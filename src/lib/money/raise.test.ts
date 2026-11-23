@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { allocate, goalDates } from "./allocate.ts";
-import { allowanceFrom, raiseAhead, type BudgetData, type Goal } from "./budget.ts";
+import { allowanceFrom, raiseAhead, raiseExtra, type BudgetData, type Goal } from "./budget.ts";
 import type { Bill } from "./recurring.ts";
 
 // Where a pay rise goes (Save More Tomorrow): the share the owner chose goes to goals,
@@ -117,6 +117,19 @@ test("a rise is seen ahead, from the pay now, and the first pay is not a rise", 
   assert.deepEqual(raiseAhead(risen(null), "2026-12-31"), { on: RISE, extra: 40_000 });
   assert.equal(raiseAhead(risen(null), RISE), null, "on the higher pay, nothing is ahead");
   assert.equal(raiseAhead(plan({ income: [{ fromOn: RISE, pence: 268_000, grossYearPence: null }] }), FROM), null);
+});
+
+test("with pay added from the next payday on, a higher step after it is still a rise ahead", () => {
+  const ahead = plan({
+    income: [
+      { fromOn: "2026-12-31", pence: 228_000, grossYearPence: null },
+      { fromOn: RISE, pence: 268_000, grossYearPence: null },
+    ],
+  });
+  assert.deepEqual(raiseAhead(ahead, "2026-12-14"), { on: RISE, extra: 40_000 });
+  const chosen = { ...ahead, raiseGoalShareBp: 10_000, raiseSince: "2026-12-14" };
+  assert.equal(raiseExtra(chosen, "2026-12-31"), 0, "the first pay is a start, not a rise");
+  assert.equal(raiseExtra(chosen, RISE), 40_000);
 });
 
 test("half of a rise goes to the goals, and the other half raises the weekly amount", () => {
