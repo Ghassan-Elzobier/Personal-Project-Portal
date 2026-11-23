@@ -13,12 +13,19 @@
 // pace, the goals last in the order slow down first, and say when they'll finish now.
 
 import { addDays } from "../dates/week.ts";
-import { allowanceFrom, nextPayday, savedNow, type BudgetData, type Goal } from "./budget.ts";
+import {
+  allowanceFrom,
+  billedCategories,
+  fixedMonthly,
+  nextPayday,
+  savedNow,
+  type BudgetData,
+  type Goal,
+} from "./budget.ts";
 import { payOn } from "./forecast.ts";
 import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
 
 const MONTH_DAYS = CYCLE_DAYS.monthly;
-const FIXED = new Set(["bills", "savings"]);
 /** A goal with no day is paced over a year. */
 const DEFAULT_MONTHS = 12;
 
@@ -93,20 +100,20 @@ export function allocate(data: BudgetData, from: string): Allocation | null {
     .sort((a, b) => a.position - b.position || a.id - b.id);
 
   // 1. Bills on their days in the cycle; fixed categories without a bill found, by the
-  // month; and a debt's payment when it isn't one of the bills already.
+  // month (their budget, or their typical month); and a debt's payment when it isn't one of the bills already.
   // A bill with money put by for it in a goal is the goal's job, not this cycle's.
   const putBy = new Set(
     goals.filter((g) => g.kind === "sinking" && g.held === "account" && g.merchantKey).map((g) => g.merchantKey),
   );
   const active = (data.bills ?? []).filter((b) => b.status === "active");
   const bills = active.filter((b) => !putBy.has(b.merchantKey));
-  const billed = new Set(active.map((b) => b.category).filter((c) => c !== null));
+  const billed = billedCategories(active);
   const billMerchants = new Set(bills.map((b) => b.merchantKey));
   const commitments = Math.round(
     bills.reduce((s, b) => s + occurrencesIn(b, from, to).length * b.expectedPence, 0) +
       data.categories
-        .filter((c) => FIXED.has(c.kind) && c.budgetPence && !billed.has(c.key))
-        .reduce((s, c) => s + c.budgetPence! * months, 0) +
+        .filter((c) => !billed.has(c.key))
+        .reduce((s, c) => s + (fixedMonthly(c)?.pence ?? 0) * months, 0) +
       goals
         .filter((g) => g.kind === "debt" && g.paymentPence && !(g.merchantKey && billMerchants.has(g.merchantKey)))
         .reduce((s, g) => s + Math.min(savedNow(g), g.paymentPence! * months), 0),
@@ -195,13 +202,20 @@ export type Suggested = {
 
 /**
  * Goals to start from, worked out from what Money knows: an emergency fund of three
- * months of bills and groceries, kept in a separate saver; and money put by for each
- * yearly bill before it's due, kept in the account.
+ * months of essential outgoings (MoneyHelper's measure: the bills found, the bills
+ * categories no bill covers at their budget or typical month, groceries and essentials),
+ * kept in a separate saver; and money put by for each yearly bill before it's due, kept
+ * in the account.
  */
 export function suggestGoals(data: BudgetData, today: string): Suggested[] {
   const bills = (data.bills ?? []).filter((b) => b.status === "active");
-  const groceries = data.categories.filter((c) => c.kind === "groceries").reduce((s, c) => s + (c.budgetPence ?? 0), 0);
-  const monthly = bills.reduce((s, b) => s + yearlyPence(b), 0) / 12 + groceries;
+  const billed = billedCategories(bills);
+  const essential = data.categories.reduce((s, c) => {
+    if (c.kind === "groceries" || c.kind === "essentials") return s + (c.budgetPence ?? 0);
+    if (c.kind === "bills" && !billed.has(c.key)) return s + (fixedMonthly(c)?.pence ?? 0);
+    return s;
+  }, 0);
+  const monthly = bills.reduce((s, b) => s + yearlyPence(b), 0) / 12 + essential;
   const out: Suggested[] = [];
   if (monthly > 0)
     out.push({

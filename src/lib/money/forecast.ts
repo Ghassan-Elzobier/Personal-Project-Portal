@@ -12,7 +12,9 @@
 import { addDays, weekdayIndex } from "../dates/week.ts";
 import {
   allowanceFrom,
+  billedCategories,
   budgetView,
+  fixedMonthly,
   mondayOf,
   nextPayday,
   paydayIn,
@@ -67,7 +69,6 @@ export function spotPay(
   return best?.id ?? null;
 }
 
-const FIXED = new Set(["bills", "savings"]);
 export const FORECAST_DAYS = 91;
 
 function daysIn(month: string): number {
@@ -105,9 +106,10 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
   const events: Forecast["events"] = [];
 
   // Bills on their days (a late one today). A fixed category without a bill found keeps
-  // its monthly budget, spread through each month (this month: what's left of it).
+  // its monthly budget (or its typical month), spread through each month (this month:
+  // what's left of it).
   const bills = (data.bills ?? []).filter((b): b is Bill => b.status === "active");
-  const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
+  const billed = billedCategories(bills);
   for (const b of bills)
     for (const due of dueUntil(b, today, end)) {
       const day = due < today ? today : due;
@@ -117,15 +119,11 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
   const thisMonth = today.slice(0, 7);
   const daysLeftInMonth = daysIn(thisMonth) - Number(today.slice(8, 10)) + 1;
   for (const c of data.categories) {
-    if (!FIXED.has(c.kind) || !c.budgetPence || billed.has(c.key)) continue;
+    const monthly = billed.has(c.key) ? null : fixedMonthly(c)?.pence;
+    if (!monthly) continue;
     for (let d = today; d <= end; d = addDays(d, 1)) {
       const month = d.slice(0, 7);
-      take(
-        d,
-        month === thisMonth
-          ? Math.max(0, c.budgetPence - c.paidMonth) / daysLeftInMonth
-          : c.budgetPence / daysIn(month),
-      );
+      take(d, month === thisMonth ? Math.max(0, monthly - c.paidMonth) / daysLeftInMonth : monthly / daysIn(month));
     }
   }
 

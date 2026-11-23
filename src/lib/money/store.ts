@@ -85,6 +85,10 @@ export const moveGoal = (id: number, step: -1 | 1) => owner<void>("money_move_go
 export const claudeSetPlan = (plan: Record<string, unknown>) =>
   claude<Record<string, number>>("money_claude_set_plan", { p: plan });
 /** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
+/** A category's monthly budget (null clears it, 0 counts nothing). */
+export const setCategoryBudget = (key: string, pence: number | null) =>
+  owner<void>("money_set_category_budget", { p_key: key, p_pence: pence });
+
 export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
   owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
 /** Claude at setup: name, sort, ignore or take back bills. */
