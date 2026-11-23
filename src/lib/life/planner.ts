@@ -77,6 +77,11 @@ export type WeekPlan = {
   /** The day the plan was made: days before it are history, not missed meals. */
   createdOn?: string;
   /**
+   * What the last shop move changed (shop-move.ts), so Undo puts the week's shops, the
+   * cooks it moved and its fresh meals back as they were.
+   */
+  lastMove?: { trips: Trip[]; cooks: { id: string; date: string; start: number }[]; fresh: WeekPlan["fresh"] };
+  /**
    * What the week costs as planned, before any of it is bought (pence, and fresh food
    * left to go off), and the cheapest week the planner found then (packs plus waste).
    */
@@ -108,6 +113,8 @@ export type Trip = {
   frozen?: FrozenOnArrival[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
+  /** Put on this day and time by the owner (shop-move.ts), so nothing moves it back. */
+  moved?: boolean;
 } & ShopTicks;
 
 /** A cupboard staple's status before a shop marked it "have", so Undo can put it back. */
@@ -409,13 +416,14 @@ function compare(a: number[], b: number[]): number {
  * A week's shops with the first one on the week's first day (or today, for a week
  * already running), before its first meals, when the routine's first shop day is
  * later: a week from Saturday with shops on Sunday and Wednesday shops on Saturday
- * and Wednesday. Left alone once any shop is done, or when the first shop is in time.
+ * and Wednesday. Left alone once any shop is done, when the first shop is in time, or
+ * when the owner moved it there.
  */
 export function firstShopFirst(start: string, today: string, trips: Trip[]): Trip[] {
   if (!trips.length || trips.some((t) => t.doneOn)) return trips;
   const firstDay = start > today ? start : today;
   const sorted = [...trips].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
-  if (sorted[0].date <= firstDay) return trips;
+  if (sorted[0].date <= firstDay || sorted[0].moved) return trips;
   return trips.map((t) => (t === sorted[0] ? { ...t, date: firstDay } : t));
 }
 

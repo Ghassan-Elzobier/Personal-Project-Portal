@@ -18,6 +18,7 @@ import {
   type WeekPlan,
 } from "./planner";
 import { recipe } from "./recipes";
+import { moveSaid, moveShop as shopMoveIn, undoMove } from "./shop-move";
 import {
   buildList,
   cookUse,
@@ -295,6 +296,46 @@ export function moveCookSession(
       c.start = to.at;
       c.portions = 0;
     }
+  });
+}
+
+/**
+ * Moves one of a fresh week's shops to another day or time in its meal week, and the
+ * week with it: a cook or a meal cooked fresh that needs its food moves to after it,
+ * and a shop it reaches is joined (shop-move.ts). `said` is what changed, in words,
+ * for the toast. Undo puts the week back (`undoShopMove`).
+ */
+export function moveShop(
+  start: string,
+  tripId: string,
+  to: { date: string; at: number },
+): Promise<Result<{ said: string }>> {
+  return run(async () => {
+    const s = await state();
+    const v = viewFor(s, start);
+    if (!v?.plan) fail("Plan the week first.");
+    const at = { date: to.date, start: to.at };
+    const moved = shopMoveIn(v!.plan!, tripId, at, {
+      today: s.today,
+      now: lifeMinutes(s.today),
+      cooked: cookedIds(s, start),
+      // What each shop buys, worked out as its list is: the food that has to wait for it.
+      buys: new Map(tripLists(s, v!).open.map((t) => [t.trip.id, t.uses])),
+      routine: plannerRoutine(s.profile),
+    });
+    if ("error" in moved) fail(moved.error);
+    const done = moved as Exclude<typeof moved, { error: string }>;
+    await savePlan(s, done.plan);
+    return { said: moveSaid(done, at, s.today) };
+  }, true);
+}
+
+/** Puts the week back as it was before its last shop move: the shop, the cooks and meals it moved. */
+export function undoShopMove(start: string): Promise<Result> {
+  return editPlan(start, (plan, s) => {
+    const back = undoMove(plan, cookedIds(s, start));
+    if (!back) fail("That move can't be undone now: a shop has been done since. Move it again instead.");
+    return back!;
   });
 }
 
