@@ -50,8 +50,10 @@ test("a cook whose time went by reads Missed on Today, moves in one tap at once 
   const db = await ownerDatabase();
   const read = await db.call<{ profile: Record<string, unknown> | null }>("life_read", { p_since: "2026-10-19" });
   const before = read.profile ?? {};
+  // The made-up body goes last: an earlier save test clears the settings form, which
+  // stores the body as nulls, and spread last those would leave Life not set up.
   await db.call("life_save_profile", {
-    p_data: { ...before, body: { sex: "male", birthYear: 1990, heightCm: 175, ...(before.body ?? {}) } },
+    p_data: { ...before, body: { ...(before.body ?? {}), sex: "male", birthYear: 1990, heightCm: 175 } },
   });
   try {
     await aMissedCook(page, request);
