@@ -144,6 +144,17 @@ export function setBill(id: number, status: "active" | "ignored"): Promise<Resul
   });
 }
 
+/** Sorts a bill as a subscription or learning, or keeps or cancels it (which only records the decision). */
+export function reviewBill(
+  id: number,
+  change: { category?: "subscriptions" | "learning"; verdict?: "keep" | "cancel" },
+): Promise<Result> {
+  return run(async () => {
+    await store.reviewBill(id, change);
+    return {};
+  });
+}
+
 export function dismissAlert(id: number): Promise<Result> {
   return run(async () => {
     await store.dismissAlert(id);
