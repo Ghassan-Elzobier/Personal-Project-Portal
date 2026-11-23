@@ -5,7 +5,15 @@ import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
 import { allocate, suggestGoals } from "@/lib/money/allocate";
-import { nextPayday, savedNow, type BudgetData, type BudgetView, type Goal } from "@/lib/money/budget";
+import {
+  nextPayday,
+  savedNow,
+  typicalCosts,
+  type BudgetData,
+  type BudgetView,
+  type Goal,
+  type Typical,
+} from "@/lib/money/budget";
 import type { Forecast } from "@/lib/money/forecast";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
@@ -38,6 +46,7 @@ import { PayForm } from "./pay-form";
 import { PaymentList } from "./payments";
 import { PlanForm } from "./plan-form";
 import { PlannedForm } from "./planned-form";
+import { TypicalCost } from "./typical-form";
 
 export const metadata: Metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -94,7 +103,13 @@ export default async function MoneyPage() {
       {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
       {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
-      {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
+      {connected && (
+        <Bills
+          bills={loaded.budget.bills ?? []}
+          typical={typicalCosts(loaded.budget, loaded.today)}
+          today={loaded.today}
+        />
+      )}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
@@ -172,7 +187,13 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
             </div>
             {v.stillToPay.map((c) => (
               <div key={c.key} className="flex justify-between gap-3 text-muted">
-                <dt className="min-w-0 truncate">{c.on ? `${c.name}, ${longDay(c.on)}` : `${c.name}, still to pay`}</dt>
+                <dt className="min-w-0 truncate">
+                  {c.on
+                    ? `${c.name}, ${longDay(c.on)}`
+                    : c.typical
+                      ? `${c.name}, typical month`
+                      : `${c.name}, still to pay`}
+                </dt>
                 <dd>−{pounds(c.pence)}</dd>
               </div>
             ))}
@@ -202,6 +223,8 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
           <p className="mt-2 text-xs text-faint">
             Bills Money found count on their own days up to payday. Any other bill or savings budget counts for each
             month up to payday, less what has gone out this month. Today is {longDay(today)}.
+            {v.stillToPay.some((c) => c.typical) &&
+              " A bill with no budget that Money can't find on a steady day counts at its typical month: see Bills."}
           </p>
         </details>
       )}
@@ -267,8 +290,14 @@ const PER: Record<Bill["cadence"], string> = { weekly: "a week", monthly: "a mon
 const dayMonth = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
-/** The regular payments Money found by itself, next one first. One that isn't a bill can be ignored. */
-function Bills({ bills, today }: { bills: Bill[]; today: string }) {
+const monthName = (month: string) =>
+  new Date(`${month}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+
+/**
+ * The regular payments Money found by itself, next one first. One that isn't a bill can be
+ * ignored. Under them, the fixed costs counted at their typical month, to confirm or change.
+ */
+function Bills({ bills, typical, today }: { bills: Bill[]; typical: Typical[]; today: string }) {
   const active = bills
     .filter((b) => b.status === "active")
     .map((b) => ({ b, due: nextDue(b, today) }))
@@ -340,6 +369,23 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
             ))}
           </ul>
         </details>
+      )}
+      {typical.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">Counted at a typical month</h3>
+          <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+            {typical.map((t) => (
+              <TypicalCost
+                key={`${t.key}-${t.pence}`}
+                categoryKey={t.key}
+                name={t.name}
+                amount={(t.pence / 100).toFixed(2)}
+                shown={pounds(t.pence)}
+                text={`${t.name}: ${pounds(t.pence)} a month, the median of ${t.paidMonths} months paid since ${monthName(t.since)}.`}
+              />
+            ))}
+          </ul>
+        </div>
       )}
       <p className="text-xs text-faint">
         Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
