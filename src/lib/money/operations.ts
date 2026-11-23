@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { moneySyncKey, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
-import { suggestGoals } from "./allocate";
-import { budgetView, mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
+import { debtOrders, suggestDebts, suggestGoals, withDebtOrder } from "./allocate";
+import { budgetView, mondayOf, monthStart, parseBudget, parsePounds, savedNow, type BudgetData } from "./budget";
 import { checkIn as checkInCard, type CheckInOption } from "./checkin";
 import { affordCheck, displacesText, type AffordCheck } from "./displaces";
 import { keyHash } from "./keys";
@@ -424,6 +424,56 @@ export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
         merchant_key: g.merchantKey,
       });
     return { added: suggested.length };
+  });
+}
+
+async function budgetToday(): Promise<{ data: BudgetData; today: string }> {
+  const today = dateIn(now(), timeZone());
+  return { data: parseBudget(await store.readBudget(monthStart(today), mondayOf(today))), today };
+}
+
+/**
+ * Starts watching a debt Money found in the bills: what's owed now and its interest come
+ * from the owner; its name, lender and monthly payment from the bill, read here on the
+ * server. Repayments to the lender then count it down.
+ */
+export function addDebtFromBill(billId: number, owedText: string, aprText: string): Promise<Result> {
+  return run(async () => {
+    const { data, today } = await budgetToday();
+    const found = suggestDebts(data).find((d) => d.billId === billId);
+    const bill = (data.bills ?? []).find((b) => b.id === billId);
+    if (!found || !bill?.merchantKey) throw new store.MoneyStoreError("That repayment is already a debt, or gone.");
+    const owed = poundsToPence(owedText);
+    if (!owed) throw new store.MoneyStoreError("Say what's owed now.");
+    const apr = aprText.trim() ? Number(aprText) : null;
+    if (apr !== null && !(apr >= 0 && apr <= 100))
+      throw new store.MoneyStoreError("Interest is a % a year, like 19.9.");
+    await store.saveGoal({
+      name: found.name.slice(0, 60),
+      kind: "debt",
+      held: "elsewhere",
+      saved_pence: owed,
+      saved_on: today,
+      apr_bp: apr === null ? null : Math.round(apr * 100),
+      payment_pence: found.paymentPence,
+      merchant_key: bill.merchantKey,
+    });
+    return {};
+  });
+}
+
+/** Puts the debts highest interest first or smallest balance first; the other goals keep their places. */
+export function orderDebts(by: "rate" | "balance"): Promise<Result> {
+  return run(async () => {
+    const { data } = await budgetToday();
+    const goals = data.goals ?? [];
+    const debts = goals
+      .filter((g) => g.kind === "debt" && g.status === "active")
+      .map((g) => ({ id: g.id, owed: savedNow(g), payment: g.paymentPence ?? 0, aprBp: g.aprBp }));
+    if (debts.length < 2) throw new store.MoneyStoreError("Add a second debt to choose an order.");
+    const order = debtOrders(debts, 0).find((o) => o.by === by)!.order;
+    await store.orderGoals(withDebtOrder(goals, order));
+    return {};
   });
 }
 
