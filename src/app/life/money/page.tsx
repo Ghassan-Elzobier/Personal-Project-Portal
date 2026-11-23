@@ -14,7 +14,7 @@ import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
 import { ago, alertText, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
-import { Empty, ErrorNote } from "@/components/ui";
+import { Empty, ErrorNote, Fold } from "@/components/ui";
 import { ActionButton } from "../kit";
 import { LifeHeader } from "../parts";
 import {
@@ -163,8 +163,7 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
         </p>
       )}
       {v.safe !== null && v.balance !== null && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted">Where it goes</summary>
+        <Fold title="Where it goes">
           <dl className="mt-2 space-y-1 tabular-nums">
             <div className="flex justify-between gap-3">
               <dt>Balance</dt>
@@ -203,7 +202,7 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
             Bills Money found count on their own days up to payday. Any other bill or savings budget counts for each
             month up to payday, less what has gone out this month. Today is {longDay(today)}.
           </p>
-        </details>
+        </Fold>
       )}
     </section>
   );
@@ -322,8 +321,7 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
         </ul>
       )}
       {ignored.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted">Ignored ({ignored.length})</summary>
+        <Fold title={`Ignored (${ignored.length})`}>
           <ul className="mt-2 divide-y divide-white/5 rounded-xl bg-white/5">
             {ignored.map((b) => (
               <li key={b.id} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
@@ -339,7 +337,7 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
               </li>
             ))}
           </ul>
-        </details>
+        </Fold>
       )}
       <p className="text-xs text-faint">
         Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
@@ -420,8 +418,7 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
       )}
       {unplanned && <p className="text-sm text-muted">Add your pay under Your pay below to see it in the forecast.</p>}
       {f.checkpoints.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted">Monday checkpoints</summary>
+        <Fold title="Monday checkpoints">
           <dl className="mt-2 space-y-1 tabular-nums">
             {f.checkpoints.map((c) => (
               <div key={c.day} className="flex justify-between gap-3">
@@ -433,7 +430,7 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
           <p className="mt-2 text-xs text-faint">
             The balance each week should start with if the plan holds. Above it, you&apos;re ahead.
           </p>
-        </details>
+        </Fold>
       )}
     </section>
   );
@@ -597,12 +594,11 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
           )}
         </div>
       )}
-      <details className="text-sm">
-        <summary className="cursor-pointer text-muted">Add a goal</summary>
+      <Fold title="Add a goal">
         <div className="mt-3">
           <GoalForm key={goals.length} />
         </div>
-      </details>
+      </Fold>
     </section>
   );
 }
