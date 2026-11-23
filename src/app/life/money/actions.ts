@@ -169,6 +169,12 @@ export async function answerBill(id: number, verdict: "keep" | "cancel") {
   return ops.reviewBill(Number(id), { verdict: verdict === "cancel" ? "cancel" : "keep" });
 }
 
+export async function setCategoryBudget(key: string, amount: string) {
+  await requireOwner();
+  if (typeof key !== "string" || typeof amount !== "string") return { error: "Say the amount in pounds." };
+  return ops.setCategoryBudget(key.slice(0, 40), amount.slice(0, 20));
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);

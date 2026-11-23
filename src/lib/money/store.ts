@@ -90,6 +90,10 @@ export const orderGoals = (ids: number[]) => owner<void>("money_order_goals", { 
 export const claudeSetPlan = (plan: Record<string, unknown>) =>
   claude<Record<string, number>>("money_claude_set_plan", { p: plan });
 /** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
+/** A category's monthly budget (null clears it, 0 counts nothing). */
+export const setCategoryBudget = (key: string, pence: number | null) =>
+  owner<void>("money_set_category_budget", { p_key: key, p_pence: pence });
+
 export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
   owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
 /** Sort a bill into a category (by key), or answer "do you still want this?" (dated today). */

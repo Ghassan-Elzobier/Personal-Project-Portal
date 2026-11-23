@@ -156,6 +156,20 @@ export function reviewBill(
   });
 }
 
+/**
+ * A category's monthly budget, in pounds: to confirm the typical month Money counts for a
+ * fixed cost, or change it (0 counts nothing, for a cost that has ended).
+ */
+export function setCategoryBudget(key: string, amount: string): Promise<Result> {
+  return run(async () => {
+    if (!/^[a-z0-9-]{1,40}$/.test(key)) throw new store.MoneyStoreError("Pick a category.");
+    const pence = poundsToPence(amount);
+    if (pence === null) throw new store.MoneyStoreError("Say the amount a month in pounds, or 0 if it has ended.");
+    await store.setCategoryBudget(key, pence);
+    return {};
+  });
+}
+
 export function dismissAlert(id: number): Promise<Result> {
   return run(async () => {
     await store.dismissAlert(id);
