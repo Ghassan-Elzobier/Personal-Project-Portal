@@ -37,6 +37,8 @@ export type DayItem = {
   missed?: boolean;
   /** Where a missed block could go: the next free time, as one tap. */
   move?: Move;
+  /** The block's own day, when it is not today's: a study block carried from earlier in the week. */
+  date?: string;
 };
 
 /** A session the owner logged, placed in the portal's time zone. */
@@ -55,7 +57,19 @@ export type Move = {
 /** What Today knows beyond the blocks: this week's session logs, and the last day whose blocks it holds. */
 export type Kept = { logs: SessionLog[]; lastDay: string };
 
-export type Day = { items: DayItem[]; nextKey: string | null; summary: string | null; planStart: string | null };
+export type Day = {
+  items: DayItem[];
+  nextKey: string | null;
+  summary: string | null;
+  planStart: string | null;
+  /** Study blocks missed on earlier days this week, still owed, each with a new time. */
+  carried: DayItem[];
+  /** Carried blocks beyond the few Today lists: they are on the Schedule. */
+  carriedMore: number;
+};
+
+/** At most this many earlier misses on Today, so it stays a nudge and not a backlog. */
+export const CARRIED_MAX = 3;
 
 const ORDER: DayItem["kind"][] = [
   "shop",
@@ -84,10 +98,12 @@ export function yourDay(
   const routine = s ? routineFor(s, date) : [];
   const v = s ? viewOn(s, date) : null;
   const items: DayItem[] = [];
+  let carried: DayItem[] = [];
+  let carriedMore = 0;
 
   if (blocks) {
     for (const b of blocks.filter((x) => x.date === date)) items.push(fromBlock(b, date, routine, s));
-    if (kept) markMissed(items, blocks, date, now, kept);
+    if (kept) ({ carried, carriedMore } = markMissed(items, blocks, date, now, kept));
   } else {
     for (const r of routine) if (r.kind !== "defrost" && r.kind !== "freeze") items.push(fromRoutine(r));
   }
@@ -141,6 +157,8 @@ export function yourDay(
     nextKey: next?.key ?? null,
     summary: parts.length ? parts.join(" · ") : null,
     planStart: v?.plan?.start ?? null,
+    carried,
+    carriedMore,
   };
 }
 
@@ -170,22 +188,28 @@ export function missedBlocks(blocks: Block[], today: string, now: number, logs: 
  * gap of the block's own length from now, around everything on the Schedule, or
  * tomorrow morning when today is full and tomorrow's blocks are known. Two missed
  * blocks are never offered the same time.
+ *
+ * Then the misses from earlier days this week that are still owed (`carried`), after
+ * today's, from the same free times: one per task, its latest; none for a task with a
+ * block today or still to come, or with a session logged since; the latest few.
  */
-function markMissed(items: DayItem[], blocks: Block[], date: string, now: number, kept: Kept) {
+function markMissed(
+  items: DayItem[],
+  blocks: Block[],
+  date: string,
+  now: number,
+  kept: Kept,
+): { carried: DayItem[]; carriedMore: number } {
   const taken: Taken[] = blocks.map((b) => ({ date: b.date, start: b.start, end: b.end }));
-  const tomorrow = addDays(date, 1);
   const missed = missedBlocks(blocks, date, now, kept.logs);
-  const study = blocks.filter((b) => b.date === date && missed.has(b.id)).sort((a, b) => a.start - b.start);
-  for (const b of study) {
-    const item = items.find((i) => i.key === b.id);
-    if (!item) continue;
-    item.missed = true;
-    if (!b.editable) continue;
+  const offer = (b: Block): Move | undefined => {
+    if (!b.editable) return undefined;
     const duration = b.end - b.start;
+    const tomorrow = addDays(date, 1);
     const free = nextFreeSlot(taken, date, now, duration, tomorrow <= kept.lastDay ? tomorrow : null);
-    if (!free) continue;
+    if (!free) return undefined;
     taken.push({ date: free.date, start: free.start, end: free.start + duration });
-    item.move = {
+    return {
       source: b.source as Move["source"],
       id: b.id.split(":")[0],
       date: free.date,
@@ -193,7 +217,40 @@ function markMissed(items: DayItem[], blocks: Block[], date: string, now: number
       duration,
       label: free.date === date ? `Move to ${clock(free.start)}` : `Tomorrow ${clock(free.start)}`,
     };
+  };
+  const byTime = (a: Block, b: Block) => a.date.localeCompare(b.date) || a.start - b.start;
+
+  for (const b of blocks.filter((x) => x.date === date && missed.has(x.id)).sort(byTime)) {
+    const item = items.find((i) => i.key === b.id);
+    if (!item) continue;
+    item.missed = true;
+    item.move = offer(b);
   }
+
+  const task = (b: Block) => b.taskGid ?? b.id.split(":")[0];
+  const study = blocks.filter((b) => b.source === "asana" || b.source === "session");
+  // A task with a block today or later is already on Today or re-planned.
+  const planned = new Set(study.filter((b) => b.date >= date).map(task));
+  const latest = new Map<string, Block>();
+  for (const b of study.filter((x) => x.date < date && missed.has(x.id)).sort(byTime)) latest.set(task(b), b);
+  const owed = [...latest.values()]
+    .filter((b) => !planned.has(task(b)))
+    // Studied on a later day: caught up.
+    .filter((b) => !kept.logs.some((l) => l.taskGid === task(b) && l.date > b.date))
+    .sort(byTime);
+  const shown = owed.slice(-CARRIED_MAX);
+  const carried = shown.map((b) => {
+    const item = fromBlock(b, b.date, [], null);
+    return {
+      ...item,
+      // Its day stands where the time would: the detail keeps the time it had.
+      detail: [b.project, `${clock(b.start)} to ${clock(Math.min(b.end, 24 * 60 - 1))}`].filter(Boolean).join(" · "),
+      missed: true,
+      move: offer(b),
+      date: b.date,
+    };
+  });
+  return { carried, carriedMore: owed.length - shown.length };
 }
 
 function fromRoutine(r: RoutineItem): DayItem {

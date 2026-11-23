@@ -79,7 +79,8 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
           label: "Undo",
           onClick: () =>
             startMove(async () => {
-              const back = await moveBlock({ ...there, date, start: i.start });
+              // Back on its own day: today's, or the earlier day a carried block was on.
+              const back = await moveBlock({ ...there, date: i.date ?? date, start: i.start });
               if (back.error) toast(back.error, { tone: "error" });
             }),
         },
@@ -105,82 +106,136 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
       ) : (
         <ol className="space-y-1">
           {day.items.map((i) => {
-            const isDone = done[i.key];
-            const next = i.key === day.nextKey && !isDone;
-            const past = !next && i.start >= 0 && Math.max(i.end, i.start + 1) <= now;
-            const tappable = (i.kind === "meal" && i.slot) || (i.kind === "cook" && i.cookIds?.length && !isDone);
-            const body = (
-              <>
-                <span
-                  className={`block truncate text-sm font-medium ${isDone ? "text-faint line-through" : i.skipped ? "text-faint" : ""}`}
-                >
-                  {i.title}
-                </span>
-                {i.detail && <span className="block truncate text-xs text-muted">{i.detail}</span>}
-                {i.note && (
-                  <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-faint"}`}>{i.note}</span>
-                )}
-              </>
-            );
+            const next = i.key === day.nextKey && !done[i.key];
             return (
-              <li
+              <Row
                 key={i.key}
-                className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-1.5 ${next ? "bg-lavender/10 ring-1 ring-lavender/40" : ""}`}
-              >
-                <span className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-faint" : "text-body"}`}>
-                  {i.start >= 0 ? clock(i.start) : ""}
-                </span>
-                <span
-                  className={`size-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
-                  aria-hidden
-                />
-                <div className="min-w-0 flex-1">
-                  {i.external ? (
-                    <a href={i.href} target="_blank" rel="noreferrer" className="block min-w-0">
-                      {body}
-                    </a>
-                  ) : (
-                    <Link href={i.href} className="block min-w-0">
-                      {body}
-                    </Link>
-                  )}
-                  {i.missed && (
-                    // On its own line under the name, so the offer never squeezes the name out on a phone.
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                      <span className="text-sand">Missed</span>
-                      {i.move && (
-                        <button
-                          type="button"
-                          onClick={() => move(i)}
-                          disabled={moving}
-                          aria-busy={moving}
-                          className="cursor-pointer rounded-full bg-sand/15 px-3 py-1.5 font-semibold text-sand ring-1 ring-sand/30 disabled:opacity-60"
-                        >
-                          {i.move.label}
-                        </button>
-                      )}
-                      {i.taskGid && (
-                        <Link href={`/log?task=${i.taskGid}`} className="text-muted underline underline-offset-2">
-                          Log it if you did study
-                        </Link>
-                      )}
-                    </p>
-                  )}
-                </div>
-                <Action
-                  item={i}
-                  isDone={isDone}
-                  next={next}
-                  past={past}
-                  tappable={Boolean(tappable)}
-                  onTick={() => tick(i)}
-                />
-              </li>
+                item={i}
+                isDone={done[i.key]}
+                next={next}
+                past={!next && i.start >= 0 && Math.max(i.end, i.start + 1) <= now}
+                moving={moving}
+                onMove={() => move(i)}
+                onTick={() => tick(i)}
+              />
             );
           })}
         </ol>
       )}
+      {day.carried.length > 0 && (
+        // Study missed on an earlier day this week and still owed: a new time today, in one tap.
+        <section aria-labelledby="carried-title" className="space-y-1 border-t border-white/5 pt-3">
+          <h3 id="carried-title" className="px-2 text-xs font-semibold text-muted">
+            Missed earlier this week
+          </h3>
+          <ul className="space-y-1">
+            {day.carried.map((i) => (
+              <Row
+                key={i.key}
+                item={i}
+                isDone={i.done}
+                next={false}
+                past
+                day={i.date ? weekday(i.date) : undefined}
+                moving={moving}
+                onMove={() => move(i)}
+                onTick={() => {}}
+              />
+            ))}
+          </ul>
+          {day.carriedMore > 0 && (
+            <Link href="/schedule" className="block px-2 text-xs text-muted underline underline-offset-2">
+              {day.carriedMore} more on the Schedule
+            </Link>
+          )}
+        </section>
+      )}
     </section>
+  );
+}
+
+const weekday = (date: string) =>
+  new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+
+/** One item of the day: its time (or its day, carried from earlier), what it is, and its one tap. */
+function Row({
+  item: i,
+  isDone,
+  next,
+  past,
+  day,
+  moving,
+  onMove,
+  onTick,
+}: {
+  item: DayItem;
+  isDone: boolean;
+  next: boolean;
+  past: boolean;
+  /** Shown in place of the time, for a block from an earlier day. */
+  day?: string;
+  moving: boolean;
+  onMove: () => void;
+  onTick: () => void;
+}) {
+  const tappable = (i.kind === "meal" && i.slot) || (i.kind === "cook" && i.cookIds?.length && !isDone);
+  const body = (
+    <>
+      <span
+        className={`block truncate text-sm font-medium ${isDone ? "text-faint line-through" : i.skipped ? "text-faint" : ""}`}
+      >
+        {i.title}
+      </span>
+      {i.detail && <span className="block truncate text-xs text-muted">{i.detail}</span>}
+      {i.note && <span className={`block truncate text-xs ${i.clash ? "text-coral" : "text-faint"}`}>{i.note}</span>}
+    </>
+  );
+  return (
+    <li
+      className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-1.5 ${next ? "bg-lavender/10 ring-1 ring-lavender/40" : ""}`}
+    >
+      <span className={`w-11 shrink-0 text-xs tabular-nums ${past ? "text-faint" : "text-body"}`}>
+        {day ?? (i.start >= 0 ? clock(i.start) : "")}
+      </span>
+      <span
+        className={`size-2 shrink-0 rounded-full ${DOT[i.kind]} ${isDone || i.skipped ? "opacity-30" : ""}`}
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1">
+        {i.external ? (
+          <a href={i.href} target="_blank" rel="noreferrer" className="block min-w-0">
+            {body}
+          </a>
+        ) : (
+          <Link href={i.href} className="block min-w-0">
+            {body}
+          </Link>
+        )}
+        {i.missed && (
+          // On its own line under the name, so the offer never squeezes the name out on a phone.
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span className="text-sand">Missed</span>
+            {i.move && (
+              <button
+                type="button"
+                onClick={onMove}
+                disabled={moving}
+                aria-busy={moving}
+                className="cursor-pointer rounded-full bg-sand/15 px-3 py-1.5 font-semibold text-sand ring-1 ring-sand/30 disabled:opacity-60"
+              >
+                {i.move.label}
+              </button>
+            )}
+            {i.taskGid && (
+              <Link href={`/log?task=${i.taskGid}`} className="text-muted underline underline-offset-2">
+                Log it if you did study
+              </Link>
+            )}
+          </p>
+        )}
+      </div>
+      <Action item={i} isDone={isDone} next={next} past={past} tappable={Boolean(tappable)} onTick={onTick} />
+    </li>
   );
 }
 
