@@ -20,6 +20,7 @@ import {
   type IncomeStep,
   type Planned,
 } from "./budget.ts";
+import { median } from "./median.ts";
 import { dueUntil, type Bill, type Cadence } from "./recurring.ts";
 
 export type Day = { day: string; pence: number };
@@ -218,8 +219,23 @@ function outlook(f: Forecast): Outlook {
 export function whatIf(data: ForecastData, today: string, change: Change): WhatIf | null {
   const base = forecast(data, today);
   if (!base) return null;
+  const after = forecast(withChange(data, today, change), today)!;
+  const a = outlook(after);
+  const b = outlook(base);
+  const endChange = a.end.pence - b.end.pence;
+  return {
+    before: b,
+    after: a,
+    lowestChange: a.lowest.pence - b.lowest.pence,
+    endChange,
+    perMonth: Math.round((endChange * 30.4) / FORECAST_DAYS),
+  };
+}
+
+/** The budget as it would be with the changes. */
+function withChange(data: ForecastData, today: string, change: Change): ForecastData {
   const next = nextPayday(today, data.paydayRule, data.firstPayday);
-  const changed: ForecastData = {
+  return {
     ...data,
     income:
       change.payPence === undefined
@@ -257,15 +273,95 @@ export function whatIf(data: ForecastData, today: string, change: Change): WhatI
       ...(change.oneOffs ?? []).map((o) => ({ name: o.name, pence: o.pence, dueOn: o.on, funding: "safe", weeks: 1 })),
     ],
   };
-  const after = forecast(changed, today)!;
-  const a = outlook(after);
-  const b = outlook(base);
-  const endChange = a.end.pence - b.end.pence;
+}
+
+// The forecast at your recent pace. A plan figure alone tends to be optimistic: people
+// underestimate next week's spending, and the keenest savers most (Peetz & Buehler
+// 2009), so the page sets the plan beside what you have really been spending. The pace
+// is the median of your past weeks, a sturdy simple baseline (Hyndman & Athanasopoulos,
+// FPP3 §5.2) that one unusual week can't drag.
+
+const FLEXIBLE = new Set(["groceries", "essentials", "discretionary"]);
+/** Fewer weeks of spending than this, and there is no pace to speak of. */
+export const PACE_MIN_WEEKS = 4;
+/** A pace within this of the plan matches it. */
+export const PACE_MATCH_PENCE = 500;
+
+/**
+ * What you have spent a week lately: the median of the 8 weeks before this one, each
+ * the flexible categories plus unsorted spending, from the first week with any. Null
+ * with fewer than 4 such weeks.
+ */
+export function recentPace(data: ForecastData): number | null {
+  const totals = Array.from({ length: 8 }, (_, k) =>
+    data.categories
+      .filter((c) => FLEXIBLE.has(c.kind))
+      .reduce((s, c) => s + (c.weeks?.[k] ?? 0), data.unsortedWeeks?.[k] ?? 0),
+  );
+  const first = totals.findIndex((t) => t > 0);
+  if (first < 0 || totals.length - first < PACE_MIN_WEEKS) return null;
+  return median(totals.slice(first));
+}
+
+export type PaceOutlook = {
+  /** The recent pace, a week. */
+  pace: number;
+  /** The weekly amount the plan runs on. */
+  plan: number;
+  /** The balance day by day at that pace. */
+  points: Day[];
+  /** The balance at the end of the next payday, if it falls in the window. */
+  payday: Day | null;
+  lowest: Day;
+  /** Whether it goes under the buffer (under £0 before the buffer starts) before the next payday. */
+  shortBeforePayday: boolean;
+};
+
+const bufferOn = (data: ForecastData, day: string) =>
+  !data.bufferFrom || data.bufferFrom <= day ? data.bufferPence : 0;
+
+/** Whether a forecast stays at or above the buffer every day before the next payday. */
+function holdsToPayday(data: ForecastData, f: Forecast, payday: string): boolean {
+  return f.points.every((p) => p.day >= payday || p.pence >= bufferOn(data, p.day));
+}
+
+/** The forecast with the weekly amount spent at the recent pace. Null without a pace, a plan or a balance. */
+export function paceOutlook(data: ForecastData, today: string): PaceOutlook | null {
+  const pace = recentPace(data);
+  const plan = allowanceFrom(data);
+  if (pace === null || plan === null || data.balancePence === null) return null;
+  const f = forecast(withChange(data, today, { weeklyChangePence: pace - plan }), today)!;
+  const next = nextPayday(today, data.paydayRule, data.firstPayday);
   return {
-    before: b,
-    after: a,
-    lowestChange: a.lowest.pence - b.lowest.pence,
-    endChange,
-    perMonth: Math.round((endChange * 30.4) / FORECAST_DAYS),
+    pace,
+    plan,
+    points: f.points,
+    payday: f.points.find((p) => p.day === next) ?? null,
+    lowest: f.lowest,
+    shortBeforePayday: !holdsToPayday(data, f, next),
   };
+}
+
+/**
+ * The most a week, in whole pounds, whose forecast stays at or above the buffer (£0
+ * before it starts) every day before the next payday. Only when it is less than the
+ * weekly amount now: null when the plan already holds, or when not even £0 a week would.
+ */
+export function keepsAbove(data: ForecastData, today: string): number | null {
+  const plan = allowanceFrom(data);
+  if (plan === null || data.balancePence === null) return null;
+  const next = nextPayday(today, data.paydayRule, data.firstPayday);
+  // Saving a weekly amount works this week's out afresh, so the trial does too.
+  const holds = (pence: number) =>
+    holdsToPayday(data, forecast({ ...data, allowancePence: pence, weekAmount: null }, today)!, next);
+  if (holds(plan) || !holds(0)) return null;
+  // Spending less never lowers the balance, so the pounds that hold run from 0 up to some amount.
+  let lo = 0;
+  let hi = Math.ceil(plan / 100);
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (holds(mid * 100)) lo = mid;
+    else hi = mid;
+  }
+  return lo * 100 < plan ? lo * 100 : null;
 }
