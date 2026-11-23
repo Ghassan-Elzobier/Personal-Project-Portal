@@ -81,6 +81,8 @@ export const removeIncome = (id: number) => owner<void>("money_remove_income", {
 export const saveGoal = (goal: Record<string, unknown>) => owner<number>("money_save_goal", { p: goal });
 export const removeGoal = (id: number) => owner<void>("money_remove_goal", { p_id: id });
 export const moveGoal = (id: number, step: -1 | 1) => owner<void>("money_move_goal", { p_id: id, p_step: step });
+/** Every goal not done, first first, in one go. */
+export const orderGoals = (ids: number[]) => owner<void>("money_order_goals", { p_ids: ids });
 /** Claude at the plan level sets the high-level plan (the pay steps, for now). */
 export const claudeSetPlan = (plan: Record<string, unknown>) =>
   claude<Record<string, number>>("money_claude_set_plan", { p: plan });

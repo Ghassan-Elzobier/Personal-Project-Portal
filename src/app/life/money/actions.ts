@@ -129,6 +129,17 @@ export async function addSuggestedGoals() {
   return ops.addSuggestedGoals();
 }
 
+export async function addDebtFromBill(billId: number, owed: string, apr: string) {
+  await requireOwner();
+  if (!Number.isInteger(billId)) return { error: "Pick a repayment." };
+  return ops.addDebtFromBill(billId, String(owed ?? "").slice(0, 20), String(apr ?? "").slice(0, 10));
+}
+
+export async function orderDebts(by: string) {
+  await requireOwner();
+  return ops.orderDebts(by === "balance" ? "balance" : "rate");
+}
+
 export async function setBill(id: number, status: "active" | "ignored") {
   await requireOwner();
   return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");
