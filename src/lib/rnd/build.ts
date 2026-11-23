@@ -38,6 +38,14 @@ export function issueNumber(url: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * How often a run's pick asks for its proposals before it decides there are none,
+ * and how long it waits between: a just-filed issue can be missing from the list
+ * for a few seconds. Well inside the pick job's 5 minutes.
+ */
+export const PICK_TRIES = 5;
+export const PICK_PAUSE_MS = 15_000;
+
 export type OpenProposal = { number: number; body: string };
 
 /**

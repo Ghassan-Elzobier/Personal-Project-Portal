@@ -75,7 +75,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: rnd
+  # Scheduled runs and sweeps take turns. Each request the owner starts by hand runs at
+  # once, in a group of its own: a group keeps one run waiting and cancels any other,
+  # so a wave of requests sharing one would be cut down to the last.
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.request && !inputs.all && format('rnd-request-{0}', github.run_id) || 'rnd' }}
   cancel-in-progress: false
 
 jobs:

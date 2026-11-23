@@ -38,7 +38,15 @@ import {
   writeFileSync,
 } from "node:fs";
 import { historySection, pagesSection, requestSection } from "../src/lib/rnd/brief.ts";
-import { alreadyBuilt, buildsPerRun, issueNumber, pickBuilds, toBuild } from "../src/lib/rnd/build.ts";
+import {
+  alreadyBuilt,
+  buildsPerRun,
+  issueNumber,
+  PICK_PAUSE_MS,
+  PICK_TRIES,
+  pickBuilds,
+  toBuild,
+} from "../src/lib/rnd/build.ts";
 import { FOCI } from "../src/lib/rnd/foci.ts";
 import { LABEL, focusOf, fromRun, issueBody, issueTitle, updateComment } from "../src/lib/rnd/issue.ts";
 import { RESULT_SCHEMA } from "../src/lib/rnd/result.ts";
@@ -403,9 +411,13 @@ async function file() {
  * What R&D build builds (.github/workflows/rnd-build.yml): after a run, the proposals
  * it marked that are still open with no pull request on them; by hand, the one open
  * proposal the owner names. Writes issues=[…] to $GITHUB_OUTPUT.
+ *
+ * A proposal filed seconds before can be missing from GitHub's issue list for a
+ * little while: #139 was, 9 seconds after it was filed, and went unbuilt. So when
+ * a run's pick finds nothing, it asks again, PICK_TRIES times in all.
  */
-function pick() {
-  const open = openProposals();
+async function pick() {
+  let open = openProposals();
   const prs = ghJson(["api", `repos/${repo()}/pulls?state=open&per_page=100`]) ?? [];
   const built = alreadyBuilt(prs.map((p) => ({ body: p.body, branch: p.head?.ref ?? "" })));
   let issues;
@@ -417,7 +429,12 @@ function pick() {
     issues = [n];
   } else {
     if (!env.RUN_URL) fail("RUN_URL (the R&D run's address) or ISSUE is required.");
-    issues = pickBuilds(open, env.RUN_URL, built);
+    for (let tries = 1; ; tries++) {
+      issues = pickBuilds(open, env.RUN_URL, built);
+      if (issues.length || tries >= PICK_TRIES) break;
+      await pause(PICK_PAUSE_MS);
+      open = openProposals();
+    }
   }
   output("issues", JSON.stringify(issues));
   say(issues.length ? `Building ${issues.map((n) => `#${n}`).join(", ")}.` : "Nothing to build from this run.");
