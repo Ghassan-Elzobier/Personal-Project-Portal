@@ -246,6 +246,8 @@ export type Change = {
   bills?: { name: string; pence: number; cadence: Cadence; on: string }[];
   /** A one-off cost on a day. */
   oneOffs?: { name: string; pence: number; on: string }[];
+  /** Bills that stop: none of the bill to this merchant falls due from `from` on. */
+  ends?: { merchantKey: string; from: string }[];
 };
 
 export type Outlook = { lowest: Day; end: Day; daysUnderBuffer: number };
@@ -298,7 +300,10 @@ function withChange(data: ForecastData, today: string, change: Change): Forecast
         ? data.allowancePence
         : Math.max(0, (allowanceFrom(data) ?? 0) + change.weeklyChangePence),
     bills: [
-      ...(data.bills ?? []),
+      ...(data.bills ?? []).map((b) => {
+        const end = change.ends?.find((e) => e.merchantKey === b.merchantKey);
+        return end && !(b.endsOn && b.endsOn <= end.from) ? { ...b, endsOn: end.from } : b;
+      }),
       ...(change.bills ?? []).map((b, i): Bill => ({
         id: -1 - i,
         ident: `what-if-${i}`,

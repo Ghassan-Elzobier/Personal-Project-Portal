@@ -17,7 +17,7 @@
 // overspending last week comes off this week, so the month still balances.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import { dueUntil, median, parseBill, type Bill } from "./recurring.ts";
+import { dueUntil, median, parseBill, type Bill, type Cadence } from "./recurring.ts";
 
 /** Bank holidays in England and Wales (GOV.UK), for moving a payday off them. */
 export const BANK_HOLIDAYS = new Set([
@@ -216,7 +216,8 @@ export type IncomeStep = { id?: number; fromOn: string; pence: number; grossYear
 export type Goal = {
   id: number;
   name: string;
-  kind: "saving" | "sinking" | "debt";
+  /** A regular cost (recurring) isn't in the payday share-out: it becomes a bill (ongoing.ts). */
+  kind: "saving" | "sinking" | "debt" | "recurring";
   /** What to reach; a debt's is what's owed (savedPence on savedOn). */
   targetPence: number | null;
   dueOn: string | null;
@@ -239,7 +240,33 @@ export type Goal = {
   movedPence: number;
   /** Money out in its category since savedOn. */
   spentPence: number;
+  /** A regular cost's own fields (kind recurring). */
+  regular?: Regular;
 };
+
+/** A regular cost to take on: what it costs, how often, and what it replaces. */
+export type Regular = {
+  costPence: number;
+  cadence: Cadence;
+  setupPence: number | null;
+  /** The merchant of the bill it replaces (null when the reader isn't the owner). */
+  replacesMerchantKey: string | null;
+  /** Keep paying the replaced bill once more after the start, for its notice. */
+  replaceOverlap: boolean;
+  /** The day the owner set it to start; null to start when it fits. */
+  startOn: string | null;
+  /** A weekly cost's session day, Monday 0 to Sunday 6. */
+  weekday: number | null;
+  /** The price is a guess. */
+  estimated: boolean;
+  /** The real bill the engine adopted for it, once it has been paid a few times. */
+  billId: number | null;
+  /** Payments since a week before the start that look like it (merchant: a key, or a number for Claude). */
+  payments: { on: string; pence: number; merchant: string | null }[];
+};
+
+/** Whether a goal takes part in the payday share-out (a regular cost doesn't: it is a bill). */
+export const sharedOut = (g: Goal) => g.kind !== "recurring";
 
 /**
  * What a goal holds now. Elsewhere: what was saved plus what's been moved there. In the
@@ -255,7 +282,7 @@ export function savedNow(g: Goal): number {
 /** Money set aside in the current account for goals: it's in the balance, but spoken for. */
 export function heldInAccount(goals: Goal[] = []): number {
   return goals
-    .filter((g) => g.status === "active" && g.kind !== "debt" && g.held === "account")
+    .filter((g) => g.status === "active" && g.kind !== "debt" && g.kind !== "recurring" && g.held === "account")
     .reduce((s, g) => s + savedNow(g), 0);
 }
 
@@ -728,7 +755,27 @@ function parseLastWeek(v: unknown): LastWeek | null {
   };
 }
 
-const GOAL_KINDS = ["saving", "sinking", "debt"] as const;
+const GOAL_KINDS = ["saving", "sinking", "debt", "recurring"] as const;
+const CADENCES = ["weekly", "monthly", "yearly"] as const;
+
+function parseRegular(g: Row): Regular {
+  return {
+    costPence: num(g.cost_pence) ?? 0,
+    cadence: CADENCES.find((c) => c === g.cadence) ?? "monthly",
+    setupPence: num(g.setup_pence),
+    replacesMerchantKey: str(g.replaces_merchant_key),
+    replaceOverlap: g.replace_overlap === true,
+    startOn: str(g.start_on),
+    weekday: num(g.weekday),
+    estimated: g.estimated === true,
+    billId: num(g.bill_id),
+    payments: (Array.isArray(g.payments) ? (g.payments as Row[]) : []).map((p) => ({
+      on: str(p.on) ?? "",
+      pence: num(p.pence) ?? 0,
+      merchant: str(p.merchant),
+    })),
+  };
+}
 
 /** A goal as the database returns it, with what's moved to it and spent from it since. */
 export function parseGoal(g: Row): Goal {
@@ -753,6 +800,7 @@ export function parseGoal(g: Row): Goal {
     addedBy: by === "claude" || by === "engine" ? by : "owner",
     movedPence: num(g.moved_pence) ?? 0,
     spentPence: num(g.spent_pence) ?? 0,
+    ...(g.kind === "recurring" && { regular: parseRegular(g) }),
   };
 }
 

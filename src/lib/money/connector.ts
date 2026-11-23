@@ -4,7 +4,8 @@ import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { allocate } from "./allocate";
-import { budgetView, mondayOf, monthStart, parseBudget, savedNow } from "./budget";
+import { budgetView, mondayOf, monthStart, savedNow } from "./budget";
+import { budgetData, foundBills, goalBillId } from "./ongoing";
 import { affordCheck } from "./displaces";
 import { prompts } from "./prompts";
 import { weekSummary } from "./summary";
@@ -36,7 +37,7 @@ const KIND = {
 /** The budget as the Money page works it out, for Claude: amounts in pence. */
 async function summary() {
   const today = dateIn(now(), timeZone());
-  const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+  const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
   const view = budgetView(data, today);
   const plan = allocate(data, view.payday);
   return {
@@ -50,6 +51,20 @@ async function summary() {
     goals: (data.goals ?? [])
       .filter((g) => g.status === "active")
       .map((g) => {
+        if (g.regular)
+          return {
+            id: g.id,
+            name: g.name,
+            kind: g.kind,
+            cost_pence: g.regular.costPence,
+            cadence: g.regular.cadence,
+            setup_pence: g.regular.setupPence,
+            estimated: g.regular.estimated,
+            start_on: g.regular.startOn,
+            // The day its cost counts from (the owner's start, or the first payday it
+            // fits); null when it doesn't fit within a year, or its real bill is found.
+            counts_from: (data.bills ?? []).find((b) => b.id === goalBillId(g))?.anchorOn ?? null,
+          };
         const s = plan?.shares.find((x) => x.id === g.id);
         return {
           id: g.id,
@@ -87,7 +102,7 @@ async function summary() {
       left_pence: view.week.left,
     },
     still_to_pay_before_payday: view.stillToPay.map((c) => ({ item: c.key, name: c.name, pence: c.pence, next: c.on })),
-    bills: (data.bills ?? [])
+    bills: foundBills(data.bills)
       .filter((b) => b.status === "active")
       .map((b) => ({
         id: b.id,
@@ -110,7 +125,7 @@ async function summary() {
 /** The budget read with today's date, for the forecast tools. */
 async function budgetNow() {
   const today = dateIn(now(), timeZone());
-  return { today, data: parseBudget(await store.readBudget(monthStart(today), mondayOf(today))) };
+  return { today, data: budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today) };
 }
 
 const DATE = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
@@ -195,7 +210,7 @@ const FORECAST_TOOLS: Tool[] = [
     name: "money_what_if",
     title: "Money: what if…?",
     description:
-      "How a change would move the owner's forecast, before they make it: a different pay (take-home, or a salary a year worked out after tax — a job offer), spending more or less each week (a cheaper commute: a negative weekly_change_pence), a new regular cost (bills: name, pence, cadence, first day), or one-offs on a day. Returns the lowest point and the balance in 13 weeks, before and after, how much each moves, the change as a month's worth, and the take-home worked out. Writes nothing. Needs summary access.",
+      "How a change would move the owner's forecast, before they make it: a different pay (take-home, or a salary a year worked out after tax — a job offer), spending more or less each week (a cheaper commute: a negative weekly_change_pence), a new regular cost (bills: name, pence, cadence, first day), a bill that stops (ends: a bill's id from get_money_summary and the first day it no longer falls due, as when an upgrade replaces a membership), or one-offs on a day. Returns the lowest point and the balance in 13 weeks, before and after, how much each moves, the change as a month's worth, and the take-home worked out. Writes nothing. Needs summary access.",
     inputSchema: {
       type: "object",
       properties: {
@@ -230,6 +245,16 @@ const FORECAST_TOOLS: Tool[] = [
             additionalProperties: false,
           },
         },
+        ends: {
+          type: "array",
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: { bill_id: { type: "integer" }, from: DATE },
+            required: ["bill_id", "from"],
+            additionalProperties: false,
+          },
+        },
       },
       additionalProperties: false,
     },
@@ -238,6 +263,12 @@ const FORECAST_TOOLS: Tool[] = [
       attempt(async () => {
         const { today, data } = await budgetNow();
         const pay = payFrom(args);
+        const ends = Array.isArray(args.ends)
+          ? (args.ends as Json[]).flatMap((e) => {
+              const bill = (data.bills ?? []).find((b) => b.id === Number(e.bill_id));
+              return bill ? [{ merchantKey: bill.merchantKey, from: String(e.from) }] : [];
+            })
+          : undefined;
         const result = whatIf(data, today, {
           payPence: pay?.pence,
           weeklyChangePence: typeof args.weekly_change_pence === "number" ? args.weekly_change_pence : undefined,
@@ -252,6 +283,7 @@ const FORECAST_TOOLS: Tool[] = [
           oneOffs: Array.isArray(args.one_offs)
             ? (args.one_offs as Json[]).map((o) => ({ name: String(o.name), pence: Number(o.pence), on: String(o.on) }))
             : undefined,
+          ends,
         });
         if (!result) return err("Money has no balance yet: the owner connects the bank on the Money page first.");
         return ok({ ...result, take_home_month_pence: pay?.pence ?? null, page: `${base}/life/money` });
@@ -346,7 +378,7 @@ export const MONEY_TOOLS: Tool[] = [
     run: (args, { base }) =>
       attempt(async () => {
         const today = dateIn(now(), timeZone());
-        const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+        const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
         const saves = typeof args.saves_per_week_pence === "number" ? args.saves_per_week_pence : 0;
         const pence = Number(args.pence);
         return ok({ ...affordCheck(data, today, pence, saves), page: `${base}/life/money` });

@@ -10,7 +10,7 @@
 // the owner taps once. The sums are the weekly summary's (summary.ts).
 
 import { weekdayIndex } from "../dates/week.ts";
-import { mondayOf, savedNow, type BudgetData, type BudgetView, type CheckInRecord } from "./budget.ts";
+import { mondayOf, savedNow, sharedOut, type BudgetData, type BudgetView, type CheckInRecord } from "./budget.ts";
 import { pounds } from "./state.ts";
 import { weekSummary } from "./summary.ts";
 
@@ -39,7 +39,7 @@ export type CheckIn = {
 /** The first goal kept in the account, in the plan's order, that holds at least `pence`. */
 function coverFrom(data: BudgetData, pence: number) {
   return (data.goals ?? [])
-    .filter((g) => g.status === "active" && g.kind !== "debt" && g.held === "account")
+    .filter((g) => g.status === "active" && g.kind !== "debt" && sharedOut(g) && g.held === "account")
     .sort((a, b) => a.position - b.position || a.id - b.id)
     .find((g) => savedNow(g) >= pence);
 }

@@ -6,6 +6,7 @@ import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { debtOrders, suggestDebts, suggestGoals, withDebtOrder } from "./allocate";
 import { budgetView, mondayOf, monthStart, parseBudget, parsePounds, savedNow, type BudgetData } from "./budget";
+import { budgetData } from "./ongoing";
 import { checkIn as checkInCard, type CheckInOption } from "./checkin";
 import { affordCheck, displacesText, type AffordCheck } from "./displaces";
 import { keyHash } from "./keys";
@@ -290,7 +291,7 @@ export async function checkAfford(amount: string): Promise<Result<{ check: Affor
     const pence = poundsToPence(amount);
     if (!pence) throw new store.MoneyStoreError("Say what it costs, in pounds.");
     const today = dateIn(now(), timeZone());
-    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
     const check = affordCheck(data, today, pence);
     // Worded here, so the page's script need not carry the budget's working.
     return { check, displaces: displacesText(check) };
@@ -350,7 +351,7 @@ export function removeIncome(id: number): Promise<Result> {
 
 export type GoalInput = {
   name: string;
-  kind: "saving" | "sinking" | "debt";
+  kind: "saving" | "sinking" | "debt" | "recurring";
   /** Pounds: the target, the cost, or what's owed. */
   amount: string;
   dueOn: string;
@@ -361,6 +362,13 @@ export type GoalInput = {
   /** A debt's interest, % a year, and its monthly payment in pounds. */
   apr: string;
   payment: string;
+  /** A regular cost: how often (weekly, monthly, yearly), a weekly cost's day (0 Monday to 6), a setup cost in pounds, the merchant of the bill it replaces, one more payment of that for notice, and whether the price is a guess. dueOn is its start. */
+  cadence?: string;
+  weekday?: string;
+  setup?: string;
+  replaces?: string;
+  overlap?: boolean;
+  estimated?: boolean;
 };
 
 /** A goal: what the money is for. It goes last in the order; move it up after. */
@@ -368,7 +376,9 @@ export function saveGoal(input: GoalInput): Promise<Result> {
   return run(async () => {
     const name = input.name.trim().slice(0, 60);
     if (!name) throw new store.MoneyStoreError("Say what it's for.");
-    if (!["saving", "sinking", "debt"].includes(input.kind)) throw new store.MoneyStoreError("Pick what kind of goal.");
+    if (!["saving", "sinking", "debt", "recurring"].includes(input.kind))
+      throw new store.MoneyStoreError("Pick what kind of goal.");
+    if (input.kind === "recurring") return saveRegular(name, input);
     const amount = poundsToPence(input.amount);
     if (!amount) throw new store.MoneyStoreError(input.kind === "debt" ? "Say what's owed." : "Say how much it needs.");
     if (input.dueOn && !DAY.test(input.dueOn)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
@@ -389,6 +399,33 @@ export function saveGoal(input: GoalInput): Promise<Result> {
     });
     return {};
   });
+}
+
+/** A regular cost to take on: what it costs, how often, from when, and what it replaces. */
+async function saveRegular(name: string, input: GoalInput): Promise<Result> {
+  const cost = poundsToPence(input.amount);
+  if (!cost) throw new store.MoneyStoreError("Say what it costs each time.");
+  const cadence = ["weekly", "monthly", "yearly"].find((c) => c === input.cadence);
+  if (!cadence) throw new store.MoneyStoreError("Say how often it comes.");
+  if (input.dueOn && !DAY.test(input.dueOn)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
+  const weekday = cadence === "weekly" && /^[0-6]$/.test(input.weekday ?? "") ? Number(input.weekday) : null;
+  const setup = input.setup?.trim() ? poundsToPence(input.setup) : null;
+  const replaces = input.replaces?.trim() || null;
+  if (replaces && !/^[a-z0-9-]{1,60}$/.test(replaces)) throw new store.MoneyStoreError("Pick the bill it replaces.");
+  await store.saveGoal({
+    name,
+    kind: "recurring",
+    held: "account",
+    cost_pence: cost,
+    cadence,
+    weekday,
+    setup_pence: setup || null,
+    replaces_merchant_key: replaces,
+    replace_overlap: !!replaces && input.overlap === true,
+    start_on: input.dueOn || null,
+    estimated: input.estimated === true,
+  });
+  return {};
 }
 
 export function removeGoal(id: number): Promise<Result> {
@@ -412,7 +449,7 @@ export function moveGoal(id: number, step: -1 | 1): Promise<Result> {
 export function checkIn(choice: CheckInOption["choice"], goal: number | null): Promise<Result> {
   return run(async () => {
     const today = dateIn(now(), timeZone());
-    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
     const card = checkInCard(data, budgetView(data, today), today);
     const option = card?.options.find((o) => o.choice === choice && (o.goal ?? null) === goal);
     if (!card || !option) throw new store.MoneyStoreError("Last week is checked in already.");
@@ -425,7 +462,7 @@ export function checkIn(choice: CheckInOption["choice"], goal: number | null): P
 export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
   return run(async () => {
     const today = dateIn(now(), timeZone());
-    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
     const suggested = suggestGoals(data, today);
     for (const g of suggested)
       await store.saveGoal({
@@ -443,7 +480,7 @@ export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
 
 async function budgetToday(): Promise<{ data: BudgetData; today: string }> {
   const today = dateIn(now(), timeZone());
-  return { data: parseBudget(await store.readBudget(monthStart(today), mondayOf(today))), today };
+  return { data: budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today), today };
 }
 
 /**

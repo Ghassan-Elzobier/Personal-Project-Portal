@@ -39,6 +39,7 @@ import { RAISE_SHARES } from "@/lib/money/operations";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
+import { foundBills, type OngoingPlan } from "@/lib/money/ongoing";
 import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
@@ -130,18 +131,18 @@ export default async function MoneyPage() {
         <Summary s={weekSummary(loaded.budget, loaded.view, loaded.forecast, loaded.today)} today={loaded.today} />
       )}
       {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} today={loaded.today} />}
-      {connected && <Goals budget={loaded.budget} today={loaded.today} />}
+      {connected && <Goals budget={loaded.budget} ongoing={loaded.ongoing} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
       {connected && (
         <Subscriptions
-          bills={loaded.budget.bills ?? []}
+          bills={foundBills(loaded.budget.bills)}
           today={loaded.today}
           lastPay={loaded.budget.lastPay?.pence ?? null}
         />
       )}
       {connected && (
         <Bills
-          bills={loaded.budget.bills ?? []}
+          bills={foundBills(loaded.budget.bills)}
           typical={typicalCosts(loaded.budget, loaded.today)}
           today={loaded.today}
         />
@@ -696,15 +697,65 @@ function Bar({ share, over = false }: { share: number; over?: boolean }) {
   );
 }
 
-const KIND_NAME: Record<Goal["kind"], string> = { saving: "Saving", sinking: "Put by", debt: "Debt" };
+const KIND_NAME: Record<Goal["kind"], string> = {
+  saving: "Saving",
+  sinking: "Put by",
+  debt: "Debt",
+  recurring: "Regular cost",
+};
 const monthYear = (month: string) =>
   new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+
+/** A regular cost's price net of the bill it replaces, a week and a month: "About £30.00 a week, £130.00 a month". */
+function costLine(p: OngoingPlan): string {
+  const about = p.estimated ? "about " : "";
+  if (p.monthlyPence < 0) return `${about}${pounds(-p.weeklyPence)} a week, ${pounds(-p.monthlyPence)} a month less`;
+  const text = `${about}${pounds(p.weeklyPence)} a week, ${pounds(p.monthlyPence)} a month`;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * When a regular cost fits: from the owner's start (and whether it holds), or the first
+ * payday it fits at the plan; then at the recent pace; and when it doesn't, what it
+ * would need and the most that would fit.
+ */
+function RegularFit({ plan: p, today }: { plan: OngoingPlan; today: string }) {
+  const when = (day: string | null) => (day ? `from ${dayMonth(day)}` : "not within a year");
+  const lines: { text: string; warn?: boolean }[] = [];
+  if (p.startOn)
+    lines.push({
+      text: `${p.startOn <= today ? "Started" : "Starts"} on ${dayMonth(p.startOn)}${
+        p.startHolds === false ? `: it doesn't hold then. At your plan it fits ${when(p.fitsFrom)}` : ""
+      }`,
+      warn: p.startHolds === false,
+    });
+  else if (p.fitsFrom) lines.push({ text: `Fits from payday ${dayMonth(p.fitsFrom)}` });
+  else lines.push({ text: "Doesn't fit within a year", warn: true });
+  if (p.atPace) lines.push({ text: `At your recent pace: ${when(p.atPace.fitsFrom)}` });
+  if (!p.startOn && !p.fitsFrom) {
+    if (p.gapMonthlyPence) lines.push({ text: `It needs ${pounds(p.gapMonthlyPence)} more a month` });
+    else if (p.cashPence) lines.push({ text: `It needs ${pounds(p.cashPence)} more cash first` });
+  }
+  if (p.maxPence !== null) lines.push({ text: `Fits at up to ${pounds(p.maxPence)} from the next payday` });
+  if (p.slows.length) lines.push({ text: `${p.slows.join(", ")} ${p.slows.length === 1 ? "slows" : "slow"} down` });
+  if (p.paid) lines.push({ text: "Seen in your payments" });
+  return (
+    <p className="text-xs text-muted tabular-nums">
+      {lines.map((l, i) => (
+        <span key={l.text} className={l.warn ? "text-coral" : undefined}>
+          {i > 0 && " · "}
+          {l.text}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 /**
  * What the money is for, in order, and how the next payday shares the pay out: each
  * goal's progress and pace, then what to move where on payday.
  */
-function Goals({ budget, today }: { budget: BudgetData; today: string }) {
+function Goals({ budget, ongoing, today }: { budget: BudgetData; ongoing: OngoingPlan[]; today: string }) {
   const goals = (budget.goals ?? []).filter((g) => g.status === "active");
   const payday = cyclePayday(budget, today);
   const plan = allocate(budget, payday);
@@ -757,15 +808,24 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
             const s = share(g.id);
             const now = savedNow(g);
             const target = g.targetPence ?? 0;
+            const regular = ongoing.find((o) => o.id === g.id);
             return (
               <li key={g.id} className="space-y-1.5 px-3 py-2.5">
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <span className="min-w-0">
                     <span className="block truncate text-sm">{g.name}</span>
                     <span className="block text-xs text-body tabular-nums">
-                      {g.kind === "debt" ? `${pounds(now)} left` : `${pounds(now)} of ${pounds(target)}`} ·{" "}
-                      {KIND_NAME[g.kind]}
-                      {g.kind === "debt" ? "" : g.held === "account" ? ", in the account" : ", in a saver"}
+                      {regular ? (
+                        <>
+                          {costLine(regular)} · {KIND_NAME[g.kind]}
+                        </>
+                      ) : (
+                        <>
+                          {g.kind === "debt" ? `${pounds(now)} left` : `${pounds(now)} of ${pounds(target)}`} ·{" "}
+                          {KIND_NAME[g.kind]}
+                          {g.kind === "debt" ? "" : g.held === "account" ? ", in the account" : ", in a saver"}
+                        </>
+                      )}
                     </span>
                   </span>
                   <span className="flex shrink-0 gap-1">
@@ -796,6 +856,7 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
                     </ActionButton>
                   </span>
                 </div>
+                {regular && <RegularFit plan={regular} today={today} />}
                 {g.kind !== "debt" && target > 0 && <Bar share={now / target} />}
                 {s && (
                   <p className={`text-xs tabular-nums ${s.slipped ? "text-coral" : "text-muted"}`}>
@@ -902,7 +963,16 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
       )}
       <Fold title="Add a goal">
         <div className="mt-3">
-          <GoalForm key={goals.length} />
+          <GoalForm
+            key={goals.length}
+            bills={foundBills(budget.bills)
+              .filter((b) => b.status === "active")
+              .map((b) => ({
+                merchantKey: b.merchantKey,
+                name: b.name ?? "A bill",
+                text: `${b.name ?? "A bill"}, ${pounds(b.expectedPence)} ${PER[b.cadence]}`,
+              }))}
+          />
         </div>
       </Fold>
     </section>

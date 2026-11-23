@@ -114,7 +114,7 @@ export async function removeIncome(id: number) {
 
 export async function saveGoal(input: ops.GoalInput) {
   await requireOwner();
-  const kind = (["saving", "sinking", "debt"] as const).find((k) => k === input?.kind) ?? "saving";
+  const kind = (["saving", "sinking", "debt", "recurring"] as const).find((k) => k === input?.kind) ?? "saving";
   return ops.saveGoal({
     name: String(input?.name ?? ""),
     kind,
@@ -125,6 +125,12 @@ export async function saveGoal(input: ops.GoalInput) {
     saved: String(input?.saved ?? ""),
     apr: String(input?.apr ?? ""),
     payment: String(input?.payment ?? ""),
+    cadence: String(input?.cadence ?? ""),
+    weekday: String(input?.weekday ?? ""),
+    setup: String(input?.setup ?? ""),
+    replaces: String(input?.replaces ?? ""),
+    overlap: input?.overlap === true,
+    estimated: input?.estimated === true,
   });
 }
 

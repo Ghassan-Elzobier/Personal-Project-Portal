@@ -5,6 +5,7 @@ import { addDays, dateIn } from "../dates/week";
 import { budgetView, mondayOf, monthStart, parseBudget, type BudgetData, type BudgetView } from "./budget";
 import { checkIn, type CheckIn } from "./checkin";
 import { forecast, type Forecast } from "./forecast";
+import { ongoingPlans, withOngoing, type OngoingPlan } from "./ongoing";
 import { prompts, type Prompt } from "./prompts";
 import { parseMoney, parseTransactions, type MoneyState, type Txn } from "./state";
 import { MoneyStoreError, readBudget, readMoney, readTransactions } from "./store";
@@ -18,6 +19,8 @@ export type MoneyPage = {
   budget: BudgetData;
   view: BudgetView;
   forecast: Forecast | null;
+  /** Each regular cost's card: when it fits, at the plan and at the recent pace. */
+  ongoing: OngoingPlan[];
   today: string;
 };
 
@@ -30,13 +33,16 @@ export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) |
       readTransactions(addDays(today, -LIST_DAYS)),
       readBudget(monthStart(today), mondayOf(today)),
     ]);
-    const data = parseBudget(budget);
+    // Every regular cost counted, as the engine and Claude count them.
+    const read = parseBudget(budget);
+    const data = withOngoing(read, today);
     return {
       state: parseMoney(money),
       txns: parseTransactions(txns),
       budget: data,
       view: budgetView(data, today),
       forecast: forecast(data, today),
+      ongoing: ongoingPlans(read, today),
       today,
     };
   } catch (e) {
@@ -59,7 +65,7 @@ export async function loadToday(): Promise<{
   try {
     const today = dateIn(now(), timeZone());
     const [budget, money] = await Promise.all([readBudget(monthStart(today), mondayOf(today)), readMoney()]);
-    const data = parseBudget(budget);
+    const data = withOngoing(parseBudget(budget), today);
     const view = budgetView(data, today);
     return {
       data,
