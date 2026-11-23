@@ -125,6 +125,9 @@ jobs:
             sleep 5
           done
           exit 1
+      - name: Note when the build starts
+        id: started
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - name: Build the proposal and open a pull request
         id: build
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
@@ -192,5 +195,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ matrix.issue }}
           REPO: ${{ github.repository }}
-          OWNER: ${{ github.repository_owner }}
+          SINCE: ${{ steps.started.outputs.at }}
         run: node --experimental-strip-types --no-warnings scripts/rnd.mjs built

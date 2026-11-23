@@ -77,4 +77,9 @@ test("a build that left no pull request and no comment fails, with what Claude d
   assert.match(job, /path: \$\{\{ steps\.build\.outputs\.execution_file \}\}/);
   assert.match(job, /^ {10}retention-days: 14$/m);
   assert.match(read("scripts/rnd.mjs"), /const commands = \{ plan, brief, file, pick, built \};/);
+  // Counted from when this build began, so an earlier comment (a sweep's evidence, an older build's) can't pass for it.
+  const started = job.indexOf("id: started");
+  assert.ok(started > 0 && started < job.indexOf("id: build"), "the start is noted before the build");
+  assert.match(job, /^ {10}SINCE: \$\{\{ steps\.started\.outputs\.at \}\}$/m);
+  assert.doesNotMatch(read("scripts/rnd.mjs"), /Date\.now\(\) - 3 \* 60/);
 });

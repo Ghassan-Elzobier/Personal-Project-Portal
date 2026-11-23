@@ -445,15 +445,16 @@ async function pick() {
 /**
  * After a build (.github/workflows/rnd-build.yml): fails when it left no pull request
  * for the issue and no comment on it, so a build that did nothing turns red instead
- * of green. ISSUE is the proposal's number.
+ * of green. ISSUE is the proposal's number, SINCE when the build began.
  */
 function built() {
   const n = Number(env.ISSUE);
   if (!Number.isInteger(n) || n <= 0) fail("ISSUE (the proposal's number) is required.");
+  // Only what this build said counts: a comment from before it began is someone else's.
+  const since = env.SINCE ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(since)) fail("SINCE (when the build began, ISO 8601) is required.");
   const prs = ghJson(["api", `repos/${repo()}/pulls?state=open&per_page=100`]) ?? [];
   const comments = ghJson(["api", `repos/${repo()}/issues/${n}/comments?per_page=100`]) ?? [];
-  // The build job runs for 90 minutes at most: a comment from before that is an older run's.
-  const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
   const mark = leftAMark(
     n,
     prs.map((p) => ({ body: p.body, branch: p.head?.ref ?? "" })),
