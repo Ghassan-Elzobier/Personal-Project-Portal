@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { moneySyncKey, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
-import { suggestGoals } from "./allocate";
-import { mondayOf, monthStart, parseBudget, parsePounds } from "./budget";
+import { debtOrders, suggestDebts, suggestGoals, withDebtOrder } from "./allocate";
+import { budgetView, mondayOf, monthStart, parseBudget, parsePounds, savedNow, type BudgetData } from "./budget";
+import { checkIn as checkInCard, type CheckInOption } from "./checkin";
 import { affordCheck, displacesText, type AffordCheck } from "./displaces";
 import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
@@ -144,6 +145,31 @@ export function setBill(id: number, status: "active" | "ignored"): Promise<Resul
   });
 }
 
+/** Sorts a bill as a subscription or learning, or keeps or cancels it (which only records the decision). */
+export function reviewBill(
+  id: number,
+  change: { category?: "subscriptions" | "learning"; verdict?: "keep" | "cancel" },
+): Promise<Result> {
+  return run(async () => {
+    await store.reviewBill(id, change);
+    return {};
+  });
+}
+
+/**
+ * A category's monthly budget, in pounds: to confirm the typical month Money counts for a
+ * fixed cost, or change it (0 counts nothing, for a cost that has ended).
+ */
+export function setCategoryBudget(key: string, amount: string): Promise<Result> {
+  return run(async () => {
+    if (!/^[a-z0-9-]{1,40}$/.test(key)) throw new store.MoneyStoreError("Pick a category.");
+    const pence = poundsToPence(amount);
+    if (pence === null) throw new store.MoneyStoreError("Say the amount a month in pounds, or 0 if it has ended.");
+    await store.setCategoryBudget(key, pence);
+    return {};
+  });
+}
+
 export function dismissAlert(id: number): Promise<Result> {
   return run(async () => {
     await store.dismissAlert(id);
@@ -195,6 +221,43 @@ export function savePayday(input: PaydayInput): Promise<Result> {
     if (!/^(last-working-day|day-([1-9]|[12][0-9]|3[01]))$/.test(input.paydayRule))
       throw new store.MoneyStoreError("Pick when you're paid.");
     await store.saveSettings({ first_payday: input.firstPayday || null, payday_rule: input.paydayRule });
+    return {};
+  });
+}
+
+/**
+ * The weekly amount alone, as the forecast suggested it ("Live on £W a week"). It is the
+ * lasting amount, not this week's only, and never under the autopilot's least a week.
+ */
+export function setWeeklyAmount(pence: number): Promise<Result> {
+  return run(async () => {
+    if (!Number.isInteger(pence) || pence < 0 || pence > 100_000_00)
+      throw new store.MoneyStoreError("Say the weekly amount in pounds.");
+    const today = dateIn(now(), timeZone());
+    const floor = parseBudget(await store.readBudget(monthStart(today), mondayOf(today))).weeklyFloorPence ?? null;
+    if (floor !== null && pence < floor)
+      throw new store.MoneyStoreError(
+        "That's under the least a week you set. Lower it under Your plan first, if you mean to.",
+      );
+    await store.saveSettings({ allowance_pence: pence });
+    return {};
+  });
+}
+
+/** The shares of a pay rise that can go to goals, in basis points. */
+export const RAISE_SHARES = [0, 2_500, 5_000, 7_500, 10_000] as const;
+
+/**
+ * Where a pay rise goes: the share for goals, the rest to the weekly amount. It stands
+ * for every later rise, each measured from the pay on the day it was first chosen.
+ */
+export function saveRaiseShare(bp: number): Promise<Result> {
+  return run(async () => {
+    if (!RAISE_SHARES.includes(bp as (typeof RAISE_SHARES)[number]))
+      throw new store.MoneyStoreError("Pick how much of a rise goes to goals.");
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    await store.saveSettings({ raise_goal_share_bp: bp, raise_since: data.raiseSince ?? today });
     return {};
   });
 }
@@ -342,6 +405,22 @@ export function moveGoal(id: number, step: -1 | 1): Promise<Result> {
   });
 }
 
+/**
+ * The Monday check-in: what happens to last week. The choice must be one the card offers
+ * on the budget as it stands now, and the amount it moves is worked out here, never sent.
+ */
+export function checkIn(choice: CheckInOption["choice"], goal: number | null): Promise<Result> {
+  return run(async () => {
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    const card = checkInCard(data, budgetView(data, today), today);
+    const option = card?.options.find((o) => o.choice === choice && (o.goal ?? null) === goal);
+    if (!card || !option) throw new store.MoneyStoreError("Last week is checked in already.");
+    await store.checkIn(card.week, option.choice, option.goal ?? null, card.over);
+    return {};
+  });
+}
+
 /** Adds the goals Money suggests from what it knows (an emergency fund, money put by for yearly bills). */
 export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
   return run(async () => {
@@ -359,6 +438,56 @@ export function addSuggestedGoals(): Promise<Result<{ added: number }>> {
         merchant_key: g.merchantKey,
       });
     return { added: suggested.length };
+  });
+}
+
+async function budgetToday(): Promise<{ data: BudgetData; today: string }> {
+  const today = dateIn(now(), timeZone());
+  return { data: parseBudget(await store.readBudget(monthStart(today), mondayOf(today))), today };
+}
+
+/**
+ * Starts watching a debt Money found in the bills: what's owed now and its interest come
+ * from the owner; its name, lender and monthly payment from the bill, read here on the
+ * server. Repayments to the lender then count it down.
+ */
+export function addDebtFromBill(billId: number, owedText: string, aprText: string): Promise<Result> {
+  return run(async () => {
+    const { data, today } = await budgetToday();
+    const found = suggestDebts(data).find((d) => d.billId === billId);
+    const bill = (data.bills ?? []).find((b) => b.id === billId);
+    if (!found || !bill?.merchantKey) throw new store.MoneyStoreError("That repayment is already a debt, or gone.");
+    const owed = poundsToPence(owedText);
+    if (!owed) throw new store.MoneyStoreError("Say what's owed now.");
+    const apr = aprText.trim() ? Number(aprText) : null;
+    if (apr !== null && !(apr >= 0 && apr <= 100))
+      throw new store.MoneyStoreError("Interest is a % a year, like 19.9.");
+    await store.saveGoal({
+      name: found.name.slice(0, 60),
+      kind: "debt",
+      held: "elsewhere",
+      saved_pence: owed,
+      saved_on: today,
+      apr_bp: apr === null ? null : Math.round(apr * 100),
+      payment_pence: found.paymentPence,
+      merchant_key: bill.merchantKey,
+    });
+    return {};
+  });
+}
+
+/** Puts the debts highest interest first or smallest balance first; the other goals keep their places. */
+export function orderDebts(by: "rate" | "balance"): Promise<Result> {
+  return run(async () => {
+    const { data } = await budgetToday();
+    const goals = data.goals ?? [];
+    const debts = goals
+      .filter((g) => g.kind === "debt" && g.status === "active")
+      .map((g) => ({ id: g.id, owed: savedNow(g), payment: g.paymentPence ?? 0, aprBp: g.aprBp }));
+    if (debts.length < 2) throw new store.MoneyStoreError("Add a second debt to choose an order.");
+    const order = debtOrders(debts, 0).find((o) => o.by === by)!.order;
+    await store.orderGoals(withDebtOrder(goals, order));
+    return {};
   });
 }
 

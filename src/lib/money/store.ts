@@ -79,14 +79,26 @@ export const saveIncome = (step: { from_on: string; pence: number; gross_year_pe
 export const removeIncome = (id: number) => owner<void>("money_remove_income", { p_id: id });
 /** A goal: add one, or change one by id. */
 export const saveGoal = (goal: Record<string, unknown>) => owner<number>("money_save_goal", { p: goal });
+/** The Monday check-in on a week: the choice, and for "goal" or "week" the overspend it moves. */
+export const checkIn = (week: string, choice: string, goal: number | null, pence: number) =>
+  owner<void>("money_check_in", { p_week: week, p_choice: choice, p_goal: goal, p_pence: pence });
 export const removeGoal = (id: number) => owner<void>("money_remove_goal", { p_id: id });
 export const moveGoal = (id: number, step: -1 | 1) => owner<void>("money_move_goal", { p_id: id, p_step: step });
+/** Every goal not done, first first, in one go. */
+export const orderGoals = (ids: number[]) => owner<void>("money_order_goals", { p_ids: ids });
 /** Claude at the plan level sets the high-level plan (the pay steps, for now). */
 export const claudeSetPlan = (plan: Record<string, unknown>) =>
   claude<Record<string, number>>("money_claude_set_plan", { p: plan });
 /** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
+/** A category's monthly budget (null clears it, 0 counts nothing). */
+export const setCategoryBudget = (key: string, pence: number | null) =>
+  owner<void>("money_set_category_budget", { p_key: key, p_pence: pence });
+
 export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
   owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
+/** Sort a bill into a category (by key), or answer "do you still want this?" (dated today). */
+export const reviewBill = (id: number, change: { category?: string; verdict?: "keep" | "cancel" }) =>
+  owner<void>("money_set_bill", { p_id: id, p_category: change.category ?? null, p_verdict: change.verdict ?? null });
 /** Claude at setup: name, sort, ignore or take back bills. */
 export const claudeBills = (changes: Record<string, unknown>[]) =>
   claude<number>("money_claude_bills", { p_changes: changes });

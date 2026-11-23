@@ -8,7 +8,8 @@
 //
 //   safe-to-spend = balance − fixed costs still to pay before payday − the buffer
 //
-// Fixed costs are the categories of kind bills or savings with a monthly budget: for
+// Fixed costs are the categories of kind bills or savings with a monthly budget (or, for
+// a bills category with no budget and no bill found, its typical month: fixedMonthly): for
 // each month the window touches, its budget, less what has been paid since the first
 // of this month. What's left is spread over the weeks to payday, and set against the
 // weekly amount you planned. The weekly amount counts what you spend that isn't fixed
@@ -16,7 +17,7 @@
 // overspending last week comes off this week, so the month still balances.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import { dueUntil, parseBill, type Bill } from "./recurring.ts";
+import { dueUntil, median, parseBill, type Bill } from "./recurring.ts";
 
 /** Bank holidays in England and Wales (GOV.UK), for moving a payday off them. */
 export const BANK_HOLIDAYS = new Set([
@@ -139,6 +140,8 @@ export type BudgetCategory = {
   spentLastWeek: number;
   /** Spent in each of the 8 weeks before this one, oldest first. */
   weeks?: number[];
+  /** Out less back in, in each of the 6 full months before this one, oldest first. */
+  months?: number[];
 };
 
 /** What the engine recorded when it closed a week. */
@@ -184,6 +187,23 @@ export type BudgetData = {
   unsortedWeeks?: number[];
   /** Last week as the engine closed it. */
   lastWeek?: LastWeek | null;
+  /**
+   * The share of a pay rise that goes to goals, in basis points (0 to 10000); the rest
+   * raises the weekly amount. Null until the owner has chosen.
+   */
+  raiseGoalShareBp?: number | null;
+  /** The day a rise is measured from: the pay step then is the pay before the rise. */
+  raiseSince?: string | null;
+  /** The owner's last Monday check-in (checkin.ts): the week it was on and what they chose. */
+  checkin?: CheckInRecord | null;
+};
+
+/** What the owner chose at a Monday check-in, for the week starting `week`. */
+export type CheckInRecord = {
+  week: string;
+  choice: "ok" | "keep" | "week" | "goal";
+  goal: number | null;
+  pence: number;
 };
 
 /** Take-home on each payday from a day on, until a later step. */
@@ -336,13 +356,81 @@ export function afford(data: BudgetData, today: string, pence: number, savesPerW
 const FIXED = new Set(["bills", "savings"]);
 const FLEXIBLE = new Set(["groceries", "essentials", "discretionary"]);
 
+/** How many of the last 6 full months a bills category must have been paid in to count at its typical month. */
+export const TYPICAL_MONTHS = 3;
+
+export type FixedMonthly = {
+  pence: number;
+  /** The budget set, or the typical month worked out from what went out. */
+  source: "budget" | "typical";
+  /** For a typical month: how many of the last 6 full months it was paid in. */
+  paidMonths: number;
+};
+
+/**
+ * What a fixed category costs a month: its budget when one is set (0 counts nothing).
+ * A bills category with no budget, paid in at least 3 of the last 6 full months (rent to
+ * a person, energy with refunds: payments Money can't find as bills), counts at its
+ * typical month, the median of what went out less refunds in the months it was paid.
+ * Null when it counts nothing. The caller leaves out a category a bill found covers.
+ * Safe-to-spend, the forecast, the payday share-out and the emergency fund all use it.
+ */
+export function fixedMonthly(c: BudgetCategory): FixedMonthly | null {
+  if (!FIXED.has(c.kind)) return null;
+  if (c.budgetPence !== null)
+    return c.budgetPence > 0 ? { pence: c.budgetPence, source: "budget", paidMonths: 0 } : null;
+  if (c.kind !== "bills") return null;
+  const paid = (c.months ?? []).filter((m) => m > 0);
+  if (paid.length < TYPICAL_MONTHS) return null;
+  return { pence: median(paid), source: "typical", paidMonths: paid.length };
+}
+
+/** The categories bills Money found cover: they count on their days, not by the month. */
+export function billedCategories(bills: Bill[] = []): Set<string> {
+  return new Set(bills.filter((b) => b.status === "active" && b.category !== null).map((b) => b.category!));
+}
+
+export type Typical = { key: string; name: string; pence: number; paidMonths: number; since: string };
+
+/**
+ * The fixed costs counted at their typical month, for the page to say where each figure
+ * came from and offer to save it as the budget. `since` is the first month paid ("2026-06").
+ */
+export function typicalCosts(data: BudgetData, today: string): Typical[] {
+  const billed = billedCategories(data.bills);
+  const out: Typical[] = [];
+  for (const c of data.categories) {
+    const f = fixedMonthly(c);
+    if (!f || f.source !== "typical" || billed.has(c.key)) continue;
+    const months = c.months ?? [];
+    const first = months.findIndex((m) => m > 0);
+    out.push({
+      key: c.key,
+      name: c.name,
+      pence: f.pence,
+      paidMonths: f.paidMonths,
+      since: shiftMonth(today.slice(0, 7), first - months.length),
+    });
+  }
+  return out;
+}
+
+function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const i = y * 12 + (m - 1) + n;
+  return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+}
+
 export type BudgetView = {
   payday: string;
   daysToPayday: number;
   weeksToPayday: number;
   balance: number | null;
-  /** Each fixed cost still to pay before payday: a bill with its next day, or a category's monthly estimate. */
-  stillToPay: { key: string; name: string; pence: number; on?: string }[];
+  /**
+   * Each fixed cost still to pay before payday: a bill with its next day, or a category's
+   * monthly estimate (its budget, or its typical month when `typical`).
+   */
+  stillToPay: { key: string; name: string; pence: number; on?: string; typical?: boolean }[];
   buffer: number;
   /** One-off planned purchases due before payday. */
   plannedBefore: number;
@@ -365,11 +453,64 @@ export type BudgetView = {
   onTrack: boolean | null;
 };
 
-/** The weekly amount from the plan when you haven't set one: the flexible budgets, a month's worth spread over the year's weeks. */
-export function allowanceFrom(data: BudgetData): number | null {
-  if (data.allowancePence !== null) return data.allowancePence;
-  const monthly = data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + (c.budgetPence ?? 0), 0);
-  return monthly > 0 ? Math.round((monthly * 12) / 52 / 100) * 100 : null;
+/** The pay step in force on a day (steps only, not a payslip), or 0 before the first. */
+export function stepOn(income: IncomeStep[] = [], day: string): number {
+  return income.filter((s) => s.fromOn <= day).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0]?.pence ?? 0;
+}
+
+/**
+ * The pay a rise is measured from on a day: the step in force, or, before any pay has
+ * started (pay is added from the next payday on), the first step. The first pay is a
+ * start, not a rise.
+ */
+function basePay(income: IncomeStep[] = [], day: string): IncomeStep | null {
+  const sorted = [...income].sort((a, b) => a.fromOn.localeCompare(b.fromOn));
+  return sorted.filter((s) => s.fromOn <= day).at(-1) ?? sorted[0] ?? null;
+}
+
+/** A later pay step higher than the one in force today: the first payday it applies to, and by how much. */
+export function raiseAhead(data: BudgetData, today: string): { on: string; extra: number } | null {
+  const base = basePay(data.income, today);
+  if (!base || base.pence <= 0) return null;
+  const higher = (data.income ?? [])
+    .filter((s) => s.fromOn > today && s.fromOn > base.fromOn && s.pence > base.pence)
+    .sort((a, b) => a.fromOn.localeCompare(b.fromOn))[0];
+  if (!higher) return null;
+  // The first payday on or after the step's day.
+  return {
+    on: nextPayday(addDays(higher.fromOn, -1), data.paydayRule, data.firstPayday),
+    extra: higher.pence - base.pence,
+  };
+}
+
+/**
+ * How much more a payday's pay step is than the step on the day the owner chose where a
+ * rise goes: never below 0, and nothing until they have chosen.
+ */
+export function raiseExtra(data: BudgetData, payday: string): number {
+  if (data.raiseGoalShareBp == null || !data.raiseSince) return 0;
+  return Math.max(0, stepOn(data.income, payday) - (basePay(data.income, data.raiseSince)?.pence ?? 0));
+}
+
+/** The part of a payday's rise that goes to goals; the rest raises the weekly amount. */
+export function raiseToGoals(data: BudgetData, payday: string): number {
+  return Math.round((raiseExtra(data, payday) * (data.raiseGoalShareBp ?? 0)) / 10_000);
+}
+
+/**
+ * The weekly amount from the plan when you haven't set one: the flexible budgets, a
+ * month's worth spread over the year's weeks. On a day after a pay rise, the part of
+ * the rise kept to live on is added, a month's worth over the year's weeks, to the £1.
+ */
+export function allowanceFrom(data: BudgetData, day?: string): number | null {
+  let base: number | null = data.allowancePence;
+  if (base === null) {
+    const monthly = data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + (c.budgetPence ?? 0), 0);
+    base = monthly > 0 ? Math.round((monthly * 12) / 52 / 100) * 100 : null;
+  }
+  if (base === null || !day) return base;
+  const kept = raiseExtra(data, day) - raiseToGoals(data, day);
+  return base + Math.round((kept * 12) / 52 / 100) * 100;
 }
 
 export function budgetView(data: BudgetData, today: string): BudgetView {
@@ -381,7 +522,7 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   // bill leaves its monthly estimate out, so nothing is counted twice; the others count
   // their budget for each month the window touches, less what's gone out this month.
   const bills = (data.bills ?? []).filter((b) => b.status === "active");
-  const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
+  const billed = billedCategories(bills);
   const named = new Map(data.categories.map((c) => [c.key, c.name]));
   // A bill with money put by for it (a goal kept in the account, paid to the same
   // merchant) counts only what the goal doesn't hold yet: the goal is already set aside.
@@ -405,9 +546,13 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   const stillToPay = [
     ...fromBills,
     ...data.categories
-      .filter((c) => FIXED.has(c.kind) && (c.budgetPence ?? 0) > 0 && !billed.has(c.key))
-      .map((c) => ({ key: c.key, name: c.name, pence: Math.max(0, c.budgetPence! * months - c.paidMonth) }))
-      .filter((c) => c.pence > 0),
+      .filter((c) => !billed.has(c.key))
+      .flatMap((c) => {
+        const f = fixedMonthly(c);
+        if (!f) return [];
+        const pence = Math.max(0, f.pence * months - c.paidMonth);
+        return pence > 0 ? [{ key: c.key, name: c.name, pence, ...(f.source === "typical" && { typical: true }) }] : [];
+      }),
   ];
   const buffer = !data.bufferFrom || data.bufferFrom <= today ? data.bufferPence : 0;
   // Planned purchases: a one-off due before payday is spoken for now; one paid from the
@@ -439,7 +584,7 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   // overspend lowers the weeks after by itself, so nothing is carried.
   const floor = data.weeklyFloorPence ?? null;
   const auto = floor !== null;
-  const target = auto ? Math.max(floor, allowanceFrom(data) ?? floor) : allowanceFrom(data);
+  const target = auto ? Math.max(floor, allowanceFrom(data, today) ?? floor) : allowanceFrom(data, today);
   const fromMonday = (days + weekdayIndex(today)) / 7;
   const allowance = !auto
     ? target
@@ -448,7 +593,9 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
       : safe === null
         ? floor
         : Math.min(target!, Math.max(floor, Math.floor((safe + spent) / Math.max(1, fromMonday) / 100) * 100));
-  const carry = auto || allowance === null ? 0 : Math.max(0, lastWeek - allowance);
+  // Last week's overspend comes off this one, unless the owner covered it from a goal.
+  const covered = data.checkin?.week === addDays(week, -7) && data.checkin.choice === "goal";
+  const carry = auto || allowance === null || covered ? 0 : Math.max(0, lastWeek - allowance);
   const perWeek = safe === null ? null : Math.floor(safe / weeks);
   return {
     payday,
@@ -508,6 +655,7 @@ export function parseBudget(raw: unknown): BudgetData {
       spentWeek: num(c.spent_week) ?? 0,
       spentLastWeek: num(c.spent_last_week) ?? 0,
       weeks: Array.isArray(c.weeks) ? (c.weeks as unknown[]).map((w) => num(w) ?? 0) : undefined,
+      months: Array.isArray(c.months) ? (c.months as unknown[]).map((m) => num(m) ?? 0) : undefined,
     })),
     unsortedWeek: num(r.unsorted_week) ?? 0,
     unsortedLastWeek: num(r.unsorted_last_week) ?? 0,
@@ -534,7 +682,20 @@ export function parseBudget(raw: unknown): BudgetData {
         : null,
     goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
     paydayTransfers: parseTransfers(s.payday_transfers),
+    raiseGoalShareBp: num(s.raise_goal_share_bp),
+    raiseSince: str(s.raise_since),
+    checkin: parseCheckIn(r.checkin),
   };
+}
+
+const CHOICES = ["ok", "keep", "week", "goal"] as const;
+
+function parseCheckIn(v: unknown): CheckInRecord | null {
+  if (!v || typeof v !== "object") return null;
+  const c = v as Row;
+  const choice = CHOICES.find((x) => x === c.choice);
+  if (!str(c.week) || !choice) return null;
+  return { week: str(c.week)!, choice, goal: num(c.goal), pence: num(c.pence) ?? 0 };
 }
 
 function parseTransfers(v: unknown): BudgetData["paydayTransfers"] {

@@ -6,19 +6,27 @@
 //   2. the weekly floor, for every week to the next payday
 //   3. each goal in order, at its pace: what's still needed over the months to its day
 //      (YNAB's "needed for spending"); a goal with no day takes a year
+//   3b. after a pay rise, the share of the extra the owner chose for goals, in order
+//      (Save More Tomorrow: part of each rise committed in advance); the rest of the
+//      extra raises the weekly target in step 4
 //   4. the weekly amount, raised up to the target
 //   5. anything left, to the first goal not finished (a debt's extra payment)
 //
 // When pay can't cover the floor, the cycle is short; when it can't cover a goal's
-// pace, the goals last in the order slow down first, and say when they'll finish now.
+// pace, the goals last in the order slow down first, and say when they'll finish now;
+// when a higher pay step is coming, they are held until its first payday instead.
 
 import { addDays } from "../dates/week.ts";
 import {
   allowanceFrom,
+  billedCategories,
   EARLY_PAY_DAYS,
+  fixedMonthly,
   nextPayday,
   paidEarly,
   paydayIn,
+  raiseAhead,
+  raiseToGoals,
   savedNow,
   stepStart,
   type BudgetData,
@@ -28,7 +36,6 @@ import { payOn } from "./forecast.ts";
 import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
 
 const MONTH_DAYS = CYCLE_DAYS.monthly;
-const FIXED = new Set(["bills", "savings"]);
 /** A goal with no day is paced over a year. */
 const DEFAULT_MONTHS = 12;
 /** How far ahead a goal's day is looked for once pay steps change its share: 10 years. */
@@ -49,8 +56,12 @@ export type Share = {
    * later pay step would give from its payday on. Null when it never does.
    */
   finish: string | null;
-  /** Given less than its pace asked. */
+  /** Given less than its pace asked, with no higher pay coming. */
   slipped: boolean;
+  /** Given less than its pace asked, but a higher pay step is coming: it catches up from startsOn. */
+  held: boolean;
+  /** When held: the first payday on the higher pay. */
+  startsOn: string | null;
   /** Money that has to be moved: to a saver, or paid to a lender. */
   transfer: boolean;
 };
@@ -79,7 +90,8 @@ function dueFrom(g: Goal, from: string): string | null {
   return d;
 }
 
-function addMonths(day: string, n: number): string {
+/** The month `n` months on from a day's month ("2027-11"). */
+export function addMonths(day: string, n: number): string {
   const [y, m] = day.split("-").map(Number);
   const i = y * 12 + (m - 1) + n;
   return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
@@ -163,20 +175,20 @@ function shareOut(data: BudgetData, from: string, pay: number): Allocation {
     .sort((a, b) => a.position - b.position || a.id - b.id);
 
   // 1. Bills on their days in the cycle; fixed categories without a bill found, by the
-  // month; and a debt's payment when it isn't one of the bills already.
+  // month (their budget, or their typical month); and a debt's payment when it isn't one of the bills already.
   // A bill with money put by for it in a goal is the goal's job, not this cycle's.
   const putBy = new Set(
     goals.filter((g) => g.kind === "sinking" && g.held === "account" && g.merchantKey).map((g) => g.merchantKey),
   );
   const active = (data.bills ?? []).filter((b) => b.status === "active");
   const bills = active.filter((b) => !putBy.has(b.merchantKey));
-  const billed = new Set(active.map((b) => b.category).filter((c) => c !== null));
+  const billed = billedCategories(active);
   const billMerchants = new Set(bills.map((b) => b.merchantKey));
   const commitments = Math.round(
     bills.reduce((s, b) => s + occurrencesIn(b, from, to).length * b.expectedPence, 0) +
       data.categories
-        .filter((c) => FIXED.has(c.kind) && c.budgetPence && !billed.has(c.key))
-        .reduce((s, c) => s + c.budgetPence! * months, 0) +
+        .filter((c) => !billed.has(c.key))
+        .reduce((s, c) => s + (fixedMonthly(c)?.pence ?? 0) * months, 0) +
       goals
         .filter((g) => g.kind === "debt" && g.paymentPence && !(g.merchantKey && billMerchants.has(g.merchantKey)))
         .reduce((s, g) => s + Math.min(savedNow(g), g.paymentPence! * months), 0),
@@ -189,6 +201,10 @@ function shareOut(data: BudgetData, from: string, pay: number): Allocation {
   const short = left < 0;
 
   // 3. Goals at their pace.
+  // A goal short of its pace is held, not behind, when a higher pay step ahead keeps it.
+  const rise = raiseAhead(data, from);
+  const later = rise ? allocate(data, rise.on) : null;
+  const caughtUp = (id: number) => later?.shares.some((s) => s.id === id && !s.slipped && !s.held) ?? false;
   const shares: Share[] = goals.map((g) => {
     const owed = g.kind === "debt";
     const remaining = owed ? savedNow(g) : Math.max(0, (g.targetPence ?? 0) - savedNow(g));
@@ -205,28 +221,73 @@ function shareOut(data: BudgetData, from: string, pay: number): Allocation {
       need,
       remaining,
       finish: null,
-      slipped: pence < need,
+      slipped: pence < need && !caughtUp(g.id),
+      held: pence < need && caughtUp(g.id),
+      startsOn: pence < need && caughtUp(g.id) ? rise!.on : null,
       transfer: owed || g.held === "elsewhere",
     };
   });
 
-  // 4. Up to the target.
-  const target = Math.max(floorWeek, allowanceFrom(data) ?? floorWeek);
+  // 3b. The goals' share of a pay rise, in order, up to each one's room. What they can't
+  // take flows on.
+  const give = (pence: number) => {
+    let out = Math.max(0, Math.min(pence, left));
+    for (const s of shares) {
+      if (out <= 0) break;
+      const extra = Math.min(Math.max(0, s.remaining - s.pence), out);
+      s.pence += extra;
+      left -= extra;
+      out -= extra;
+    }
+  };
+  give(raiseToGoals(data, from));
+
+  // 4. Up to the target (raised by the part of a rise kept to live on).
+  const target = Math.max(floorWeek, allowanceFrom(data, from) ?? floorWeek);
   const raise = Math.max(0, Math.min(left, Math.round((target - floorWeek) * weeks)));
   left -= raise;
   const weekly = Math.min(target, Math.round((floorWeek + raise / weeks) / 100) * 100);
 
   // 5. The rest to the first goals not finished, debts included.
-  for (const s of shares) {
-    if (left <= 0) break;
-    const room = s.remaining - s.pence;
-    if (room <= 0) continue;
-    const extra = Math.min(room, left);
-    s.pence += extra;
-    left -= extra;
-  }
+  give(left);
 
   return { from, to, weeks, pay, commitments, floor, weekly, shares, surplus: Math.max(0, left), short };
+}
+
+/** How many paydays ahead the goal dates look: three years. */
+export const WALK_PAYDAYS = 36;
+
+/**
+ * The month each goal gets there, walking the paydays ahead: each runs the waterfall on
+ * what the goals hold by then, so a pay step later on (and the share of it the owner
+ * chose) moves the dates. Null when it doesn't get there within the walk.
+ */
+export function goalDates(data: BudgetData, from: string, paydays = WALK_PAYDAYS): Map<number, string | null> {
+  const out = new Map<number, string | null>();
+  let goals = (data.goals ?? []).filter((g) => g.status === "active");
+  for (const g of goals) out.set(g.id, null);
+  let day = from;
+  for (let i = 0; i < paydays; i++) {
+    const plan = allocate({ ...data, goals }, day);
+    if (!plan) break;
+    const months = daysBetween(plan.from, plan.to) / MONTH_DAYS;
+    goals = goals.map((g) => {
+      const s = plan.shares.find((x) => x.id === g.id);
+      if (!s) return g;
+      if (g.kind === "debt") {
+        const paid = s.pence + Math.min(savedNow(g), (g.paymentPence ?? 0) * months);
+        return { ...g, savedPence: Math.max(0, g.savedPence - Math.round(paid)) };
+      }
+      return { ...g, savedPence: g.savedPence + s.pence };
+    });
+    for (const g of goals) {
+      const left = g.kind === "debt" ? savedNow(g) : (g.targetPence ?? 0) - savedNow(g);
+      if (left <= 0 && out.get(g.id) === null) out.set(g.id, day.slice(0, 7));
+    }
+    if ([...out.values()].every((m) => m !== null)) break;
+    day = plan.to;
+  }
+  return out;
 }
 
 /**
@@ -256,13 +317,20 @@ export type Suggested = {
 
 /**
  * Goals to start from, worked out from what Money knows: an emergency fund of three
- * months of bills and groceries, kept in a separate saver; and money put by for each
- * yearly bill before it's due, kept in the account.
+ * months of essential outgoings (MoneyHelper's measure: the bills found, the bills
+ * categories no bill covers at their budget or typical month, groceries and essentials),
+ * kept in a separate saver; and money put by for each yearly bill before it's due, kept
+ * in the account.
  */
 export function suggestGoals(data: BudgetData, today: string): Suggested[] {
   const bills = (data.bills ?? []).filter((b) => b.status === "active");
-  const groceries = data.categories.filter((c) => c.kind === "groceries").reduce((s, c) => s + (c.budgetPence ?? 0), 0);
-  const monthly = bills.reduce((s, b) => s + yearlyPence(b), 0) / 12 + groceries;
+  const billed = billedCategories(bills);
+  const essential = data.categories.reduce((s, c) => {
+    if (c.kind === "groceries" || c.kind === "essentials") return s + (c.budgetPence ?? 0);
+    if (c.kind === "bills" && !billed.has(c.key)) return s + (fixedMonthly(c)?.pence ?? 0);
+    return s;
+  }, 0);
+  const monthly = bills.reduce((s, b) => s + yearlyPence(b), 0) / 12 + essential;
   const out: Suggested[] = [];
   if (monthly > 0)
     out.push({
@@ -286,6 +354,99 @@ export function suggestGoals(data: BudgetData, today: string): Suggested[] {
     });
   const have = new Set((data.goals ?? []).map((g) => g.name.toLowerCase()));
   return out.filter((s) => !have.has(s.name.toLowerCase()));
+}
+
+export type SuggestedDebt = { billId: number; name: string; paymentPence: number };
+
+/**
+ * Debts to start watching: each active bill in Debt repayments whose lender no active
+ * debt goal is linked to, with what it costs a month. The owner says what's owed.
+ */
+export function suggestDebts(data: BudgetData): SuggestedDebt[] {
+  const watched = new Set(
+    (data.goals ?? [])
+      .filter((g) => g.kind === "debt" && g.status === "active" && g.merchantKey)
+      .map((g) => g.merchantKey),
+  );
+  return (data.bills ?? [])
+    .filter((b) => b.status === "active" && b.category === "debts" && !watched.has(b.merchantKey))
+    .map((b) => ({ billId: b.id, name: b.name ?? "A debt", paymentPence: Math.round(yearlyPence(b) / 12) }));
+}
+
+export type Debt = { id: number; owed: number; payment: number; aprBp: number | null };
+/** How long until every debt is cleared, and the interest paid on the way; null months when it never clears. */
+export type Payoff = { months: number | null; interestPence: number };
+
+/** Give up after 50 years: a payment that barely beats the interest. */
+const MAX_MONTHS = 600;
+
+/**
+ * Pays debts off month by month: interest goes on, each debt gets its payment, and
+ * `extra` a month (plus the payments of debts already cleared) goes to the first in
+ * the order still owing.
+ */
+function simulate(debts: Debt[], extra: number): Payoff {
+  const owed = debts.map((d) => d.owed);
+  let interest = 0;
+  for (let month = 1; month <= MAX_MONTHS; month++) {
+    let pool = extra;
+    debts.forEach((d, i) => {
+      if (owed[i] <= 0) {
+        pool += d.payment;
+        return;
+      }
+      const added = (owed[i] * (d.aprBp ?? 0)) / 10_000 / 12;
+      interest += added;
+      owed[i] = owed[i] + added - d.payment;
+      if (owed[i] < 0) {
+        pool -= owed[i];
+        owed[i] = 0;
+      }
+    });
+    for (let i = 0; i < debts.length && pool > 0; i++) {
+      const paid = Math.min(owed[i], pool);
+      owed[i] -= paid;
+      pool -= paid;
+    }
+    if (owed.every((o) => o <= 0.5)) return { months: month, interestPence: Math.round(interest) };
+  }
+  return { months: null, interestPence: Math.round(interest) };
+}
+
+/** One debt paid at `payment` a month (APR in basis points): when it clears, and the interest on the way. */
+export function payoff(owed: number, payment: number, aprBp: number | null): Payoff {
+  if (owed <= 0) return { months: 0, interestPence: 0 };
+  return simulate([{ id: 0, owed, payment, aprBp }], 0);
+}
+
+export type DebtOrder = { by: "rate" | "balance"; order: number[] } & Payoff;
+
+/**
+ * The two orders to pay extra off debts in, each with when the last one clears and the
+ * interest paid: highest interest first, and smallest balance first. A cleared debt's
+ * payment rolls on to the next.
+ */
+export function debtOrders(debts: Debt[], extraMonthly: number): DebtOrder[] {
+  const apr = (d: Debt) => d.aprBp ?? 0;
+  const sorts: Record<DebtOrder["by"], (a: Debt, b: Debt) => number> = {
+    rate: (a, b) => apr(b) - apr(a) || a.owed - b.owed || a.id - b.id,
+    balance: (a, b) => a.owed - b.owed || apr(b) - apr(a) || a.id - b.id,
+  };
+  return (["rate", "balance"] as const).map((by) => {
+    const sorted = [...debts].sort(sorts[by]);
+    return { by, order: sorted.map((d) => d.id), ...simulate(sorted, Math.max(0, extraMonthly)) };
+  });
+}
+
+/**
+ * The whole goal order with the debts put in `debtOrder`: each other goal keeps its
+ * place, and the debts take the places debts had. Goals not done, first first.
+ */
+export function withDebtOrder(goals: Goal[], debtOrder: number[]): number[] {
+  const listed = goals.filter((g) => g.status !== "done").sort((a, b) => a.position - b.position || a.id - b.id);
+  const moving = new Set(debtOrder);
+  const queue = debtOrder.filter((id) => listed.some((g) => g.id === id));
+  return listed.map((g) => (moving.has(g.id) ? queue.shift()! : g.id));
 }
 
 /** The day a payday's pay came in: the day it landed when it came early, else the payday. */

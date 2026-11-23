@@ -35,7 +35,7 @@ import { HubCard } from "./jobs/hub-card";
 import { now as clockNow } from "@/lib/dates/clock";
 import { loadToday } from "@/lib/money/load";
 import { plannedShop } from "@/lib/portal/money";
-import { MoneyLine, MoneyPrompts } from "./money-line";
+import { MoneyCheckIn, MoneyLine, MoneyPrompts } from "./money-line";
 
 export const dynamic = "force-dynamic";
 
@@ -214,6 +214,7 @@ async function OwnerHome() {
       {money?.view.week.left != null && money.view.balance !== null && (
         <MoneyLine view={money.view} shop={life.state ? plannedShop(life.state) : 0} />
       )}
+      {money?.checkIn && <MoneyCheckIn card={money.checkIn} />}
       {money && money.prompts.length > 0 && <MoneyPrompts prompts={money.prompts} />}
 
       {totals && !firstRun && (

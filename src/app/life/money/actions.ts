@@ -60,6 +60,16 @@ export async function savePayday(input: ops.PaydayInput) {
   return ops.savePayday({ firstPayday: text(input?.firstPayday), paydayRule: text(input?.paydayRule) });
 }
 
+export async function setWeeklyAmount(pence: number) {
+  await requireOwner();
+  return ops.setWeeklyAmount(typeof pence === "number" ? pence : NaN);
+}
+
+export async function saveRaiseShare(bp: number) {
+  await requireOwner();
+  return ops.saveRaiseShare(Number(bp));
+}
+
 export async function savePlanned(input: ops.PlannedInput) {
   await requireOwner();
   const text = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");
@@ -133,14 +143,50 @@ export async function addSuggestedGoals() {
   return ops.addSuggestedGoals();
 }
 
+export async function addDebtFromBill(billId: number, owed: string, apr: string) {
+  await requireOwner();
+  if (!Number.isInteger(billId)) return { error: "Pick a repayment." };
+  return ops.addDebtFromBill(billId, String(owed ?? "").slice(0, 20), String(apr ?? "").slice(0, 10));
+}
+
+export async function orderDebts(by: string) {
+  await requireOwner();
+  return ops.orderDebts(by === "balance" ? "balance" : "rate");
+}
+
 export async function setBill(id: number, status: "active" | "ignored") {
   await requireOwner();
   return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");
 }
 
+export async function sortBill(id: number, category: "subscriptions" | "learning") {
+  await requireOwner();
+  return ops.reviewBill(Number(id), { category: category === "learning" ? "learning" : "subscriptions" });
+}
+
+export async function answerBill(id: number, verdict: "keep" | "cancel") {
+  await requireOwner();
+  return ops.reviewBill(Number(id), { verdict: verdict === "cancel" ? "cancel" : "keep" });
+}
+
+export async function setCategoryBudget(key: string, amount: string) {
+  await requireOwner();
+  if (typeof key !== "string" || typeof amount !== "string") return { error: "Say the amount in pounds." };
+  return ops.setCategoryBudget(key.slice(0, 40), amount.slice(0, 20));
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);
+}
+
+/** Today's Monday check-in: what happens to last week. */
+export async function checkIn(choice: string, goal: number | null) {
+  await requireOwner();
+  if (choice !== "ok" && choice !== "keep" && choice !== "week" && choice !== "goal")
+    return { error: "Pick what happens to last week." };
+  if (goal !== null && !Number.isInteger(goal)) return { error: "Pick a goal." };
+  return ops.checkIn(choice, goal);
 }
 
 export async function setClaudeAccess(level: string) {

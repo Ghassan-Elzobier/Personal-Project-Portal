@@ -4,23 +4,45 @@ import { requireOwner } from "@/lib/auth/access";
 import { moneySyncKey, timeZone } from "@/lib/config/env";
 import { now } from "@/lib/dates/clock";
 import { addDays, dateIn } from "@/lib/dates/week";
-import { allocate, suggestGoals } from "@/lib/money/allocate";
+import {
+  addMonths,
+  allocate,
+  debtOrders,
+  goalDates,
+  payoff,
+  suggestDebts,
+  suggestGoals,
+  type DebtOrder,
+} from "@/lib/money/allocate";
 import {
   cyclePayday,
   nextPayday,
+  raiseAhead,
   savedNow,
   stepStart,
+  typicalCosts,
   type BudgetData,
   type BudgetView,
   type Goal,
+  type Typical,
 } from "@/lib/money/budget";
-import { FORECAST_DAYS, payIgnored, type Forecast } from "@/lib/money/forecast";
+import {
+  FORECAST_DAYS,
+  keepsAbove,
+  paceOutlook,
+  PACE_MATCH_PENCE,
+  payIgnored,
+  type Forecast,
+  type PaceOutlook,
+} from "@/lib/money/forecast";
+import { RAISE_SHARES } from "@/lib/money/operations";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
 import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
+import { subscriptions, type SubscriptionRow } from "@/lib/money/subscriptions";
 import { ago, alertText, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
 import { Empty, ErrorNote } from "@/components/ui";
 import { ActionButton } from "../kit";
@@ -33,20 +55,27 @@ import {
   refreshBank,
   registerSyncKey,
   addSuggestedGoals,
+  answerBill,
   moveGoal,
+  orderDebts,
   removeGoal,
   removeIncome,
+  saveRaiseShare,
   setBill,
   setClaudeAccess,
+  setWeeklyAmount,
+  sortBill,
 } from "./actions";
 import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
+import { DebtForm } from "./debt-form";
 import { GoalForm } from "./goal-form";
 import { PayForm } from "./pay-form";
 import { PaydayForm } from "./payday-form";
 import { PaymentList } from "./payments";
 import { PlanForm } from "./plan-form";
 import { PlannedForm } from "./planned-form";
+import { TypicalCost } from "./typical-form";
 
 export const metadata: Metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -100,10 +129,23 @@ export default async function MoneyPage() {
       {connected && (
         <Summary s={weekSummary(loaded.budget, loaded.view, loaded.forecast, loaded.today)} today={loaded.today} />
       )}
-      {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
+      {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} today={loaded.today} />}
       {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
-      {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
+      {connected && (
+        <Subscriptions
+          bills={loaded.budget.bills ?? []}
+          today={loaded.today}
+          lastPay={loaded.budget.lastPay?.pence ?? null}
+        />
+      )}
+      {connected && (
+        <Bills
+          bills={loaded.budget.bills ?? []}
+          typical={typicalCosts(loaded.budget, loaded.today)}
+          today={loaded.today}
+        />
+      )}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
       {s.accounts.length > 0 && <Payments s={s} txns={loaded.txns} />}
@@ -181,7 +223,13 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
             </div>
             {v.stillToPay.map((c) => (
               <div key={c.key} className="flex justify-between gap-3 text-muted">
-                <dt className="min-w-0 truncate">{c.on ? `${c.name}, ${longDay(c.on)}` : `${c.name}, still to pay`}</dt>
+                <dt className="min-w-0 truncate">
+                  {c.on
+                    ? `${c.name}, ${longDay(c.on)}`
+                    : c.typical
+                      ? `${c.name}, typical month`
+                      : `${c.name}, still to pay`}
+                </dt>
                 <dd>−{pounds(c.pence)}</dd>
               </div>
             ))}
@@ -211,6 +259,8 @@ function ThisWeek({ view: v, today, shop }: { view: BudgetView; today: string; s
           <p className="mt-2 text-xs text-faint">
             Bills Money found count on their own days up to payday. Any other bill or savings budget counts for each
             month up to payday, less what has gone out this month. Today is {longDay(today)}.
+            {v.stillToPay.some((c) => c.typical) &&
+              " A bill with no budget that Money can't find on a steady day counts at its typical month: see Bills."}
           </p>
         </details>
       )}
@@ -276,8 +326,130 @@ const PER: Record<Bill["cadence"], string> = { weekly: "a week", monthly: "a mon
 const dayMonth = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
-/** The regular payments Money found by itself, next one first. One that isn't a bill can be ignored. */
-function Bills({ bills, today }: { bills: Bill[]; today: string }) {
+/**
+ * The bills sorted as subscriptions, and learning and mentoring apart: what they cost a
+ * month and of your pay, and "keep or cancel?" on each not answered for 90 days. Shown
+ * once Money has found a bill; the other bills can be sorted in from its foot.
+ */
+function Subscriptions({ bills, today, lastPay }: { bills: Bill[]; today: string; lastPay: number | null }) {
+  const s = subscriptions(bills, today, lastPay);
+  if (s.subscriptions.length + s.learning.length + s.others.length === 0) return null;
+  return (
+    <section aria-labelledby="subscriptions-title" className="space-y-3 card-life">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="subscriptions-title" className="font-semibold">
+          Subscriptions
+        </h2>
+        {s.subscriptions.length > 0 && (
+          <p className="text-sm text-muted tabular-nums">
+            {pounds(s.monthly)} a month{s.shareOfPay !== null && ` · ${s.shareOfPay}% of pay`}
+          </p>
+        )}
+      </div>
+      {s.subscriptions.length === 0 ? (
+        <p className="text-sm text-muted">None sorted yet. Mark a bill as a subscription under Add a bill.</p>
+      ) : (
+        <SubscriptionList rows={s.subscriptions} today={today} />
+      )}
+      {s.learning.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h3 className="text-sm font-semibold">Learning and mentoring</h3>
+            <p className="text-sm text-muted tabular-nums">{pounds(s.learningMonthly)} a month</p>
+          </div>
+          <p className="text-xs text-muted">An investment you chose, counted apart.</p>
+          <SubscriptionList rows={s.learning} today={today} />
+        </div>
+      )}
+      {s.others.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">Add a bill ({s.others.length})</summary>
+          <ul className="mt-2 divide-y divide-white/5 rounded-xl bg-white/5">
+            {s.others.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5">
+                <span className="min-w-0 truncate">{b.name}</span>
+                <span className="flex shrink-0 gap-2">
+                  <ActionButton
+                    action={sortBill.bind(null, b.id, "subscriptions")}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    done="Now a subscription."
+                    label={`Mark ${b.name} as a subscription`}
+                  >
+                    Subscription
+                  </ActionButton>
+                  <ActionButton
+                    action={sortBill.bind(null, b.id, "learning")}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    done="Now under learning."
+                    label={`Mark ${b.name} as learning`}
+                  >
+                    Learning
+                  </ActionButton>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="text-xs text-faint">
+        Each asks keep or cancel every 90 days. Cancel only notes it: a bill counts until its payments stop.
+      </p>
+    </section>
+  );
+}
+
+function SubscriptionList({ rows, today }: { rows: SubscriptionRow[]; today: string }) {
+  return (
+    <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+      {rows.map(({ bill: b, due, monthly, ask, cancelling, weeklySaving }) => (
+        <li key={b.id} className="space-y-2 px-3 py-2.5">
+          <span className="block min-w-0">
+            <span className="block truncate text-sm">{b.name}</span>
+            <span className="block text-xs text-body tabular-nums">
+              {b.variable && "about "}
+              {pounds(b.expectedPence)} {PER[b.cadence]}
+              {b.cadence === "yearly" && ` (≈ ${pounds(monthly)} a month)`} ·{" "}
+              {due < today ? `due ${dayMonth(due)}, late` : `renews ${dayMonth(due)}`}
+            </span>
+          </span>
+          {cancelling && !ask && (
+            <p className="text-xs text-sand">Cancel it with the provider: about {pounds(weeklySaving)} a week back.</p>
+          )}
+          {ask && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted">Still want it?</span>
+              <ActionButton
+                action={answerBill.bind(null, b.id, "keep")}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Kept. Asking again in 90 days."
+                label={`Keep ${b.name}`}
+              >
+                Keep
+              </ActionButton>
+              <ActionButton
+                action={answerBill.bind(null, b.id, "cancel")}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Noted. Cancel it with the provider."
+                label={`Cancel ${b.name}`}
+              >
+                Cancel
+              </ActionButton>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const monthName = (month: string) =>
+  new Date(`${month}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+
+/**
+ * The regular payments Money found by itself, next one first. One that isn't a bill can be
+ * ignored. Under them, the fixed costs counted at their typical month, to confirm or change.
+ */
+function Bills({ bills, typical, today }: { bills: Bill[]; typical: Typical[]; today: string }) {
   const active = bills
     .filter((b) => b.status === "active")
     .map((b) => ({ b, due: nextDue(b, today) }))
@@ -350,6 +522,23 @@ function Bills({ bills, today }: { bills: Bill[]; today: string }) {
           </ul>
         </details>
       )}
+      {typical.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">Counted at a typical month</h3>
+          <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+            {typical.map((t) => (
+              <TypicalCost
+                key={`${t.key}-${t.pence}`}
+                categoryKey={t.key}
+                name={t.name}
+                amount={(t.pence / 100).toFixed(2)}
+                shown={pounds(t.pence)}
+                text={`${t.name}: ${pounds(t.pence)} a month, the median of ${t.paidMonths} months paid since ${monthName(t.since)}.`}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-xs text-faint">
         Safe-to-spend counts each bill on its day, and a bill&apos;s payment isn&apos;t this week&apos;s spending.
         Ignore one that isn&apos;t a bill and it won&apos;t be found again.
@@ -400,11 +589,13 @@ function Summary({ s, today }: { s: WeekSummary; today: string }) {
 }
 
 /** The next 13 weeks: the balance day by day, its lowest point, the paydays and each Monday's checkpoint. */
-function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
+function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: string }) {
   const bufferOn = (d: string) => (!budget.bufferFrom || budget.bufferFrom <= d ? budget.bufferPence : 0);
   const low = f.lowest;
   const under = low.pence < bufferOn(low.day);
   const unplanned = f.paydays.some((p) => p.pence === 0);
+  const pace = paceOutlook(budget, today);
+  const showPace = pace !== null && Math.abs(pace.pace - pace.plan) >= PACE_MATCH_PENCE;
   return (
     <section aria-labelledby="ahead-title" className="space-y-3 card-life">
       <h2 id="ahead-title" className="font-semibold">
@@ -416,12 +607,14 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
         bufferFrom={budget.bufferFrom}
         lowest={low}
         paydays={f.paydays.map((p) => p.day)}
-        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.`}
+        pace={showPace ? pace.points : undefined}
+        label={`Your balance day by day for 13 weeks. Lowest ${pounds(low.pence)} on ${longDay(low.day)}.${showPace ? ` Dashed: at your recent pace, lowest ${pounds(pace.lowest.pence)}.` : ""}`}
       />
       <p className={`text-sm tabular-nums ${under ? "text-coral" : "text-body"}`}>
         Lowest: {pounds(low.pence)} on {longDay(low.day)}
         {!under ? "." : low.pence < 0 ? ", overdrawn." : ", under your buffer."}
       </p>
+      {pace && <Pace pace={pace} f={f} budget={budget} today={today} />}
       {f.paydays.length > 0 && (
         <p className="text-sm text-muted tabular-nums">
           Pay: {f.paydays.map((p) => `${dayMonth(p.day)} ${p.pence > 0 ? pounds(p.pence) : "not planned"}`).join(" · ")}
@@ -445,6 +638,52 @@ function Ahead({ f, budget }: { f: Forecast; budget: BudgetData }) {
         </details>
       )}
     </section>
+  );
+}
+
+/**
+ * The plan beside what you really spend: the balance at your recent pace, and when that
+ * would take you under the buffer before payday, the weekly amount that wouldn't, with
+ * one tap to live on it.
+ */
+function Pace({ pace, f, budget, today }: { pace: PaceOutlook; f: Forecast; budget: BudgetData; today: string }) {
+  if (Math.abs(pace.pace - pace.plan) < PACE_MATCH_PENCE)
+    return <p className="text-sm text-muted">Your recent pace matches your plan.</p>;
+  const payday = nextPayday(today, budget.paydayRule, budget.firstPayday);
+  const above = budget.bufferPence > 0 ? "above your buffer" : "above £0";
+  const planHolds = !f.underBuffer.some((d) => d < payday);
+  const amount = pace.shortBeforePayday ? keepsAbove(budget, today) : null;
+  const floor = budget.weeklyFloorPence ?? null;
+  return (
+    <div className="space-y-2">
+      <p className={`text-sm tabular-nums ${pace.lowest.pence < 0 ? "text-coral" : "text-body"}`}>
+        At your recent pace (the dashed line: {pounds(pace.pace)} a week, the middle of your past weeks):{" "}
+        {pace.payday && `${pounds(pace.payday.pence)} on payday ${dayMonth(pace.payday.day)}, `}
+        lowest {pounds(pace.lowest.pence)} on {longDay(pace.lowest.day)}.
+      </p>
+      {pace.shortBeforePayday && planHolds && (
+        <p className="text-sm text-body tabular-nums">
+          Your plan&apos;s {pounds(pace.plan)} a week keeps you {above} to payday.
+        </p>
+      )}
+      {amount !== null && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <p className="text-sm text-body tabular-nums">
+            {pounds(amount)} a week keeps you {above} to payday
+            {floor !== null && amount < floor ? `, under the least a week you set (${pounds(floor)}).` : "."}
+          </p>
+          {(floor === null || amount >= floor) && (
+            <ActionButton
+              action={setWeeklyAmount.bind(null, amount)}
+              className="btn-soft px-3 py-1.5 text-sm"
+              done={`You'll live on ${pounds(amount)} a week. Change it back under Your plan.`}
+            >
+              Live on {pounds(amount)} a week
+            </ActionButton>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -474,12 +713,37 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
   const plan = allocate(budget, payday);
   const share = (id: number) => plan?.shares.find((s) => s.id === id);
   const suggested = suggestGoals(budget, today);
+  const debtsFound = suggestDebts(budget);
+  const debts = goals.filter((g) => g.kind === "debt");
   const moves = plan?.shares.filter((s) => s.pence > 0) ?? [];
+  // A higher pay ahead: each goal's date at the share chosen (half until then) and
+  // keeping it all, walking the paydays ahead.
+  const rise = raiseAhead(budget, today);
+  const split = budget.raiseGoalShareBp ?? DEFAULT_RAISE_SHARE;
+  const at = (bp: number) =>
+    goalDates({ ...budget, raiseGoalShareBp: bp, raiseSince: budget.raiseSince ?? today }, payday);
+  const dates = rise ? { split: at(split), keep: at(0) } : null;
   return (
     <section aria-labelledby="goals-title" className="space-y-3 card-life">
       <h2 id="goals-title" className="font-semibold">
         Goals
       </h2>
+      {rise && budget.raiseGoalShareBp == null && (
+        <div
+          role="group"
+          aria-labelledby="rise-title"
+          className="space-y-2 rounded-xl bg-mint/10 p-3 ring-1 ring-mint/30"
+        >
+          <p id="rise-title" className="text-sm font-medium">
+            Your pay rises on {dayMonth(rise.on)}. Where should the extra go?
+          </p>
+          <p className="text-xs text-body tabular-nums">
+            {pounds(rise.extra)} more a month. Pick the share for your goals; the rest raises your weekly amount. It
+            stands for every later rise, and you can change it under Your plan.
+          </p>
+          <RaiseShare chosen={null} />
+        </div>
+      )}
       <p className="text-sm text-muted">
         In this order, each payday pays the bills, keeps your least for each week, gives each goal its pace, then raises
         the week to your amount; anything left goes to the first goal.
@@ -539,33 +803,66 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
                 {s && (
                   <p className={`text-xs tabular-nums ${s.slipped ? "text-coral" : "text-muted"}`}>
                     {s.pence > 0 ? `${pounds(s.pence)} on ${dayMonth(payday)}` : `Nothing on ${dayMonth(payday)}`}
-                    {s.finish && ` · there by ${monthYear(s.finish)}`}
+                    {!(g.kind === "debt" && g.paymentPence) &&
+                      (dates ? (
+                        <ThereBy split={dates.split.get(g.id) ?? null} keep={dates.keep.get(g.id) ?? null} />
+                      ) : (
+                        s.finish && ` · there by ${monthYear(s.finish)}`
+                      ))}
                     {s.slipped && " · behind its pace"}
+                    {s.held && s.startsOn && ` · held: starts on ${dayMonth(s.startsOn)}, the first higher payday`}
                   </p>
                 )}
+                {g.kind === "debt" && g.paymentPence ? (
+                  <DebtClears goal={g} owed={now} payday={payday} extra={s?.pence ?? 0} finish={s?.finish ?? null} />
+                ) : null}
               </li>
             );
           })}
         </ol>
       )}
-      {suggested.length > 0 && (
-        <div className="space-y-2 rounded-xl bg-white/5 p-3 text-sm">
+      {debts.length >= 2 && (
+        <DebtChoice
+          orders={debtOrders(
+            debts.map((g) => ({ id: g.id, owed: savedNow(g), payment: g.paymentPence ?? 0, aprBp: g.aprBp })),
+            plan ? debts.reduce((t, g) => t + (share(g.id)?.pence ?? 0), 0) / ((plan.weeks * 7) / 30.4) : 0,
+          )}
+          current={debts.map((g) => g.id)}
+          payday={payday}
+        />
+      )}
+      {debts.length > 0 && <DebtAdvice />}
+      {(suggested.length > 0 || debtsFound.length > 0) && (
+        <div className="space-y-3 rounded-xl bg-white/5 p-3 text-sm">
           <p className="font-medium">Suggested from your bills and spending</p>
-          <ul className="space-y-1 text-body">
-            {suggested.map((g) => (
-              <li key={g.name} className="tabular-nums">
-                {g.name}: {pounds(g.targetPence)}
-                {g.dueOn ? ` by ${dayMonth(g.dueOn)}` : ""}, {g.held === "account" ? "in the account" : "in a saver"}
-              </li>
-            ))}
-          </ul>
-          <ActionButton
-            action={addSuggestedGoals}
-            className="btn-soft px-3 py-1.5 text-xs"
-            done="Added. Change the order any time."
-          >
-            Add {suggested.length === 1 ? "it" : "these"}
-          </ActionButton>
+          {debtsFound.map((d) => (
+            <div key={d.billId} className="space-y-2">
+              <p className="text-body tabular-nums">
+                {d.name}: {pounds(d.paymentPence)} a month. What&apos;s owed now?
+              </p>
+              <DebtForm billId={d.billId} name={d.name} />
+            </div>
+          ))}
+          {suggested.length > 0 && (
+            <div className="space-y-2">
+              <ul className="space-y-1 text-body">
+                {suggested.map((g) => (
+                  <li key={g.name} className="tabular-nums">
+                    {g.name}: {pounds(g.targetPence)}
+                    {g.dueOn ? ` by ${dayMonth(g.dueOn)}` : ""},{" "}
+                    {g.held === "account" ? "in the account" : "in a saver"}
+                  </li>
+                ))}
+              </ul>
+              <ActionButton
+                action={addSuggestedGoals}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Added. Change the order any time."
+              >
+                Add {suggested.length === 1 ? "it" : "these"}
+              </ActionButton>
+            </div>
+          )}
         </div>
       )}
       {plan === null ? (
@@ -613,6 +910,136 @@ function Goals({ budget, today }: { budget: BudgetData; today: string }) {
         </div>
       </details>
     </section>
+  );
+}
+
+/** When a debt clears at its payment, and with this payday's extra; and the interest still to pay. */
+function DebtClears({
+  goal: g,
+  owed,
+  payday,
+  extra,
+  finish,
+}: {
+  goal: Goal;
+  owed: number;
+  payday: string;
+  extra: number;
+  finish: string | null;
+}) {
+  if (owed <= 0) return null;
+  const payment = g.paymentPence ?? 0;
+  const at = payoff(owed, payment, g.aprBp);
+  return (
+    <div className="space-y-0.5 text-xs text-body tabular-nums">
+      <p>
+        {at.months === null
+          ? `Not cleared at ${pounds(payment)} a month: the interest is as much as the payment`
+          : `Cleared by ${monthYear(addMonths(payday, at.months - 1))} at ${pounds(payment)} a month`}
+        {extra > 0 && finish && `, ${monthYear(finish)} with this payday's ${pounds(extra)} extra`}
+      </p>
+      {(g.aprBp ?? 0) > 0 && at.months !== null && <p>About {pounds(at.interestPence)} interest still to pay</p>}
+    </div>
+  );
+}
+
+const ORDER_NAME: Record<DebtOrder["by"], string> = {
+  rate: "Highest interest first",
+  balance: "Smallest balance first",
+};
+
+/** Which debt the extra goes to first: each order with when the last debt clears and the interest it costs. */
+function DebtChoice({ orders, current, payday }: { orders: DebtOrder[]; current: number[]; payday: string }) {
+  return (
+    <div className="space-y-2" role="group" aria-labelledby="debt-order-title">
+      <p id="debt-order-title" className="text-sm font-medium">
+        Extra goes to
+      </p>
+      {orders.every((o) => o.months === orders[0].months && o.interestPence === orders[0].interestPence) && (
+        <p className="text-xs text-muted">With nothing extra to pay, both orders come out the same.</p>
+      )}
+      {orders.map((o) => {
+        const chosen = o.order.join() === current.join();
+        return (
+          <ActionButton
+            key={o.by}
+            action={orderDebts.bind(null, o.by)}
+            className={`tap flex w-full flex-col items-start rounded-xl px-3 py-2 text-left text-sm ring-1 ${chosen ? "bg-mint/15 ring-mint/40" : "bg-white/5 ring-white/10 hover:bg-white/10"}`}
+            done="The debts are in that order now."
+            pressed={chosen}
+          >
+            <span className={chosen ? "text-mint" : undefined}>{ORDER_NAME[o.by]}</span>
+            <span className="text-xs text-muted tabular-nums">
+              {o.months === null
+                ? "Not all cleared at these payments"
+                : `Last one cleared ${monthYear(addMonths(payday, o.months - 1))} · about ${pounds(o.interestPence)} interest`}
+            </span>
+          </ActionButton>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Free debt advice, linked: the portal gives none of its own. */
+function DebtAdvice() {
+  const link = "text-mint underline";
+  return (
+    <p className="text-xs text-muted">
+      Free, confidential debt advice:{" "}
+      <a className={link} href="https://www.stepchange.org/" target="_blank" rel="noopener noreferrer">
+        StepChange
+      </a>
+      ,{" "}
+      <a className={link} href="https://nationaldebtline.org/" target="_blank" rel="noopener noreferrer">
+        National Debtline
+      </a>{" "}
+      and{" "}
+      <a
+        className={link}
+        href="https://www.moneyhelper.org.uk/en/money-troubles/dealing-with-debt"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        MoneyHelper
+      </a>
+      .
+    </p>
+  );
+}
+
+/** Half of a rise to goals until the owner chooses: part of it committed, and the week still rises. */
+const DEFAULT_RAISE_SHARE = 5_000;
+
+/** A goal's date with the share of a rise chosen, and if you kept the whole rise. */
+function ThereBy({ split, keep }: { split: string | null; keep: string | null }) {
+  const when = (m: string | null) => (m ? monthYear(m) : "not within 3 years");
+  if (split === keep) return <>{` · there by ${when(split)}`}</>;
+  return <>{` · there by ${when(split)} with this split · ${when(keep)} if you keep it all`}</>;
+}
+
+/** The share of a pay rise for goals, one tap each; the one in force (or suggested) is marked. */
+function RaiseShare({ chosen }: { chosen: number | null }) {
+  const picked = chosen ?? DEFAULT_RAISE_SHARE;
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Share of a rise for goals">
+      {RAISE_SHARES.map((bp) => {
+        const on = bp === picked;
+        const pct = `${bp / 100}%`;
+        return (
+          <li key={bp}>
+            <ActionButton
+              action={saveRaiseShare.bind(null, bp)}
+              className={`btn px-3 py-1.5 text-sm tabular-nums ring-1 ${on ? "bg-mint/15 text-white ring-mint/40" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
+              done={`${pct} of each rise to goals.`}
+              label={`${pct} to goals${on ? (chosen === null ? " (suggested)" : " (current)") : ""}`}
+            >
+              {pct}
+            </ActionButton>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -712,6 +1139,13 @@ function Plan({ budget }: { budget: BudgetData }) {
       </p>
       {/* Keyed to what's saved, so the form always starts from the saved plan. */}
       <PlanForm key={JSON.stringify(values)} {...values} />
+      {budget.raiseGoalShareBp != null && (
+        <div className="space-y-2 text-sm">
+          <p className="font-medium">Of each pay rise, to goals</p>
+          <p className="text-xs text-muted">The rest raises your weekly amount.</p>
+          <RaiseShare chosen={budget.raiseGoalShareBp ?? null} />
+        </div>
+      )}
     </section>
   );
 }

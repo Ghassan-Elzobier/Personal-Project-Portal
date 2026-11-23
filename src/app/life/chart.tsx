@@ -4,7 +4,7 @@ import { line } from "d3-shape";
 // Small charts drawn on the server. They scale to the width of their card, so they
 // never push a phone screen sideways. LineChart: points, an optional smoothed line and
 // an optional goal. ForecastChart: a balance day by day, with the buffer, the lowest
-// point and the paydays marked.
+// point and the paydays marked, and optionally a second, dashed line beside it.
 
 type Point = { x: string; y: number };
 
@@ -113,6 +113,7 @@ const pounds0 = (pence: number) => {
 /**
  * A balance day by day (pence): the line, a dashed buffer line from the day it starts,
  * the lowest point marked (coral when it is under the buffer), and a tick at each payday.
+ * `pace`, when given, is a second balance (at your recent spending), drawn dashed and muted.
  */
 export function ForecastChart({
   points,
@@ -121,8 +122,10 @@ export function ForecastChart({
   lowest,
   paydays,
   label,
+  pace,
 }: {
   points: { day: string; pence: number }[];
+  pace?: { day: string; pence: number }[];
   buffer: number;
   bufferFrom: string | null;
   lowest: { day: string; pence: number };
@@ -137,7 +140,7 @@ export function ForecastChart({
   const t = (d: string) => new Date(`${d}T12:00:00Z`);
   const first = points[0].day;
   const last = points[points.length - 1].day;
-  const ys = points.map((p) => p.pence);
+  const ys = [...points, ...(pace ?? [])].map((p) => p.pence);
   const lo = Math.min(...ys, buffer > 0 ? buffer : Infinity, 0);
   const hi = Math.max(...ys, buffer);
   const span = Math.max(100, hi - lo);
@@ -202,6 +205,9 @@ export function ForecastChart({
               Buffer {pounds0(buffer)}
             </text>
           </g>
+        )}
+        {pace && pace.length > 1 && (
+          <path d={path(pace) ?? ""} fill="none" stroke="var(--color-muted)" strokeDasharray="5 4" strokeWidth="2" />
         )}
         <path d={path(points) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />
         <circle

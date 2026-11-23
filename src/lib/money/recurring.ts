@@ -51,6 +51,9 @@ export type Bill = {
   createdAt: string;
   lastPaidOn: string | null;
   lastPence: number | null;
+  /** The owner's last answer to "do you still want this?", and its day (subscriptions.ts). */
+  reviewedOn?: string | null;
+  verdict?: "keep" | "cancel" | null;
 };
 
 /** The gaps between payments that count as each cadence, in days. */
@@ -67,7 +70,8 @@ const dayMs = 86_400_000;
 export const daysBetween = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / dayMs);
 
-const median = (xs: number[]) => {
+/** The middle value (the mean of the middle two), in whole pence. */
+export const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
@@ -393,5 +397,8 @@ export function parseBill(r: Row): Bill {
     createdAt: str(r.created_at) ?? "",
     lastPaidOn: str(r.last_paid_on),
     lastPence: num(r.last_pence),
+    // Only when the database sends them (the owner's reads, from part 10 on).
+    ...("reviewed_on" in r && { reviewedOn: str(r.reviewed_on) }),
+    ...("verdict" in r && { verdict: r.verdict === "keep" || r.verdict === "cancel" ? r.verdict : null }),
   };
 }
