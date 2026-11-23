@@ -321,7 +321,12 @@ function PlannedPurchases({ budget, today }: { budget: BudgetData; today: string
   );
 }
 
-const PER: Record<Bill["cadence"], string> = { weekly: "a week", monthly: "a month", yearly: "a year" };
+const PER: Record<Bill["cadence"], string> = {
+  weekly: "a week",
+  fortnightly: "every two weeks",
+  monthly: "a month",
+  yearly: "a year",
+};
 /** "8 Dec": short enough for a bill's line at 360 px. */
 const dayMonth = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });

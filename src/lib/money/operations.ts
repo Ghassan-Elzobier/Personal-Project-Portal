@@ -362,7 +362,7 @@ export type GoalInput = {
   /** A debt's interest, % a year, and its monthly payment in pounds. */
   apr: string;
   payment: string;
-  /** A regular cost: how often (weekly, monthly, yearly), a weekly cost's day (0 Monday to 6), a setup cost in pounds, the merchant of the bill it replaces, one more payment of that for notice, and whether the price is a guess. dueOn is its start. */
+  /** A regular cost: how often (weekly, fortnightly, monthly, yearly), a weekly or fortnightly cost's day (0 Monday to 6), a setup cost in pounds, the merchant of the bill it replaces, one more payment of that for notice, and whether the price is a guess. dueOn is its start. */
   cadence?: string;
   weekday?: string;
   setup?: string;
@@ -405,10 +405,13 @@ export function saveGoal(input: GoalInput): Promise<Result> {
 async function saveRegular(name: string, input: GoalInput): Promise<Result> {
   const cost = poundsToPence(input.amount);
   if (!cost) throw new store.MoneyStoreError("Say what it costs each time.");
-  const cadence = ["weekly", "monthly", "yearly"].find((c) => c === input.cadence);
+  const cadence = ["weekly", "fortnightly", "monthly", "yearly"].find((c) => c === input.cadence);
   if (!cadence) throw new store.MoneyStoreError("Say how often it comes.");
   if (input.dueOn && !DAY.test(input.dueOn)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
-  const weekday = cadence === "weekly" && /^[0-6]$/.test(input.weekday ?? "") ? Number(input.weekday) : null;
+  const weekday =
+    (cadence === "weekly" || cadence === "fortnightly") && /^[0-6]$/.test(input.weekday ?? "")
+      ? Number(input.weekday)
+      : null;
   const setup = input.setup?.trim() ? poundsToPence(input.setup) : null;
   const replaces = input.replaces?.trim() || null;
   if (replaces && !/^[a-z0-9-]{1,60}$/.test(replaces)) throw new store.MoneyStoreError("Pick the bill it replaces.");

@@ -89,9 +89,9 @@ export const goalBillId = (g: Goal) => -1_000_000 - g.id;
 /** The bills Money found in the bank, without the made-up ones regular costs add. */
 export const foundBills = (bills: Bill[] = []) => bills.filter((b) => b.id > 0);
 
-/** The first day the cost falls on from a start: for a weekly cost, its session day. */
+/** The first day the cost falls on from a start: for a weekly or fortnightly cost, its session day. */
 function firstDay(r: Regular, start: string): string {
-  if (r.cadence !== "weekly" || r.weekday === null) return start;
+  if ((r.cadence !== "weekly" && r.cadence !== "fortnightly") || r.weekday === null) return start;
   let d = start;
   while (weekdayIndex(d) !== r.weekday) d = addDays(d, 1);
   return d;

@@ -293,7 +293,7 @@ const FORECAST_TOOLS: Tool[] = [
     name: "money_set_plan",
     title: "Money: set the owner's high-level plan",
     description:
-      "Sets the high-level plan Money then runs by itself after every sync (it shares each payday out, sets money aside, fixes each week's amount and checks transfers). income: pay steps — from a payday (from_on), the take-home a month, or a salary a year (with student loans and pension) worked out after tax; a step lasts until a later one. remove_income: from_on days. goals, in the owner's order: kind 'saving' (an emergency fund, a bike: target_pence, optional due_on, held 'elsewhere' for a separate saver or 'account'), 'sinking' (a cost that comes once or each year: target_pence, due_on, repeats_yearly, usually held 'account'), or 'debt' (saved_pence is what's owed now, payment_pence a month, apr_bp interest in basis points); merchant_key links a saver or lender's payments (from get_money_history) so progress follows the bank. Give id to change one; saved_pence only on a new goal. remove_goals: ids (only goals you added). order: every goal id, first first. weekly: floor_pence (the least a week: setting it turns the autopilot on) and target_pence (the most). buffer: pence and from (YYYY-MM-DD). Best practice order: buffer, yearly costs, an emergency fund of about three months of bills and food, high-interest debts, then other goals. Agree everything with the owner first. Needs plan access.",
+      "Sets the high-level plan Money then runs by itself after every sync (it shares each payday out, sets money aside, fixes each week's amount and checks transfers). income: pay steps — from a payday (from_on), the take-home a month, or a salary a year (with student loans and pension) worked out after tax; a step lasts until a later one. remove_income: from_on days. goals, in the owner's order: kind 'saving' (an emergency fund, a bike: target_pence, optional due_on, held 'elsewhere' for a separate saver or 'account'), 'sinking' (a cost that comes once or each year: target_pence, due_on, repeats_yearly, usually held 'account'), 'debt' (saved_pence is what's owed now, payment_pence a month, apr_bp interest in basis points), or 'recurring', a regular cost to take on (a session twice a month, a gym upgrade): cost_pence each time, cadence (weekly, fortnightly, monthly or yearly), weekday for a weekly or fortnightly cost (0 Monday to 6), setup_pence once at the start (a joining fee), replaces_merchant_key the bill it replaces (from get_money_history, so only the difference counts, and replace_overlap for one more payment of it as notice), start_on (leave it out to start on the first payday it fits), estimated when the price is a guess; get_money_summary then says the payday it fits from, at the plan and at the recent pace, and goals ordered above it are protected; merchant_key links a saver or lender's payments (from get_money_history) so progress follows the bank. Give id to change one; saved_pence only on a new goal. remove_goals: ids (only goals you added). order: every goal id, first first. weekly: floor_pence (the least a week: setting it turns the autopilot on) and target_pence (the most). buffer: pence and from (YYYY-MM-DD). Best practice order: buffer, yearly costs, an emergency fund of about three months of bills and food, high-interest debts, then other goals. Agree everything with the owner first. Needs plan access.",
     inputSchema: {
       type: "object",
       properties: {
@@ -316,7 +316,15 @@ const FORECAST_TOOLS: Tool[] = [
             properties: {
               id: { type: "integer" },
               name: { type: "string", minLength: 1, maxLength: 60 },
-              kind: { type: "string", enum: ["saving", "sinking", "debt"] },
+              kind: { type: "string", enum: ["saving", "sinking", "debt", "recurring"] },
+              cost_pence: { type: "integer", minimum: 1, maximum: 10_000_000 },
+              cadence: { type: "string", enum: ["weekly", "fortnightly", "monthly", "yearly"] },
+              weekday: { type: "integer", minimum: 0, maximum: 6 },
+              setup_pence: PENCE,
+              replaces_merchant_key: { type: "string", pattern: "^[a-z0-9-]{1,60}$" },
+              replace_overlap: { type: "boolean" },
+              start_on: DATE,
+              estimated: { type: "boolean" },
               target_pence: PENCE,
               due_on: DATE,
               repeats_yearly: { type: "boolean" },
@@ -345,6 +353,9 @@ const FORECAST_TOOLS: Tool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     run: (args, { base }) =>
       attempt(async () => {
+        for (const g of Array.isArray(args.goals) ? (args.goals as Json[]) : [])
+          if (g.kind === "recurring" && g.id === undefined && (!g.cost_pence || !g.cadence))
+            return err(`The regular cost '${String(g.name)}' needs cost_pence and cadence.`);
         const income: Json[] = [];
         for (const step of Array.isArray(args.income) ? (args.income as Json[]) : []) {
           const pay = payFrom(step);
