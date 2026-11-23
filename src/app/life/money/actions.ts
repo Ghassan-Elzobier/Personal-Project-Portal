@@ -143,6 +143,16 @@ export async function setBill(id: number, status: "active" | "ignored") {
   return ops.setBill(Number(id), status === "ignored" ? "ignored" : "active");
 }
 
+export async function sortBill(id: number, category: "subscriptions" | "learning") {
+  await requireOwner();
+  return ops.reviewBill(Number(id), { category: category === "learning" ? "learning" : "subscriptions" });
+}
+
+export async function answerBill(id: number, verdict: "keep" | "cancel") {
+  await requireOwner();
+  return ops.reviewBill(Number(id), { verdict: verdict === "cancel" ? "cancel" : "keep" });
+}
+
 export async function dismissAlert(id: number) {
   await requireOwner();
   return ops.dismissAlert(id);

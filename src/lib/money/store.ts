@@ -87,6 +87,9 @@ export const claudeSetPlan = (plan: Record<string, unknown>) =>
 /** Ignore a bill Money found (it is never adopted again), take it back, or rename it. */
 export const setBill = (id: number, status: "active" | "ignored" | null, name?: string) =>
   owner<void>("money_set_bill", { p_id: id, p_status: status, p_name: name ?? null });
+/** Sort a bill into a category (by key), or answer "do you still want this?" (dated today). */
+export const reviewBill = (id: number, change: { category?: string; verdict?: "keep" | "cancel" }) =>
+  owner<void>("money_set_bill", { p_id: id, p_category: change.category ?? null, p_verdict: change.verdict ?? null });
 /** Claude at setup: name, sort, ignore or take back bills. */
 export const claudeBills = (changes: Record<string, unknown>[]) =>
   claude<number>("money_claude_bills", { p_changes: changes });
