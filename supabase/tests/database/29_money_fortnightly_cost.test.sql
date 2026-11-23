@@ -51,8 +51,10 @@ select pg_temp.act_as((select v::uuid from fx where k = 'owner'));
 select lives_ok($$ select public.money_save_goal('{"name": "Example sessions", "kind": "recurring", "cost_pence": 9000,
   "cadence": "fortnightly", "weekday": 2, "estimated": true}'::jsonb) $$,
   'Given the owner saves a regular cost every two weeks, then it saves');
+reset role;
 select is((select array[cadence, weekday::text] from portal.money_goals where name = 'Example sessions'),
   array['fortnightly', '2'], 'and it keeps its cadence and session day');
+select pg_temp.act_as((select v::uuid from fx where k = 'owner'));
 select throws_ok($$ select public.money_save_goal('{"name": "Swim", "kind": "recurring", "cost_pence": 500,
   "cadence": "daily"}'::jsonb) $$, '23514', null, 'A cadence that is not weekly, fortnightly, monthly or yearly is refused');
 select public.money_set_claude_access('plan');
