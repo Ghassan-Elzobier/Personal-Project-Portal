@@ -64,7 +64,8 @@ function dueFrom(g: Goal, from: string): string | null {
   return d;
 }
 
-function addMonths(day: string, n: number): string {
+/** The month `n` months on from a day's month ("2027-11"). */
+export function addMonths(day: string, n: number): string {
   const [y, m] = day.split("-").map(Number);
   const i = y * 12 + (m - 1) + n;
   return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
@@ -225,4 +226,97 @@ export function suggestGoals(data: BudgetData, today: string): Suggested[] {
     });
   const have = new Set((data.goals ?? []).map((g) => g.name.toLowerCase()));
   return out.filter((s) => !have.has(s.name.toLowerCase()));
+}
+
+export type SuggestedDebt = { billId: number; name: string; paymentPence: number };
+
+/**
+ * Debts to start watching: each active bill in Debt repayments whose lender no active
+ * debt goal is linked to, with what it costs a month. The owner says what's owed.
+ */
+export function suggestDebts(data: BudgetData): SuggestedDebt[] {
+  const watched = new Set(
+    (data.goals ?? [])
+      .filter((g) => g.kind === "debt" && g.status === "active" && g.merchantKey)
+      .map((g) => g.merchantKey),
+  );
+  return (data.bills ?? [])
+    .filter((b) => b.status === "active" && b.category === "debts" && !watched.has(b.merchantKey))
+    .map((b) => ({ billId: b.id, name: b.name ?? "A debt", paymentPence: Math.round(yearlyPence(b) / 12) }));
+}
+
+export type Debt = { id: number; owed: number; payment: number; aprBp: number | null };
+/** How long until every debt is cleared, and the interest paid on the way; null months when it never clears. */
+export type Payoff = { months: number | null; interestPence: number };
+
+/** Give up after 50 years: a payment that barely beats the interest. */
+const MAX_MONTHS = 600;
+
+/**
+ * Pays debts off month by month: interest goes on, each debt gets its payment, and
+ * `extra` a month (plus the payments of debts already cleared) goes to the first in
+ * the order still owing.
+ */
+function simulate(debts: Debt[], extra: number): Payoff {
+  const owed = debts.map((d) => d.owed);
+  let interest = 0;
+  for (let month = 1; month <= MAX_MONTHS; month++) {
+    let pool = extra;
+    debts.forEach((d, i) => {
+      if (owed[i] <= 0) {
+        pool += d.payment;
+        return;
+      }
+      const added = (owed[i] * (d.aprBp ?? 0)) / 10_000 / 12;
+      interest += added;
+      owed[i] = owed[i] + added - d.payment;
+      if (owed[i] < 0) {
+        pool -= owed[i];
+        owed[i] = 0;
+      }
+    });
+    for (let i = 0; i < debts.length && pool > 0; i++) {
+      const paid = Math.min(owed[i], pool);
+      owed[i] -= paid;
+      pool -= paid;
+    }
+    if (owed.every((o) => o <= 0.5)) return { months: month, interestPence: Math.round(interest) };
+  }
+  return { months: null, interestPence: Math.round(interest) };
+}
+
+/** One debt paid at `payment` a month (APR in basis points): when it clears, and the interest on the way. */
+export function payoff(owed: number, payment: number, aprBp: number | null): Payoff {
+  if (owed <= 0) return { months: 0, interestPence: 0 };
+  return simulate([{ id: 0, owed, payment, aprBp }], 0);
+}
+
+export type DebtOrder = { by: "rate" | "balance"; order: number[] } & Payoff;
+
+/**
+ * The two orders to pay extra off debts in, each with when the last one clears and the
+ * interest paid: highest interest first, and smallest balance first. A cleared debt's
+ * payment rolls on to the next.
+ */
+export function debtOrders(debts: Debt[], extraMonthly: number): DebtOrder[] {
+  const apr = (d: Debt) => d.aprBp ?? 0;
+  const sorts: Record<DebtOrder["by"], (a: Debt, b: Debt) => number> = {
+    rate: (a, b) => apr(b) - apr(a) || a.owed - b.owed || a.id - b.id,
+    balance: (a, b) => a.owed - b.owed || apr(b) - apr(a) || a.id - b.id,
+  };
+  return (["rate", "balance"] as const).map((by) => {
+    const sorted = [...debts].sort(sorts[by]);
+    return { by, order: sorted.map((d) => d.id), ...simulate(sorted, Math.max(0, extraMonthly)) };
+  });
+}
+
+/**
+ * The whole goal order with the debts put in `debtOrder`: each other goal keeps its
+ * place, and the debts take the places debts had. Goals not done, first first.
+ */
+export function withDebtOrder(goals: Goal[], debtOrder: number[]): number[] {
+  const listed = goals.filter((g) => g.status !== "done").sort((a, b) => a.position - b.position || a.id - b.id);
+  const moving = new Set(debtOrder);
+  const queue = debtOrder.filter((id) => listed.some((g) => g.id === id));
+  return listed.map((g) => (moving.has(g.id) ? queue.shift()! : g.id));
 }
