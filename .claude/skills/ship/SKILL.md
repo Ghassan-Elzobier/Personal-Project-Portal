@@ -63,6 +63,8 @@ per step; don't narrate commands.
   No AI attribution anywhere.
 - `git push -u origin claude/<name>`, then `gh pr create` filling in
   `.github/pull_request_template.md`. Say what you assumed and what is left.
+  Built for an issue? End the body with `Closes #N`, so merging closes it. Open
+  the pull request yourself: a "Create PR" link leaves the issue open.
 - `gh pr checks --watch`. Fix any failure, push again, and repeat until green.
   CI and an independent Claude review run on every pull request.
 - Never merge; the owner does. Merging deploys production.

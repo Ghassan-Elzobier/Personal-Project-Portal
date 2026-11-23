@@ -38,7 +38,9 @@ Use the `/ship` skill for any change; it holds the details. In short:
    shared piece rather than a one-off, and add it to `/design`.
 4. Verify like a user: `npm run check`, then `npm run test:e2e` when a page changed,
    and look at the page at 412 px and 360 px. Unit tests alone are not done.
-5. Pull request with the template; watch CI (`gh pr checks --watch`) and fix it.
+5. Pull request with the template, opened yourself (`gh pr create`, never just a
+   "Create PR" link), its body ending `Closes #N` when it builds an issue; watch
+   CI (`gh pr checks --watch`) and fix it.
 6. Log friction: if the factory slowed you down or let a mistake through, add one
    line to `docs/factory/friction.md`. That is how the factory improves.
 
@@ -70,7 +72,8 @@ act on the local stack unless given `--remote`.
 - `e2e/` Playwright suites; `scripts/` loaders and the factory's own tools.
 - `.claude/agents/` agents to delegate to: `verifier` (the full suite), `debugger`, and
   `rnd` (research and design review, read-only). R&D also runs four times a day
-  (`.github/workflows/rnd.yml`) and files its proposals as `rnd` issues.
+  (`.github/workflows/rnd.yml`) and files its proposals as `rnd` issues, which
+  R&D build (`.github/workflows/rnd-build.yml`) builds straight away into pull requests.
 - `docs/FACTORY.md` how this factory works and why. `docs/DESIGN.md` the design system.
 
 ## Context worth knowing

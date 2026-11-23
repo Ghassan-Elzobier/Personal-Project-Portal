@@ -2,6 +2,7 @@
 // the evidence linked to the code at the commit the agent read. Pure; the
 // GitHub calls are in scripts/rnd.mjs file.
 
+import { BUILD_MARKER } from "./build.ts";
 import type { Focus } from "./foci.ts";
 import type { Proposal, Serves } from "./result.ts";
 
@@ -20,6 +21,8 @@ export type Context = {
   runUrl: string;
   /** Whether a repository path is a file in that commit. */
   isFile: (path: string) => boolean;
+  /** This proposal is built straight away (build.ts), so the issue says so and carries the build's marker. */
+  building?: boolean;
 };
 
 const SERVES: Record<Serves, string> = {
@@ -137,9 +140,14 @@ export function issueBody(focus: Focus, p: Proposal, ctx: Context): string {
     "---",
     "",
     `From ${byFocus(focus)} on ${ctx.day} (${runLink(ctx.runUrl)}). ` +
-      "**Build it:** comment here asking Claude to build it, as on any issue. " +
-      "**Decline it:** close it as not planned, with your reason if you like; the next run on this focus reads it.",
+      (ctx.building
+        ? "**Being built:** Claude starts on it as soon as this run ends and links its pull request here; " +
+          "merging that closes this issue. **Decline it:** close it as not planned (and its pull request), " +
+          "with your reason if you like; the next run on this focus reads it."
+        : "**Build it:** comment here asking Claude to build it, as on any issue. " +
+          "**Decline it:** close it as not planned, with your reason if you like; the next run on this focus reads it."),
     "",
+    ...(ctx.building ? [BUILD_MARKER] : []),
     marker(focus.id),
   ].join("\n");
 }

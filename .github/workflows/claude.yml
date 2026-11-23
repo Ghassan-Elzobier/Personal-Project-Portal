@@ -3,6 +3,12 @@
 # in the thread. Runs on the owner's Claude subscription (CLAUDE_CODE_OAUTH_TOKEN
 # from `claude setup-token`), so each run counts toward the plan's usage.
 #
+# On an issue it opens the pull request itself, saying "Closes #N", rather than
+# leaving a "Create PR" link: the action's own instructions ask for a link, so
+# the appended system prompt below overrides them. Merging then closes the
+# issue (and after-merge.yml closes it from the branch's name if the body
+# forgot). If gh cannot open it, the comment still carries the link.
+#
 # Only accounts with write access can trigger it (the action checks), and this
 # repository is public, so that means the owner. Text written by anyone else in
 # a thread is still read as data, not instructions.
@@ -51,4 +57,16 @@ jobs:
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: --max-turns 150 --model opus
+          # Single quotes, and no apostrophes inside them: the action splits these like a shell.
+          claude_args: >-
+            --max-turns 150
+            --model opus
+            --append-system-prompt 'This repository wants a pull request, not a link. When you have
+            pushed a branch with changes for an issue, open the pull request yourself instead of a
+            Create PR link: run gh pr create with base main and your branch as head, a title that says
+            what changes for the owner, and a body that fills in .github/pull_request_template.md and
+            ends with the line Closes #N, where N is the issue number. Then put the link to the pull
+            request in your comment where the Create PR link would have gone. Leave out any Generated
+            with Claude Code line: AGENTS.md forbids AI attribution. If gh pr create fails, say why in
+            your comment and give the Create PR link as before. On a pull request, push to its branch
+            as usual and open nothing new.'

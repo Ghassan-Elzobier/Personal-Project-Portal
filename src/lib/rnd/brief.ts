@@ -23,6 +23,29 @@ const oneLine = (text: string, max: number) => {
 };
 
 /**
+ * The owner's own request for a run by hand ("R&D, Run workflow", the request
+ * box): it becomes the run's question, ahead of the focus's usual one. It is
+ * the owner's text, so it may ask for something; quoted, so it reads as theirs.
+ * Empty when there is none.
+ */
+export function requestSection(request: string | undefined): string[] {
+  const text = (request ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (!text) return [];
+  return [
+    "## The owner's request",
+    "",
+    "The owner started this run by hand to research this. It is this run's question, ahead of the focus's own:",
+    "",
+    `> ${text}`,
+    "",
+    "Propose the best way to do it, built on what exists, with the evidence and research the method asks for. " +
+      'Answer "nothing" only when the evidence shows it would hurt, and say why in looked_at. ' +
+      'If an open proposal already covers it, answer "update" with its number.',
+    "",
+  ];
+}
+
+/**
  * Open proposals from every focus, so a run never files one twice, then this
  * focus's decided ones with the owner's own last word on each. Only the owner's
  * comments are kept: anyone can comment on a public repository.

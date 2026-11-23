@@ -4,7 +4,13 @@
 # clears the bar. Fifteen foci take turns (src/lib/rnd/foci.ts): design,
 # navigation, one portal, performance, security, reliability, code, the factory,
 # the Claude connector, and the owner's study, job hunt, schedule, gym, food and
-# money. By hand it can also sweep: every focus at once, one research job each.
+# money. By hand it can also sweep: every focus at once, one research job each,
+# or take the owner's own request on a focus (the request box).
+#
+# A new proposal is built straight away: when this run ends, R&D build
+# (.github/workflows/rnd-build.yml) has Claude build each proposal this run marked
+# and open a pull request that closes it. This workflow still writes nothing but
+# issues; the build is its own workflow, with its own token.
 #
 # It reads the open web, so it is built to hold nothing worth stealing:
 #   plan      a script decides whether to run, and on which foci (no AI)
@@ -16,13 +22,15 @@
 # A security weakness is never published: the run fails, naming only the area.
 #
 # The owner's controls are repository variables: RND_RUNS_PER_DAY (0 to 4, 4 when
-# unset; 0 stops the schedule) and RND_OPEN_LIMIT (8 when unset: R&D pauses while
-# that many proposals wait for a decision). Run it by hand from the Actions tab,
+# unset; 0 stops the schedule), RND_OPEN_LIMIT (8 when unset: R&D pauses while
+# that many proposals wait for a decision) and RND_BUILD_PER_RUN (0 to 15, 3 when
+# unset: how many new proposals a run has built; 0 files them for you to build
+# by asking Claude on the issue). Run it by hand from the Actions tab,
 # on a focus, or with "all" ticked for a sweep. Each Claude run counts toward the
 # subscription's usage, and a sweep is one run per focus.
 # See docs/FACTORY.md, "Research and development".
 name: R&D
-run-name: "${{ inputs.all && 'R&D on every focus at once' || 'R&D' }}"
+run-name: "${{ inputs.all && 'R&D on every focus at once' || inputs.request && 'R&D on your request' || 'R&D' }}"
 
 on:
   schedule:
@@ -58,6 +66,10 @@ on:
         description: Research every focus at once, one job each (the focus above is then ignored)
         type: boolean
         default: false
+      request:
+        description: Your own idea or problem for R&D to research and propose, on the focus above (optional; not for a sweep)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -151,6 +163,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           FOCUS: ${{ matrix.focus }}
+          # The owner's request from a run by hand, into the brief as data; a sweep takes none.
+          REQUEST: ${{ !inputs.all && inputs.request || '' }}
       - name: Research and propose
         id: claude
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
@@ -207,3 +221,5 @@ jobs:
           RESULTS: ${{ toJSON(needs.research.outputs) }}
           SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # How many new proposals R&D build takes on when this run ends (3 when unset, 0 to stop).
+          RND_BUILD_PER_RUN: ${{ vars.RND_BUILD_PER_RUN }}
