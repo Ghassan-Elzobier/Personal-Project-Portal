@@ -8,7 +8,8 @@
 //
 //   safe-to-spend = balance − fixed costs still to pay before payday − the buffer
 //
-// Fixed costs are the categories of kind bills or savings with a monthly budget: for
+// Fixed costs are the categories of kind bills or savings with a monthly budget (or, for
+// a bills category with no budget and no bill found, its typical month: fixedMonthly): for
 // each month the window touches, its budget, less what has been paid since the first
 // of this month. What's left is spread over the weeks to payday, and set against the
 // weekly amount you planned. The weekly amount counts what you spend that isn't fixed
@@ -16,7 +17,7 @@
 // overspending last week comes off this week, so the month still balances.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import { dueUntil, parseBill, type Bill } from "./recurring.ts";
+import { dueUntil, median, parseBill, type Bill } from "./recurring.ts";
 
 /** Bank holidays in England and Wales (GOV.UK), for moving a payday off them. */
 export const BANK_HOLIDAYS = new Set([
@@ -104,6 +105,8 @@ export type BudgetCategory = {
   spentLastWeek: number;
   /** Spent in each of the 8 weeks before this one, oldest first. */
   weeks?: number[];
+  /** Out less back in, in each of the 6 full months before this one, oldest first. */
+  months?: number[];
 };
 
 /** What the engine recorded when it closed a week. */
@@ -301,13 +304,81 @@ export function afford(data: BudgetData, today: string, pence: number, savesPerW
 const FIXED = new Set(["bills", "savings"]);
 const FLEXIBLE = new Set(["groceries", "essentials", "discretionary"]);
 
+/** How many of the last 6 full months a bills category must have been paid in to count at its typical month. */
+export const TYPICAL_MONTHS = 3;
+
+export type FixedMonthly = {
+  pence: number;
+  /** The budget set, or the typical month worked out from what went out. */
+  source: "budget" | "typical";
+  /** For a typical month: how many of the last 6 full months it was paid in. */
+  paidMonths: number;
+};
+
+/**
+ * What a fixed category costs a month: its budget when one is set (0 counts nothing).
+ * A bills category with no budget, paid in at least 3 of the last 6 full months (rent to
+ * a person, energy with refunds: payments Money can't find as bills), counts at its
+ * typical month, the median of what went out less refunds in the months it was paid.
+ * Null when it counts nothing. The caller leaves out a category a bill found covers.
+ * Safe-to-spend, the forecast, the payday share-out and the emergency fund all use it.
+ */
+export function fixedMonthly(c: BudgetCategory): FixedMonthly | null {
+  if (!FIXED.has(c.kind)) return null;
+  if (c.budgetPence !== null)
+    return c.budgetPence > 0 ? { pence: c.budgetPence, source: "budget", paidMonths: 0 } : null;
+  if (c.kind !== "bills") return null;
+  const paid = (c.months ?? []).filter((m) => m > 0);
+  if (paid.length < TYPICAL_MONTHS) return null;
+  return { pence: median(paid), source: "typical", paidMonths: paid.length };
+}
+
+/** The categories bills Money found cover: they count on their days, not by the month. */
+export function billedCategories(bills: Bill[] = []): Set<string> {
+  return new Set(bills.filter((b) => b.status === "active" && b.category !== null).map((b) => b.category!));
+}
+
+export type Typical = { key: string; name: string; pence: number; paidMonths: number; since: string };
+
+/**
+ * The fixed costs counted at their typical month, for the page to say where each figure
+ * came from and offer to save it as the budget. `since` is the first month paid ("2026-06").
+ */
+export function typicalCosts(data: BudgetData, today: string): Typical[] {
+  const billed = billedCategories(data.bills);
+  const out: Typical[] = [];
+  for (const c of data.categories) {
+    const f = fixedMonthly(c);
+    if (!f || f.source !== "typical" || billed.has(c.key)) continue;
+    const months = c.months ?? [];
+    const first = months.findIndex((m) => m > 0);
+    out.push({
+      key: c.key,
+      name: c.name,
+      pence: f.pence,
+      paidMonths: f.paidMonths,
+      since: shiftMonth(today.slice(0, 7), first - months.length),
+    });
+  }
+  return out;
+}
+
+function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const i = y * 12 + (m - 1) + n;
+  return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+}
+
 export type BudgetView = {
   payday: string;
   daysToPayday: number;
   weeksToPayday: number;
   balance: number | null;
-  /** Each fixed cost still to pay before payday: a bill with its next day, or a category's monthly estimate. */
-  stillToPay: { key: string; name: string; pence: number; on?: string }[];
+  /**
+   * Each fixed cost still to pay before payday: a bill with its next day, or a category's
+   * monthly estimate (its budget, or its typical month when `typical`).
+   */
+  stillToPay: { key: string; name: string; pence: number; on?: string; typical?: boolean }[];
   buffer: number;
   /** One-off planned purchases due before payday. */
   plannedBefore: number;
@@ -346,7 +417,7 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   // bill leaves its monthly estimate out, so nothing is counted twice; the others count
   // their budget for each month the window touches, less what's gone out this month.
   const bills = (data.bills ?? []).filter((b) => b.status === "active");
-  const billed = new Set(bills.map((b) => b.category).filter((c) => c !== null));
+  const billed = billedCategories(bills);
   const named = new Map(data.categories.map((c) => [c.key, c.name]));
   // A bill with money put by for it (a goal kept in the account, paid to the same
   // merchant) counts only what the goal doesn't hold yet: the goal is already set aside.
@@ -370,9 +441,13 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   const stillToPay = [
     ...fromBills,
     ...data.categories
-      .filter((c) => FIXED.has(c.kind) && (c.budgetPence ?? 0) > 0 && !billed.has(c.key))
-      .map((c) => ({ key: c.key, name: c.name, pence: Math.max(0, c.budgetPence! * months - c.paidMonth) }))
-      .filter((c) => c.pence > 0),
+      .filter((c) => !billed.has(c.key))
+      .flatMap((c) => {
+        const f = fixedMonthly(c);
+        if (!f) return [];
+        const pence = Math.max(0, f.pence * months - c.paidMonth);
+        return pence > 0 ? [{ key: c.key, name: c.name, pence, ...(f.source === "typical" && { typical: true }) }] : [];
+      }),
   ];
   const buffer = !data.bufferFrom || data.bufferFrom <= today ? data.bufferPence : 0;
   // Planned purchases: a one-off due before payday is spoken for now; one paid from the
@@ -473,6 +548,7 @@ export function parseBudget(raw: unknown): BudgetData {
       spentWeek: num(c.spent_week) ?? 0,
       spentLastWeek: num(c.spent_last_week) ?? 0,
       weeks: Array.isArray(c.weeks) ? (c.weeks as unknown[]).map((w) => num(w) ?? 0) : undefined,
+      months: Array.isArray(c.months) ? (c.months as unknown[]).map((m) => num(m) ?? 0) : undefined,
     })),
     unsortedWeek: num(r.unsorted_week) ?? 0,
     unsortedLastWeek: num(r.unsorted_last_week) ?? 0,
