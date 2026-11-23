@@ -11,7 +11,7 @@
 // It does the first two only on the autopilot (a weekly floor set).
 
 import { addDays } from "../dates/week.ts";
-import { allocate, currentPayday } from "./allocate.ts";
+import { allocate, currentPayday, payLanded } from "./allocate.ts";
 import { budgetView, mondayOf, savedNow, type BudgetData } from "./budget.ts";
 
 export type EngineState = { lastWeekClosed: string | null; lastPaydayDone: string | null };
@@ -112,9 +112,10 @@ export function decide(
   // The moves kept on payday, checked from 3 days after it: only for a goal whose payments
   // Money can see (it has a merchant).
   if (payday && transfers && today >= addDays(payday, 3)) {
+    const since = payLanded(data, payday);
     for (const t of transfers) {
       if (!goals.find((x) => x.id === t.goal)?.merchantKey) continue;
-      const moved = moves.filter((m) => m.goal === t.goal && m.on >= payday).reduce((s, m) => s + m.pence, 0);
+      const moved = moves.filter((m) => m.goal === t.goal && m.on >= since).reduce((s, m) => s + m.pence, 0);
       if (moved < t.pence)
         alerts.push({
           kind: "transfer-missing",

@@ -16,8 +16,10 @@ import { addDays } from "../dates/week.ts";
 import {
   allowanceFrom,
   billedCategories,
+  EARLY_PAY_DAYS,
   fixedMonthly,
   nextPayday,
+  paidEarly,
   savedNow,
   type BudgetData,
   type Goal,
@@ -180,8 +182,13 @@ export function allocate(data: BudgetData, from: string): Allocation | null {
   return { from, to, weeks, pay, commitments, floor, weekly, shares, surplus: Math.max(0, left), short };
 }
 
-/** The pay cycle that has started (the latest payday on or before today), or null before the first. */
+/**
+ * The pay cycle that has started (the latest payday on or before today), or null before
+ * the first. A payday whose pay landed early has started from the day it landed.
+ */
 export function currentPayday(data: BudgetData, today: string): string | null {
+  const early = paidEarly(data, today);
+  if (early) return early;
   const next = nextPayday(today, data.paydayRule, data.firstPayday);
   // The payday before the next one: step back a month and take the next payday after that.
   const before = nextPayday(addDays(next, -40), data.paydayRule, null);
@@ -239,4 +246,10 @@ export function suggestGoals(data: BudgetData, today: string): Suggested[] {
     });
   const have = new Set((data.goals ?? []).map((g) => g.name.toLowerCase()));
   return out.filter((s) => !have.has(s.name.toLowerCase()));
+}
+
+/** The day a payday's pay came in: the day it landed when it came early, else the payday. */
+export function payLanded(data: BudgetData, payday: string): string {
+  const landed = data.lastPay?.day;
+  return landed && landed < payday && landed >= addDays(payday, -EARLY_PAY_DAYS) ? landed : payday;
 }
