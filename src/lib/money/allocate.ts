@@ -5,12 +5,14 @@
 //   1. bills and debts' payments for the pay cycle
 //   2. the weekly floor, for every week to the next payday
 //   3. each goal in order, at its pace: what's still needed over the months to its day
-//      (YNAB's "needed for spending"); a goal with no day takes a year
+//      (YNAB's "needed for spending"); a goal with no day takes a year; a saving goal
+//      with a monthly amount (payment_pence) takes that, and no more
 //   3b. after a pay rise, the share of the extra the owner chose for goals, in order
 //      (Save More Tomorrow: part of each rise committed in advance); the rest of the
 //      extra raises the weekly target in step 4
 //   4. the weekly amount, raised up to the target
-//   5. anything left, to the first goal not finished (a debt's extra payment)
+//   5. anything left, to the first goal not finished (a debt's extra payment), except a
+//      saving goal with a monthly amount: what's left after that stays in the account
 //
 // When pay can't cover the floor, the cycle is short; when it can't cover a goal's
 // pace, the goals last in the order slow down first, and say when they'll finish now;
@@ -37,6 +39,9 @@ import { payOn } from "./forecast.ts";
 import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
 
 const MONTH_DAYS = CYCLE_DAYS.monthly;
+/** A saving goal (or yearly cost) the owner gave a monthly amount: it takes that each month, and no more. */
+const capped = (g: Goal) => g.kind !== "debt" && (g.paymentPence ?? 0) > 0;
+
 /** A goal with no day is paced over a year. */
 const DEFAULT_MONTHS = 12;
 /** How far ahead a goal's day is looked for once pay steps change its share: 10 years. */
@@ -214,7 +219,7 @@ export function shareOut(data: BudgetData, from: string, pay: number): Allocatio
     const remaining = owed ? savedNow(g) : Math.max(0, (g.targetPence ?? 0) - savedNow(g));
     const due = dueFrom(g, from);
     const monthsLeft = due ? Math.max(1, Math.round(daysBetween(from, due) / MONTH_DAYS)) : DEFAULT_MONTHS;
-    const need = owed ? 0 : Math.ceil(remaining / monthsLeft);
+    const need = owed ? 0 : capped(g) ? Math.min(remaining, g.paymentPence!) : Math.ceil(remaining / monthsLeft);
     const pence = Math.max(0, Math.min(need, left));
     left -= pence;
     return {
@@ -233,11 +238,13 @@ export function shareOut(data: BudgetData, from: string, pay: number): Allocatio
   });
 
   // 3b. The goals' share of a pay rise, in order, up to each one's room. What they can't
-  // take flows on.
+  // take flows on. A goal with a monthly amount takes no more than it.
+  const fixed = new Set(goals.filter(capped).map((g) => g.id));
   const give = (pence: number) => {
     let out = Math.max(0, Math.min(pence, left));
     for (const s of shares) {
       if (out <= 0) break;
+      if (fixed.has(s.id)) continue;
       const extra = Math.min(Math.max(0, s.remaining - s.pence), out);
       s.pence += extra;
       left -= extra;
