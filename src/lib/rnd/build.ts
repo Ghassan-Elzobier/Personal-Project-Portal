@@ -74,6 +74,53 @@ export function leftAMark(
   return alreadyBuilt(prs).has(issue) || comments.some((c) => c.author.endsWith("[bot]") && c.at >= since);
 }
 
+const cut = (text: string, max: number) => {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+};
+
+/**
+ * What Claude did in a build, a line a step, from the action's transcript (the Agent
+ * SDK's messages): what it said, each tool it called and the start of each result,
+ * and how it ended. Printed in the run's log when a build leaves no mark, since the
+ * action hides the conversation and the log is the one place it can be read.
+ */
+export function digest(transcript: unknown): string[] {
+  const lines: string[] = [];
+  type Block = { type?: string; text?: string; name?: string; input?: unknown; content?: unknown };
+  const blocks = (m: { message?: { content?: unknown } }): Block[] =>
+    Array.isArray(m.message?.content) ? (m.message.content as Block[]) : [];
+  for (const m of Array.isArray(transcript) ? transcript : []) {
+    if (!m || typeof m !== "object") continue;
+    const msg = m as {
+      type?: string;
+      subtype?: string;
+      result?: unknown;
+      num_turns?: number;
+      message?: { content?: unknown };
+    };
+    if (msg.type === "assistant")
+      for (const b of blocks(msg)) {
+        if (b.type === "text" && b.text) lines.push(`Claude: ${cut(b.text, 800)}`);
+        if (b.type === "tool_use") lines.push(`  ${b.name ?? "tool"}: ${cut(JSON.stringify(b.input ?? {}), 300)}`);
+      }
+    if (msg.type === "user")
+      for (const b of blocks(msg)) {
+        if (b.type !== "tool_result") continue;
+        const text = Array.isArray(b.content)
+          ? (b.content as Block[]).map((c) => c.text ?? "").join(" ")
+          : String(b.content ?? "");
+        lines.push(`    → ${cut(text, 400)}`);
+      }
+    if (msg.type === "result")
+      lines.push(
+        `Ended: ${msg.subtype ?? "?"} after ${msg.num_turns ?? "?"} turns` +
+          (typeof msg.result === "string" && msg.result ? `: ${cut(msg.result, 800)}` : ""),
+      );
+  }
+  return lines;
+}
+
 /** The issues open pull requests already build: their bodies close them, or their branches are named for them. */
 export function alreadyBuilt(prs: { body: string | null; branch: string }[]): Set<number> {
   const out = new Set<number>();
