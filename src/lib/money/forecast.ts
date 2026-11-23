@@ -397,6 +397,28 @@ export function paceOutlook(data: ForecastData, today: string): PaceOutlook | nu
   };
 }
 
+export type FloorOutlook = {
+  /** The least a week, as the plan sets it. */
+  floor: number;
+  /** The weekly amount the plan runs on. */
+  plan: number;
+  /** The balance day by day with each week spent at the floor. */
+  points: Day[];
+  lowest: Day;
+};
+
+/**
+ * The best case: the forecast with each week's spending kept to the plan's floor (the
+ * least a week). Null without a floor below the weekly amount, or without a balance.
+ */
+export function floorOutlook(data: ForecastData, today: string): FloorOutlook | null {
+  const floor = data.weeklyFloorPence ?? null;
+  const plan = allowanceFrom(data);
+  if (!floor || plan === null || floor >= plan || data.balancePence === null) return null;
+  const f = forecast(withChange(data, today, { weeklyChangePence: floor - plan }), today)!;
+  return { floor, plan, points: f.points, lowest: f.lowest };
+}
+
 /**
  * The most a week, in whole pounds, whose forecast stays at or above the buffer (£0
  * before it starts) every day before the next payday. Only when it is less than the

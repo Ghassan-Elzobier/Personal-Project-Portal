@@ -114,6 +114,7 @@ const pounds0 = (pence: number) => {
  * A balance day by day (pence): the line, a dashed buffer line from the day it starts,
  * the lowest point marked (coral when it is under the buffer), and a tick at each payday.
  * `pace`, when given, is a second balance (at your recent spending), drawn dashed and muted.
+ * `best`, when given, is the best case (spending kept to the plan's floor), drawn dotted.
  */
 export function ForecastChart({
   points,
@@ -123,9 +124,11 @@ export function ForecastChart({
   paydays,
   label,
   pace,
+  best,
 }: {
   points: { day: string; pence: number }[];
   pace?: { day: string; pence: number }[];
+  best?: { day: string; pence: number }[];
   buffer: number;
   bufferFrom: string | null;
   lowest: { day: string; pence: number };
@@ -140,7 +143,7 @@ export function ForecastChart({
   const t = (d: string) => new Date(`${d}T12:00:00Z`);
   const first = points[0].day;
   const last = points[points.length - 1].day;
-  const ys = [...points, ...(pace ?? [])].map((p) => p.pence);
+  const ys = [...points, ...(pace ?? []), ...(best ?? [])].map((p) => p.pence);
   const lo = Math.min(...ys, buffer > 0 ? buffer : Infinity, 0);
   const hi = Math.max(...ys, buffer);
   const span = Math.max(100, hi - lo);
@@ -208,6 +211,17 @@ export function ForecastChart({
         )}
         {pace && pace.length > 1 && (
           <path d={path(pace) ?? ""} fill="none" stroke="var(--color-muted)" strokeDasharray="5 4" strokeWidth="2" />
+        )}
+        {best && best.length > 1 && (
+          <path
+            d={path(best) ?? ""}
+            fill="none"
+            stroke="var(--color-mint)"
+            strokeOpacity="0.6"
+            strokeDasharray="1 5"
+            strokeLinecap="round"
+            strokeWidth="2.5"
+          />
         )}
         <path d={path(points) ?? ""} fill="none" stroke="var(--color-mint)" strokeWidth="2.5" />
         <circle
