@@ -73,7 +73,7 @@ export function roleMoney(salary: Salary | null, data: BudgetData, today: string
       : `About ${pounds(lo)} to ${pounds(hi)} a month after tax and NI.`,
   ];
   const payday = cyclePayday(data, today);
-  const now = payOn(payday, data.income ?? [], data.lastPay ?? null);
+  const now = payOn(payday, data.income ?? [], data.lastPay ?? null, data.paydayRule);
   if (now > 0) {
     const diff = mid - now;
     lines.push(`${diff >= 0 ? `${pounds(diff)} a month more` : `${pounds(-diff)} a month less`} than your pay now.`);

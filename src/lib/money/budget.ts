@@ -63,6 +63,14 @@ export function paydayIn(month: string, rule: string): string {
   return d;
 }
 
+/**
+ * The first payday a pay step counts on: its month's payday by the rule. A step typed
+ * for any day of a month means that month's pay, so the 1st and the 31st both count.
+ */
+export function stepStart(fromOn: string, rule: string): string {
+  return paydayIn(fromOn.slice(0, 7), rule);
+}
+
 const monthOf = (d: string) => d.slice(0, 7);
 function nextMonth(month: string): string {
   const [y, m] = month.split("-").map(Number);
