@@ -16,10 +16,11 @@ const KINDS: { value: PensionKind; label: string }[] = [
 /**
  * A pay step: from a payday on, the take-home a month. Type it, or give the salary a
  * year (with any student loan and pension) and the take-home is worked out as you type.
+ * The paydays to pick from follow your payday rule, the next one first.
  */
-export function PayForm({ fromOn }: { fromOn: string }) {
+export function PayForm({ paydays }: { paydays: { day: string; label: string }[] }) {
   const [v, setV] = useState({
-    fromOn,
+    fromOn: paydays[0]?.day ?? "",
     takeHome: "",
     gross: "",
     loan: "" as LoanPlan | "",
@@ -61,7 +62,13 @@ export function PayForm({ fromOn }: { fromOn: string }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block min-w-0">
           <span className="field-label">From the payday on</span>
-          <input className="field-input" type="date" value={v.fromOn} onChange={set("fromOn")} required />
+          <select className="field-input" value={v.fromOn} onChange={set("fromOn")} required>
+            {paydays.map((p) => (
+              <option key={p.day} value={p.day}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block min-w-0">
           <span className="field-label">Take-home a month (£)</span>
