@@ -56,6 +56,11 @@ export async function saveSettings(input: ops.SettingsInput) {
   });
 }
 
+export async function saveRaiseShare(bp: number) {
+  await requireOwner();
+  return ops.saveRaiseShare(Number(bp));
+}
+
 export async function savePlanned(input: ops.PlannedInput) {
   await requireOwner();
   const text = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");
