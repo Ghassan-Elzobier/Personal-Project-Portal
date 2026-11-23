@@ -13,6 +13,7 @@ import { loadMoney } from "@/lib/money/load";
 import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
 import { nextDue, yearlyPence, type Bill } from "@/lib/money/recurring";
+import { subscriptions, type SubscriptionRow } from "@/lib/money/subscriptions";
 import { ago, alertText, feedNote, monthView, pounds, type MoneyState, type Txn } from "@/lib/money/state";
 import { Empty, ErrorNote } from "@/components/ui";
 import { ActionButton } from "../kit";
@@ -25,11 +26,13 @@ import {
   refreshBank,
   registerSyncKey,
   addSuggestedGoals,
+  answerBill,
   moveGoal,
   removeGoal,
   removeIncome,
   setBill,
   setClaudeAccess,
+  sortBill,
 } from "./actions";
 import { ForecastChart } from "../chart";
 import { ConnectBank } from "./connect";
@@ -94,6 +97,13 @@ export default async function MoneyPage() {
       {connected && loaded.forecast && <Ahead f={loaded.forecast} budget={loaded.budget} />}
       {connected && <Goals budget={loaded.budget} today={loaded.today} />}
       {connected && <PlannedPurchases budget={loaded.budget} today={loaded.today} />}
+      {connected && (
+        <Subscriptions
+          bills={loaded.budget.bills ?? []}
+          today={loaded.today}
+          lastPay={loaded.budget.lastPay?.pence ?? null}
+        />
+      )}
       {connected && <Bills bills={loaded.budget.bills ?? []} today={loaded.today} />}
       {connected ? <Balances s={s} /> : <Connect again={s.connection?.status === "off"} />}
       {s.accounts.length > 0 && <ThisMonth s={s} />}
@@ -266,6 +276,122 @@ const PER: Record<Bill["cadence"], string> = { weekly: "a week", monthly: "a mon
 /** "8 Dec": short enough for a bill's line at 360 px. */
 const dayMonth = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/**
+ * The bills sorted as subscriptions, and learning and mentoring apart: what they cost a
+ * month and of your pay, and "keep or cancel?" on each not answered for 90 days. Shown
+ * once Money has found a bill; the other bills can be sorted in from its foot.
+ */
+function Subscriptions({ bills, today, lastPay }: { bills: Bill[]; today: string; lastPay: number | null }) {
+  const s = subscriptions(bills, today, lastPay);
+  if (s.subscriptions.length + s.learning.length + s.others.length === 0) return null;
+  return (
+    <section aria-labelledby="subscriptions-title" className="space-y-3 card-life">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="subscriptions-title" className="font-semibold">
+          Subscriptions
+        </h2>
+        {s.subscriptions.length > 0 && (
+          <p className="text-sm text-muted tabular-nums">
+            {pounds(s.monthly)} a month{s.shareOfPay !== null && ` · ${s.shareOfPay}% of pay`}
+          </p>
+        )}
+      </div>
+      {s.subscriptions.length === 0 ? (
+        <p className="text-sm text-muted">None sorted yet. Mark a bill as a subscription under Add a bill.</p>
+      ) : (
+        <SubscriptionList rows={s.subscriptions} today={today} />
+      )}
+      {s.learning.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h3 className="text-sm font-semibold">Learning and mentoring</h3>
+            <p className="text-sm text-muted tabular-nums">{pounds(s.learningMonthly)} a month</p>
+          </div>
+          <p className="text-xs text-muted">An investment you chose, counted apart.</p>
+          <SubscriptionList rows={s.learning} today={today} />
+        </div>
+      )}
+      {s.others.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">Add a bill ({s.others.length})</summary>
+          <ul className="mt-2 divide-y divide-white/5 rounded-xl bg-white/5">
+            {s.others.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5">
+                <span className="min-w-0 truncate">{b.name}</span>
+                <span className="flex shrink-0 gap-2">
+                  <ActionButton
+                    action={sortBill.bind(null, b.id, "subscriptions")}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    done="Now a subscription."
+                    label={`Mark ${b.name} as a subscription`}
+                  >
+                    Subscription
+                  </ActionButton>
+                  <ActionButton
+                    action={sortBill.bind(null, b.id, "learning")}
+                    className="btn-soft px-3 py-1.5 text-xs"
+                    done="Now under learning."
+                    label={`Mark ${b.name} as learning`}
+                  >
+                    Learning
+                  </ActionButton>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="text-xs text-faint">
+        Each asks keep or cancel every 90 days. Cancel only notes it: a bill counts until its payments stop.
+      </p>
+    </section>
+  );
+}
+
+function SubscriptionList({ rows, today }: { rows: SubscriptionRow[]; today: string }) {
+  return (
+    <ul className="divide-y divide-white/5 rounded-xl bg-white/5">
+      {rows.map(({ bill: b, due, monthly, ask, cancelling, weeklySaving }) => (
+        <li key={b.id} className="space-y-2 px-3 py-2.5">
+          <span className="block min-w-0">
+            <span className="block truncate text-sm">{b.name}</span>
+            <span className="block text-xs text-body tabular-nums">
+              {b.variable && "about "}
+              {pounds(b.expectedPence)} {PER[b.cadence]}
+              {b.cadence === "yearly" && ` (≈ ${pounds(monthly)} a month)`} ·{" "}
+              {due < today ? `due ${dayMonth(due)}, late` : `renews ${dayMonth(due)}`}
+            </span>
+          </span>
+          {cancelling && !ask && (
+            <p className="text-xs text-sand">Cancel it with the provider: about {pounds(weeklySaving)} a week back.</p>
+          )}
+          {ask && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted">Still want it?</span>
+              <ActionButton
+                action={answerBill.bind(null, b.id, "keep")}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Kept. Asking again in 90 days."
+                label={`Keep ${b.name}`}
+              >
+                Keep
+              </ActionButton>
+              <ActionButton
+                action={answerBill.bind(null, b.id, "cancel")}
+                className="btn-soft px-3 py-1.5 text-xs"
+                done="Noted. Cancel it with the provider."
+                label={`Cancel ${b.name}`}
+              >
+                Cancel
+              </ActionButton>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** The regular payments Money found by itself, next one first. One that isn't a bill can be ignored. */
 function Bills({ bills, today }: { bills: Bill[]; today: string }) {
