@@ -155,3 +155,21 @@ test("no balance, no forecast", () => {
   assert.equal(forecast(data({ balancePence: null }), TODAY), null);
   assert.equal(whatIf(data({ balancePence: null }), TODAY, {}), null);
 });
+
+test("a pay step counts from its month's payday by the rule, whatever day of the month it was typed for", () => {
+  const today = "2026-11-23";
+  for (const fromOn of ["2027-01-31", "2027-01-01"]) {
+    const income = [
+      { fromOn: "2026-12-31", pence: 130_600, grossYearPence: null },
+      { fromOn, pence: 228_000, grossYearPence: null },
+    ];
+    const f = forecast(data({ income }), today)!;
+    assert.deepEqual(
+      f.paydays.find((p) => p.day === "2027-01-29"),
+      { day: "2027-01-29", pence: 228_000 },
+      fromOn,
+    );
+    assert.equal(payOn("2027-01-29", income, null, "last-working-day"), 228_000, fromOn);
+    assert.equal(payOn("2026-12-31", income, null, "last-working-day"), 130_600, fromOn);
+  }
+});

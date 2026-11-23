@@ -17,7 +17,19 @@
 // when a higher pay step is coming, they are held until its first payday instead.
 
 import { addDays } from "../dates/week.ts";
-import { allowanceFrom, nextPayday, raiseAhead, raiseToGoals, savedNow, type BudgetData, type Goal } from "./budget.ts";
+import {
+  allowanceFrom,
+  EARLY_PAY_DAYS,
+  nextPayday,
+  paidEarly,
+  paydayIn,
+  raiseAhead,
+  raiseToGoals,
+  savedNow,
+  stepStart,
+  type BudgetData,
+  type Goal,
+} from "./budget.ts";
 import { payOn } from "./forecast.ts";
 import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
 
@@ -25,6 +37,8 @@ const MONTH_DAYS = CYCLE_DAYS.monthly;
 const FIXED = new Set(["bills", "savings"]);
 /** A goal with no day is paced over a year. */
 const DEFAULT_MONTHS = 12;
+/** How far ahead a goal's day is looked for once pay steps change its share: 10 years. */
+const HORIZON_MONTHS = 120;
 
 export type Share = {
   id: number;
@@ -36,7 +50,10 @@ export type Share = {
   need: number;
   /** Still to reach (or, for a debt, still owed) before this cycle's share. */
   remaining: number;
-  /** The month it gets there at this rate ("2027-11"), or null when it gets nothing. */
+  /**
+   * The month it gets there ("2027-11"): at this cycle's share, and at the share each
+   * later pay step would give from its payday on. Null when it never does.
+   */
   finish: string | null;
   /** Given less than its pace asked, with no higher pay coming. */
   slipped: boolean;
@@ -90,8 +107,63 @@ export function monthsToClear(owed: number, payment: number, aprBp: number | nul
 
 /** How the pay cycle starting on a payday is shared out. Null without pay planned for it. */
 export function allocate(data: BudgetData, from: string): Allocation | null {
-  const pay = payOn(from, data.income ?? [], data.lastPay ?? null);
+  const pay = payOn(from, data.income ?? [], data.lastPay ?? null, data.paydayRule);
   if (pay <= 0) return null;
+  const plan = shareOut(data, from, pay);
+  const goals = data.goals ?? [];
+  const months = daysBetween(from, plan.to) / MONTH_DAYS;
+  const monthly = (a: Allocation, id: number) =>
+    (a.shares.find((x) => x.id === id)?.pence ?? 0) / Math.max(0.25, months);
+
+  // A later pay step changes what each goal gets from its payday on: walk the months
+  // ahead, each at the share its payday's pay gives, until the goal is reached.
+  const later = (data.income ?? []).some((s) => stepStart(s.fromOn, data.paydayRule) > from);
+  const byPay = new Map<number, Allocation>([[pay, plan]]);
+  const ahead = later
+    ? Array.from({ length: HORIZON_MONTHS }, (_, i) => {
+        const p = payOn(
+          paydayIn(addMonths(from, i), data.paydayRule),
+          data.income ?? [],
+          data.lastPay ?? null,
+          data.paydayRule,
+        );
+        if (!byPay.has(p)) byPay.set(p, shareOut(data, from, p));
+        return byPay.get(p)!;
+      })
+    : [];
+
+  for (const s of plan.shares) {
+    const g = goals.find((x) => x.id === s.id)!;
+    let n: number | null;
+    if (s.remaining <= 0) n = 0;
+    else if (!later) {
+      const m = monthly(plan, s.id);
+      n =
+        s.kind === "debt"
+          ? monthsToClear(s.remaining, (g.paymentPence ?? 0) + m, g.aprBp)
+          : m > 0
+            ? Math.ceil(s.remaining / m)
+            : null;
+    } else {
+      const r = s.kind === "debt" ? (g.aprBp ?? 0) / 10_000 / 12 : 0;
+      const payment = s.kind === "debt" ? (g.paymentPence ?? 0) : 0;
+      let left = s.remaining;
+      n = null;
+      for (let i = 0; i < ahead.length; i++) {
+        left = left * (1 + r) - payment - monthly(ahead[i], s.id);
+        if (left <= 0) {
+          n = i + 1;
+          break;
+        }
+      }
+    }
+    s.finish = n === null ? null : addMonths(from, Math.max(0, n - 1));
+  }
+  return plan;
+}
+
+/** The waterfall for the cycle from a payday, with a given pay; each share's finish left for allocate. */
+function shareOut(data: BudgetData, from: string, pay: number): Allocation {
   const to = nextPayday(from, data.paydayRule, data.firstPayday);
   const days = daysBetween(from, to);
   const weeks = days / 7;
@@ -177,20 +249,6 @@ export function allocate(data: BudgetData, from: string): Allocation | null {
   // 5. The rest to the first goals not finished, debts included.
   give(left);
 
-  for (const s of shares) {
-    const g = goals.find((x) => x.id === s.id)!;
-    const monthly = s.pence / Math.max(0.25, months);
-    const n =
-      s.kind === "debt"
-        ? monthsToClear(s.remaining, (g.paymentPence ?? 0) + monthly, g.aprBp)
-        : s.remaining <= 0
-          ? 0
-          : monthly > 0
-            ? Math.ceil(s.remaining / monthly)
-            : null;
-    s.finish = n === null ? null : addMonths(from, Math.max(0, n - 1));
-  }
-
   return { from, to, weeks, pay, commitments, floor, weekly, shares, surplus: Math.max(0, left), short };
 }
 
@@ -230,8 +288,13 @@ export function goalDates(data: BudgetData, from: string, paydays = WALK_PAYDAYS
   return out;
 }
 
-/** The pay cycle that has started (the latest payday on or before today), or null before the first. */
+/**
+ * The pay cycle that has started (the latest payday on or before today), or null before
+ * the first. A payday whose pay landed early has started from the day it landed.
+ */
 export function currentPayday(data: BudgetData, today: string): string | null {
+  const early = paidEarly(data, today);
+  if (early) return early;
   const next = nextPayday(today, data.paydayRule, data.firstPayday);
   // The payday before the next one: step back a month and take the next payday after that.
   const before = nextPayday(addDays(next, -40), data.paydayRule, null);
@@ -282,4 +345,10 @@ export function suggestGoals(data: BudgetData, today: string): Suggested[] {
     });
   const have = new Set((data.goals ?? []).map((g) => g.name.toLowerCase()));
   return out.filter((s) => !have.has(s.name.toLowerCase()));
+}
+
+/** The day a payday's pay came in: the day it landed when it came early, else the payday. */
+export function payLanded(data: BudgetData, payday: string): string {
+  const landed = data.lastPay?.day;
+  return landed && landed < payday && landed >= addDays(payday, -EARLY_PAY_DAYS) ? landed : payday;
 }

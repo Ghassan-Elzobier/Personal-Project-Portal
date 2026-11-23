@@ -157,8 +157,6 @@ export type SettingsInput = {
   floor?: string;
   buffer: string;
   bufferFrom: string;
-  firstPayday: string;
-  paydayRule: string;
 };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -169,13 +167,10 @@ function poundsToPence(text: string): number | null {
   return p;
 }
 
-/** The weekly amount, the buffer and when it starts, and the payday. */
+/** The weekly amount, the buffer and when it starts. */
 export function saveSettings(input: SettingsInput): Promise<Result> {
   return run(async () => {
-    for (const d of [input.bufferFrom, input.firstPayday])
-      if (d && !DAY.test(d)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
-    if (!/^(last-working-day|day-([1-9]|[12][0-9]|3[01]))$/.test(input.paydayRule))
-      throw new store.MoneyStoreError("Pick when you're paid.");
+    if (input.bufferFrom && !DAY.test(input.bufferFrom)) throw new store.MoneyStoreError("Dates look like 2027-01-29.");
     const floor = poundsToPence(input.floor ?? "");
     const allowance = poundsToPence(input.allowance);
     if (floor !== null && allowance !== null && floor > allowance)
@@ -185,8 +180,6 @@ export function saveSettings(input: SettingsInput): Promise<Result> {
       weekly_floor_pence: floor,
       buffer_pence: poundsToPence(input.buffer) ?? 0,
       buffer_from: input.bufferFrom || null,
-      first_payday: input.firstPayday || null,
-      payday_rule: input.paydayRule,
     });
     return {};
   });
@@ -206,6 +199,20 @@ export function saveRaiseShare(bp: number): Promise<Result> {
     const today = dateIn(now(), timeZone());
     const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
     await store.saveSettings({ raise_goal_share_bp: bp, raise_since: data.raiseSince ?? today });
+    return {};
+  });
+}
+
+export type PaydayInput = { firstPayday: string; paydayRule: string };
+
+/** When you're paid: the rule, and the first payday (none counts before it). */
+export function savePayday(input: PaydayInput): Promise<Result> {
+  return run(async () => {
+    if (input.firstPayday && !DAY.test(input.firstPayday))
+      throw new store.MoneyStoreError("Dates look like 2027-01-29.");
+    if (!/^(last-working-day|day-([1-9]|[12][0-9]|3[01]))$/.test(input.paydayRule))
+      throw new store.MoneyStoreError("Pick when you're paid.");
+    await store.saveSettings({ first_payday: input.firstPayday || null, payday_rule: input.paydayRule });
     return {};
   });
 }
