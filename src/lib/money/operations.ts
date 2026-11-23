@@ -229,6 +229,24 @@ export function setWeeklyAmount(pence: number): Promise<Result> {
   });
 }
 
+/** The shares of a pay rise that can go to goals, in basis points. */
+export const RAISE_SHARES = [0, 2_500, 5_000, 7_500, 10_000] as const;
+
+/**
+ * Where a pay rise goes: the share for goals, the rest to the weekly amount. It stands
+ * for every later rise, each measured from the pay on the day it was first chosen.
+ */
+export function saveRaiseShare(bp: number): Promise<Result> {
+  return run(async () => {
+    if (!RAISE_SHARES.includes(bp as (typeof RAISE_SHARES)[number]))
+      throw new store.MoneyStoreError("Pick how much of a rise goes to goals.");
+    const today = dateIn(now(), timeZone());
+    const data = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+    await store.saveSettings({ raise_goal_share_bp: bp, raise_since: data.raiseSince ?? today });
+    return {};
+  });
+}
+
 export type PlannedInput = { name: string; amount: string; dueOn: string; funding: string; weeks: number };
 
 /** A purchase you plan: what, how much, when, and how it's paid for. */

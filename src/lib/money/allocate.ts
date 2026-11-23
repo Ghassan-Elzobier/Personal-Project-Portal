@@ -6,11 +6,15 @@
 //   2. the weekly floor, for every week to the next payday
 //   3. each goal in order, at its pace: what's still needed over the months to its day
 //      (YNAB's "needed for spending"); a goal with no day takes a year
+//   3b. after a pay rise, the share of the extra the owner chose for goals, in order
+//      (Save More Tomorrow: part of each rise committed in advance); the rest of the
+//      extra raises the weekly target in step 4
 //   4. the weekly amount, raised up to the target
 //   5. anything left, to the first goal not finished (a debt's extra payment)
 //
 // When pay can't cover the floor, the cycle is short; when it can't cover a goal's
-// pace, the goals last in the order slow down first, and say when they'll finish now.
+// pace, the goals last in the order slow down first, and say when they'll finish now;
+// when a higher pay step is coming, they are held until its first payday instead.
 
 import { addDays } from "../dates/week.ts";
 import {
@@ -19,6 +23,8 @@ import {
   nextPayday,
   paidEarly,
   paydayIn,
+  raiseAhead,
+  raiseToGoals,
   savedNow,
   stepStart,
   type BudgetData,
@@ -49,8 +55,12 @@ export type Share = {
    * later pay step would give from its payday on. Null when it never does.
    */
   finish: string | null;
-  /** Given less than its pace asked. */
+  /** Given less than its pace asked, with no higher pay coming. */
   slipped: boolean;
+  /** Given less than its pace asked, but a higher pay step is coming: it catches up from startsOn. */
+  held: boolean;
+  /** When held: the first payday on the higher pay. */
+  startsOn: string | null;
   /** Money that has to be moved: to a saver, or paid to a lender. */
   transfer: boolean;
 };
@@ -189,6 +199,10 @@ function shareOut(data: BudgetData, from: string, pay: number): Allocation {
   const short = left < 0;
 
   // 3. Goals at their pace.
+  // A goal short of its pace is held, not behind, when a higher pay step ahead keeps it.
+  const rise = raiseAhead(data, from);
+  const later = rise ? allocate(data, rise.on) : null;
+  const caughtUp = (id: number) => later?.shares.some((s) => s.id === id && !s.slipped && !s.held) ?? false;
   const shares: Share[] = goals.map((g) => {
     const owed = g.kind === "debt";
     const remaining = owed ? savedNow(g) : Math.max(0, (g.targetPence ?? 0) - savedNow(g));
@@ -205,28 +219,73 @@ function shareOut(data: BudgetData, from: string, pay: number): Allocation {
       need,
       remaining,
       finish: null,
-      slipped: pence < need,
+      slipped: pence < need && !caughtUp(g.id),
+      held: pence < need && caughtUp(g.id),
+      startsOn: pence < need && caughtUp(g.id) ? rise!.on : null,
       transfer: owed || g.held === "elsewhere",
     };
   });
 
-  // 4. Up to the target.
-  const target = Math.max(floorWeek, allowanceFrom(data) ?? floorWeek);
+  // 3b. The goals' share of a pay rise, in order, up to each one's room. What they can't
+  // take flows on.
+  const give = (pence: number) => {
+    let out = Math.max(0, Math.min(pence, left));
+    for (const s of shares) {
+      if (out <= 0) break;
+      const extra = Math.min(Math.max(0, s.remaining - s.pence), out);
+      s.pence += extra;
+      left -= extra;
+      out -= extra;
+    }
+  };
+  give(raiseToGoals(data, from));
+
+  // 4. Up to the target (raised by the part of a rise kept to live on).
+  const target = Math.max(floorWeek, allowanceFrom(data, from) ?? floorWeek);
   const raise = Math.max(0, Math.min(left, Math.round((target - floorWeek) * weeks)));
   left -= raise;
   const weekly = Math.min(target, Math.round((floorWeek + raise / weeks) / 100) * 100);
 
   // 5. The rest to the first goals not finished, debts included.
-  for (const s of shares) {
-    if (left <= 0) break;
-    const room = s.remaining - s.pence;
-    if (room <= 0) continue;
-    const extra = Math.min(room, left);
-    s.pence += extra;
-    left -= extra;
-  }
+  give(left);
 
   return { from, to, weeks, pay, commitments, floor, weekly, shares, surplus: Math.max(0, left), short };
+}
+
+/** How many paydays ahead the goal dates look: three years. */
+export const WALK_PAYDAYS = 36;
+
+/**
+ * The month each goal gets there, walking the paydays ahead: each runs the waterfall on
+ * what the goals hold by then, so a pay step later on (and the share of it the owner
+ * chose) moves the dates. Null when it doesn't get there within the walk.
+ */
+export function goalDates(data: BudgetData, from: string, paydays = WALK_PAYDAYS): Map<number, string | null> {
+  const out = new Map<number, string | null>();
+  let goals = (data.goals ?? []).filter((g) => g.status === "active");
+  for (const g of goals) out.set(g.id, null);
+  let day = from;
+  for (let i = 0; i < paydays; i++) {
+    const plan = allocate({ ...data, goals }, day);
+    if (!plan) break;
+    const months = daysBetween(plan.from, plan.to) / MONTH_DAYS;
+    goals = goals.map((g) => {
+      const s = plan.shares.find((x) => x.id === g.id);
+      if (!s) return g;
+      if (g.kind === "debt") {
+        const paid = s.pence + Math.min(savedNow(g), (g.paymentPence ?? 0) * months);
+        return { ...g, savedPence: Math.max(0, g.savedPence - Math.round(paid)) };
+      }
+      return { ...g, savedPence: g.savedPence + s.pence };
+    });
+    for (const g of goals) {
+      const left = g.kind === "debt" ? savedNow(g) : (g.targetPence ?? 0) - savedNow(g);
+      if (left <= 0 && out.get(g.id) === null) out.set(g.id, day.slice(0, 7));
+    }
+    if ([...out.values()].every((m) => m !== null)) break;
+    day = plan.to;
+  }
+  return out;
 }
 
 /**

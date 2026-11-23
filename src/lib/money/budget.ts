@@ -184,6 +184,13 @@ export type BudgetData = {
   unsortedWeeks?: number[];
   /** Last week as the engine closed it. */
   lastWeek?: LastWeek | null;
+  /**
+   * The share of a pay rise that goes to goals, in basis points (0 to 10000); the rest
+   * raises the weekly amount. Null until the owner has chosen.
+   */
+  raiseGoalShareBp?: number | null;
+  /** The day a rise is measured from: the pay step then is the pay before the rise. */
+  raiseSince?: string | null;
 };
 
 /** Take-home on each payday from a day on, until a later step. */
@@ -365,11 +372,52 @@ export type BudgetView = {
   onTrack: boolean | null;
 };
 
-/** The weekly amount from the plan when you haven't set one: the flexible budgets, a month's worth spread over the year's weeks. */
-export function allowanceFrom(data: BudgetData): number | null {
-  if (data.allowancePence !== null) return data.allowancePence;
-  const monthly = data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + (c.budgetPence ?? 0), 0);
-  return monthly > 0 ? Math.round((monthly * 12) / 52 / 100) * 100 : null;
+/** The pay step in force on a day (steps only, not a payslip), or 0 before the first. */
+export function stepOn(income: IncomeStep[] = [], day: string): number {
+  return income.filter((s) => s.fromOn <= day).sort((a, b) => b.fromOn.localeCompare(a.fromOn))[0]?.pence ?? 0;
+}
+
+/** A later pay step higher than the one in force today: the first payday it applies to, and by how much. */
+export function raiseAhead(data: BudgetData, today: string): { on: string; extra: number } | null {
+  const now = stepOn(data.income, today);
+  // The first pay is a start, not a rise.
+  if (now <= 0) return null;
+  const higher = (data.income ?? [])
+    .filter((s) => s.fromOn > today && s.pence > now)
+    .sort((a, b) => a.fromOn.localeCompare(b.fromOn))[0];
+  if (!higher) return null;
+  // The first payday on or after the step's day.
+  return { on: nextPayday(addDays(higher.fromOn, -1), data.paydayRule, data.firstPayday), extra: higher.pence - now };
+}
+
+/**
+ * How much more a payday's pay step is than the step on the day the owner chose where a
+ * rise goes: never below 0, and nothing until they have chosen.
+ */
+export function raiseExtra(data: BudgetData, payday: string): number {
+  if (data.raiseGoalShareBp == null || !data.raiseSince) return 0;
+  return Math.max(0, stepOn(data.income, payday) - stepOn(data.income, data.raiseSince));
+}
+
+/** The part of a payday's rise that goes to goals; the rest raises the weekly amount. */
+export function raiseToGoals(data: BudgetData, payday: string): number {
+  return Math.round((raiseExtra(data, payday) * (data.raiseGoalShareBp ?? 0)) / 10_000);
+}
+
+/**
+ * The weekly amount from the plan when you haven't set one: the flexible budgets, a
+ * month's worth spread over the year's weeks. On a day after a pay rise, the part of
+ * the rise kept to live on is added, a month's worth over the year's weeks, to the £1.
+ */
+export function allowanceFrom(data: BudgetData, day?: string): number | null {
+  let base: number | null = data.allowancePence;
+  if (base === null) {
+    const monthly = data.categories.filter((c) => FLEXIBLE.has(c.kind)).reduce((s, c) => s + (c.budgetPence ?? 0), 0);
+    base = monthly > 0 ? Math.round((monthly * 12) / 52 / 100) * 100 : null;
+  }
+  if (base === null || !day) return base;
+  const kept = raiseExtra(data, day) - raiseToGoals(data, day);
+  return base + Math.round((kept * 12) / 52 / 100) * 100;
 }
 
 export function budgetView(data: BudgetData, today: string): BudgetView {
@@ -439,7 +487,7 @@ export function budgetView(data: BudgetData, today: string): BudgetView {
   // overspend lowers the weeks after by itself, so nothing is carried.
   const floor = data.weeklyFloorPence ?? null;
   const auto = floor !== null;
-  const target = auto ? Math.max(floor, allowanceFrom(data) ?? floor) : allowanceFrom(data);
+  const target = auto ? Math.max(floor, allowanceFrom(data, today) ?? floor) : allowanceFrom(data, today);
   const fromMonday = (days + weekdayIndex(today)) / 7;
   const allowance = !auto
     ? target
@@ -534,6 +582,8 @@ export function parseBudget(raw: unknown): BudgetData {
         : null,
     goals: (Array.isArray(r.goals) ? (r.goals as Row[]) : []).map(parseGoal),
     paydayTransfers: parseTransfers(s.payday_transfers),
+    raiseGoalShareBp: num(s.raise_goal_share_bp),
+    raiseSince: str(s.raise_since),
   };
 }
 

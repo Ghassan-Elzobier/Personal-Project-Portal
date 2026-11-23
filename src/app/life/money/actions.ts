@@ -65,6 +65,11 @@ export async function setWeeklyAmount(pence: number) {
   return ops.setWeeklyAmount(typeof pence === "number" ? pence : NaN);
 }
 
+export async function saveRaiseShare(bp: number) {
+  await requireOwner();
+  return ops.saveRaiseShare(Number(bp));
+}
+
 export async function savePlanned(input: ops.PlannedInput) {
   await requireOwner();
   const text = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : "");

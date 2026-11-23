@@ -188,7 +188,6 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
   // then the weekly amount less any planned share, a seventh a day. A planned purchase
   // itself goes out on its day.
   const planned = data.planned ?? [];
-  const allowance = allowanceFrom(data) ?? 0;
   const leftThisWeek = Math.max(0, budgetView(data, today).week.left ?? 0);
   const thisWeek = mondayOf(today);
   const daysLeftInWeek = 7 - weekdayIndex(today);
@@ -196,7 +195,9 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
     const monday = mondayOf(d);
     take(
       d,
-      monday === thisWeek ? leftThisWeek / daysLeftInWeek : Math.max(0, allowance - weekShare(planned, monday)) / 7,
+      monday === thisWeek
+        ? leftThisWeek / daysLeftInWeek
+        : Math.max(0, (allowanceFrom(data, d) ?? 0) - weekShare(planned, monday)) / 7,
     );
   }
   for (const p of planned) {
