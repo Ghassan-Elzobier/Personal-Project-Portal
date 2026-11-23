@@ -451,6 +451,11 @@ async function pick() {
 function built() {
   const n = Number(env.ISSUE);
   if (!Number.isInteger(n) || n <= 0) fail("ISSUE (the proposal's number) is required.");
+  // Claude no longer opens the pull request: it asks for one (.rnd-pr/), and the next
+  // job opens it under the owner's account. Asking for one is the build's mark.
+  const asked = env.PR_REQUEST ?? "";
+  if (asked && existsSync(asked) && readFileSync(asked, "utf8").trim())
+    return say(`#${n}: Claude pushed its branch and asked for a pull request; the next job opens it.`);
   // Only what this build said counts: a comment from before it began is someone else's.
   const since = env.SINCE ?? "";
   if (!/^\d{4}-\d{2}-\d{2}T/.test(since)) fail("SINCE (when the build began, ISO 8601) is required.");
