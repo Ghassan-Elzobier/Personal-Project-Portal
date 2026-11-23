@@ -9,6 +9,7 @@ import { recipe } from "@/lib/life/recipes";
 import { portionCost } from "@/lib/life/combo";
 import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
+  cookedIds,
   kitchenFor,
   placedMacros,
   remainingNeeds,
@@ -287,7 +288,7 @@ function freshShops(s: LifeState, v: MealWeek): { title: string; detail: string 
 
 function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
   const plan = v.plan!;
-  const cooked = new Set(s.batches.filter((b) => b.planStart === plan.start && b.cookId).map((b) => b.cookId!));
+  const cooked = cookedIds(s, plan.start);
   const left = spare(plan, v.placements);
   const groups: CookGroup[] = [];
   for (const c of [...plan.cooks].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)) {

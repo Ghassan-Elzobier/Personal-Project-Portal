@@ -9,7 +9,7 @@ import { LIFE_KINDS, type LifeKind } from "../calendar/life-blocks.ts";
 import { addDays, clock } from "../dates/week.ts";
 import type { Slot } from "../life/nutrition.ts";
 import { recipe } from "../life/recipes.ts";
-import { placedMacros, routineFor, viewOn, type LifeState, type RoutineItem } from "../life/state.ts";
+import { cookedIds, placedMacros, routineFor, viewOn, type LifeState, type RoutineItem } from "../life/state.ts";
 import type { Block } from "./schedule.ts";
 
 export type DayItem = {
@@ -279,7 +279,7 @@ function fromBlock(b: Block, date: string, routine: RoutineItem[], s: LifeState 
   if (type === "cook" && s) {
     const v = viewOn(s, date);
     const cooks = v.plan?.cooks.filter((c) => c.date === date && c.start === Number(rest)) ?? [];
-    const cooked = new Set(s.batches.filter((x) => x.planStart === v.start && x.cookId).map((x) => x.cookId!));
+    const cooked = cookedIds(s, v.start);
     const left = cooks.filter((c) => !cooked.has(c.id));
     const minutes = Math.max(0, ...cooks.map((c) => recipe(c.recipe)?.totalMin ?? 0));
     const detail =
