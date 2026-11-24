@@ -10,8 +10,11 @@
 //      e2e/a11y-baseline.json may shrink, never grow. Hiding a new lint breach
 //      with `--suppress-all` fails here.
 //   3. Existing tests and screenshot baselines are the owner's acceptance
-//      checks. Adding them is free; changing or deleting one needs the PR label
-//      "approved-test-change", which only the owner can add.
+//      checks. Adding them is free, in a new file or at the end of an existing
+//      unit test or spec (src/lib/ci/test-additions.ts decides); changing or
+//      deleting one, or any other edit to a test file, needs the PR label
+//      "approved-test-change", which only the owner can add. Screenshots and
+//      pgTAP files need it for any change.
 //
 // Usage: node scripts/guard.mjs [base-ref]   (default origin/main)
 import { execFileSync } from "node:child_process";
@@ -93,15 +96,28 @@ for (const [page, rules] of a11yBaseText === null ? [] : Object.entries(a11yNow)
 }
 
 // 3. Acceptance checks
-const PROTECTED = [/\.test\.ts$/, /^e2e\/.+\.spec\.ts$/, /^e2e\/__screenshots__\//, /^supabase\/tests\//];
-const touched = changes.filter(
-  (c) => (c.status === "M" || c.status === "D" || c.status === "R") && PROTECTED.some((re) => re.test(c.from)),
-);
+import { onlyAppendsTests, protectedChanges } from "../src/lib/ci/test-additions.ts";
+const { touched, addedTo } = protectedChanges(changes, (path) => {
+  let before;
+  try {
+    before = execFileSync("git", ["show", `${mergeBase}:${path}`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return false;
+  }
+  const baseLines = before.split("\n").length - (before.endsWith("\n") ? 1 : 0);
+  return onlyAppendsTests(git("diff", "-U0", "--no-color", mergeBase, "--", path), baseLines);
+});
+if (addedTo.length)
+  console.log(`Guard: tests added to (no existing line changed):\n${addedTo.map((c) => `    ${c.from}`).join("\n")}`);
 if (touched.length && !labels().includes(LABEL)) {
   failures.push(
     `These existing tests or screenshot baselines changed:\n${touched.map((c) => `    ${c.status} ${c.from}`).join("\n")}\n  ` +
       `They are acceptance checks, so changing them needs the owner's say-so: the PR label "${LABEL}". ` +
-      `If the change is deliberate (a design change, a corrected test), say why in the PR description and ask the owner to add it.`,
+      `If the change is deliberate (a design change, a corrected test), say why in the PR description and ask the owner to add it. ` +
+      `New tests appended at the end of a unit test or spec, leaving every existing line alone, pass without it.`,
   );
 }
 
