@@ -214,6 +214,9 @@ export function WeekPlanner({
               >
                 <span className="text-3xs uppercase">{WEEKDAY[i]}</span>
                 <span>{Number(d.slice(8))}</span>
+                <span className="h-3 text-3xs tabular-nums" title="Planned study time">
+                  {plannedHours(byDay.get(d) ?? [])}
+                </span>
               </button>
             ))}
           </div>
