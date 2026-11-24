@@ -206,19 +206,24 @@ export function WeekPlanner({
         {/* Day agenda, phones */}
         <div className="space-y-3 md:hidden">
           <div className="flex gap-1 overflow-x-auto pb-1">
-            {days.map((d, i) => (
-              <button
-                key={d}
-                onClick={() => setMobileDay(d)}
-                className={`btn shrink-0 flex-col gap-0 px-3 py-1.5 ring-1 ${d === mobileDay ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10"}`}
-              >
-                <span className="text-3xs uppercase">{WEEKDAY[i]}</span>
-                <span>{Number(d.slice(8))}</span>
-                <span className="h-3 text-3xs tabular-nums" title="Planned study time">
-                  {plannedHours(byDay.get(d) ?? [])}
-                </span>
-              </button>
-            ))}
+            {days.map((d, i) => {
+              const hours = plannedHours(byDay.get(d) ?? []);
+              // The hours describe the chip rather than name it, so the day keeps its name ("Sun 22").
+              return (
+                <button
+                  key={d}
+                  title={hours ? `${hours} of study planned` : undefined}
+                  onClick={() => setMobileDay(d)}
+                  className={`btn shrink-0 flex-col gap-0 px-3 py-1.5 ring-1 ${d === mobileDay ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10"}`}
+                >
+                  <span className="text-3xs uppercase">{WEEKDAY[i]}</span>
+                  <span>{Number(d.slice(8))}</span>
+                  <span className="h-3 text-3xs tabular-nums" title="Planned study time" aria-hidden="true">
+                    {hours}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <ul className="space-y-2">
             {(byDay.get(mobileDay) ?? []).map((b) => (
