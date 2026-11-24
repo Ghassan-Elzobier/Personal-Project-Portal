@@ -34,12 +34,14 @@ import {
   PACE_MATCH_PENCE,
   payIgnored,
   type Forecast,
+  type Move,
   type PaceOutlook,
 } from "@/lib/money/forecast";
 import { RAISE_SHARES } from "@/lib/money/operations";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
 import { loadMoney } from "@/lib/money/load";
+import { paydayMoves } from "@/lib/money/moves";
 import { foundBills, type OngoingPlan } from "@/lib/money/ongoing";
 import { plannedShop } from "@/lib/portal/money";
 import { lunchflowReady } from "@/lib/money/lunchflow";
@@ -599,9 +601,11 @@ function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: s
   const low = f.lowest;
   const under = low.pence < bufferOn(low.day);
   const unplanned = f.paydays.some((p) => p.pence === 0);
-  const pace = paceOutlook(budget, today);
+  // What the plan sends to savers and lenders each payday, as the forecast counts it.
+  const moves = paydayMoves(budget, today);
+  const pace = paceOutlook(budget, today, moves);
   const showPace = pace !== null && Math.abs(pace.pace - pace.plan) >= PACE_MATCH_PENCE;
-  const best = floorOutlook(budget, today);
+  const best = floorOutlook(budget, today, moves);
   return (
     <section aria-labelledby="ahead-title" className="space-y-3 card-life">
       <h2 id="ahead-title" className="font-semibold">
@@ -627,7 +631,7 @@ function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: s
         Lowest: {pounds(low.pence)} on {longDay(low.day)}
         {!under ? "." : low.pence < 0 ? ", overdrawn." : ", under your buffer."}
       </p>
-      {pace && <Pace pace={pace} f={f} budget={budget} today={today} />}
+      {pace && <Pace pace={pace} f={f} budget={budget} today={today} moves={moves} />}
       {f.paydays.length > 0 && (
         <p className="text-sm text-muted tabular-nums">
           Pay: {f.paydays.map((p) => `${dayMonth(p.day)} ${p.pence > 0 ? pounds(p.pence) : "not planned"}`).join(" · ")}
@@ -658,13 +662,25 @@ function Ahead({ f, budget, today }: { f: Forecast; budget: BudgetData; today: s
  * would take you under the buffer before payday, the weekly amount that wouldn't, with
  * one tap to live on it.
  */
-function Pace({ pace, f, budget, today }: { pace: PaceOutlook; f: Forecast; budget: BudgetData; today: string }) {
+function Pace({
+  pace,
+  f,
+  budget,
+  today,
+  moves,
+}: {
+  pace: PaceOutlook;
+  f: Forecast;
+  budget: BudgetData;
+  today: string;
+  moves: Move[];
+}) {
   if (Math.abs(pace.pace - pace.plan) < PACE_MATCH_PENCE)
     return <p className="text-sm text-muted">Your recent pace matches your plan.</p>;
   const payday = nextPayday(today, budget.paydayRule, budget.firstPayday);
   const above = budget.bufferPence > 0 ? "above your buffer" : "above £0";
   const planHolds = !f.underBuffer.some((d) => d < payday);
-  const amount = pace.shortBeforePayday ? keepsAbove(budget, today) : null;
+  const amount = pace.shortBeforePayday ? keepsAbove(budget, today, moves) : null;
   const floor = budget.weeklyFloorPence ?? null;
   return (
     <div className="space-y-2">

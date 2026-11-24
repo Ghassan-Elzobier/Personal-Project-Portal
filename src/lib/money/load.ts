@@ -4,7 +4,8 @@ import { now } from "../dates/clock";
 import { addDays, dateIn } from "../dates/week";
 import { budgetView, mondayOf, monthStart, parseBudget, type BudgetData, type BudgetView } from "./budget";
 import { checkIn, type CheckIn } from "./checkin";
-import { forecast, type Forecast } from "./forecast";
+import { FORECAST_DAYS, forecast, type Forecast } from "./forecast";
+import { paydayMoves } from "./moves";
 import { ongoingPlans, withOngoing, type OngoingPlan } from "./ongoing";
 import { prompts, type Prompt } from "./prompts";
 import { parseMoney, parseTransactions, type MoneyState, type Txn } from "./state";
@@ -41,7 +42,7 @@ export async function loadMoney(): Promise<(MoneyPage & { error?: undefined }) |
       txns: parseTransactions(txns),
       budget: data,
       view: budgetView(data, today),
-      forecast: forecast(data, today),
+      forecast: forecast(data, today, FORECAST_DAYS, paydayMoves(data, today)),
       ongoing: ongoingPlans(read, today),
       today,
     };
@@ -70,7 +71,13 @@ export async function loadToday(): Promise<{
     return {
       data,
       view,
-      prompts: prompts(data, view, forecast(data, today), parseMoney(money).alerts, today),
+      prompts: prompts(
+        data,
+        view,
+        forecast(data, today, FORECAST_DAYS, paydayMoves(data, today)),
+        parseMoney(money).alerts,
+        today,
+      ),
       checkIn: checkIn(data, view, today),
       today,
     };

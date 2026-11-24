@@ -25,7 +25,7 @@
 // made-up one stops: the engine stores that bill on the goal.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import { afterCycle, shareOut, type Allocation } from "./allocate.ts";
+import type { Allocation } from "./allocate.ts";
 import {
   allowanceFrom,
   cyclePayday,
@@ -37,7 +37,8 @@ import {
   type Planned,
   type Regular,
 } from "./budget.ts";
-import { forecast, payOn, recentPace } from "./forecast.ts";
+import { forecast, recentPace } from "./forecast.ts";
+import { walk } from "./moves.ts";
 import { daysBetween, following, GAP, occurrencesIn, yearlyPence, type Bill } from "./recurring.ts";
 
 /** How many paydays ahead a start is looked for. */
@@ -200,18 +201,6 @@ function paydaysFrom(data: BudgetData, today: string): string[] {
   return out;
 }
 
-/** The share-out of each payday in turn, the goals filling as they go. Null for a payday with no pay planned. */
-function walk(data: BudgetData, paydays: string[]): (Allocation | null)[] {
-  let goals = data.goals ?? [];
-  return paydays.map((day) => {
-    const pay = payOn(day, data.income ?? [], data.lastPay ?? null, data.paydayRule);
-    if (pay <= 0) return null;
-    const plan = shareOut({ ...data, goals }, day, pay);
-    goals = afterCycle(goals, plan);
-    return plan;
-  });
-}
-
 /** The least weekly amount that counts as the target in a cycle (the share-out rounds to the £1). */
 /**
  * Whether a cycle keeps up, and the goals below that slow: the pay covers the bills (the
@@ -243,21 +232,14 @@ function check(data: BudgetData, g: Goal, start: string, today: string, paydays:
     paydays.findLastIndex((p) => p <= start),
   );
   const d = withCost(data, g, start, today, pence);
-  const plans = walk(d, paydays);
+  const { plans, moves } = walk(d, paydays);
   const above = new Set((data.goals ?? []).filter((x) => sharedOut(x) && byOrder(x, g) < 0).map((x) => x.id));
   const cycles = plans.slice(k, Math.max(SEARCH_PAYDAYS, k + MIN_CYCLES));
   const keepsUp = cycles.every((c) => c !== null && keepsUpIn(d, c, above).ok);
   const slows = plans[k] ? keepsUpIn(d, plans[k], above).slows : [];
 
   // The cash: a year of the forecast, with each payday's moves to savers and lenders.
-  const moves: Planned[] = plans.flatMap((c) =>
-    c
-      ? c.shares
-          .filter((s) => s.transfer && s.pence > 0)
-          .map((s) => ({ name: s.name, pence: s.pence, dueOn: c.from, funding: "safe", weeks: 1 }))
-      : [],
-  );
-  const f = forecast({ ...d, planned: [...(d.planned ?? []), ...moves] }, today, CASH_DAYS);
+  const f = forecast(d, today, CASH_DAYS, moves);
   // Without a balance there is nothing to test the cash on.
   const worst = (f?.points ?? [])
     .filter((p) => p.day >= start)

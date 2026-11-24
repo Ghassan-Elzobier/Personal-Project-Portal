@@ -9,7 +9,8 @@ import { budgetData, foundBills, goalBillId } from "./ongoing";
 import { affordCheck } from "./displaces";
 import { prompts } from "./prompts";
 import { weekSummary } from "./summary";
-import { forecast, whatIf } from "./forecast";
+import { FORECAST_DAYS, forecast, whatIf } from "./forecast";
+import { paydayMoves } from "./moves";
 import { nextDue } from "./recurring";
 import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
 import * as store from "./store";
@@ -170,7 +171,7 @@ const FORECAST_TOOLS: Tool[] = [
       attempt(async () => {
         const { today, data } = await budgetNow();
         const view = budgetView(data, today);
-        const f = forecast(data, today);
+        const f = forecast(data, today, FORECAST_DAYS, paydayMoves(data, today));
         return ok({
           today,
           ...weekSummary(data, view, f, today),
@@ -183,13 +184,13 @@ const FORECAST_TOOLS: Tool[] = [
     name: "money_forecast",
     title: "Money: the next 13 weeks",
     description:
-      "The owner's balance forecast, day by day for 91 days, from the bills Money found (on their days), each week's amount spent through the week, planned purchases and pay on each payday. Returns the lowest point and its day, the days under the buffer, each Monday's checkpoint (the balance the week should start with if the plan holds), the paydays with their pay (0 when no pay is planned: suggest setting it with money_set_plan), the balance each week, and the next big moves. Amounts are pence. Totals only. Needs summary access.",
+      "The owner's balance forecast, day by day for 91 days, from the bills Money found (on their days), each week's amount spent through the week, planned purchases, pay on each payday, and what the plan moves to savers and lenders on each payday (a goal held elsewhere's share, a debt's payment when no bill is found for it, named after the goal). Returns the lowest point and its day, the days under the buffer, each Monday's checkpoint (the balance the week should start with if the plan holds), the paydays with their pay (0 when no pay is planned: suggest setting it with money_set_plan), the balance each week, and the next big moves. Amounts are pence. Totals only. Needs summary access.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     run: (_args, { base }) =>
       attempt(async () => {
         const { today, data } = await budgetNow();
-        const f = forecast(data, today);
+        const f = forecast(data, today, FORECAST_DAYS, paydayMoves(data, today));
         if (!f) return err("Money has no balance yet: the owner connects the bank on the Money page first.");
         return ok({
           today,
@@ -269,22 +270,31 @@ const FORECAST_TOOLS: Tool[] = [
               return bill ? [{ merchantKey: bill.merchantKey, from: String(e.from) }] : [];
             })
           : undefined;
-        const result = whatIf(data, today, {
-          payPence: pay?.pence,
-          weeklyChangePence: typeof args.weekly_change_pence === "number" ? args.weekly_change_pence : undefined,
-          bills: Array.isArray(args.bills)
-            ? (args.bills as Json[]).map((b) => ({
-                name: String(b.name),
-                pence: Number(b.pence),
-                cadence: b.cadence as "weekly" | "monthly" | "yearly",
-                on: String(b.first_on),
-              }))
-            : undefined,
-          oneOffs: Array.isArray(args.one_offs)
-            ? (args.one_offs as Json[]).map((o) => ({ name: String(o.name), pence: Number(o.pence), on: String(o.on) }))
-            : undefined,
-          ends,
-        });
+        const result = whatIf(
+          data,
+          today,
+          {
+            payPence: pay?.pence,
+            weeklyChangePence: typeof args.weekly_change_pence === "number" ? args.weekly_change_pence : undefined,
+            bills: Array.isArray(args.bills)
+              ? (args.bills as Json[]).map((b) => ({
+                  name: String(b.name),
+                  pence: Number(b.pence),
+                  cadence: b.cadence as "weekly" | "monthly" | "yearly",
+                  on: String(b.first_on),
+                }))
+              : undefined,
+            oneOffs: Array.isArray(args.one_offs)
+              ? (args.one_offs as Json[]).map((o) => ({
+                  name: String(o.name),
+                  pence: Number(o.pence),
+                  on: String(o.on),
+                }))
+              : undefined,
+            ends,
+          },
+          paydayMoves(data, today),
+        );
         if (!result) return err("Money has no balance yet: the owner connects the bank on the Money page first.");
         return ok({ ...result, take_home_month_pence: pay?.pence ?? null, page: `${base}/life/money` });
       }),

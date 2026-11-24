@@ -1,6 +1,7 @@
 // The forecast: your balance day by day for the next 13 weeks, from what Money knows —
 // the bills on their days, each week's amount spent through the week, planned
-// purchases on their days, and pay on each payday. Pure, so it is tested with a pinned
+// purchases on their days, pay on each payday, and what the plan moves to savers and
+// lenders on each payday (moves.ts, passed in). Pure, so it is tested with a pinned
 // day. It gives the lowest point (and when), the days under the buffer, and a
 // checkpoint for each Monday: the balance the week should start with.
 //
@@ -43,6 +44,12 @@ export type Forecast = {
   /** What moves the balance most: pay, bills and planned purchases (money out is negative). */
   events: { day: string; name: string; pence: number }[];
 };
+
+/**
+ * Money the plan moves out of the account on a day: a payday's share to a saver or a
+ * lender (moves.ts). Kept apart from planned purchases, so safe-to-spend doesn't count it.
+ */
+export type Move = { day: string; name: string; pence: number };
 
 /** The budget, with its pay: the steps planned, and the latest pay received. */
 export type ForecastData = BudgetData;
@@ -153,7 +160,7 @@ function weekShare(planned: Planned[], monday: string): number {
   }, 0);
 }
 
-export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS): Forecast | null {
+export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS, moves: Move[] = []): Forecast | null {
   if (data.balancePence === null) return null;
   const end = addDays(today, days - 1);
   const out = new Map<string, number>();
@@ -203,6 +210,13 @@ export function forecast(data: ForecastData, today: string, days = FORECAST_DAYS
     if (day > end) continue;
     take(day, p.pence);
     events.push({ day, name: p.name, pence: -p.pence });
+  }
+
+  // What the plan moves to savers and lenders on each payday (moves.ts).
+  for (const m of moves) {
+    if (m.day < today || m.day > end) continue;
+    take(m.day, m.pence);
+    events.push({ day: m.day, name: m.name, pence: -m.pence });
   }
 
   // Pay on each payday still to come (one paid early is in the balance already).
@@ -266,11 +280,14 @@ function outlook(f: Forecast): Outlook {
   return { lowest: f.lowest, end: f.points[f.points.length - 1], daysUnderBuffer: f.underBuffer.length };
 }
 
-/** The forecast with the changes, against the forecast as it is. Null without a balance. */
-export function whatIf(data: ForecastData, today: string, change: Change): WhatIf | null {
-  const base = forecast(data, today);
+/**
+ * The forecast with the changes, against the forecast as it is, both with the plan's
+ * payday moves as they stand. Null without a balance.
+ */
+export function whatIf(data: ForecastData, today: string, change: Change, moves: Move[] = []): WhatIf | null {
+  const base = forecast(data, today, FORECAST_DAYS, moves);
   if (!base) return null;
-  const after = forecast(withChange(data, today, change), today)!;
+  const after = forecast(withChange(data, today, change), today, FORECAST_DAYS, moves)!;
   const a = outlook(after);
   const b = outlook(base);
   const endChange = a.end.pence - b.end.pence;
@@ -380,11 +397,11 @@ function holdsToPayday(data: ForecastData, f: Forecast, payday: string): boolean
 }
 
 /** The forecast with the weekly amount spent at the recent pace. Null without a pace, a plan or a balance. */
-export function paceOutlook(data: ForecastData, today: string): PaceOutlook | null {
+export function paceOutlook(data: ForecastData, today: string, moves: Move[] = []): PaceOutlook | null {
   const pace = recentPace(data);
   const plan = allowanceFrom(data);
   if (pace === null || plan === null || data.balancePence === null) return null;
-  const f = forecast(withChange(data, today, { weeklyChangePence: pace - plan }), today)!;
+  const f = forecast(withChange(data, today, { weeklyChangePence: pace - plan }), today, FORECAST_DAYS, moves)!;
   // The payday this cycle runs to, as the forecast puts its pay (an early pay counts as it).
   const next = cyclePayday(data, today);
   return {
@@ -411,11 +428,11 @@ export type FloorOutlook = {
  * The best case: the forecast with each week's spending kept to the plan's floor (the
  * least a week). Null without a floor below the weekly amount, or without a balance.
  */
-export function floorOutlook(data: ForecastData, today: string): FloorOutlook | null {
+export function floorOutlook(data: ForecastData, today: string, moves: Move[] = []): FloorOutlook | null {
   const floor = data.weeklyFloorPence ?? null;
   const plan = allowanceFrom(data);
   if (!floor || plan === null || floor >= plan || data.balancePence === null) return null;
-  const f = forecast(withChange(data, today, { weeklyChangePence: floor - plan }), today)!;
+  const f = forecast(withChange(data, today, { weeklyChangePence: floor - plan }), today, FORECAST_DAYS, moves)!;
   return { floor, plan, points: f.points, lowest: f.lowest };
 }
 
@@ -424,13 +441,17 @@ export function floorOutlook(data: ForecastData, today: string): FloorOutlook | 
  * before it starts) every day before the next payday. Only when it is less than the
  * weekly amount now: null when the plan already holds, or when not even £0 a week would.
  */
-export function keepsAbove(data: ForecastData, today: string): number | null {
+export function keepsAbove(data: ForecastData, today: string, moves: Move[] = []): number | null {
   const plan = allowanceFrom(data);
   if (plan === null || data.balancePence === null) return null;
   const next = cyclePayday(data, today);
   // Saving a weekly amount works this week's out afresh, so the trial does too.
   const holds = (pence: number) =>
-    holdsToPayday(data, forecast({ ...data, allowancePence: pence, weekAmount: null }, today)!, next);
+    holdsToPayday(
+      data,
+      forecast({ ...data, allowancePence: pence, weekAmount: null }, today, FORECAST_DAYS, moves)!,
+      next,
+    );
   if (holds(plan) || !holds(0)) return null;
   // Spending less never lowers the balance, so the pounds that hold run from 0 up to some amount.
   let lo = 0;
