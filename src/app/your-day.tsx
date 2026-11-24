@@ -5,7 +5,7 @@ import { useOptimistic, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import { clock } from "@/lib/dates/week";
 import type { Day, DayItem } from "@/lib/portal/day";
-import { cookPlanned, logMeal, moveShop, uncook, undoShopMove } from "./life/actions";
+import { cookPlanned, logMeal, moveCookSession, moveShop, uncook, undoShopMove } from "./life/actions";
 import { toastCooked } from "./life/kit";
 import { withNextWeek } from "@/lib/life/cooked";
 import { moveBlock } from "./schedule/actions";
@@ -66,7 +66,8 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
     });
   // A missed study block goes to the free time it was offered. The page comes back with it
   // there; Undo puts it where it was. A missed shop moves the week with it: the toast says
-  // which cooks and meals followed, and Undo puts the whole week back.
+  // which cooks and meals followed, and Undo puts the whole week back. A missed cook moves
+  // its session; Undo puts it back when its old time was today (a past day can't be planned).
   const [moving, startMove] = useTransition();
   const move = (i: DayItem) =>
     startMove(async () => {
@@ -83,6 +84,26 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
             onClick: () =>
               startMove(async () => {
                 const back = await undoShopMove(week);
+                if (back.error) toast(back.error, { tone: "error" });
+              }),
+          },
+        });
+        return;
+      }
+      if (to.source === "cook") {
+        const week = to.week ?? day.planStart;
+        if (!week || !to.from) return;
+        const from = to.from;
+        const r = await moveCookSession(week, from, { date: to.date, at: to.start });
+        if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+        const said = `Cook moved to ${to.date === date ? "" : "tomorrow, "}${clock(to.start)}.`;
+        if (from.date < date) return void toast(said);
+        toast(said, {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              startMove(async () => {
+                const back = await moveCookSession(week, { date: to.date, at: to.start }, from);
                 if (back.error) toast(back.error, { tone: "error" });
               }),
           },
