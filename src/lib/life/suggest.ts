@@ -3,9 +3,11 @@
 //
 // Only recipes your rules allow, your kit can cook and your spice limit suits
 // are on it. They rank by what you rated, your favourites and cuisines, food in
-// the kitchen they would use up, and how long since you last had them. A week
-// mixes at most one recipe from outside your usual ("explore") with crowd
-// pleasers, and spreads cuisines and meats. Every rank says why. Pure, so it is tested.
+// the kitchen they would use up, and how long since you last had them: for a
+// planned week's mains, how much of each the weeks before had you eat
+// (variety.ts). A week mixes at most one recipe from outside your usual
+// ("explore") with crowd pleasers, and spreads cuisines and meats. Every rank
+// says why. Pure, so it is tested.
 
 import { addDays } from "../dates/week.ts";
 import { INGREDIENTS } from "./ingredients.ts";
@@ -14,6 +16,7 @@ import type { CookSession, LifeProfile } from "./profile.ts";
 import { mainProtein, recipe, RECIPES, type Recipe } from "./recipes.ts";
 import { firstShopFirst, lastFeedsUntil, type Cook, type Trip, type WeekMode, type WeekPlan } from "./planner.ts";
 import { planCombo, type ComboSession, type Kitchen } from "./combo.ts";
+import { tiredOf, type Variety } from "./variety.ts";
 
 export type Rating = { recipe: string; stars: number };
 /** When each recipe was last eaten or cooked. */
@@ -33,6 +36,10 @@ export function eligible(profile: LifeProfile, meal: Recipe["meal"]): Recipe[] {
   });
 }
 
+/**
+ * With `variety`, a main loses points for how much of it the weeks before had you eat
+ * (`tiredOf`), in place of the fortnight after the day it was last logged.
+ */
 export function rank(
   profile: LifeProfile,
   meal: Recipe["meal"],
@@ -40,6 +47,7 @@ export function rank(
   lastHad: LastHad,
   spare: Record<string, number>,
   today: string,
+  variety?: Variety,
 ): Ranked[] {
   const stars = new Map(ratings.map((r) => [r.recipe, r.stars]));
   return eligible(profile, meal)
@@ -70,11 +78,15 @@ export function rank(
         score += 2;
         reasons.push(`Uses the ${INGREDIENTS.get(used[0].item)!.name.toLowerCase()} you have`);
       }
-      const last = lastHad[r.key];
+      const tired = meal === "main" && variety ? tiredOf(variety, r) : null;
+      if (tired !== null) score -= tired;
+      const logged = lastHad[r.key];
+      const placed = variety?.last[r.key];
+      const last = logged && placed ? (logged > placed ? logged : placed) : (logged ?? placed);
       if (last) {
         const ago = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86_400_000);
-        if (ago < 7) score -= 4;
-        else if (ago < 14) score -= 2;
+        if (tired === null && ago < 7) score -= 4;
+        else if (tired === null && ago < 14) score -= 2;
         else if (ago > 28 && (s ?? 3) >= 4) {
           score += 1;
           reasons.push("Not had it in a month");
@@ -176,7 +188,8 @@ export function catchUp<T extends { date: string; start: number }>(sessions: T[]
  * first session, a daily breakfast for the gaps, and the shake. Portions are left
  * at zero for sizeCooks to fill in. Given the kitchen, the mains are chosen as a set
  * that buys and wastes little (`planCombo`), and the plan says what it costs;
- * without it, they are the menu's top picks spread out.
+ * without it, they are the menu's top picks spread out. Given `variety`, the mains
+ * take turns with what the weeks before had you eat.
  */
 export function suggestWeek(
   profile: LifeProfile,
@@ -187,13 +200,14 @@ export function suggestWeek(
   today: string,
   mode: WeekMode = "batch",
   kitchen?: Kitchen & { cheaper?: boolean },
+  variety?: Variety,
 ): WeekPlan {
   const plan =
     mode === "fresh"
-      ? suggestFreshWeek(profile, start, ratings, lastHad, spare, today)
-      : suggestBatchWeek(profile, start, ratings, lastHad, spare, today);
+      ? suggestFreshWeek(profile, start, ratings, lastHad, spare, today, variety)
+      : suggestBatchWeek(profile, start, ratings, lastHad, spare, today, variety);
   if (!kitchen) return plan;
-  const ranked = rank(profile, "main", ratings, lastHad, spare, today).filter(
+  const ranked = rank(profile, "main", ratings, lastHad, spare, today, variety).filter(
     (r) => !r.recipe.tags.includes("weekend"),
   );
   return combine(plan, profile, ranked, today, kitchen);
@@ -253,8 +267,9 @@ export function suggestShortWeek(
   spare: Record<string, number>,
   today: string,
   now = 0,
+  variety?: Variety,
 ): WeekPlan {
-  const ranked = rank(profile, "main", ratings, lastHad, spare, today);
+  const ranked = rank(profile, "main", ratings, lastHad, spare, today, variety);
   // The routine's short weeknight cook is how long a weeknight dinner may take.
   const limits = profile.routine.fresh.cooks.map((c) => c.minutes ?? 0).filter((m) => m > 0);
   const quick = limits.length ? Math.min(...limits) : null;
@@ -300,7 +315,8 @@ export function suggestShortWeek(
 /**
  * The week `planWeek` saves: with two days or fewer left, just those days
  * (`suggestShortWeek`) whatever the mode; otherwise the whole week (`suggestWeek`).
- * `now` is minutes after midnight, for what is still to come today.
+ * `now` is minutes after midnight, for what is still to come today. `variety` is
+ * what the weeks before had you eat (variety.ts).
  */
 export function suggestPlan(
   profile: LifeProfile,
@@ -312,10 +328,11 @@ export function suggestPlan(
   mode: WeekMode = "batch",
   kitchen?: Kitchen & { cheaper?: boolean },
   now = 0,
+  variety?: Variety,
 ): WeekPlan {
   return isShortWeek(start, today)
-    ? suggestShortWeek(profile, start, ratings, lastHad, spare, today, now)
-    : suggestWeek(profile, start, ratings, lastHad, spare, today, mode, kitchen);
+    ? suggestShortWeek(profile, start, ratings, lastHad, spare, today, now, variety)
+    : suggestWeek(profile, start, ratings, lastHad, spare, today, mode, kitchen, variety);
 }
 
 /** The menu's picks replaced by the set planCombo chooses, in the same sessions. */
@@ -362,8 +379,10 @@ function suggestBatchWeek(
   lastHad: LastHad,
   spare: Record<string, number>,
   today: string,
+  variety?: Variety,
 ): WeekPlan {
-  const mains = rank(profile, "main", ratings, lastHad, spare, today).filter((r) => !r.recipe.tags.includes("weekend"));
+  const allMains = rank(profile, "main", ratings, lastHad, spare, today, variety);
+  const mains = allMains.filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
   // Each session cooks for the days until the next one. Two mains for that, but
   // one when it only covers a day or two (a week planned late), so a catch-up
@@ -405,7 +424,7 @@ function suggestBatchWeek(
     breakfast: dailyBreakfast?.key ?? batchBreakfast?.key ?? "",
     shake: shakes[0] ?? "",
     shakes,
-    fresh: weekendFresh(profile, start, sessions, rank(profile, "main", ratings, lastHad, spare, today), today),
+    fresh: weekendFresh(profile, start, sessions, allMains, today),
     out: [],
   };
 }
@@ -425,11 +444,11 @@ function suggestFreshWeek(
   lastHad: LastHad,
   spare: Record<string, number>,
   today: string,
+  variety?: Variety,
 ): WeekPlan {
   const until = lastFeedsUntil(start, "fresh", profile.routine);
-  const ranked = rank(profile, "main", ratings, lastHad, spare, today).filter(
-    (r) => !r.recipe.tags.includes("weekend"),
-  );
+  const allMains = rank(profile, "main", ratings, lastHad, spare, today, variety);
+  const ranked = allMains.filter((r) => !r.recipe.tags.includes("weekend"));
   const sessions = catchUp(sessionDates(start, profile.routine.fresh.cooks), today);
   const picks: Recipe[] = [];
   const cooks: Cook[] = [];
@@ -473,7 +492,7 @@ function suggestFreshWeek(
     breakfast: dailyBreakfast?.key ?? "",
     shake: shakes[0] ?? "",
     shakes,
-    fresh: weekendFresh(profile, start, sessions, rank(profile, "main", ratings, lastHad, spare, today), today),
+    fresh: weekendFresh(profile, start, sessions, allMains, today),
     out: [],
   };
 }

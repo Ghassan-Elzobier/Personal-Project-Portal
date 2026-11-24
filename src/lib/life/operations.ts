@@ -50,6 +50,7 @@ import {
 import * as store from "./store";
 import { dinnersLeft, suggestPlan } from "./suggest";
 import { weekCost, type Kitchen } from "./combo";
+import { varietyFor } from "./variety";
 import type { Tag } from "./allergens";
 import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
 import { addDays } from "../dates/week";
@@ -185,6 +186,7 @@ async function savePlan(s: LifeState, plan: WeekPlan) {
  * `mode` picks a batch week or a fresh one; left out, a re-plan keeps the week's mode.
  * `cheaper` picks the cheapest good week rather than the best value. With two days or
  * fewer left, the week gets just those days, lean, whatever the mode (`suggestPlan`).
+ * The mains take turns with what the weeks before had you eat (`varietyFor`).
  * `auto` marks a week that planned itself (`planNextWhenDone`), so the pages say so.
  */
 export function planWeek(
@@ -215,6 +217,7 @@ export function planWeek(
       mode ?? existing?.mode ?? "batch",
       { ...kitchen, cheaper },
       minute,
+      varietyFor(s, week),
     );
     if (plan.short && !dinnersLeft(s.profile, week, s.today, minute).length)
       fail("This week has no dinners left to plan. Plan next week instead.");
