@@ -8,7 +8,7 @@ import { MORNING, nextFreeSlot, type Taken } from "../calendar/free-slot.ts";
 import { LIFE_KINDS, type LifeKind } from "../calendar/life-blocks.ts";
 import { addDays, clock } from "../dates/week.ts";
 import type { Slot } from "../life/nutrition.ts";
-import type { Trip } from "../life/planner.ts";
+import type { Cook, Trip } from "../life/planner.ts";
 import { recipe } from "../life/recipes.ts";
 import { EARLIEST, LATEST, SHOP_MINUTES } from "../life/shop-move.ts";
 import {
@@ -63,14 +63,16 @@ export type SessionLog = { taskGid: string; date: string; minutes: number };
  * Schedule's own action as it is; a shop's to Life's, which moves the week with it.
  */
 export type Move = {
-  source: "asana" | "session" | "shop";
+  source: "asana" | "session" | "shop" | "cook";
   id: string;
   date: string;
   start: number;
   duration: number;
   label: string;
-  /** A shop's meal week. */
+  /** A shop's or a cook session's meal week. */
   week?: string;
+  /** A cook session's own day and time, which name it for the move. */
+  from?: { date: string; at: number };
 };
 
 /** What Today knows beyond the blocks: this week's session logs, and the last day whose blocks it holds. */
@@ -81,7 +83,7 @@ export type Day = {
   nextKey: string | null;
   summary: string | null;
   planStart: string | null;
-  /** Shops and study blocks missed on earlier days this week, still owed, each with a new time. */
+  /** Shops, cooks and study blocks missed on earlier days this week, still owed, each with a new time. */
   carried: DayItem[];
   /** Carried blocks beyond the few Today lists: they are on the Schedule. */
   carriedMore: number;
@@ -129,9 +131,16 @@ export function yourDay(
     for (const r of routine) if (r.kind !== "defrost" && r.kind !== "freeze") items.push(fromRoutine(r));
   }
   // A missed shop comes first among the earlier misses: the week's food waits on it.
+  // Then a missed cook: the week's meals wait on that. Study shares what room is left.
   if (s) {
     const lastDay = kept?.lastDay ?? blocks?.reduce((d, b) => (b.date > d ? b.date : d), date) ?? date;
-    carried = [...missedShops(items, s, date, now, blocks ? { taken, lastDay } : null), ...carried];
+    const room = blocks ? { taken, lastDay } : null;
+    const shops = missedShops(items, s, date, now, room);
+    const cooks = missedCooks(items, s, date, now, room);
+    // Cooks and study share the few places Today keeps; the oldest study gives way.
+    const cut = Math.min(carried.length, Math.max(0, cooks.length + carried.length - CARRIED_MAX));
+    carriedMore += cut;
+    carried = [...shops, ...cooks, ...carried.slice(cut)];
   }
   // Life's reminders are not on the Schedule: they take no time.
   for (const r of routine) if (r.kind === "defrost" || r.kind === "freeze") items.push(fromRoutine(r));
@@ -279,6 +288,33 @@ function markMissed(
   return { carried, carriedMore: owed.length - shown.length };
 }
 
+/** Room for Life's offers: the Schedule's time so far, and the last day whose blocks are known. */
+type Room = { taken: Taken[]; lastDay: string };
+
+/**
+ * The next free time for a shop or a cook of `duration` minutes, by the rules their
+ * moves keep: starting from 06:00 and no later than 22:00, today from now, or tomorrow
+ * from the morning while tomorrow is in its meal week (ending `last`) and its blocks
+ * are known. The time is taken, so no two offers share it.
+ */
+function lifeSlot(room: Room, date: string, now: number, duration: number, last: string) {
+  const tomorrow = addDays(date, 1);
+  const fits = (free: { date: string; start: number } | null) => (free && free.start <= LATEST ? free : null);
+  const free =
+    fits(nextFreeSlot(room.taken, date, Math.max(now, EARLIEST), duration)) ??
+    (tomorrow <= last && tomorrow <= room.lastDay ? fits(nextFreeSlot(room.taken, tomorrow, MORNING, duration)) : null);
+  if (!free) return null;
+  room.taken.push({ date: free.date, start: free.start, end: free.start + duration });
+  return { ...free, label: free.date === date ? `Move to ${clock(free.start)}` : `Tomorrow ${clock(free.start)}` };
+}
+
+/** This meal week's open shops that have gone by without being done, with something still to buy. */
+function owedShops(s: LifeState, v: ReturnType<typeof viewOn>, date: string, now: number) {
+  const lists = v.plan ? tripLists(s, v).open : [];
+  const gone = (t: Trip) => !t.ticked?.length && (t.date < date || (t.date === date && t.start + SHOP_MINUTES <= now));
+  return { lists, owed: lists.filter((x) => gone(x.trip) && x.lines.some((l) => l.packs > 0)) };
+}
+
 /**
  * A fresh week's shop that has gone by without being done is missed: today's is
  * marked where it stands, and one from an earlier day of this meal week is carried
@@ -288,39 +324,15 @@ function markMissed(
  * with it (life/shop-move.ts). A shop with nothing left to buy is not on Today, and
  * one being ticked off is under way, not missed.
  */
-function missedShops(
-  items: DayItem[],
-  s: LifeState,
-  date: string,
-  now: number,
-  room: { taken: Taken[]; lastDay: string } | null,
-): DayItem[] {
+function missedShops(items: DayItem[], s: LifeState, date: string, now: number, room: Room | null): DayItem[] {
   const v = viewOn(s, date);
-  const lists = v.plan ? tripLists(s, v).open : [];
-  const gone = (t: Trip) => !t.ticked?.length && (t.date < date || (t.date === date && t.start + SHOP_MINUTES <= now));
-  const owed = lists.filter((x) => gone(x.trip) && x.lines.some((l) => l.packs > 0));
+  const { lists, owed } = owedShops(s, v, date, now);
   if (!owed.length) return [];
   const last = addDays(v.start, 6);
-  const tomorrow = addDays(date, 1);
   const offer = (t: Trip): Move | undefined => {
-    if (!room) return undefined;
-    const fits = (free: { date: string; start: number } | null) => (free && free.start <= LATEST ? free : null);
-    const free =
-      fits(nextFreeSlot(room.taken, date, Math.max(now, EARLIEST), SHOP_MINUTES)) ??
-      (tomorrow <= last && tomorrow <= room.lastDay
-        ? fits(nextFreeSlot(room.taken, tomorrow, MORNING, SHOP_MINUTES))
-        : null);
+    const free = room && lifeSlot(room, date, now, SHOP_MINUTES, last);
     if (!free) return undefined;
-    room.taken.push({ date: free.date, start: free.start, end: free.start + SHOP_MINUTES });
-    return {
-      source: "shop",
-      id: t.id,
-      week: v.start,
-      date: free.date,
-      start: free.start,
-      duration: SHOP_MINUTES,
-      label: free.date === date ? `Move to ${clock(free.start)}` : `Tomorrow ${clock(free.start)}`,
-    };
+    return { source: "shop", id: t.id, week: v.start, duration: SHOP_MINUTES, ...free };
   };
 
   for (const item of items) {
@@ -348,6 +360,75 @@ function missedShops(
         move: offer(x.trip),
         date: x.trip.date,
         tripId: x.trip.id,
+      };
+    });
+}
+
+/**
+ * A cook session whose time has gone (its start plus its longest recipe) with dishes
+ * still not logged is missed: today's is marked where it stands, and one from an
+ * earlier day of this meal week is carried to Today. Each is offered the next free
+ * time of its own length, by the limits `moveCookSession` keeps. No offer while one
+ * of the week's shops is missed: that shop's move carries the cooks that need its food.
+ */
+function missedCooks(items: DayItem[], s: LifeState, date: string, now: number, room: Room | null): DayItem[] {
+  const v = viewOn(s, date);
+  if (!v.plan) return [];
+  const cooked = cookedIds(s, v.start);
+  const sessions = new Map<string, { date: string; start: number; cooks: Cook[] }>();
+  for (const c of v.plan.cooks) {
+    const key = `${c.date}:cook:${c.start}`;
+    const one = sessions.get(key) ?? { date: c.date, start: c.start, cooks: [] };
+    one.cooks.push(c);
+    sessions.set(key, one);
+  }
+  const length = (cooks: Cook[]) => Math.max(0, ...cooks.map((c) => recipe(c.recipe)?.totalMin ?? 0));
+  const missed = [...sessions.values()]
+    .filter((x) => x.date >= v.start && x.cooks.some((c) => !cooked.has(c.id)))
+    .filter((x) => x.date < date || (x.date === date && x.start + length(x.cooks) <= now))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  if (!missed.length) return [];
+  const waiting = owedShops(s, v, date, now).owed.length > 0;
+  const last = addDays(v.start, 6);
+  const offer = (x: { date: string; start: number; cooks: Cook[] }): Move | undefined => {
+    const duration = Math.max(length(x.cooks), 15);
+    const free = !waiting && room ? lifeSlot(room, date, now, duration, last) : null;
+    if (!free) return undefined;
+    return {
+      source: "cook",
+      id: `${x.date}:cook:${x.start}`,
+      week: v.start,
+      from: { date: x.date, at: x.start },
+      duration,
+      ...free,
+    };
+  };
+
+  for (const x of missed.filter((m) => m.date === date)) {
+    const item = items.find((i) => i.key === `plan-${x.date}:cook:${x.start}`);
+    if (!item) continue;
+    item.missed = true;
+    item.move = offer(x);
+  }
+  return missed
+    .filter((x) => x.date < date)
+    .map((x): DayItem => {
+      const left = x.cooks.filter((c) => !cooked.has(c.id));
+      const names = left.map((c) => recipe(c.recipe)?.name ?? c.recipe);
+      return {
+        key: `cook-${x.date}-${x.start}`,
+        start: x.start,
+        end: x.start + length(x.cooks),
+        kind: "cook",
+        title: "Cook",
+        // Its day stands where the time would: the detail keeps the time it had.
+        detail: [clock(x.start), names.join(", ")].filter(Boolean).join(" · "),
+        done: false,
+        skipped: false,
+        href: `/life/cook?day=${x.date}&at=${x.start}`,
+        missed: true,
+        move: offer(x),
+        date: x.date,
       };
     });
 }
