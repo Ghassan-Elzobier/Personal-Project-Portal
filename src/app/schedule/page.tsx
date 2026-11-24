@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { timeZone } from "@/lib/config/env";
-import { attempt } from "@/lib/portal/data";
+import { attempt, studyTarget } from "@/lib/portal/data";
+import { studyTotals } from "@/lib/portal/stats";
+import { studyWeek, type StudyWeek } from "@/lib/portal/study-week";
+import { formatHours } from "@/lib/tasks/session-log";
 import { missedBlocks } from "@/lib/portal/day";
 import { loadScheduleWeek, resolveWeek } from "@/lib/portal/schedule";
 import { listSessionComments } from "@/lib/tasks/tracker";
@@ -40,23 +43,32 @@ export default async function SchedulePage({
   const week = resolveWeek(params.week);
   const showInvites = params.invites === "show";
   // The week's session logs say which study blocks were kept. If they can't be read, none is called missed.
-  const [data, comments] = await Promise.all([
+  const [data, comments, target] = await Promise.all([
     loadScheduleWeek(week, { showInvites }),
     attempt(() => listSessionComments(week.startsAt)),
+    studyTarget(week),
   ]);
   const keep = showInvites ? "&invites=show" : "";
   const googleReady = typeof data.google === "object" && "email" in data.google;
   const tz = timeZone();
   const now = zonedParts(clockNow(), tz);
   const thisWeek = dateIn(clockNow(), tz);
-  const missed = comments.ok
-    ? missedBlocks(
-        data.blocks,
-        now.date,
-        now.minutes,
-        comments.value.map((c) => ({ taskGid: c.taskGid, ...zonedParts(new Date(c.createdAt), tz) })),
-      )
-    : new Set<string>();
+  const logs = comments.ok
+    ? comments.value.map((c) => ({ taskGid: c.taskGid, ...zonedParts(new Date(c.createdAt), tz) }))
+    : [];
+  const missed = comments.ok ? missedBlocks(data.blocks, now.date, now.minutes, logs) : new Set<string>();
+  // Without the session logs, nothing logged is known, so the line is left out rather than wrong.
+  const study = comments.ok
+    ? studyWeek({
+        blocks: data.blocks,
+        missed,
+        logs,
+        logged: studyTotals(comments.value, week, now.date, tz).week,
+        target,
+        today: now.date,
+        now: now.minutes,
+      })
+    : null;
   const note = params.google ? GOOGLE_NOTES[params.google] : null;
 
   return (
@@ -108,6 +120,8 @@ export default async function SchedulePage({
         <ErrorNote key={e} message={e} />
       ))}
 
+      {study && <StudyLine study={study} />}
+
       <WeekPlanner
         key={week.start}
         days={data.days}
@@ -119,6 +133,29 @@ export default async function SchedulePage({
         missed={[...missed]}
       />
     </div>
+  );
+}
+
+/** The week's study plan against its target: logged plus planned, and what is short, over or missed. */
+function StudyLine({ study }: { study: StudyWeek }) {
+  const h = (n: number) => `${formatHours(n)} h`;
+  const status =
+    study.target === null
+      ? null
+      : study.over
+        ? `${h(study.over)} over`
+        : study.short
+          ? `${h(study.short)} still to place`
+          : "covered";
+  return (
+    <p className="text-sm text-muted">
+      Study:{" "}
+      <span className="font-semibold text-bright tabular-nums">
+        {h(study.logged)} logged + {h(study.toCome)} planned{study.target !== null && ` of ${h(study.target)}`}
+      </span>
+      {status && ` · ${status}`}
+      {study.missed > 0 && ` · ${h(study.missed)} missed`}
+    </p>
   );
 }
 
