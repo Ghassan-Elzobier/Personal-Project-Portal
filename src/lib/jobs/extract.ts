@@ -65,22 +65,44 @@ export function decodeEntities(text: string): string {
 const HIDDEN =
   /<(\w+)\b[^>]*(?:\shidden(?=[\s/>=])|aria-hidden=["']?true|style=["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["'])[^>]*>[\s\S]*?<\/\1\s*>/gi;
 
+/**
+ * Takes out everything that could still open a tag: whole tags, then any "<" left
+ * before a letter, "/", "!" or "?", as a browser reads them. A "<" before anything
+ * else is text and stays: "<5 years", "< 2 hours". It goes round until nothing
+ * changes, since taking one piece out can join two others ("<<b>script>" leaves
+ * "<script>"); the second round only confirms, as the openers go in the first.
+ */
+export function withoutTags(text: string): string {
+  let out = text;
+  let before: string;
+  do {
+    before = out;
+    // (?<!<) starts at the first "<" of a run: without it a long run of "<" before
+    // a digit would be tried from every "<" in it, and take seconds.
+    out = out.replace(/<[!/?]?[a-z][^<>]*>/gi, "").replace(/(?<!<)<+(?=[a-z!/?])/gi, "");
+  } while (out !== before);
+  return out;
+}
+
 /** An advert's HTML as the plain lines a reader would see, with hidden text gone. */
 export function advertText(raw: string): string {
   // Some feeds escape their HTML, and some escape it twice.
   let html = raw;
   for (let i = 0; i < 2 && /&lt;\/?[a-z]/i.test(html); i++) html = decodeEntities(html);
-  return decodeEntities(
-    html
-      .replace(/<!--[\s\S]*?-->/g, " ")
-      .replace(/<(script|style|noscript|template|svg|iframe|head)\b[\s\S]*?<\/\1\s*>/gi, " ")
-      .replace(HIDDEN, " ")
-      .replace(/<(?:br|hr)\s*\/?>/gi, "\n")
-      .replace(/<li\b[^>]*>/gi, "\n- ")
-      .replace(/<\/?(?:p|div|h[1-6]|ul|ol|li|tr|section|blockquote|table|article|header|footer)\b[^>]*>/gi, "\n")
-      .replace(/<[^>]+>/g, ""),
-  )
-    .replace(/[​-‏⁠﻿­]/g, "")
+  const text = decodeEntities(
+    withoutTags(
+      html
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<(script|style|noscript|template|svg|iframe|head)\b[\s\S]*?<\/\1\s*>/gi, " ")
+        .replace(HIDDEN, " ")
+        .replace(/<(?:br|hr)\s*\/?>/gi, "\n")
+        .replace(/<li\b[^>]*>/gi, "\n- ")
+        .replace(/<\/?(?:p|div|h[1-6]|ul|ol|li|tr|section|blockquote|table|article|header|footer)\b[^>]*>/gi, "\n"),
+    ),
+  ).replace(/[​-‏⁠﻿­]/g, "");
+  // Decoding can bring a tag back, from a feed escaped more times than the loop
+  // above undoes, so it comes out again: the text is shown as text, and holds none.
+  return withoutTags(text)
     .replace(/\r/g, "\n")
     .split("\n")
     .map((line) => line.replace(/[ \t ]+/g, " ").trim())
