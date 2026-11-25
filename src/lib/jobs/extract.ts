@@ -66,20 +66,20 @@ const HIDDEN =
   /<(\w+)\b[^>]*(?:\shidden(?=[\s/>=])|aria-hidden=["']?true|style=["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0)[^"']*["'])[^>]*>[\s\S]*?<\/\1\s*>/gi;
 
 /**
- * Takes out everything that could still open a tag: whole tags, then any "<" left
- * before a letter, "/", "!" or "?", as a browser reads them. A "<" before anything
- * else is text and stays: "<5 years", "< 2 hours". It goes round until nothing
- * changes, since taking one piece out can join two others ("<<b>script>" leaves
- * "<script>"); the second round only confirms, as the openers go in the first.
+ * Takes out everything that could still open a tag: whole tags, and any run of "<"
+ * left before a letter, "/", "!" or "?", as a browser reads them. A "<" before
+ * anything else is text and stays: "<5 years", "< 2 hours". It goes round until
+ * nothing changes, since taking one piece out can join two others ("<<b>script>");
+ * the second round only confirms. One pattern does both, so CodeQL sees the
+ * removal repeated (js/incomplete-multi-character-sanitization), and (?<!<) starts
+ * a run at its first "<": without it a long run before a digit takes seconds.
  */
 export function withoutTags(text: string): string {
   let out = text;
   let before: string;
   do {
     before = out;
-    // (?<!<) starts at the first "<" of a run: without it a long run of "<" before
-    // a digit would be tried from every "<" in it, and take seconds.
-    out = out.replace(/<[!/?]?[a-z][^<>]*>/gi, "").replace(/(?<!<)<+(?=[a-z!/?])/gi, "");
+    out = out.replace(/<[!/?]?[a-z][^<>]*>|(?<!<)<+(?=[a-z!/?])/gi, "");
   } while (out !== before);
   return out;
 }

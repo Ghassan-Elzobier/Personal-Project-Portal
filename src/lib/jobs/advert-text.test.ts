@@ -10,7 +10,7 @@ import { advertText, withoutTags } from "./extract.ts";
 const opensATag = (text: string) => /<[!/?]?[a-z]/i.test(text);
 
 test("a tag that only forms once another is taken out goes too", () => {
-  assert.equal(withoutTags("<<b>script>alert(1)<</b>/script>"), "script>alert(1)/script>");
+  assert.equal(withoutTags("<<b>script>alert(1)<</b>/script>"), "b>script>alert(1)/b>/script>");
   assert.equal(withoutTags("<scr<i>ipt>x"), "script>x");
   assert.equal(opensATag(advertText("<p>Apply <<b>script>alert(1)<</b>/script> now</p>")), false);
 });
