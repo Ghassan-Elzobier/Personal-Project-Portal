@@ -14,7 +14,10 @@
 # pull request ("@claude re-render the screenshots this change explains"):
 # Claude runs npm run test:e2e:update on those specs (.claude/settings.json allows
 # npm run), reads every changed image and lists them, and the guard still waits
-# for the owner's approved-test-change label. Pull requests from cloud sessions
+# for the owner's approved-test-change label. A comment's run checks out main, so
+# the stack starts with main's migrations: on a pull request that adds one, Claude
+# resets the local stack from the branch first (#193's first render showed Today's
+# "not in the database yet" note until it did). Pull requests from cloud sessions
 # need this: their network reaches no container registry, so they can't render.
 #
 # Only accounts with write access can trigger it (the action checks), and this
@@ -108,4 +111,6 @@ jobs:
             command up to 30 minutes), read every image that changed, commit only the ones the change
             explains, and list them in your comment so the owner can look before adding the
             approved-test-change label. An image you did not mean to change is a bug to fix, never one
-            to re-render. If the database did not start, say so instead.'
+            to re-render. If the database did not start, say so instead. The database starts from the
+            migrations on main, so on a pull request that adds migrations, run npx supabase db reset
+            first: it applies the branch migrations and the seed to the local stack.'
