@@ -25,7 +25,7 @@
 // made-up one stops: the engine stores that bill on the goal.
 
 import { addDays, weekdayIndex } from "../dates/week.ts";
-import type { Allocation } from "./allocate.ts";
+import { withDebtEnds, type Allocation } from "./allocate.ts";
 import {
   allowanceFrom,
   cyclePayday,
@@ -285,10 +285,12 @@ function startOf(data: BudgetData, g: Goal, today: string, paydays: string[]): s
 /**
  * The budget with every regular cost counted, in goal order, each seeing the ones
  * before it: from the start the owner set, or the first payday it fits (not at all when
- * it doesn't fit within a year). Apply it right after reading the budget, so the page,
- * Today, the engine and Claude count the same thing.
+ * it doesn't fit within a year). A paid-off debt's bill ends first (withDebtEnds), so
+ * the costs see the room it leaves. Apply it right after reading the budget, so the
+ * page, Today, the engine and Claude count the same thing.
  */
-export function withOngoing(data: BudgetData, today: string): BudgetData {
+export function withOngoing(read: BudgetData, today: string): BudgetData {
+  const data = withDebtEnds(read, today);
   const goals = (data.goals ?? []).filter(isOngoing).sort(byOrder);
   if (!goals.length) return data;
   const paydays = paydaysFrom(data, today);
@@ -306,7 +308,8 @@ export function budgetData(raw: unknown, today: string): BudgetData {
 }
 
 /** Each regular cost's card: when it fits at the plan and at the recent pace, and what it costs net. */
-export function ongoingPlans(data: BudgetData, today: string): OngoingPlan[] {
+export function ongoingPlans(read: BudgetData, today: string): OngoingPlan[] {
+  const data = withDebtEnds(read, today);
   const goals = (data.goals ?? []).filter(isOngoing).sort(byOrder);
   const paydays = paydaysFrom(data, today);
   const pace = recentPace(data);

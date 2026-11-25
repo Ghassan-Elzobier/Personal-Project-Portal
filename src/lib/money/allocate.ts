@@ -39,7 +39,7 @@ import {
   type Goal,
 } from "./budget.ts";
 import { payOn } from "./forecast.ts";
-import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
+import { CYCLE_DAYS, daysBetween, following, nextDue, occurrencesIn, yearlyPence } from "./recurring.ts";
 
 const MONTH_DAYS = CYCLE_DAYS.monthly;
 /** A saving goal (or yearly cost) the owner gave a monthly amount: it takes that each month, and no more. */
@@ -377,6 +377,36 @@ export function suggestGoals(data: BudgetData, today: string): Suggested[] {
     });
   const have = new Set((data.goals ?? []).map((g) => g.name.toLowerCase()));
   return out.filter((s) => !have.has(s.name.toLowerCase()));
+}
+
+/**
+ * The budget with each debt's bill ending once the debt is paid off: none of it falls
+ * due after the payment that clears what's owed, so the forecast, the pay cycle,
+ * safe-to-spend and the regular-cost tests stop counting a payment no longer owed. The
+ * payments count at the bill's amount, with the debt's interest; a debt marked done is
+ * paid, a paused one is left alone, and one whose payment never clears it keeps its bill.
+ */
+export function withDebtEnds(data: BudgetData, today: string): BudgetData {
+  const debts = (data.goals ?? []).filter((g) => g.kind === "debt" && g.status !== "paused" && g.merchantKey);
+  if (!debts.length) return data;
+  const bills = (data.bills ?? []).map((b) => {
+    const g = b.status === "active" && b.id > 0 ? debts.find((d) => d.merchantKey === b.merchantKey) : undefined;
+    if (!g || b.expectedPence <= 0) return b;
+    const owed = g.status === "done" ? 0 : savedNow(g);
+    const payments =
+      owed <= 0
+        ? 0
+        : b.cadence === "monthly"
+          ? monthsToClear(owed, b.expectedPence, g.aprBp)
+          : g.aprBp
+            ? null
+            : Math.ceil(owed / b.expectedPence);
+    if (payments === null) return b;
+    let ends = nextDue(b, today);
+    for (let i = 0; i < payments; i++) ends = following(b, ends);
+    return b.endsOn && b.endsOn <= ends ? b : { ...b, endsOn: ends };
+  });
+  return { ...data, bills };
 }
 
 export type SuggestedDebt = { billId: number; name: string; paymentPence: number };
