@@ -5,7 +5,8 @@
 // fix. .github/workflows/error-triage.yml runs it every 30 minutes; the decisions
 // themselves are in src/lib/errors/issue.ts, with tests beside them. It also
 // watches the scheduled bank sync, which fails without recording an error when
-// the cron never reaches it (src/lib/errors/sync-health.ts).
+// the cron never reaches it (src/lib/errors/sync-health.ts), and loads the live
+// site signed out when PORTAL_URL is set (src/lib/errors/site-health.ts).
 //
 //   node --experimental-strip-types --no-warnings scripts/error-triage.mjs [--local] [--dry-run]
 //
@@ -37,6 +38,14 @@ import {
   syncHealthFrom,
   syncIssueBody,
 } from "../src/lib/errors/sync-health.ts";
+import {
+  SITE_CLOSED_COMMENT,
+  SITE_MARKER,
+  SITE_TITLE,
+  decideSite,
+  judgeSite,
+  siteIssueBody,
+} from "../src/lib/errors/site-health.ts";
 
 const flags = new Set(process.argv.slice(2));
 const local = flags.has("--local");
@@ -220,26 +229,26 @@ for (const group of groups) {
 console.log(`${groups.length} error groups triaged; ${fix.length} handed to Claude (${usedToday} of ${perDay} today).`);
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `fix=${JSON.stringify(fix)}\n`);
 
-/** The one open issue about the bank sync, found by its marker, if any. */
-function openSyncIssue() {
+/** The one open issue whose body holds this marker, if any. */
+function openIssueWith(marker) {
   const found = ghOrFail(
     ["issue", "list", "--repo", repo, "--state", "open", "--label", "error-report"].concat([
       "--search",
-      `"${SYNC_MARKER.slice(5, -4)}" in:body`,
+      `"${marker.slice(5, -4)}" in:body`,
       "--json",
       "number,body",
       "--limit",
       "5",
     ]),
   );
-  return JSON.parse(found).find((issue) => issue.body.includes(SYNC_MARKER))?.number ?? null;
+  return JSON.parse(found).find((issue) => issue.body.includes(marker))?.number ?? null;
 }
 
 /** Files, keeps or closes the issue that says the scheduled bank sync has stopped. */
 function checkBankSync() {
   const health = syncHealthFrom(sql(SYNC_HEALTH_QUERY)[0]);
   const now = new Date();
-  const number = openSyncIssue();
+  const number = openIssueWith(SYNC_MARKER);
   const action = decideSync(health, now, number !== null);
   console.log(`${dryRun ? "[dry run] " : ""}bank sync: ${action}${number ? ` #${number}` : ""}`);
   if (dryRun) {
@@ -275,4 +284,84 @@ try {
   checkBankSync();
 } catch (error) {
   console.log(`::warning::Bank sync check failed: ${error instanceof Error ? error.message : error}`);
+}
+
+const SITE_TRIES = 3;
+const SITE_WAIT_MS = 20_000;
+const SITE_TIMEOUT_MS = 15_000;
+
+/** One signed-out request: its status, where it redirects, and its page. Never throws. */
+async function probe(base, path) {
+  try {
+    const response = await fetch(new URL(path, base), {
+      redirect: "manual",
+      signal: AbortSignal.timeout(SITE_TIMEOUT_MS),
+      headers: { "user-agent": "portal-site-check" },
+    });
+    return { status: response.status, location: response.headers.get("location"), body: await response.text() };
+  } catch {
+    return { status: null, location: null, body: null };
+  }
+}
+
+/**
+ * Files, keeps or closes the issue that says the live portal is not loading. Tries
+ * up to three times, 20 seconds apart, so one slow cold start files nothing. The
+ * address is never printed: the run's log is public.
+ */
+async function checkSite() {
+  const base = process.env.PORTAL_URL?.trim();
+  if (!base) {
+    console.log("site check: skipped (set the repository variable PORTAL_URL to turn it on)");
+    return;
+  }
+  if (!URL.canParse(base)) throw new Error("PORTAL_URL is not an address");
+  let health;
+  let tries = 0;
+  while (tries < SITE_TRIES) {
+    if (tries > 0) await new Promise((resolve) => setTimeout(resolve, SITE_WAIT_MS));
+    tries += 1;
+    const [root, login] = await Promise.all([probe(base, "/"), probe(base, "/login")]);
+    health = judgeSite({ root, login });
+    if (health.healthy) break;
+  }
+  const number = openIssueWith(SITE_MARKER);
+  const action = decideSite(health, number !== null);
+  const failed = health.failed.map((f) => `${f.check} ${f.reason} ${f.status ?? "none"}`).join(", ");
+  console.log(
+    `${dryRun ? "[dry run] " : ""}site: ${action}${number ? ` #${number}` : ""}${failed ? ` (${failed})` : ""}`,
+  );
+  if (!health.healthy) console.log(`::warning::The portal is not loading: ${failed}`);
+  if (dryRun) {
+    if (action === "file" || action === "update") console.log(siteIssueBody(health, tries));
+    return;
+  }
+  if (action === "file") {
+    for (const [name, color, description] of LABELS) {
+      gh(["label", "create", name, "--repo", repo, "--color", color, "--description", description]);
+    }
+    // Not handed to Claude: a site that won't load is a deploy or a setting, seen in Vercel.
+    ghOrFail(
+      ["issue", "create", "--repo", repo, "--title", SITE_TITLE, "--body-file", "-"].concat([
+        "--label",
+        "bug",
+        "--label",
+        "error-report",
+        "--label",
+        NO_AUTOFIX,
+      ]),
+      siteIssueBody(health, tries),
+    );
+  } else if (action === "update") {
+    ghOrFail(["issue", "edit", String(number), "--repo", repo, "--body-file", "-"], siteIssueBody(health, tries));
+  } else if (action === "close") {
+    ghOrFail(["issue", "close", String(number), "--repo", repo, "--comment", SITE_CLOSED_COMMENT]);
+  }
+}
+
+// Last, and like the bank sync check it only ever warns.
+try {
+  await checkSite();
+} catch (error) {
+  console.log(`::warning::Site check failed: ${error instanceof Error ? error.message : error}`);
 }

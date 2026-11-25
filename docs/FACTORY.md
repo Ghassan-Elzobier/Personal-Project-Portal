@@ -137,6 +137,15 @@ If the repository goes private, change the triage's schedule back to hourly
 (`17 * * * *`). Private repositories get 2,000 free Actions minutes a month, and
 running every 30 minutes uses about 1,440 of them. Nothing else changes.
 
+**When the site itself stops loading.** Some breaks also silence the error
+tracker: a deploy missing its Supabase settings, a failing proxy or sign-in page,
+an error page from Vercel. So each triage run, once `PORTAL_URL` is set, also loads
+the live site signed out: `/` must redirect to `/login`, and `/login` must show the
+Sign in form, not "not configured". After three failed tries 20 seconds apart it
+files one `no-autofix` issue, "The portal is not loading", with check names and
+status codes only, and closes it once the site loads again
+(`src/lib/errors/site-health.ts`). It never signs in and reads no data.
+
 ## When CI fails, something looks into it
 
 A failed check on a pull request is investigated before you have to (`.github/workflows/ci-triage.yml`,
@@ -481,7 +490,9 @@ Done once by you, since each needs your accounts. About fifteen minutes.
 9. **Error triage.** Nothing is required: it uses the release job's secrets and
    creates its labels the first time it files an issue. To change the daily limit
    on fixes, set the repository variable `ERROR_AUTOFIX_PER_DAY`. To try it, run
-   "Error triage" from the Actions tab.
+   "Error triage" from the Actions tab. To have it check that the live site loads,
+   set the repository variable `PORTAL_URL` to the portal's address (with
+   `https://`); until then it logs that the site check was skipped.
 10. **R&D.** Nothing is required: it uses the Claude token from step 2 and creates
    its `rnd` label the first time it files. Its first runs say "No page shots"
    until CI on main has captured the pages once, on the next merge. To run it
