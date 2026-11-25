@@ -20,6 +20,7 @@ import {
   type UnitFact,
 } from "./match";
 import { isLive, needsNextStep } from "./next-step";
+import { rhythmLine, searchRhythm, sentThisWeek, type Rhythm } from "./rhythm";
 import { listEvidence, listPostings, listSources, type JobRow, type JobSource } from "./store";
 
 // Everything the job pages and the Today hub show, worked out from the roles on file,
@@ -101,6 +102,8 @@ export type JobBoard = {
   evidence: StoredEvidence[];
   lastRead: string | null;
   units: Map<string, UnitFact>;
+  /** Applications sent in each of the last eight weeks. */
+  rhythm: Rhythm;
 };
 
 export async function loadJobBoard(study?: StudyOverview): Promise<JobBoard> {
@@ -169,6 +172,7 @@ export async function loadJobBoard(study?: StudyOverview): Promise<JobBoard> {
     evidence,
     lastRead: reads.at(-1) ?? null,
     units,
+    rhythm: searchRhythm(roles, overview.today),
   };
 }
 
@@ -204,6 +208,8 @@ export type Hub = {
   lastRead: string | null;
   nextUnit: { name: string; href: string | null; skills: { name: string; must: number; soft: number }[] } | null;
   failing: number;
+  /** Applications sent this week, as a record and never a target. */
+  sentThisWeek: number;
 };
 
 /** One short reading of the job hunt beside your study, for the Today page. */
@@ -236,6 +242,7 @@ export function hubFrom(board: JobBoard, overview: StudyOverview): Hub {
     failing: board.sources.filter(
       (s) => s.active && s.kind !== "link" && s.last_error && (!s.last_ok_at || s.last_read_at !== s.last_ok_at),
     ).length,
+    sentThisWeek: sentThisWeek(board.rhythm),
   };
 }
 
@@ -253,6 +260,7 @@ export function mentorSummary(board: JobBoard): string {
   return [
     `Job hunt, ${board.today}`,
     `${targets.length} open roles in scope. Saved ${stage("saved")}, applied ${stage("applied")}, interviewing ${stage("interview")}, offers ${stage("offer")}.`,
+    `Applications: ${rhythmLine(board.rhythm)}`,
     "",
     "Closest roles:",
     ...(top.length ? top.map(line) : ["- None yet."]),

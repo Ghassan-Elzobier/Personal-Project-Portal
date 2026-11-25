@@ -101,6 +101,7 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
           {hub.fresh > 0 && <span className="text-muted">, {hub.freshNear} in London or remote</span>}
           {`. ${hub.active} in progress.`}
         </p>
+        <p className="text-sm text-body tabular-nums">Sent this week: {hub.sentThisWeek}</p>
         {due.length > 0 ? (
           <ul className="space-y-1 text-sm">
             {due.slice(0, 2).map((a) => (

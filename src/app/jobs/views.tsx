@@ -3,6 +3,7 @@ import { Chip, Empty, SectionTitle, type Tone } from "@/components/ui";
 import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import type { JobBoard, RoleView } from "@/lib/jobs/load";
+import { rhythmLine, type Rhythm } from "@/lib/jobs/rhythm";
 import { BANDS, type Band, type MarketRow, type SkillStatus, type Standing } from "@/lib/jobs/match";
 import { needsNextStep } from "@/lib/jobs/next-step";
 import { LEVELS, SKILLS } from "@/lib/jobs/skills";
@@ -519,6 +520,43 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
   );
 }
 
+/** The last eight weeks of applications, oldest first. A record, so no target and no colour for a quiet week. */
+function SearchRhythm({ rhythm }: { rhythm: Rhythm }) {
+  const first = rhythm.weeks[0];
+  return (
+    <section aria-labelledby="rhythm-title" className="space-y-2">
+      <SectionTitle>
+        <span id="rhythm-title">Your search, week by week</span>
+      </SectionTitle>
+      <p className="text-sm text-body tabular-nums">{rhythmLine(rhythm)}</p>
+      <ol className="grid grid-cols-8 gap-1" aria-label="Applications sent each week, oldest first">
+        {rhythm.weeks.map((w, i) => (
+          <li
+            key={w.start}
+            className="min-w-0 rounded-lg bg-white/5 py-2 text-center ring-1 ring-white/5"
+            title={`Week of ${shortDate(w.start)}`}
+          >
+            <span className="sr-only">
+              {i === rhythm.weeks.length - 1 ? "This week" : `Week of ${shortDate(w.start)}`}:{" "}
+            </span>
+            <span className={`block font-semibold tabular-nums ${w.sent ? "text-white" : "text-faint"}`}>{w.sent}</span>
+            <span className="sr-only"> sent, </span>
+            <span className="block text-xs text-muted tabular-nums">
+              {w.close}
+              <span className="sr-only"> {w.close === 1 ? "close fit" : "close fits"}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="flex justify-between text-xs text-muted">
+        <span>{first ? `From ${shortDate(first.start)}` : ""}</span>
+        <span>This week</span>
+      </p>
+      <p className="text-xs text-muted">Top: sent. Below: of those, how many are Ready or On your plan.</p>
+    </section>
+  );
+}
+
 const STAGE_NAMES: [string, string][] = [
   ["saved", "Saved"],
   ["applied", "Applied"],
@@ -544,6 +582,8 @@ export function ApplicationsView({ board, filters }: { board: JobBoard; filters:
 
   return (
     <div className="space-y-8">
+      <SearchRhythm rhythm={board.rhythm} />
+
       {unplanned.length > 0 && (
         <section aria-labelledby="unplanned-title" className="space-y-2">
           <SectionTitle>
