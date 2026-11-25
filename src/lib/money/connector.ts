@@ -4,8 +4,8 @@ import { now } from "../dates/clock";
 import { dateIn } from "../dates/week";
 import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { allocate } from "./allocate";
-import { budgetView, mondayOf, monthStart, savedNow } from "./budget";
-import { budgetData, foundBills, goalBillId } from "./ongoing";
+import { budgetView, mondayOf, monthStart, parseBudget, savedNow } from "./budget";
+import { budgetData, foundBills, ongoingPlans, regularSummary, withOngoing } from "./ongoing";
 import { affordCheck } from "./displaces";
 import { prompts } from "./prompts";
 import { weekSummary } from "./summary";
@@ -38,7 +38,10 @@ const KIND = {
 /** The budget as the Money page works it out, for Claude: amounts in pence. */
 async function summary() {
   const today = dateIn(now(), timeZone());
-  const data = budgetData(await store.readBudget(monthStart(today), mondayOf(today)), today);
+  // Read as the Money page reads it: the regular costs' cards from the budget before they're counted.
+  const read = parseBudget(await store.readBudget(monthStart(today), mondayOf(today)));
+  const data = withOngoing(read, today);
+  const cards = ongoingPlans(read, today);
   const view = budgetView(data, today);
   const plan = allocate(data, view.payday);
   return {
@@ -53,19 +56,11 @@ async function summary() {
       .filter((g) => g.status === "active")
       .map((g) => {
         if (g.regular)
-          return {
-            id: g.id,
-            name: g.name,
-            kind: g.kind,
-            cost_pence: g.regular.costPence,
-            cadence: g.regular.cadence,
-            setup_pence: g.regular.setupPence,
-            estimated: g.regular.estimated,
-            start_on: g.regular.startOn,
-            // The day its cost counts from (the owner's start, or the first payday it
-            // fits); null when it doesn't fit within a year, or its real bill is found.
-            counts_from: (data.bills ?? []).find((b) => b.id === goalBillId(g))?.anchorOn ?? null,
-          };
+          return regularSummary(
+            g,
+            data,
+            cards.find((c) => c.id === g.id),
+          );
         const s = plan?.shares.find((x) => x.id === g.id);
         return {
           id: g.id,
@@ -431,7 +426,7 @@ export const MONEY_TOOLS: Tool[] = [
     name: "get_money_summary",
     title: "Money: this week, safe-to-spend and the month",
     description:
-      "How the owner's money stands now: the balance, the next payday, safe-to-spend (balance less fixed costs still to pay before payday, planned purchases and the buffer), what that allows a week until payday against the weekly amount they planned (on_track), this week's amount left (Monday to Sunday), this month by category against budget, and the regular bills Money found by itself with their next day (named only at setup). Amounts are pence. Totals only. Needs Claude's access at summary or above.",
+      "How the owner's money stands now: the balance, the next payday, safe-to-spend (balance less fixed costs still to pay before payday, planned purchases and the buffer), what that allows a week until payday against the weekly amount they planned (on_track), this week's amount left (Monday to Sunday), this month by category against budget, the regular bills Money found by itself with their next day (named only at setup), and each goal: a saving goal or debt with its share of the next payday and the month it gets there; a regular cost to take on with the payday it fits from at the plan (fits_from) and at the recent pace (at_recent_pace), and, when it doesn't fit from the next payday, the test that fails (keeps-up: a pay cycle can't cover it with the weekly amount at its target and the goals above it at their pace; cash: the year's forecast goes under the buffer), what it would need a month or in cash first, and the highest price that fits. Amounts are pence. Totals only. Needs Claude's access at summary or above.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     run: (_args, { base }) => attempt(async () => ok({ ...(await summary()), page: `${base}/life/money` })),
