@@ -15,7 +15,7 @@ import {
 } from "react";
 import { StartSessionButton } from "@/components/session-timer";
 import { toast } from "@/components/toaster";
-import { DueDate, Hours, StagePill } from "@/components/ui";
+import { DueDate, Hours, StagePill, ToggleChip } from "@/components/ui";
 import { pastedLines } from "@/lib/tasks/quick-add";
 import { STAGES } from "@/lib/tasks/session-log";
 import {
@@ -149,16 +149,11 @@ export function TaskViews({
           aria-label="Search tasks"
           className="min-h-9 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm placeholder-muted sm:w-56"
         />
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Filter">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter">
           {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              aria-pressed={filter === f.key}
-              className={`btn min-h-9 px-3 py-1 text-xs ring-1 ${filter === f.key ? "bg-white/15 text-white ring-white/30" : "bg-transparent text-body ring-white/10 hover:bg-white/5"}`}
-            >
+            <ToggleChip key={f.key} pressed={filter === f.key} onClick={() => setFilter(f.key)}>
               {f.label}
-            </button>
+            </ToggleChip>
           ))}
         </div>
       </div>

@@ -246,3 +246,51 @@ export function Tabs({
     </nav>
   );
 }
+
+const TOGGLE_ON = {
+  work: "bg-lavender/20 text-white ring-lavender/60",
+  life: "bg-mint/15 text-mint ring-mint/40",
+} as const;
+
+type ToggleChipProps = {
+  space?: keyof typeof TOGGLE_ON;
+  children: ReactNode;
+} & (
+  | { href: string; active: boolean; pressed?: never }
+  | {
+      pressed: boolean;
+      onClick?: () => void;
+      disabled?: boolean;
+      busy?: boolean;
+      href?: never;
+    }
+);
+
+/**
+ * A thumb-sized chip that is on or off: a filter or a choice. A link (with `href`
+ * and `active`) marks itself `aria-current`; a button (with `pressed`) marks
+ * itself `aria-pressed`. "On" is lavender in Work and mint in Life.
+ */
+export function ToggleChip(props: ToggleChipProps) {
+  const { space = "work", children } = props;
+  const on = props.href !== undefined ? props.active : props.pressed;
+  const className = `tap rounded-full px-3.5 text-sm ring-1 ${on ? TOGGLE_ON[space] : "bg-white/5 text-body ring-white/10 hover:ring-white/30"}`;
+  if (props.href !== undefined)
+    return (
+      <Link href={props.href} scroll={false} aria-current={on ? "true" : undefined} className={className}>
+        {children}
+      </Link>
+    );
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      aria-busy={props.busy || undefined}
+      className={className}
+    >
+      {children}
+    </button>
+  );
+}

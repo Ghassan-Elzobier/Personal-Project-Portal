@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
-import { TaskLink } from "@/components/ui";
+import { TaskLink, ToggleChip } from "@/components/ui";
 import { logSession, type LogState } from "./actions";
 
 export type TaskOption = {
@@ -123,15 +123,9 @@ export function LogForm({
         </legend>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {QUICK_HOURS.map((h) => (
-            <button
-              type="button"
-              key={h}
-              onClick={() => setHours(h)}
-              aria-pressed={hours === h}
-              className={`btn px-4 py-1.5 ring-1 ${hours === h ? "bg-lavender text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:bg-white/10"}`}
-            >
+            <ToggleChip key={h} pressed={hours === h} onClick={() => setHours(h)}>
               {h}
-            </button>
+            </ToggleChip>
           ))}
           <input
             name="hours"

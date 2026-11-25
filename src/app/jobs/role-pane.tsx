@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "@/components/toaster";
+import { ToggleChip } from "@/components/ui";
 import { shortDate } from "@/lib/dates/week";
 import { BANDS, type RequirementView, type SkillStatus } from "@/lib/jobs/match";
 import type { RoleView } from "@/lib/jobs/load";
@@ -215,21 +216,19 @@ export function RolePane({
             <legend className="mb-1 text-sm font-semibold">How much you want it</legend>
             <div className="flex flex-wrap gap-2">
               {INTEREST.map((option) => (
-                <button
+                <ToggleChip
                   key={option.value}
-                  type="button"
                   disabled={pending}
-                  aria-busy={pending}
-                  aria-pressed={interest === option.value}
+                  busy={pending}
+                  pressed={interest === option.value}
                   onClick={() => {
                     const next = interest === option.value ? null : option.value;
                     setInterest(next);
                     save({ interest: next });
                   }}
-                  className={`rounded-full px-3 py-1 text-xs ring-1 transition ${interest === option.value ? "bg-lavender/30 text-white ring-lavender" : "bg-white/5 text-body ring-white/10 hover:ring-white/30"}`}
                 >
                   {option.label}
-                </button>
+                </ToggleChip>
               ))}
             </div>
           </fieldset>
