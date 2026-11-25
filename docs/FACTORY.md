@@ -19,7 +19,7 @@ hooks and checks, because all of them live in this repository.
 | --- | --- | --- |
 | Terminal or VS Code | Ask for the change. Big ones: plan mode first (Shift+Tab). | Claude follows `/ship`: branch, build, verify, pull request, CI green. |
 | Phone or browser | Start a task at claude.ai/code or in the Claude app's Code tab. | A cloud session does the same, then turns on auto-fix for its PR. |
-| GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work, opens a pull request saying `Closes #N` (no "Create PR" link to tap), and answers in the thread. |
+| GitHub | Open an issue from a template and write `@claude` in it, or comment `@claude` on a PR. | The Claude workflow does the work, opens a pull request saying `Closes #N` (no "Create PR" link to tap), and answers in the thread. It starts the local database first, so "`@claude` re-render the screenshots" on a PR whose look changed on purpose (one from a cloud session, say) commits them and lists each image for your label. |
 | Nothing | The weekly routines run on their own (setup below). | A refactor PR and a factory-improvement PR, when there is something worth doing. |
 | Nothing: the live portal hits an error | The error triage runs every 30 minutes. | A bug issue for the error, and a fix PR from Claude ("Errors become fixes" below). |
 | Nothing: R&D runs four times a day | Each run takes one focus and researches how that part of the portal or the factory could be better ("Research and development" below). | An `rnd` issue with one proposal, its evidence and its sources, when one is worth your time, and straight away a pull request that builds it. Merge it, or decline it by closing the issue as not planned. |

@@ -9,6 +9,14 @@
 # issue (and after-merge.yml closes it from the branch's name if the body
 # forgot). If gh cannot open it, the comment still carries the link.
 #
+# The local Supabase stack starts before Claude does, as in R&D build, so a
+# change to how a page looks can re-render the screenshots that show it, on any
+# pull request ("@claude re-render the screenshots this change explains"):
+# Claude runs npm run test:e2e:update on those specs (.claude/settings.json allows
+# npm run), reads every changed image and lists them, and the guard still waits
+# for the owner's approved-test-change label. Pull requests from cloud sessions
+# need this: their network reaches no container registry, so they can't render.
+#
 # Only accounts with write access can trigger it (the action checks), and this
 # repository is public, so that means the owner. Text written by anyone else in
 # a thread is still read as data, not instructions.
@@ -37,13 +45,18 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Room for the screenshot suite (a production build, then Playwright's image) as well as the work.
+    timeout-minutes: 60
     permissions:
       contents: write
       pull-requests: write
       issues: write
       id-token: write
       actions: read
+    env:
+      # config.toml reads these for the Google provider; any value starts the stack.
+      GOOGLE_CLIENT_ID: ci-placeholder
+      GOOGLE_CLIENT_SECRET: ci-placeholder
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,7 +67,24 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Start Supabase, so a change to a page can re-render its screenshots
+        # As CI starts it: a port taken on the runner has made the first try fail, and a
+        # second try on a clean slate has always worked. A stack that still won't start
+        # leaves Claude to do everything else, and to say it couldn't render.
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            npm run db:start && exit 0
+            npx supabase stop --no-backup || true
+            sleep 5
+          done
+          exit 1
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+        env:
+          # The screenshot suite builds the app and runs in the Playwright image: longer than
+          # the shell's usual limit.
+          BASH_DEFAULT_TIMEOUT_MS: "600000"
+          BASH_MAX_TIMEOUT_MS: "1800000"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Commits carry the owner's name, as everything else in this repository does.
@@ -72,4 +102,10 @@ jobs:
             request in your comment where the Create PR link would have gone. Leave out any Generated
             with Claude Code line: AGENTS.md forbids AI attribution. If gh pr create fails, say why in
             your comment and give the Create PR link as before. On a pull request, push to its branch
-            as usual and open nothing new.'
+            as usual and open nothing new. When a change alters how a page looks on purpose, or the
+            owner asks for new screenshots, the local database is already running: re-render only the
+            screenshots that show it with npm run test:e2e:update -- and those spec files (give the
+            command up to 30 minutes), read every image that changed, commit only the ones the change
+            explains, and list them in your comment so the owner can look before adding the
+            approved-test-change label. An image you did not mean to change is a bug to fix, never one
+            to re-render. If the database did not start, say so instead.'
