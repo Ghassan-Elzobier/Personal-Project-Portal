@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { QuickAddButton, openQuickAdd } from "./quick-add";
+import { TodoAddButton, openTodoAdd } from "./todos";
 
 type NavLink = { href: string; title: string };
 type SpaceLinks = { primary: NavLink[]; more: NavLink[] };
@@ -161,8 +162,14 @@ export function SpaceSwitch({ initial }: { initial: SpaceKey }) {
   );
 }
 
+/**
+ * Who may add from the nav: a task in Work (not with Asana), a to-do in Life (the
+ * owner, always).
+ */
+type CanAdd = { canAdd: boolean; canAddTodo: boolean };
+
 /** The nav on tablets and up: shared places, then this space's, with the rest under More. */
-export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initial: SpaceKey; canAdd: boolean }) {
+export function NavLinks({ spaces, initial, canAdd, canAddTodo }: { spaces: NavSpaces; initial: SpaceKey } & CanAdd) {
   const pathname = usePathname();
   const space = useSpace(initial);
   const menu = useMenu();
@@ -198,6 +205,7 @@ export function NavLinks({ spaces, initial, canAdd }: { spaces: NavSpaces; initi
         </details>
       )}
       {canAdd && space === "work" && <QuickAddButton className="btn-primary px-4 py-1.5" />}
+      {canAddTodo && space === "life" && <TodoAddButton className="btn-life px-4 py-1.5" />}
     </nav>
   );
 }
@@ -226,17 +234,17 @@ function MenuItems({ links, active, className = "" }: { links: NavLink[]; active
 
 /**
  * The nav on phones: a thumb-reach bar at the bottom with Today and this space's
- * main places. Work keeps the add button in the middle; Life has one more place
- * instead. Everything else is under More.
+ * main places, and the add button in the middle: a task in Work, a to-do in Life.
+ * Everything else is under More.
  */
-export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial: SpaceKey; canAdd: boolean }) {
+export function TabBar({ spaces, initial, canAdd, canAddTodo }: { spaces: NavSpaces; initial: SpaceKey } & CanAdd) {
   const pathname = usePathname();
   const space = useSpace(initial);
   const menu = useMenu();
   const own = spaces[space];
   const today = spaces.shared.find((l) => l.href === "/");
   const rest = spaces.shared.filter((l) => l.href !== "/");
-  const add = canAdd && space === "work";
+  const add = space === "work" ? canAdd : canAddTodo;
   const slots = add ? 3 : 4;
   const candidates = [...(today ? [today] : []), ...own.primary, ...rest];
   const tabs = candidates.slice(0, slots);
@@ -272,9 +280,9 @@ export function TabBar({ spaces, initial, canAdd }: { spaces: NavSpaces; initial
       {add && (
         <button
           type="button"
-          onClick={openQuickAdd}
-          aria-label="Add a task"
-          className="my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-r from-royal to-lavender text-2xl leading-none"
+          onClick={space === "work" ? openQuickAdd : openTodoAdd}
+          aria-label={space === "work" ? "Add a task" : "Add a to-do"}
+          className={`my-1.5 flex min-h-11 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-r text-2xl leading-none ${space === "work" ? "from-royal to-lavender" : "from-mint to-aqua font-semibold text-primary"}`}
         >
           +
         </button>
