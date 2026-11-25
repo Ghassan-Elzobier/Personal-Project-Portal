@@ -2,8 +2,9 @@
 // tool is one entry here plus its page.
 //
 // The portal has two spaces. Work is study, the renderer and the job hunt; Life
-// is meals, the kitchen, the gym and the body. Today and Schedule belong to both,
-// so the day's plan never splits in two. Mentors only ever see Work.
+// is meals, the kitchen, the gym, the body, money and private to-dos. Today and
+// Schedule belong to both, so the day's plan never splits in two. Mentors only
+// ever see Work.
 
 export type Role = "owner" | "mentor";
 export type Space = "work" | "life" | "shared";
@@ -31,6 +32,7 @@ export type Tool = {
     | "gym"
     | "kitchen"
     | "body"
+    | "todos"
     | "recipes"
     | "money"
     | "life-settings";
@@ -240,6 +242,15 @@ export const TOOLS: readonly Tool[] = [
     roles: ["owner"],
     space: "life",
     group: "primary",
+  },
+  {
+    key: "todos",
+    title: "To-dos",
+    href: "/life/todos",
+    description: "Personal admin, errands and deadlines, for you alone, on Today when they are due.",
+    roles: ["owner"],
+    space: "life",
+    group: "more",
   },
   {
     key: "recipes",

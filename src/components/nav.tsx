@@ -6,6 +6,7 @@ import { toolsFor, type Space } from "@/lib/config/tools";
 import { dateIn } from "@/lib/dates/week";
 import { NavLinks, SpaceSwitch, TabBar, type NavSpaces } from "./nav-links";
 import { QuickAdd } from "./quick-add";
+import { TodoQuickAdd } from "./todos";
 import { SessionPill } from "./session-timer";
 import { now } from "@/lib/dates/clock";
 
@@ -51,9 +52,9 @@ export async function Nav() {
     return (
       <>
         <Bar>
-          <NavLinks spaces={spaces} initial="work" canAdd={false} />
+          <NavLinks spaces={spaces} initial="work" canAdd={false} canAddTodo={false} />
         </Bar>
-        <TabBar spaces={spaces} initial="work" canAdd={false} />
+        <TabBar spaces={spaces} initial="work" canAdd={false} canAddTodo={false} />
       </>
     );
   }
@@ -72,11 +73,12 @@ export async function Nav() {
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-4 gap-y-2">
           <SessionPill />
           <SpaceSwitch initial={initial} />
-          <NavLinks spaces={spaces} initial={initial} canAdd={canAdd} />
+          <NavLinks spaces={spaces} initial={initial} canAdd={canAdd} canAddTodo />
         </div>
       </Bar>
-      <TabBar spaces={spaces} initial={initial} canAdd={canAdd} />
+      <TabBar spaces={spaces} initial={initial} canAdd={canAdd} canAddTodo />
       <QuickAdd today={dateIn(now(), timeZone())} />
+      <TodoQuickAdd today={dateIn(now(), timeZone())} />
     </>
   );
 }

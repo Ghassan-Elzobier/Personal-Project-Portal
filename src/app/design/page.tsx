@@ -18,6 +18,7 @@ import {
 } from "@/components/ui";
 import { LifeHeader, Steps } from "@/app/life/parts";
 import { DailyBars } from "@/components/daily-bars";
+import { TodoRow } from "@/components/todos";
 
 export const metadata: Metadata = { title: "Design" };
 export const dynamic = "force-dynamic";
@@ -335,7 +336,7 @@ export default async function DesignPage() {
 
       <Section
         title="Life pieces"
-        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready) and Ring as they look on Life's greens."
+        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready), Ring and a to-do row (on the To-dos page and Today: tick, move, delete) as they look on Life's greens."
       >
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
@@ -358,6 +359,13 @@ export default async function DesignPage() {
               ]}
             />
           </div>
+          <ul className="divide-y divide-white/5 card-life py-1 sm:py-2">
+            <TodoRow todo={{ gid: "0", title: "Renew the example permit", dueOn: today, doneAt: null }} today={today} />
+            <TodoRow
+              todo={{ gid: "0", title: "Post the example form", dueOn: null, doneAt: `${today}T08:00:00Z` }}
+              today={today}
+            />
+          </ul>
           <div className="grid grid-cols-3 gap-3">
             <Ring value={2} max={3} label="Gym" sub="2 of 3" />
             <Ring value={17} max={21} label="Meals" sub="17 of 21" color="var(--color-sand)" />

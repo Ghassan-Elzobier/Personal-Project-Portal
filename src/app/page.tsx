@@ -36,6 +36,9 @@ import { now as clockNow } from "@/lib/dates/clock";
 import { loadToday } from "@/lib/money/load";
 import { plannedShop } from "@/lib/portal/money";
 import { MoneyCheckIn, MoneyLine, MoneyPrompts } from "./money-line";
+import { loadTodos } from "@/lib/life/todos/operations";
+import { dueSoon, type Todo } from "@/lib/life/todos/todos";
+import { TodoRow } from "@/components/todos";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +62,7 @@ async function OwnerHome() {
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
 
-  const [perProject, comments, schedule, study, overview, life, money, target] = await Promise.all([
+  const [perProject, comments, schedule, study, overview, life, money, target, todos] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -82,6 +85,7 @@ async function OwnerHome() {
     loadToday(),
     // The pace set on Study, for this week; the deployment's number until one is set.
     studyTarget(week),
+    loadTodos(),
   ]);
   // A problem with the job tracker must never take the rest of Today down with it.
   const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
@@ -211,6 +215,12 @@ async function OwnerHome() {
         error={schedule.ok ? undefined : `The schedule could not be read: ${schedule.error}`}
       />
 
+      {todos.error !== undefined ? (
+        <ErrorNote title="To-dos" message={todos.error} />
+      ) : (
+        <TodosDue todos={dueSoon(todos.todos, todos.today)} today={todos.today} />
+      )}
+
       {money?.view.week.left != null && money.view.balance !== null && (
         <MoneyLine view={money.view} shop={life.state ? plannedShop(life.state) : 0} />
       )}
@@ -296,6 +306,29 @@ async function OwnerHome() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Private to-dos that are overdue or due by tomorrow. Nothing at all when there are none. */
+function TodosDue({ todos, today }: { todos: Todo[]; today: string }) {
+  if (!todos.length) return null;
+  return (
+    <section aria-labelledby="todos-title" className="card-life">
+      <SectionTitle
+        action={
+          <Link href="/life/todos" className="text-sm text-muted hover:text-white">
+            All to-dos
+          </Link>
+        }
+      >
+        <span id="todos-title">To-dos</span>
+      </SectionTitle>
+      <ul className="-my-3 divide-y divide-white/5">
+        {todos.map((t) => (
+          <TodoRow key={t.gid} todo={t} today={today} />
+        ))}
+      </ul>
+    </section>
   );
 }
 
