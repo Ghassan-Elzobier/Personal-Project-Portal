@@ -359,6 +359,46 @@ export function ongoingPlans(read: BudgetData, today: string): OngoingPlan[] {
   return out;
 }
 
+/**
+ * A regular cost as Claude's money summary gives it, in pence: the goal, the day its
+ * cost counts from (in `data`, read through withOngoing), and what its card on the
+ * Money page says (`card`, from ongoingPlans): the payday it fits from at the plan and
+ * at the recent pace, and, when it doesn't fit from the next payday, which test fails,
+ * what it would need and the highest price that fits.
+ */
+export function regularSummary(g: Goal, data: BudgetData, card: OngoingPlan | undefined) {
+  const r = regularOf(g);
+  return {
+    id: g.id,
+    name: g.name,
+    kind: g.kind,
+    cost_pence: r.costPence,
+    cadence: r.cadence,
+    setup_pence: r.setupPence,
+    estimated: r.estimated,
+    start_on: r.startOn,
+    // The day its cost counts from (the owner's start, or the first payday it fits);
+    // null when it doesn't fit within a year, or its real bill is found.
+    counts_from: (data.bills ?? []).find((b) => b.id === goalBillId(g))?.anchorOn ?? null,
+    // A month, less the bill it replaces.
+    monthly_pence: card?.monthlyPence ?? null,
+    // At the plan: the first payday it fits from, null when not within a year.
+    fits_from: card?.fitsFrom ?? null,
+    // The same at the recent pace (the typical week of the last 8); null with no pace yet.
+    at_recent_pace: card?.atPace ? { fits_from: card.atPace.fitsFrom } : null,
+    // With a start set: whether it passes both tests from then.
+    start_holds: card?.startHolds ?? null,
+    // From the next payday: the test that fails ("keeps-up" or "cash"), the monthly gap,
+    // the cash it needs first, and the highest price that fits.
+    failing: card?.failing ?? null,
+    needs_monthly_pence: card?.gapMonthlyPence ?? null,
+    needs_cash_pence: card?.cashPence ?? null,
+    max_pence: card?.maxPence ?? null,
+    // Goals below it that get less than their pace once it starts.
+    slows: card?.slows ?? [],
+  };
+}
+
 /** The regular costs whose real bill Money has found but not yet stored on the goal: for the engine to store. */
 export function billsToStore(data: BudgetData): { goal: number; bill: number }[] {
   return (data.goals ?? [])
