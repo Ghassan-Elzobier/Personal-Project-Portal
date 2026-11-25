@@ -11,8 +11,11 @@
 //      (Save More Tomorrow: part of each rise committed in advance); the rest of the
 //      extra raises the weekly target in step 4
 //   4. the weekly amount, raised up to the target
-//   5. anything left, to the first goal not finished (a debt's extra payment), except a
-//      saving goal with a monthly amount: what's left after that stays in the account
+//   5. anything left, to the first goal not finished (a debt's extra payment)
+//
+// In 3b and 5 a goal with a monthly amount takes no more than it: a saving goal's
+// amount, and a debt's monthly payment, so a debt on a payment keeps that pace whatever
+// the pay. Their extra goes on to the next goal, or stays in the account.
 //
 // When pay can't cover the floor, the cycle is short; when it can't cover a goal's
 // pace, the goals last in the order slow down first, and say when they'll finish now;
@@ -41,6 +44,8 @@ import { CYCLE_DAYS, daysBetween, nextDue, occurrencesIn, yearlyPence } from "./
 const MONTH_DAYS = CYCLE_DAYS.monthly;
 /** A saving goal (or yearly cost) the owner gave a monthly amount: it takes that each month, and no more. */
 const capped = (g: Goal) => g.kind !== "debt" && (g.paymentPence ?? 0) > 0;
+/** A debt on a monthly payment: it is paid that, and a pay rise or what's left doesn't add to it. */
+const onPayment = (g: Goal) => g.kind === "debt" && (g.paymentPence ?? 0) > 0;
 
 /** A goal with no day is paced over a year. */
 const DEFAULT_MONTHS = 12;
@@ -238,8 +243,9 @@ export function shareOut(data: BudgetData, from: string, pay: number): Allocatio
   });
 
   // 3b. The goals' share of a pay rise, in order, up to each one's room. What they can't
-  // take flows on. A goal with a monthly amount takes no more than it.
-  const fixed = new Set(goals.filter(capped).map((g) => g.id));
+  // take flows on. A goal with a monthly amount takes no more than it, and a debt on a
+  // payment takes none: it keeps its pace.
+  const fixed = new Set(goals.filter((g) => capped(g) || onPayment(g)).map((g) => g.id));
   const give = (pence: number) => {
     let out = Math.max(0, Math.min(pence, left));
     for (const s of shares) {
@@ -259,7 +265,7 @@ export function shareOut(data: BudgetData, from: string, pay: number): Allocatio
   left -= raise;
   const weekly = Math.min(target, Math.round((floorWeek + raise / weeks) / 100) * 100);
 
-  // 5. The rest to the first goals not finished, debts included.
+  // 5. The rest to the first goals not finished, a debt with no monthly payment included.
   give(left);
 
   return { from, to, weeks, pay, commitments, floor, weekly, shares, surplus: Math.max(0, left), short };
