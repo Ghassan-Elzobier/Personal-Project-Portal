@@ -6,6 +6,7 @@ import type { Slot } from "./nutrition";
 import type { WeekPlan } from "./planner";
 import type { Product, StockRow } from "./shopping";
 import type { Batch, LifeRaw, MealLog } from "./state";
+import type { Todo } from "./todos/todos";
 
 // The Life tables, through their RPCs (supabase/migrations/20261112120000_life.sql).
 // Browser calls use the session; connector calls prove themselves with their token.
@@ -206,3 +207,22 @@ export const gymSession = (s: {
     p_notes: s.notes ?? null,
     p_delete: s.remove ?? false,
   });
+
+// To-dos (20261125134804_life_todos.sql). Each change answers with the to-do as saved.
+
+const todoOf = (r: Row): Todo => ({
+  gid: String(r.gid),
+  title: String(r.title),
+  dueOn: (r.due_on as string) ?? null,
+  doneAt: (r.done_at as string) ?? null,
+});
+
+/** Every open to-do, and those ticked off since `doneSince` (an instant, ISO). */
+export const readTodos = async (doneSince: string) =>
+  ((await rpc<Row[] | null>("life_read_todos", { p_done_since: doneSince })) ?? []).map(todoOf);
+export const addTodo = async (title: string, dueOn: string | null) =>
+  todoOf(await rpc<Row>("life_add_todo", { p_title: title, p_due_on: dueOn }));
+/** Only the keys given change: title, due_on (null clears it) and done. */
+export const setTodo = async (gid: string, changes: { title?: string; due_on?: string | null; done?: boolean }) =>
+  todoOf(await rpc<Row>("life_set_todo", { p_gid: gid, p_changes: changes }));
+export const removeTodo = async (gid: string) => todoOf(await rpc<Row>("life_remove_todo", { p_gid: gid }));

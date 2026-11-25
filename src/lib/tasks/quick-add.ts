@@ -107,16 +107,25 @@ export function parseQuickAdd(text: string, today: string): QuickAdd {
     if (tag) project = tag;
     else words.push(word);
   }
+  const { name, dueOn } = splitDue(words, today);
+  return { name, project, dueOn };
+}
 
+/**
+ * Words and the date they end with, if they end with one: "Renew passport fri" is
+ * "Renew passport", due on the next Friday. Tasks and Life's to-dos share it.
+ */
+export function splitDue(words: readonly string[], today: string): { name: string; dueOn: string | null } {
+  const rest = [...words];
   let dueOn: string | null = null;
   // Keep at least one word, so "tomorrow" alone is a task called tomorrow.
-  const found = words.length > 1 ? trailingDate(words, today) : null;
-  if (found && words.length > found.used) {
+  const found = rest.length > 1 ? trailingDate(rest, today) : null;
+  if (found && rest.length > found.used) {
     dueOn = found.date;
-    words.splice(words.length - found.used, found.used);
-    if (words.at(-1)?.toLowerCase() === "due" && words.length > 1) words.pop();
+    rest.splice(rest.length - found.used, found.used);
+    if (rest.at(-1)?.toLowerCase() === "due" && rest.length > 1) rest.pop();
   }
-  return { name: words.join(" "), project, dueOn };
+  return { name: rest.join(" "), dueOn };
 }
 
 /** Names from pasted lines, without list markers. */
