@@ -17,6 +17,9 @@ import { achieved, latestResults } from "../lab/results";
 import { loadStudy } from "../study/load";
 import { err, ok, type Json, type Tool, type ToolResult } from "../mcp/tool";
 import { LIFE_INSTRUCTIONS, LIFE_TOOLS } from "../life/connector";
+import { TODO_TOOLS, todoForClaude } from "../life/todos/connector";
+import { loadTodos } from "../life/todos/operations";
+import { dueSoon } from "../life/todos/todos";
 import { MONEY_INSTRUCTIONS, MONEY_TOOLS } from "../money/connector";
 import * as lifeOps from "../life/operations";
 import { TUTOR_TOOLS } from "../tutor/connector";
@@ -141,13 +144,17 @@ export const TOOLS: Tool[] = [
     name: "get_today",
     title: "Today",
     description:
-      "Start here. Today's date, time zone and week, links to each portal page, today's planned blocks, and open tasks that are overdue, due today, blocked or in progress.",
+      "Start here. Today's date, time zone and week, links to each portal page, today's planned blocks, open tasks that are overdue, due today, blocked or in progress, and private to-dos that are overdue or due by tomorrow.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(_args, { base }) {
       const date = today();
       const week = thisWeek();
-      const [{ tasks, errors }, schedule] = await Promise.all([openAcross(configured()), loadScheduleWeek(week)]);
+      const [{ tasks, errors }, schedule, todos] = await Promise.all([
+        openAcross(configured()),
+        loadScheduleWeek(week),
+        loadTodos(),
+      ]);
       const b = bucketForToday(tasks, date);
       return ok({
         today: date,
@@ -163,6 +170,7 @@ export const TOOLS: Tool[] = [
           progress: `${base}/progress`,
           mentor_view_of_a_project: `${base}/progress/<project key>`,
           people: `${base}/people`,
+          todos: `${base}/life/todos`,
         },
         projects: PROJECTS.map((p) => ({ key: p.key, title: p.title, configured: Boolean(projectGid(p.key)) })),
         plan_today: schedule.blocks.filter((x) => x.date === date).map(block),
@@ -171,6 +179,7 @@ export const TOOLS: Tool[] = [
         due_today: b.dueToday.map(task),
         blocked: b.blocked.map(task),
         in_progress: b.inProgress.map(task),
+        todos_due_soon: todos.error !== undefined ? todos.error : dueSoon(todos.todos, todos.today).map(todoForClaude),
         google_calendar:
           typeof schedule.google === "string"
             ? schedule.google
@@ -238,7 +247,7 @@ export const TOOLS: Tool[] = [
     name: "create_task",
     title: "Add a task",
     description:
-      "Add a task to a project, with an optional due date, section and description. It starts Not started, in the project's first section unless one is named. Use schedule_task afterwards to give it a time slot.",
+      "Study work only: mentors see tasks. A personal to-do, errand or deadline is add_life_todo. Add a task to a project, with an optional due date, section and description. It starts Not started, in the project's first section unless one is named. Use schedule_task afterwards to give it a time slot.",
     inputSchema: {
       type: "object",
       properties: {
@@ -879,6 +888,7 @@ export const TOOLS: Tool[] = [
     },
   },
   ...LIFE_TOOLS,
+  ...TODO_TOOLS,
   ...MONEY_TOOLS,
   ...TUTOR_TOOLS,
 ];
@@ -887,7 +897,7 @@ export const INSTRUCTIONS = [
   "This is Ghassan's personal project portal: PMPP (CUDA), Axler (linear algebra), the Rendering lab and the Weekly log.",
   "Call get_today first for the date, time zone and current state. Read get_week before planning, and avoid clashes with existing blocks.",
   "Study work is tasks (create_task) with time slots (schedule_task). A task worked on over several days gets its slot on the last day and study sessions (add_study_session) on the days before. Study time is mirrored to Google Calendar. Meals, cooking and the gym come from the Life plan (type life_plan in get_week) and move around study by themselves; change them through the Life tools, not add_life_block. Other personal time (cleaning, rest) is a life block in Google Calendar only (add_life_block).",
-  "Mentors see task times, session comments and status updates. Keep personal life out of tasks.",
+  "Mentors see task times, session comments and status updates. Keep personal life out of tasks: a personal to-do, errand or deadline is add_life_todo, which only the owner sees.",
   "For studying, call get_study first. Work from the current roadmap phase, and bring up its connections between the plans when they help. Follow the plan's method: have the owner try from memory or attempt an exercise before you explain. Hints before answers.",
   "When a request needs several changes, say the plan in one short list, then make the changes. Link the portal page that shows the result.",
   "For GPU questions, look in the owner's PMPP: search_pmpp with a few key words, then read_pmpp for the pages that matter. Cite section and page (\"PMPP 4.5, p. 225\"), explain in your own words and quote only a sentence or two. Vulkan words are translated to the book's CUDA words for you.",
