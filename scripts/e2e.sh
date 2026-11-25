@@ -6,6 +6,7 @@
 #   npm run test:e2e                       everything
 #   npm run test:e2e -- e2e/pages.spec.ts  one file (any Playwright arguments)
 #   npm run test:e2e:update                re-render screenshot baselines on purpose
+#   npm run test:e2e:update -- e2e/visual.spec.ts   only that file's
 #
 # Playwright runs inside the official Playwright image, so screenshots render
 # with the same fonts and browser everywhere. Without Docker it runs on the host
