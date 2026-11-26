@@ -45,10 +45,13 @@ export function setLabel(
 ): string {
   const amount =
     item.unit === "reps" ? `${target.reps} ${target.reps === 1 ? "rep" : "reps"}` : `${target.reps} ${item.unit}`;
+  // Help from an assisted machine is logged as negative kg, and named as help.
+  const weight =
+    target.kg !== null && target.kg < 0 ? `${-target.kg} kg help` : `${item.added ? "+" : ""}${target.kg} kg`;
   const load =
     target.kg === null || target.kg === 0
       ? amount
-      : `${item.added ? "+" : ""}${target.kg} kg × ${item.unit === "reps" ? target.reps : `${target.reps} ${item.unit}`}`;
+      : `${weight} × ${item.unit === "reps" ? target.reps : `${target.reps} ${item.unit}`}`;
   return `${item.name} · set ${position} · ${load}${item.perSide ? " a side" : ""}`;
 }
 
