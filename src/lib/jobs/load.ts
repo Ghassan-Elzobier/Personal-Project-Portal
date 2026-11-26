@@ -3,6 +3,7 @@ import { findUnit, PLANS } from "../study/plans";
 import { planUnits } from "../study/plan-types";
 import { phaseOf, PHASES } from "../study/roadmap";
 import { loadStudy, type StudyOverview } from "../study/load";
+import { readBoard } from "./board-reads";
 import { FAMILIES, isCoreFamily } from "./classify";
 import {
   branchImpact,
@@ -106,9 +107,13 @@ export type JobBoard = {
   rhythm: Rhythm;
 };
 
-export async function loadJobBoard(study?: StudyOverview): Promise<JobBoard> {
-  const overview = study ?? (await loadStudy());
-  const [rows, sources, evidence] = await Promise.all([listPostings(), listSources(), listEvidence()]);
+/** The overview may be a promise still loading: the board's own reads start without waiting for it. */
+export async function loadJobBoard(study?: StudyOverview | Promise<StudyOverview>): Promise<JobBoard> {
+  const { overview, rows, sources, evidence } = await readBoard(study ?? loadStudy(), {
+    postings: listPostings,
+    sources: listSources,
+    evidence: listEvidence,
+  });
   const units = unitFacts(overview);
   const standings = buildStandings(units, evidence);
 
