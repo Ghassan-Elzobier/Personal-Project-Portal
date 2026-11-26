@@ -512,6 +512,10 @@ export function SettingsForm({
             />
           </Field>
         </div>
+        <p className="text-xs text-faint">
+          Minutes is the time you have. Each session&apos;s core always stays; the optional extras fill what&apos;s
+          left, and the plan&apos;s gym block is as long as that session.
+        </p>
         <Check checked={p.gym.returning} onChange={() => set((d) => void (d.gym.returning = !d.gym.returning))}>
           Coming back after a break: start a rep easier for two weeks
         </Check>

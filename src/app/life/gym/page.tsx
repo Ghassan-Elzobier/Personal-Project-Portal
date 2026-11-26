@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays, weekdayIndex } from "@/lib/dates/week";
 import { BENCH_LIFTS, EXERCISE_MAP, PROGRAM, resolve, workout } from "@/lib/life/gym/program";
+import { estimate, plan } from "@/lib/life/gym/duration";
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target } from "@/lib/life/gym/progress";
 import { demoFor } from "@/lib/life/gym/media";
 import { loadLife } from "@/lib/life/load";
@@ -13,6 +14,7 @@ import { isReturning } from "@/lib/life/state";
 import { Chip, ErrorNote } from "@/components/ui";
 import { dayLabel, LifeHeader, weekdayShort } from "../parts";
 import { LineChart } from "../chart";
+import { type TimedStep } from "../checklist";
 import { SessionLogger, type BlockView } from "./session";
 
 export const metadata: Metadata = { title: "Gym" };
@@ -42,10 +44,19 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
   const trainingDay = s.profile.gym.days.includes(weekdayIndex(today));
   // What the gym bill Money found costs a visit, this month.
   const cost = money ? gymCost(money.data, s.sessions, today) : null;
+  // How long the session takes, and what fits the time you have today.
+  const missing = s.profile.gym.missing;
+  const length = estimate(w, missing);
+  const todays = plan(w, s.profile.gym.minutes, missing);
+  const steps = (list: typeof w.warmup): TimedStep[] =>
+    list.map((x) => ({ text: x.text, seconds: x.seconds, optional: Boolean(x.optional) }));
 
-  const blocks: BlockView[] = w.blocks.map((b) => ({
+  const blocks: BlockView[] = w.blocks.map((b, i) => ({
     title: b.title,
     superset: Boolean(b.superset),
+    optional: Boolean(b.optional),
+    planned: todays.blocks[i],
+    minutes: Math.round(length.blocks[i] / 60),
     items: b.items.map((p) => {
       const ex = resolve(p.exercise, s.profile.gym.missing) ?? EXERCISE_MAP.get(p.exercise)!;
       const t = target({ ...p, exercise: ex.key }, before, returning);
@@ -73,6 +84,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         target: t.sets,
         change: t.change,
         why: t.why,
+        ramp: p.ramp ?? [],
         logged: s.sets
           .filter((x) => x.day === today && x.exercise === ex.key)
           .map((x) => ({ position: x.position, kg: x.kg, reps: x.reps ?? 0, rir: x.rir })),
@@ -162,7 +174,13 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
         key={`${today}:${w.key}`}
         day={today}
         workout={w.key}
-        warmup={w.warmup}
+        warmup={steps(w.warmup)}
+        recovery={steps(w.recovery)}
+        timing={{
+          planned: todays.seconds,
+          budget: s.profile.gym.minutes,
+          left: w.blocks.filter((b, i) => b.optional && !todays.blocks[i]).length,
+        }}
         blocks={blocks}
         finished={Boolean(session?.finished)}
         feel={session?.feel ?? null}
@@ -199,9 +217,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
             "Estimated from your best set each day, with reps in reserve counted (Epley). A forecast, not a promise: it moves every session."}
           {forecast?.eta ? " Reaching it also needs the body weight: eat the plan." : ""}
         </p>
-        <p className="text-xs text-faint">
-          Paused and close-grip days count too, but only the full bench is on the chart.
-        </p>
+        <p className="text-xs text-faint">Paused bench days count too, but only the full bench is on the chart.</p>
       </section>
 
       <section className="space-y-3 card-life" aria-labelledby="history-title">
@@ -254,26 +270,33 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
           </Link>
         </p>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {PROGRAM.workouts.map((x) => (
-            <div key={x.key} className="min-w-0 rounded-xl bg-white/5 p-3">
-              <p className="font-semibold">
-                {x.key} · {x.name}
-              </p>
-              <ul className="mt-1 space-y-0.5 text-xs text-muted">
-                {x.blocks
-                  .flatMap((b) => b.items)
-                  .map((p) => {
-                    const ex = resolve(p.exercise, s.profile.gym.missing);
-                    return (
-                      <li key={p.exercise}>
-                        {ex?.name}:{" "}
-                        {p.note ?? `${p.sets} × ${p.reps[0] === p.reps[1] ? p.reps[0] : `${p.reps[0]}–${p.reps[1]}`}`}
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          ))}
+          {PROGRAM.workouts.map((x) => {
+            const e = estimate(x, missing);
+            return (
+              <div key={x.key} className="min-w-0 rounded-xl bg-white/5 p-3">
+                <p className="font-semibold">
+                  {x.key} · {x.name}
+                </p>
+                <p className="text-xs text-body tabular-nums">
+                  About {Math.round(e.core / 60)} min, {Math.round(e.full / 60)} with the extras
+                </p>
+                <ul className="mt-1 space-y-0.5 text-xs text-muted">
+                  {x.blocks
+                    .flatMap((b) => b.items.map((p) => ({ p, optional: Boolean(b.optional) })))
+                    .map(({ p, optional }) => {
+                      const ex = resolve(p.exercise, missing);
+                      return (
+                        <li key={p.exercise}>
+                          {ex?.name}:{" "}
+                          {p.note ?? `${p.sets} × ${p.reps[0] === p.reps[1] ? p.reps[0] : `${p.reps[0]}–${p.reps[1]}`}`}
+                          {optional ? " (optional)" : ""}
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            );
+          })}
         </div>
         <p className="text-xs text-faint">
           Missing a piece of kit? Tell Settings what your gym lacks, and every exercise that needs it swaps for its

@@ -17,6 +17,7 @@ import {
   Tabs,
 } from "@/components/ui";
 import { LifeHeader, Steps } from "@/app/life/parts";
+import { TimedChecklist } from "@/app/life/checklist";
 import { DailyBars } from "@/components/daily-bars";
 import { TodoRow } from "@/components/todos";
 
@@ -336,7 +337,7 @@ export default async function DesignPage() {
 
       <Section
         title="Life pieces"
-        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready), Ring and a to-do row (on the To-dos page and Today: tick, move, delete) as they look on Life's greens."
+        note="The Life header, with the shared Tabs, Steps (a method, or the Cook view's get ready), a timed checklist (the gym's warm-up and recovery), Ring and a to-do row (on the To-dos page and Today: tick, move, delete) as they look on Life's greens."
       >
         <div className="space-y-5 rounded-2xl bg-moss p-4 sm:p-5">
           <LifeHeader eyebrow="Life" title="Page heading">
@@ -359,6 +360,15 @@ export default async function DesignPage() {
               ]}
             />
           </div>
+          <TimedChecklist
+            id="design-checklist"
+            title="Warm-up"
+            steps={[
+              { text: "Bike: 2 min easy, then 3 spin-ups of 6 s", seconds: 120, optional: false },
+              { text: "Vibrating roller: 75 s on the quads", seconds: 75, optional: false },
+              { text: "Couch stretch, 30 s a side", seconds: 60, optional: true },
+            ]}
+          />
           <ul className="divide-y divide-white/5 card-life py-1 sm:py-2">
             <TodoRow todo={{ gid: "0", title: "Renew the example permit", dueOn: today, doneAt: null }} today={today} />
             <TodoRow
