@@ -19,11 +19,17 @@
 // every set had two or more extra, the step doubles. A set logged without it
 // changes nothing, and neither does one logged as planned.
 //
+// A lift last done more than four weeks ago starts lighter: 10% off (a step more
+// help on an assisted machine), the bottom of the range and one more rep in
+// reserve. Strength holds for about four weeks off and drops faster after that,
+// and returns in about half the time the break lasted (Bosquet et al. 2013), so
+// shorter gaps change nothing and double progression takes over from there.
+//
 // Estimated one-rep max uses Epley's formula with reps in reserve added to the
 // reps done, so a set of 5 with 2 left counts like a 7-rep max. It is only an
 // estimate, and only sets of 12 or fewer are used. Pure, so it is tested.
 
-import { EXERCISE_MAP, PROGRAM, type Prescription } from "./program.ts";
+import { EXERCISE_MAP, MOST_HELP, PROGRAM, type Prescription } from "./program.ts";
 
 export type SetLog = {
   day: string;
@@ -88,7 +94,23 @@ function fewestLeft(sets: SetLog[]): number | null {
   return logged.length ? Math.min(...logged) : null;
 }
 
-export function target(p: Prescription, history: SetLog[], returning: boolean): Target {
+/**
+ * A lift last done more than this many days ago starts lighter. Maximal strength
+ * holds for about 28 days without training and drops faster after (Bosquet et al.,
+ * Scand J Med Sci Sports 2013).
+ */
+export const LONG_GAP_DAYS = 28;
+/** The share taken off a weighted lift after a long gap: common practice, not a figure from the studies. */
+export const LONG_GAP_CUT = 0.1;
+
+const daysBetween = (from: string, to: string) =>
+  Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+/**
+ * What to lift next. `today` turns on the long-gap check: without it, the last
+ * session counts however long ago it was.
+ */
+export function target(p: Prescription, history: SetLog[], returning: boolean, today?: string): Target {
   const ex = EXERCISE_MAP.get(p.exercise);
   const rir = p.rir + (returning ? 1 : 0);
   const reps = (n: number) => Array.from({ length: p.sets }, () => ({ kg: null, reps: n }));
@@ -110,6 +132,29 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
     return { sets, change: "new", why: ex.start ?? `Pick a weight you could do about ${rir + 1} more reps with.`, rir };
   }
   const [lo, hi] = p.reps;
+  const gap = today ? daysBetween(last[0].day, today) : 0;
+  if (gap > LONG_GAP_DAYS) {
+    const kg = Math.max(...last.map((s) => s.kg ?? 0));
+    const weeks = Math.round(gap / 7);
+    const since = `${weeks} weeks since you last did this`;
+    const easier = "one more rep in reserve, to build back up.";
+    let next = kg;
+    let why = `${since}: the bottom of the range and ${easier}`;
+    if (kg < 0) {
+      next = Math.max(-MOST_HELP, kg - ex.step);
+      why = `${since}: ${ex.step} kg more help and ${easier}`;
+    } else if (kg > 0 && ex.step > 0) {
+      next = roundTo(kg * (1 - LONG_GAP_CUT), ex.step);
+      why = `${since}: ${Math.round(LONG_GAP_CUT * 100)}% off and ${easier}`;
+    }
+    const shown = ex.load === "bodyweight" && next === 0 ? null : next;
+    const back = ex.step > 0 ? Math.floor((next * 0.9) / ex.step) * ex.step : next * 0.9;
+    const sets =
+      p.scheme === "top-backoff"
+        ? [{ kg: shown, reps: lo }, ...Array.from({ length: p.sets - 1 }, () => ({ kg: back, reps: 5 }))]
+        : Array.from({ length: p.sets }, () => ({ kg: shown, reps: lo }));
+    return { sets, change: "down", why, rir: rir + 1 };
+  }
   if (p.scheme === "top-backoff") {
     const top = last.reduce((a, b) => ((b.kg ?? 0) > (a.kg ?? 0) ? b : a));
     const prevTop = sessions[1]?.reduce((a, b) => ((b.kg ?? 0) > (a.kg ?? 0) ? b : a));
