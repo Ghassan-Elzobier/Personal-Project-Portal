@@ -56,7 +56,7 @@ one-off.
 
 `src/components/ui.tsx`: `PageHeader`, `SectionTitle`, `Chip` (and `StagePill`,
 `StatusPill` built on it), `DueDate`, `ErrorNote`, `Empty`, `Hours`, `EvidenceLink`,
-`TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone). `src/components/daily-bars.tsx`:
+`TaskLink`, `Tabs`, `Ring`, `ScrollX` (anything wider than a phone), `ToggleChip`. `src/components/daily-bars.tsx`:
 `DailyBars`, a count per day (full size with its dates as text, or compact in a
 list row). `src/app/life/parts.tsx`: `LifeHeader`, `SetupCard`. `src/app/life/kit.tsx` (client
 pieces): `ActionButton`, `Sheet`, `Stars`, and `MoveWhen`, the day-and-time picker that moves a
@@ -67,10 +67,15 @@ chip's colours by hand; a chip that is also a link takes `toneClass(tone)`. The
 tones mean what the accents mean, plus `quiet` (present but unimportant), `lilac`
 (complete) and `ice` (frozen).
 
+A chip you tap on and off (a filter, a choice) is a `ToggleChip`, never a hand-styled
+button: `<ToggleChip pressed={on} onClick={...}>` for a button, `<ToggleChip href={...}
+active={on}>` for a filter link. It is 44 px tall, and "on" is lavender in Work and mint
+with `space="life"`.
+
 ## Known debt
 
 - Lab figures shrink on phones until Chrome clamps their text, so labels crowd
   their boxes (#33).
-- Five toggle buttons styled as chips (recipe filters, divergence explorer,
-  schedule kinds) each define their own selected state; a `ToggleChip` would
-  serve them.
+- Toggle buttons styled as chips still define their own selected state in the
+  Lab explorer, Settings food levels, Kitchen staples and filter, Week status and
+  the Recipes filters; move them onto `ToggleChip`.

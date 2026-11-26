@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Chip, Empty, SectionTitle, type Tone } from "@/components/ui";
+import { Chip, Empty, SectionTitle, ToggleChip, type Tone } from "@/components/ui";
 import { shortDate } from "@/lib/dates/week";
 import { familyName } from "@/lib/jobs/classify";
 import type { JobBoard, RoleView } from "@/lib/jobs/load";
@@ -93,19 +93,6 @@ function RoleRow({ role, filters }: { role: RoleView; filters: Filters }) {
   );
 }
 
-function Pick({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      scroll={false}
-      aria-current={active ? "true" : undefined}
-      className={`rounded-full px-3 py-1 text-xs ring-1 transition hover:ring-white/30 ${active ? "bg-lavender/20 text-white ring-lavender/50" : "bg-white/5 text-body ring-white/10"}`}
-    >
-      {children}
-    </Link>
-  );
-}
-
 const SECTION_LIMIT = 60;
 
 function RoleSection({
@@ -169,33 +156,33 @@ export function RolesView({ board, filters }: { board: JobBoard; filters: Filter
     <div className="space-y-5">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Where">
-          <Pick href={query(filters, { where: undefined, family: undefined })} active={where === "near"}>
+          <ToggleChip href={query(filters, { where: undefined, family: undefined })} active={where === "near"}>
             London and remote {count((r) => r.location_tier === "london" || r.location_tier === "remote")}
-          </Pick>
-          <Pick href={query(filters, { where: "uk", family: undefined })} active={where === "uk"}>
+          </ToggleChip>
+          <ToggleChip href={query(filters, { where: "uk", family: undefined })} active={where === "uk"}>
             Elsewhere in the UK {count((r) => r.location_tier === "uk" || r.location_tier === "unknown")}
-          </Pick>
-          <Pick href={query(filters, { where: "abroad", family: undefined })} active={where === "abroad"}>
+          </ToggleChip>
+          <ToggleChip href={query(filters, { where: "abroad", family: undefined })} active={where === "abroad"}>
             Abroad, strong matches only {count((r) => r.location_tier === "abroad")}
-          </Pick>
+          </ToggleChip>
           <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
-          <Pick
+          <ToggleChip
             href={query(filters, { level: filters.level === "open" ? undefined : "open" })}
             active={filters.level === "open"}
           >
             Hide senior and above
-          </Pick>
+          </ToggleChip>
         </div>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Field">
-          <Pick href={query(filters, { family: undefined })} active={!filters.family}>
+          <ToggleChip href={query(filters, { family: undefined })} active={!filters.family}>
             All fields
-          </Pick>
+          </ToggleChip>
           {[...familyCounts.entries()]
             .sort((a, b) => b[1] - a[1])
             .map(([key, n]) => (
-              <Pick key={key} href={query(filters, { family: key })} active={filters.family === key}>
+              <ToggleChip key={key} href={query(filters, { family: key })} active={filters.family === key}>
                 {familyName(key)} {n}
-              </Pick>
+              </ToggleChip>
             ))}
         </div>
       </div>
