@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cooksToLog, eatenBeforeCooked, takenFromStock, type CookedNote } from "./cooked";
 import { INGREDIENTS, isSainsburysProduct, type Unit } from "./ingredients";
+import { lowestKg } from "./gym/program";
 import { lifeMinutes, loadLife } from "./load";
 import { SPLIT, type Slot } from "./nutrition";
 import { otherMeal, type OtherSize } from "./other-meal";
@@ -943,7 +944,9 @@ export function logSet(input: {
 }): Promise<Result> {
   return run(async () => {
     if (input.reps !== null && !(input.reps >= 0 && input.reps <= 500)) fail("Reps look wrong.");
-    if (input.kg !== null && !(input.kg >= 0 && input.kg <= 500)) fail("Weight looks wrong.");
+    if (input.kg !== null && input.kg < 0 && lowestKg(input.exercise) === 0)
+      fail("Only a bodyweight move takes help from a machine: log 0 kg or more.");
+    if (input.kg !== null && !(input.kg >= lowestKg(input.exercise) && input.kg <= 500)) fail("Weight looks wrong.");
     await store.logSet(input);
     return {};
   });
