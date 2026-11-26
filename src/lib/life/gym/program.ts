@@ -1,24 +1,34 @@
-// A three-day full-body programme for athletic strength, built around the bench.
+// A three-day full-body programme for strength, muscle and athletic fitness, with
+// the bench as the priority lift.
 //
 // Why this shape:
-// - Full body three times a week trains each muscle about three times, and once
-//   weekly volume is matched, how it is spread matters little (Schoenfeld et al.
-//   2016, 2019). Three sessions fit a working week; push / pull / legs over five
-//   or six days, a common earlier routine, does not.
-// - The bench is a skill as well as strength, so it is practised every session in
-//   three flavours: heavy, paused and close-grip. Each main lift has a rep range
-//   and a target of reps in reserve, which keeps sets hard but not to failure
-//   (Helms et al. 2016 on RIR-based loading).
-// - Power comes first while you are fresh: low-rep jumps and throws with full
-//   intent improve jumping and sprinting more than lifting alone (Markovic 2007
-//   on plyometrics), and med ball chest passes carry over to pressing speed.
+// - Full body three times a week trains each muscle two or three times. Muscle
+//   keeps growing with more weekly sets, with diminishing returns, and more
+//   sessions a week mainly help strength (Pelland et al. 2024). The core week gives
+//   each big muscle group about 9 to 14 hard sets, a helper muscle counting half.
+// - The bench is a skill as well as strength, so it comes twice a week, heavy in A
+//   and paused in C, with an incline press in B. Each main lift has a rep range and
+//   a target of reps in reserve, which keeps sets hard but not to failure (Helms et
+//   al. 2016 on RIR-based loading).
+// - Power with no jumps or throws, which this gym has no room for: every ramp-up
+//   rep and main lift is moved as fast as possible, since the intent to move fast is
+//   what trains speed (Behm and Sale 1993), plus bike sprints and a fast woodchop.
 // - Lower back friendly for a back that dislikes bending under load: no bent-over
 //   rows, no Romanian deadlifts and no back extensions. Rows are supported, the
 //   hinge is the trap bar deadlift (load in line with the body) learned light,
 //   and every warm-up has McGill's "big three" for trunk endurance.
-// - Core every session: bracing and anti-rotation (dead bug, Pallof press,
-//   carries) for force transfer and a resilient back, plus direct ab work.
-// - Supersets pair moves that don't compete, so a session is about 65 minutes.
+// - Every block pairs two moves that don't compete, and a prescription's `rest` is
+//   the wait before the next set in the session's order, so the partner is done
+//   inside the main lift's rest. Pairing cuts training time by about a third with
+//   similar reps and load (Zhang, Weakley et al. 2025). Resting over 60 s helps
+//   growth a little, with no clear gain past 90 s (Singer et al. 2024): each
+//   exercise here comes round every 2 to 3.5 minutes.
+// - Optional blocks come last and are the first thing dropped when time is short.
+//   duration.ts works out how long each block and session takes.
+// - The warm-up rolls the day's muscles on a vibrating roller, which adds range of
+//   motion without costing strength (Wiewelhove et al. 2019). The massage gun waits
+//   for the recovery: it is advised against in the 5 minutes before strength work
+//   (Ferreira et al. 2023).
 //
 // Every exercise lists alternatives, so missing kit never stops a session. Pure data.
 
@@ -46,6 +56,9 @@ export type Equipment =
 
 export type Load = "barbell" | "dumbbell" | "machine" | "bodyweight" | "ball" | "time" | "distance";
 
+export type Muscle =
+  "chest" | "back" | "shoulders" | "biceps" | "triceps" | "quads" | "hamstrings" | "glutes" | "calves" | "core";
+
 export type Exercise = {
   key: string;
   name: string;
@@ -61,6 +74,8 @@ export type Exercise = {
   alts: string[];
   /** Where to start the first time, as a share of a bench press set of 5 or a fixed note. */
   start?: string;
+  /** What a set counts for: 1 for a muscle that does the work, 0.5 for one that helps. */
+  muscles?: Partial<Record<Muscle, number>>;
 };
 
 export const EXERCISES: Exercise[] = [
@@ -168,10 +183,11 @@ export const EXERCISES: Exercise[] = [
     cues: [
       "Shoulder blades squeezed back and down, feet planted",
       "Bar to the lower chest, elbows about 45° from the body",
-      "Drive up and slightly back towards the rack",
+      "Lower under control, then drive up as fast as you can, slightly back towards the rack",
     ],
     alts: ["db-bench"],
     start: "Build up in sets of 5 from the empty bar until it feels like 3 left in the tank.",
+    muscles: { chest: 1, triceps: 0.5, shoulders: 0.5 },
   },
   {
     key: "paused-bench",
@@ -179,9 +195,13 @@ export const EXERCISES: Exercise[] = [
     equipment: ["barbell", "bench", "rack"],
     load: "barbell",
     step: 2.5,
-    cues: ["Lower to the chest and hold still for a full second", "Stay tight through the pause, then press hard"],
+    cues: [
+      "Lower to the chest and hold still for a full second",
+      "Stay tight through the pause, then press up as fast as you can",
+    ],
     alts: ["db-bench"],
     start: "About 85% of your bench set-of-5 weight.",
+    muscles: { chest: 1, triceps: 0.5, shoulders: 0.5 },
   },
   {
     key: "close-grip-bench",
@@ -210,6 +230,7 @@ export const EXERCISES: Exercise[] = [
     step: 2,
     cues: ["Bench at 30°", "Upper chest and shoulders: the 'athletic' look"],
     alts: ["db-bench"],
+    muscles: { chest: 1, shoulders: 0.5, triceps: 0.5 },
   },
 
   // Lower body
@@ -222,11 +243,12 @@ export const EXERCISES: Exercise[] = [
     cues: [
       "Bar on the upper back, hands just outside the shoulders",
       "Big breath into the belly and brace before each rep",
-      "Sit down between the heels to at least parallel, drive up through the whole foot",
+      "Sit down between the heels to at least parallel, then drive up through the whole foot as fast as you can",
     ],
     back: "Keep the chest proud and the brace tight; stop a set as soon as the hips shoot up first.",
     alts: ["front-squat", "goblet-squat", "leg-press"],
     start: "Build up in sets of 5 from the empty bar until it feels like 3 left in the tank.",
+    muscles: { quads: 1, glutes: 0.5 },
   },
   {
     key: "front-squat",
@@ -267,12 +289,13 @@ export const EXERCISES: Exercise[] = [
     step: 5,
     cues: [
       "Stand in the middle, shins near the bars, hips back and chest up",
-      "Brace, take the slack out of the bar, then push the floor away",
+      "Brace, take the slack out of the bar, then push the floor away as fast as you can",
       "Stand tall at the top, no leaning back; lower with the same flat back",
     ],
     back: "The load sits in line with you, so the back works far less than in a straight-bar deadlift. New lift: add weight only when every rep looks the same, and stop at the first sign of the back rounding.",
     alts: ["hip-thrust", "glute-bridge"],
     start: "Learn it light: 3 sets of 5 at about 50 to 60 kg (the bar is usually 20 to 25 kg).",
+    muscles: { glutes: 1, quads: 0.5, hamstrings: 0.5 },
   },
   {
     key: "db-rdl",
@@ -301,6 +324,7 @@ export const EXERCISES: Exercise[] = [
     ],
     back: "Strong hips without loading the spine. Don't arch at the top.",
     alts: ["glute-bridge"],
+    muscles: { glutes: 1, hamstrings: 0.5 },
   },
   {
     key: "glute-bridge",
@@ -321,6 +345,7 @@ export const EXERCISES: Exercise[] = [
     cues: ["Back foot on the bench", "Front shin fairly vertical, drop the back knee", "Push through the front foot"],
     back: "Single leg means heavy legs with light spinal load.",
     alts: ["reverse-lunge"],
+    muscles: { quads: 1, glutes: 1 },
   },
   {
     key: "reverse-lunge",
@@ -343,6 +368,7 @@ export const EXERCISES: Exercise[] = [
       "Squeeze at the top for a second, lower slowly",
     ],
     alts: ["goblet-squat"],
+    muscles: { quads: 1 },
   },
   {
     key: "ham-curl",
@@ -352,6 +378,7 @@ export const EXERCISES: Exercise[] = [
     step: 2.5,
     cues: ["Hips pressed into the pad", "Lower slowly, 3 seconds"],
     alts: ["nordic"],
+    muscles: { hamstrings: 1 },
   },
   {
     key: "nordic",
@@ -361,6 +388,22 @@ export const EXERCISES: Exercise[] = [
     step: 0,
     cues: ["Knees on a pad, heels anchored", "Lower as slowly as you can, push back up with the hands"],
     alts: [],
+  },
+
+  {
+    key: "calf-raise",
+    name: "Single-leg calf raise",
+    equipment: ["dumbbells"],
+    load: "dumbbell",
+    step: 2,
+    perSide: true,
+    cues: [
+      "Ball of the foot on a step, a dumbbell in the hand on the same side",
+      "All the way down into the stretch and pause, then all the way up",
+    ],
+    alts: [],
+    start: "Bodyweight first: leave the weight empty until 15 a side feels easy.",
+    muscles: { calves: 1 },
   },
 
   // Upper back and arms
@@ -376,6 +419,7 @@ export const EXERCISES: Exercise[] = [
       "Squeeze for a second where the hands meet",
     ],
     alts: ["db-fly"],
+    muscles: { chest: 1, shoulders: 0.5 },
   },
   {
     key: "db-fly",
@@ -417,6 +461,7 @@ export const EXERCISES: Exercise[] = [
     cues: ["Chest on a 30° bench", "Pull the elbows to the hips", "Pause at the top"],
     back: "The bench takes the load off the lower back.",
     alts: ["cable-row"],
+    muscles: { back: 1, biceps: 0.5, shoulders: 0.5 },
   },
   {
     key: "cable-row",
@@ -426,6 +471,7 @@ export const EXERCISES: Exercise[] = [
     step: 2.5,
     cues: ["Sit tall, pull to the stomach", "Shoulders down, squeeze the shoulder blades"],
     alts: ["chest-row"],
+    muscles: { back: 1, biceps: 0.5, shoulders: 0.5 },
   },
   {
     key: "one-arm-row",
@@ -445,6 +491,7 @@ export const EXERCISES: Exercise[] = [
     step: 2.5,
     cues: ["Full hang to chin over the bar", "Add weight with a belt once you get 10 reps"],
     alts: ["lat-pulldown"],
+    muscles: { back: 1, biceps: 0.5 },
   },
   {
     key: "lat-pulldown",
@@ -485,6 +532,7 @@ export const EXERCISES: Exercise[] = [
     step: 1,
     cues: ["Lead with the elbows, raise to shoulder height", "Slow on the way down"],
     alts: [],
+    muscles: { shoulders: 1 },
   },
   {
     key: "face-pull",
@@ -494,6 +542,7 @@ export const EXERCISES: Exercise[] = [
     step: 2.5,
     cues: ["Rope at face height, pull to the eyes", "Thumbs back at the end"],
     alts: ["lateral-raise"],
+    muscles: { shoulders: 1, back: 0.5 },
   },
   {
     key: "curl",
@@ -503,6 +552,7 @@ export const EXERCISES: Exercise[] = [
     step: 1,
     cues: ["Elbows still, full range"],
     alts: [],
+    muscles: { biceps: 1 },
   },
   {
     key: "pushdown",
@@ -512,6 +562,7 @@ export const EXERCISES: Exercise[] = [
     step: 2.5,
     cues: ["Elbows pinned to the sides", "Spread the rope at the bottom"],
     alts: ["db-skull"],
+    muscles: { triceps: 1 },
   },
   {
     key: "lying-triceps-ext",
@@ -565,6 +616,7 @@ export const EXERCISES: Exercise[] = [
     ],
     back: "Hanging also lets the spine decompress.",
     alts: ["captains-chair-raise"],
+    muscles: { core: 1 },
   },
   {
     key: "captains-chair-raise",
@@ -612,6 +664,7 @@ export const EXERCISES: Exercise[] = [
     cues: ["Side-on to the cable", "Press the handle straight out and resist the twist"],
     back: "Anti-rotation: trains the trunk to stay still, which is what protects a back.",
     alts: ["side-plank"],
+    muscles: { core: 1 },
   },
   {
     key: "side-plank",
@@ -632,6 +685,20 @@ export const EXERCISES: Exercise[] = [
     cues: ["Heaviest dumbbells you can hold for 30 m", "Walk tall, short quick steps"],
     back: "Loads the trunk standing tall: one of the best back-friendly core drills.",
     alts: ["suitcase-carry"],
+  },
+  {
+    key: "farmer-march",
+    name: "Farmer march on the spot",
+    equipment: ["dumbbells"],
+    load: "dumbbell",
+    step: 2,
+    cues: [
+      "The heaviest dumbbells you can hold for 30 s, one in each hand",
+      "March on the spot, knees to hip height, standing tall without leaning",
+    ],
+    back: "Loads the trunk standing tall, like the carry, in the space of a mat.",
+    alts: ["farmer-carry"],
+    muscles: { core: 0.5 },
   },
   {
     key: "suitcase-carry",
@@ -672,6 +739,7 @@ export const EXERCISES: Exercise[] = [
     perSide: true,
     cues: ["Turn from the hips, arms just guide the handle"],
     alts: [],
+    muscles: { core: 1 },
   },
 
   // Conditioning
@@ -683,6 +751,7 @@ export const EXERCISES: Exercise[] = [
     step: 0,
     cues: ["10 seconds flat out, 50 seconds easy", "Resistance high enough that you can't spin out"],
     alts: ["rower-intervals"],
+    muscles: {},
   },
   {
     key: "rower-intervals",
@@ -722,50 +791,92 @@ export type Prescription = {
   reps: [number, number];
   /** Reps you should still have in the tank. */
   rir: number;
+  /**
+   * Seconds from the end of this set to the next set in the session's order
+   * (next-set.ts). In a pair that next set is the partner's, so the partner is
+   * done inside the main lift's rest, and the main lift comes round again after
+   * this rest, the partner's set and the partner's rest.
+   */
   rest: number;
   scheme: Scheme;
   /** Shown on the card, e.g. "6 × 10 s". */
   note?: string;
+  /** Lighter sets before the first working set, shown on the card and timed with the block. */
+  ramp?: string[];
 };
 
-export type Block = { title: string; items: Prescription[]; superset?: boolean };
+export type Block = {
+  title: string;
+  items: Prescription[];
+  superset?: boolean;
+  /** An extra: done last, and the first thing dropped when time is short. */
+  optional?: boolean;
+};
+
+/** One timed step of a warm-up or a recovery. */
+export type Step = { text: string; seconds: number; optional?: boolean };
 
 export type Workout = {
   key: "A" | "B" | "C";
   name: string;
   focus: string;
-  warmup: string[];
+  warmup: Step[];
+  recovery: Step[];
   blocks: Block[];
 };
 
-const WARMUP = [
-  "3 minutes easy on the bike or rower",
-  "McGill big three: 5 curl-ups, 2 × 10 s side planks a side, 5 bird dogs a side",
-  "10 bodyweight squats and 10 band pull-aparts or arm circles",
+/** Nine minutes, the same shape every session; the roller works the day's two areas. */
+const warmup = (first: string, second: string, mobility: string): Step[] => [
+  { text: "Bike: 2 min easy, then 3 spin-ups of 6 s as fast as you can, with 14 s easy between", seconds: 180 },
+  { text: `Vibrating roller: 75 s on ${first}, then 75 s on ${second}`, seconds: 150 },
+  {
+    text: "McGill big three: 3 curl-ups, 3 bird dogs a side and a 10 s side plank a side, holding each 8 to 10 s",
+    seconds: 120,
+  },
+  { text: `World's greatest stretch, 3 a side, then ${mobility}`, seconds: 60 },
+  { text: "Walk to the first station: its ramp-up sets come next", seconds: 30 },
 ];
+
+/**
+ * Four minutes of massage gun on a low setting, more than 2 minutes a muscle group
+ * as the evidence on soreness suggests, and an optional stretch for range of motion.
+ */
+const recovery = (first: string, second: string): Step[] => [
+  { text: `Massage gun on a low setting: 2 min on ${first}, then 2 min on ${second}, breathing slowly`, seconds: 240 },
+  {
+    text: "Mobility: couch stretch 30 s a side, glute squeezed and ribs down, then a lat stretch holding the rack 30 s a side",
+    seconds: 120,
+    optional: true,
+  },
+];
+
+const SPRINTS: Prescription = {
+  exercise: "bike-sprint",
+  sets: 6,
+  reps: [10, 10],
+  rir: 0,
+  rest: 50,
+  scheme: "timed",
+  note: "6 × 10 s flat out, 50 s easy between",
+};
+
+const CALVES: Prescription = { exercise: "calf-raise", sets: 3, reps: [10, 15], rir: 1, rest: 45, scheme: "straight" };
 
 export const PROGRAM: { key: string; name: string; summary: string; workouts: Workout[] } = {
   key: "athletic-3",
   name: "Athletic full body, 3 days",
   summary:
-    "Jumps and throws first, then the bench in three flavours and a squat or trap bar deadlift, supersetted with pulls and core, then your favourite accessories. About 65 minutes.",
+    "Three full-body sessions in turn. Each block pairs a main lift with a move done inside its rest, the bench comes twice a week, and optional extras come last, to drop first when time is short.",
   workouts: [
     {
       key: "A",
       name: "Heavy bench and back squat",
-      focus: "Top-end bench strength and the squat, with bracing and abs between sets.",
-      warmup: [...WARMUP, "Bench ramp-up: bar × 10, then 3 to 4 sets of 3 to 5 building to your top set"],
+      focus: "Top-end bench strength and the squat, with hamstrings, shoulders and abs in between.",
+      warmup: warmup("the quads", "the upper back", "10 band pull-aparts"),
+      recovery: recovery("the quads", "the chest"),
       blocks: [
         {
-          title: "Power",
-          superset: true,
-          items: [
-            { exercise: "box-jump", sets: 3, reps: [3, 3], rir: 3, rest: 45, scheme: "power" },
-            { exercise: "mb-chest-pass", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
-          ],
-        },
-        {
-          title: "Bench",
+          title: "Bench and row",
           superset: true,
           items: [
             {
@@ -773,48 +884,55 @@ export const PROGRAM: { key: string; name: string; summary: string; workouts: Wo
               sets: 4,
               reps: [4, 6],
               rir: 2,
-              rest: 150,
+              rest: 60,
               scheme: "top-backoff",
               note: "1 top set of 4 to 6, then 3 × 5 at 90%",
+              ramp: ["the bar × 10", "50% × 5", "70% × 3", "85% × 1"],
             },
-            { exercise: "dead-bug", sets: 3, reps: [8, 8], rir: 2, rest: 30, scheme: "straight" },
+            { exercise: "chest-row", sets: 3, reps: [8, 10], rir: 1, rest: 75, scheme: "straight" },
           ],
         },
         {
-          title: "Squat",
+          title: "Squat and leg raise",
           superset: true,
           items: [
-            { exercise: "back-squat", sets: 3, reps: [5, 6], rir: 2, rest: 150, scheme: "straight" },
-            { exercise: "hanging-leg-raise", sets: 3, reps: [8, 12], rir: 1, rest: 30, scheme: "straight" },
+            {
+              exercise: "back-squat",
+              sets: 3,
+              reps: [5, 6],
+              rir: 2,
+              rest: 75,
+              scheme: "straight",
+              ramp: ["the bar × 8", "60% × 5", "80% × 3"],
+            },
+            { exercise: "hanging-leg-raise", sets: 3, reps: [8, 12], rir: 1, rest: 75, scheme: "straight" },
           ],
         },
         {
-          title: "Accessories",
+          title: "Hamstrings and shoulders",
           superset: true,
           items: [
-            { exercise: "chest-row", sets: 3, reps: [8, 10], rir: 1, rest: 60, scheme: "straight" },
-            { exercise: "cable-fly", sets: 2, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
+            { exercise: "ham-curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
             { exercise: "lateral-raise", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
           ],
+        },
+        {
+          title: "Extras: chest and calves",
+          superset: true,
+          optional: true,
+          items: [{ exercise: "cable-fly", sets: 2, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" }, CALVES],
         },
       ],
     },
     {
       key: "B",
-      name: "Trap bar, paused bench and pull-ups",
-      focus: "Learning the hinge, bench strength off the chest, a strong back and abs.",
-      warmup: [...WARMUP, "Trap bar ramp-up: 3 sets of 3 building up"],
+      name: "Trap bar, pull-ups and incline",
+      focus: "Learning the hinge, a strong back, the upper chest and the glutes.",
+      warmup: warmup("the glutes", "the lats", "10 bodyweight hip hinges"),
+      recovery: recovery("the glutes", "the lats"),
       blocks: [
         {
-          title: "Power",
-          superset: true,
-          items: [
-            { exercise: "broad-jump", sets: 3, reps: [3, 3], rir: 3, rest: 45, scheme: "power" },
-            { exercise: "mb-slam", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
-          ],
-        },
-        {
-          title: "Hinge",
+          title: "Hinge and anti-rotation",
           superset: true,
           items: [
             {
@@ -822,93 +940,121 @@ export const PROGRAM: { key: string; name: string; summary: string; workouts: Wo
               sets: 3,
               reps: [5, 5],
               rir: 3,
-              rest: 150,
+              rest: 60,
               scheme: "straight",
               note: "3 × 5, light while you learn it",
+              ramp: ["40% × 5", "60% × 3", "80% × 2"],
             },
-            { exercise: "pallof", sets: 3, reps: [10, 10], rir: 2, rest: 30, scheme: "straight" },
+            { exercise: "pallof", sets: 3, reps: [10, 10], rir: 2, rest: 45, scheme: "straight" },
           ],
         },
         {
-          title: "Bench and pull",
+          title: "Pull and incline",
           superset: true,
           items: [
-            { exercise: "paused-bench", sets: 4, reps: [5, 6], rir: 2, rest: 120, scheme: "straight" },
             { exercise: "pull-up", sets: 4, reps: [6, 10], rir: 1, rest: 60, scheme: "straight" },
-          ],
-        },
-        {
-          title: "Accessories",
-          superset: true,
-          items: [
-            { exercise: "seated-db-press", sets: 3, reps: [8, 10], rir: 1, rest: 60, scheme: "straight" },
-            { exercise: "face-pull", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
-            { exercise: "ham-curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
-          ],
-        },
-        {
-          title: "Core",
-          superset: true,
-          items: [
-            { exercise: "ab-wheel", sets: 3, reps: [6, 10], rir: 2, rest: 45, scheme: "straight" },
             {
-              exercise: "farmer-carry",
+              exercise: "incline-db",
+              sets: 3,
+              reps: [8, 12],
+              rir: 1,
+              rest: 60,
+              scheme: "straight",
+              ramp: ["about 50% × 8"],
+            },
+          ],
+        },
+        {
+          title: "Glutes and upper back",
+          superset: true,
+          items: [
+            { exercise: "hip-thrust", sets: 3, reps: [8, 12], rir: 2, rest: 60, scheme: "straight" },
+            { exercise: "face-pull", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
+          ],
+        },
+        { title: "Extras: sprints", optional: true, items: [SPRINTS] },
+        {
+          title: "Extras: carry and calves",
+          superset: true,
+          optional: true,
+          items: [
+            {
+              exercise: "farmer-march",
               sets: 3,
               reps: [30, 30],
               rir: 1,
               rest: 45,
               scheme: "timed",
-              note: "3 × 30 m, heavy",
+              note: "3 × 30 s, heavy",
             },
+            CALVES,
           ],
         },
       ],
     },
     {
       key: "C",
-      name: "Close-grip bench, single leg and arms",
-      focus: "Lockout strength, legs one at a time, upper chest and the arm work you used to do.",
-      warmup: [...WARMUP, "Bench ramp-up: bar × 10, then 2 to 3 building sets"],
+      name: "Paused bench, single leg and sprints",
+      focus: "Bench strength off the chest, legs one at a time, rotation and some hard fitness work.",
+      warmup: warmup("the quads and hip flexors", "the glutes", "10 band pull-aparts"),
+      recovery: recovery("the quads", "the hamstrings"),
       blocks: [
         {
-          title: "Power",
+          title: "Paused bench and row",
           superset: true,
           items: [
-            { exercise: "lateral-bound", sets: 3, reps: [3, 3], rir: 3, rest: 30, scheme: "power" },
-            { exercise: "plyo-pushup", sets: 3, reps: [5, 5], rir: 3, rest: 45, scheme: "power" },
+            {
+              exercise: "paused-bench",
+              sets: 3,
+              reps: [6, 8],
+              rir: 2,
+              rest: 60,
+              scheme: "straight",
+              ramp: ["the bar × 10", "60% × 5", "80% × 2"],
+            },
+            { exercise: "cable-row", sets: 3, reps: [8, 12], rir: 1, rest: 75, scheme: "straight" },
           ],
         },
         {
-          title: "Bench and row",
+          title: "Single leg and rotation",
           superset: true,
           items: [
-            { exercise: "close-grip-bench", sets: 4, reps: [6, 8], rir: 2, rest: 120, scheme: "straight" },
-            { exercise: "cable-row", sets: 4, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
+            {
+              exercise: "split-squat",
+              sets: 3,
+              reps: [8, 10],
+              rir: 2,
+              rest: 60,
+              scheme: "straight",
+              ramp: ["bodyweight × 6 a side"],
+            },
+            {
+              exercise: "cable-woodchop",
+              sets: 3,
+              reps: [6, 8],
+              rir: 2,
+              rest: 45,
+              scheme: "straight",
+              note: "3 × 6–8 a side: fast through, slow back",
+            },
           ],
         },
         {
-          title: "Legs and abs",
+          title: "Quads and hamstrings",
           superset: true,
           items: [
-            { exercise: "split-squat", sets: 3, reps: [8, 10], rir: 2, rest: 75, scheme: "straight" },
-            { exercise: "cable-crunch", sets: 3, reps: [12, 15], rir: 1, rest: 30, scheme: "straight" },
-          ],
-        },
-        {
-          title: "Upper chest and quads",
-          superset: true,
-          items: [
-            { exercise: "incline-db", sets: 3, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
             { exercise: "leg-extension", sets: 3, reps: [12, 15], rir: 1, rest: 45, scheme: "straight" },
+            { exercise: "ham-curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
           ],
         },
+        { title: "Sprints", items: [SPRINTS] },
         {
-          title: "Arms",
+          title: "Extras: arms",
           superset: true,
+          optional: true,
           items: [
-            { exercise: "dips", sets: 2, reps: [8, 12], rir: 1, rest: 60, scheme: "straight" },
             { exercise: "curl", sets: 3, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
-            { exercise: "lying-triceps-ext", sets: 2, reps: [10, 12], rir: 1, rest: 45, scheme: "straight" },
+            { exercise: "pushdown", sets: 3, reps: [10, 15], rir: 1, rest: 45, scheme: "straight" },
           ],
         },
       ],

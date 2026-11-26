@@ -8,6 +8,7 @@
 
 import { overlaps } from "../calendar/free-slot.ts";
 import { addDays, weekdayIndex } from "../dates/week.ts";
+import { plan } from "./gym/duration.ts";
 import { workout } from "./gym/program.ts";
 import { nextWorkout } from "./gym/progress.ts";
 import type { Slot } from "./nutrition.ts";
@@ -98,7 +99,8 @@ export function lifeAgenda(s: LifeState, days: string[]): AgendaItem[] {
         title: `Gym: ${w ? `${w.key}, ${w.name}` : key}`,
         start: gymStart,
         preferred: gymStart,
-        duration: s.profile.gym.minutes,
+        // As long as the session planned for the time you have, not the time itself.
+        duration: w ? plan(w, s.profile.gym.minutes, s.profile.gym.missing).minutes : s.profile.gym.minutes,
         window: clampWindow(gymStart - 60, gymEnd + 90),
         priority: 1,
         href: "/life/gym",

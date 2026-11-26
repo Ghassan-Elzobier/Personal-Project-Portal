@@ -2,6 +2,7 @@ import "server-only";
 import { clock } from "../dates/week";
 import { err, ok, type Json, type Tool } from "../mcp/tool";
 import { resolve, workout } from "./gym/program";
+import { plan } from "./gym/duration";
 import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
 import { lifeToday, loadLife } from "./load";
@@ -33,7 +34,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "get_life_day",
     title: "Meals, gym and body for a day",
     description:
-      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, defrost reminders) with what is done, the calorie and protein targets, and the gym session's exercises with today's target weights. Read this before logging.",
+      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, defrost reminders) with what is done, the calorie and protein targets, and the gym session: how many minutes it is planned to take in the time the owner has, and its exercises with today's target weights. Extras are marked optional, with fits_today saying whether they fit that time; they are done last and dropped first. Read this before logging.",
     inputSchema: { type: "object", properties: { date: DATE }, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
@@ -57,6 +58,7 @@ export const LIFE_TOOLS: Tool[] = [
       const key =
         s.sessions.find((x) => x.day === date)?.workout ?? nextWorkout(s.sessions.filter((x) => x.day < date));
       const w = workout(key);
+      const today = w ? plan(w, s.profile.gym.minutes, s.profile.gym.missing) : undefined;
       const before = s.sets.filter((x) => x.day < date);
       return ok({
         date,
@@ -68,10 +70,11 @@ export const LIFE_TOOLS: Tool[] = [
         weight_trend_kg: s.kg,
         routine,
         gym:
-          gym && w
+          gym && w && today
             ? {
                 workout: `${w.key}, ${w.name}`,
-                exercises: w.blocks.flatMap((b) =>
+                minutes: today.minutes,
+                exercises: w.blocks.flatMap((b, i) =>
                   b.items.map((p) => {
                     const ex = resolve(p.exercise, s.profile.gym.missing)!;
                     const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date));
@@ -83,6 +86,8 @@ export const LIFE_TOOLS: Tool[] = [
                       note: p.note,
                       why: t.why,
                       demo_video: demoFor(ex).video,
+                      optional: b.optional || undefined,
+                      fits_today: b.optional ? today.blocks[i] : undefined,
                     };
                   }),
                 ),

@@ -6,6 +6,7 @@ import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
 import { nextSet, setLabel, setRows } from "@/lib/life/gym/next-set";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
+import { TimedChecklist, type TimedStep } from "../checklist";
 import { Stars } from "../kit";
 
 export type ItemView = {
@@ -31,9 +32,22 @@ export type ItemView = {
   target: { kg: number | null; reps: number }[];
   change: "up" | "same" | "down" | "new";
   why: string;
+  /** Lighter sets before the first working set, e.g. "the bar × 10". */
+  ramp: string[];
   logged: { position: number; kg: number | null; reps: number; rir: number | null }[];
 };
-export type BlockView = { title: string; superset: boolean; items: ItemView[] };
+export type BlockView = {
+  title: string;
+  superset: boolean;
+  /** An extra, done last and dropped first. */
+  optional: boolean;
+  /** In today's session: every core block, and the extras that fit the time you have. */
+  planned: boolean;
+  minutes: number;
+  items: ItemView[];
+};
+/** Seconds today's session takes, the minutes you have, and how many extras don't fit them. */
+export type Timing = { planned: number; budget: number; left: number };
 
 type Logged = Record<string, { kg: number | null; reps: number; rir: number | null }>;
 
@@ -57,6 +71,8 @@ export function SessionLogger({
   day,
   workout,
   warmup,
+  recovery,
+  timing,
   blocks,
   finished,
   feel,
@@ -65,7 +81,9 @@ export function SessionLogger({
 }: {
   day: string;
   workout: string;
-  warmup: string[];
+  warmup: TimedStep[];
+  recovery: TimedStep[];
+  timing: Timing;
   blocks: BlockView[];
   finished: boolean;
   feel: number | null;
@@ -82,17 +100,22 @@ export function SessionLogger({
     return next;
   });
   const [rest, setRest] = useState<{ until: number; total: number; name: string } | null>(null);
-  const [warm, setWarm] = useState<boolean[]>(() => warmup.map(() => false));
   const [rating, setRating] = useState<number | null>(feel);
   const [note, setNote] = useState(notes);
 
-  const total = blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.target.length, 0), 0);
-  const done = Object.keys(logged).length;
+  // Progress and the next set count today's session: the core, and the extras that
+  // fit the time you have. An extra that doesn't fit can still be ticked.
+  const planned = blocks.filter((b) => b.planned);
+  const total = planned.reduce((n, b) => n + b.items.reduce((m, i) => m + i.target.length, 0), 0);
+  const done = planned.reduce(
+    (n, b) => n + b.items.reduce((m, i) => m + i.target.filter((_, p) => logged[`${i.key}:${p + 1}`]).length, 0),
+    0,
+  );
 
   // The next set, worked out from what is ticked. It has no state of its own, so it
   // moves the moment a set is ticked and is the same after a reload.
   const next = nextSet(
-    blocks.map((b) => ({ superset: b.superset, items: b.items.map((i) => ({ key: i.key, sets: i.target.length })) })),
+    planned.map((b) => ({ superset: b.superset, items: b.items.map((i) => ({ key: i.key, sets: i.target.length })) })),
     new Set(Object.keys(logged)),
   );
   const nextItem = next ? blocks.flatMap((b) => b.items).find((i) => i.key === next.key) : undefined;
@@ -157,33 +180,25 @@ export function SessionLogger({
         </div>
       </div>
 
-      <section className="space-y-2 card-life" aria-labelledby="warmup-title">
-        <h2 id="warmup-title" className="font-semibold">
-          Warm-up · 10 minutes
-        </h2>
-        <ul className="space-y-1">
-          {warmup.map((w, i) => (
-            <li key={w}>
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={warm[i]}
-                  onChange={() => setWarm((x) => x.map((v, j) => (j === i ? !v : v)))}
-                  className="mt-0.5 size-5 shrink-0 accent-mint"
-                />
-                <span className={warm[i] ? "text-faint line-through" : ""}>{w}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <p className="px-1 text-sm text-body">{summary(timing)}</p>
+
+      <TimedChecklist id="warmup-title" title="Warm-up" steps={warmup} />
 
       {blocks.map((b) => (
         <section key={b.title} className="space-y-3" aria-label={b.title}>
-          <h2 className="px-1 eyebrow">
-            {b.title}
-            {b.superset ? " · alternate between these" : ""}
-          </h2>
+          <div className="space-y-1 px-1">
+            <h2 className="eyebrow">
+              {b.title} · {b.minutes} min
+              {b.superset ? " · alternate between these" : ""}
+            </h2>
+            {b.optional && (
+              <p className="text-xs text-muted">
+                {b.planned
+                  ? "Optional: the first thing to drop when time is short."
+                  : "Optional, and more than today's time allows: do it if you can."}
+              </p>
+            )}
+          </div>
           {b.items.map((item) => (
             <Exercise
               key={item.key}
@@ -195,6 +210,8 @@ export function SessionLogger({
           ))}
         </section>
       ))}
+
+      <TimedChecklist id="recovery-title" title="Recovery" steps={recovery} />
 
       <section id={FINISH} className="scroll-mt-40 space-y-3 card-life" aria-labelledby="finish-title">
         <h2 id="finish-title" className="font-semibold">
@@ -288,6 +305,12 @@ function Exercise({
           {item.note ?? `${item.target.length} × ${range} ${unitLabel}${item.perSide ? " a side" : ""}`}
           {item.scheme !== "power" && item.scheme !== "timed" ? ` · stop with ${item.rir} in the tank` : ""}
         </p>
+        {item.ramp.length > 0 && (
+          <p className="text-xs text-muted">
+            Ramp-up first, every rep fast: {item.ramp.join(", ")}
+            {item.ramp.some((r) => r.includes("%")) ? " (of your first set's weight)" : ""}.
+          </p>
+        )}
         <p
           className={`text-xs ${item.change === "up" ? "text-mint" : item.change === "down" ? "text-sand" : "text-muted"}`}
         >
@@ -344,6 +367,20 @@ function Exercise({
       </button>
     </article>
   );
+}
+
+const mins = (seconds: number) => Math.round(seconds / 60);
+
+/** How long today's session takes, against the time you have. */
+function summary(t: Timing): string {
+  const about = `About ${mins(t.planned)} minutes`;
+  if (t.planned > t.budget * 60)
+    return `${about}. The core alone is more than your ${t.budget}, so this is as short as the session gets.`;
+  if (t.left === 1)
+    return `${about}, inside your ${t.budget}. One extra doesn't fit and is marked: do it if you have time.`;
+  if (t.left > 1)
+    return `${about}, inside your ${t.budget}. ${t.left} extras don't fit and are marked: do them if you have time.`;
+  return `${about} with every extra, inside your ${t.budget}.`;
 }
 
 /**

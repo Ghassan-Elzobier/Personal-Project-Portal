@@ -54,6 +54,7 @@ import {
   type Use,
 } from "./shopping.ts";
 import { consistency, nextWorkout, type SessionLog, type SetLog } from "./gym/progress.ts";
+import { plan } from "./gym/duration.ts";
 import { workout } from "./gym/program.ts";
 
 export type MealLog = {
@@ -394,7 +395,9 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       time: s.profile.gym.start,
       kind: "gym",
       title: `Gym: ${w ? `${w.key}, ${w.name}` : key}`,
-      detail: session?.finished ? "Done" : `${s.profile.gym.minutes} minutes`,
+      detail: session?.finished
+        ? "Done"
+        : `${w ? plan(w, s.profile.gym.minutes, s.profile.gym.missing).minutes : s.profile.gym.minutes} minutes`,
       done: Boolean(session?.finished),
       href: "/life/gym",
       workout: key,

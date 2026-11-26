@@ -180,3 +180,15 @@ test("a shop that clashes moves within its window, and still ends before that da
   assert.ok(shop.start + shop.duration <= study.start, `shop at ${shop.start} ends before study`);
   assert.ok(shop.start + shop.duration <= cook.start, `shop at ${shop.start} ends before the cook at ${cook.start}`);
 });
+
+test("the gym block is as long as the session planned for the time you have, and the shake keeps its time", () => {
+  // 65 minutes: A's core takes 59 and its extras don't fit, so a 60-minute block.
+  const s = buildState(raw, "2026-11-14");
+  const items = lifeAgenda(s, ["2026-11-14", "2026-11-17"]);
+  assert.equal(at(items, "2026-11-14:gym").duration, 60);
+  assert.equal(at(items, "2026-11-17:gym").duration, 65, "B fits its sprints into 65 minutes");
+  assert.equal(at(items, "2026-11-14:meal:shake").preferred, 405 + 65 + 10);
+  // 40 minutes is less than the core: the core alone, rounded up to 5 minutes.
+  const short = buildState({ ...raw, profile: { ...profile, gym: { ...profile.gym, minutes: 40 } } }, "2026-11-14");
+  assert.equal(at(lifeAgenda(short, ["2026-11-14"]), "2026-11-14:gym").duration, 60);
+});
