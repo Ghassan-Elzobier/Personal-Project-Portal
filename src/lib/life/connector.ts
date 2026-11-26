@@ -171,13 +171,13 @@ export const LIFE_TOOLS: Tool[] = [
     name: "log_gym_set",
     title: "Log a gym set",
     description:
-      "Record one set of today's session. Use the exercise key from get_life_day; position is the set number starting at 1. Leave kg out for bodyweight work.",
+      "Record one set of today's session. Use the exercise key from get_life_day; position is the set number starting at 1. Leave kg out for bodyweight work. On an assisted machine (pull-ups, dips), give the help as negative kg: 35 kg of help is -35.",
     inputSchema: {
       type: "object",
       properties: {
         exercise: { type: "string", pattern: "^[a-z0-9-]{1,60}$" },
         position: { type: "integer", minimum: 1, maximum: 20 },
-        kg: { type: "number", minimum: 0, maximum: 500 },
+        kg: { type: "number", minimum: -200, maximum: 500 },
         reps: { type: "integer", minimum: 0, maximum: 500 },
         reps_in_reserve: { type: "integer", minimum: 0, maximum: 10 },
         date: DATE,

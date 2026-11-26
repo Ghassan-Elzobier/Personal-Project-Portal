@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays, weekdayIndex } from "@/lib/dates/week";
-import { BENCH_LIFTS, EXERCISE_MAP, PROGRAM, resolve, workout } from "@/lib/life/gym/program";
+import { BENCH_LIFTS, EXERCISE_MAP, lowestKg, PROGRAM, resolve, workout } from "@/lib/life/gym/program";
 import { estimate, plan } from "@/lib/life/gym/duration";
 import { consistency, e1rm, e1rmSeries, nextWorkout, project, target } from "@/lib/life/gym/progress";
 import { demoFor } from "@/lib/life/gym/media";
@@ -74,6 +74,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
           ex.load !== "ball" &&
           !(ex.load === "bodyweight" && ex.step === 0),
         added: ex.load === "bodyweight",
+        lowest: lowestKg(ex.key),
         unit: p.scheme === "timed" ? (ex.load === "distance" || ex.key === "farmer-carry" ? "m" : "s") : "reps",
         step: ex.step,
         rest: p.rest,

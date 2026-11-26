@@ -10,6 +10,7 @@ import { midnightIn } from "../dates/week";
 import type { AgendaItem } from "../life/agenda";
 import { loadLife } from "../life/load";
 import { lifeBlocks } from "./life-plan";
+import { readWeek } from "./week-reads";
 import { now } from "@/lib/dates/clock";
 
 // One week of schedule: tasks with times (work), extra study sessions, Google
@@ -135,20 +136,27 @@ export async function loadScheduleWeek(
   // Read alongside the tasks and the calendar, not after them.
   const lifeLoad = options.life === undefined ? loadLife() : Promise.resolve(options.life);
 
-  // Open tasks, plus tasks finished this week so done sessions stay on the grid.
-  const perProject = await Promise.all(
-    configured.map(async (p) => ({
-      p,
-      result: await attempt(async () => {
-        const [open, recent] = await Promise.all([
-          openTasks(p.key),
-          listTasks(p.key, { completedSince: week.startsAt }),
-        ]);
-        const done = recent.filter((t) => t.completed).map((t) => toView(t, p.key));
-        return [...open, ...done];
-      }),
-    })),
-  );
+  // The tasks and the calendar are read together; neither needs the other.
+  const { tasks: perProject, calendar } = await readWeek({
+    // Open tasks, plus tasks finished this week so done sessions stay on the grid.
+    tasks: () =>
+      Promise.all(
+        configured.map(async (p) => ({
+          p,
+          result: await attempt(async () => {
+            const [open, recent] = await Promise.all([
+              openTasks(p.key),
+              listTasks(p.key, { completedSince: week.startsAt }),
+            ]);
+            const done = recent.filter((t) => t.completed).map((t) => toView(t, p.key));
+            return [...open, ...done];
+          }),
+        })),
+      ),
+    googleConfigured,
+    connection: googleConnection,
+    events: () => listEvents(week.startsAt, week.endsAt),
+  });
   const tasks: TaskView[] = [];
   for (const { p, result } of perProject) {
     if (result.ok) tasks.push(...result.value);
@@ -166,72 +174,69 @@ export async function loadScheduleWeek(
   let google: GoogleState;
   const hidden = new Set<string>();
   const mirrors: Mirror[] = [];
-  if (!googleConfigured()) {
-    google = "not-configured";
+  if (calendar === "not-configured" || calendar === "not-connected") {
+    google = calendar;
   } else {
-    const connection = await googleConnection();
-    if (!connection) {
-      google = "not-connected";
-    } else {
-      try {
-        const events = await listEvents(week.startsAt, week.endsAt);
-        const titles = new Map(tasks.map((t) => [t.gid, t]));
-        for (const e of events) {
-          // The task's own block already shows its slot, and the Life plan its items.
-          if (e.mirror) {
-            const a = zonedParts(new Date(e.start), tz);
-            const b = zonedParts(new Date(e.end), tz);
-            mirrors.push({
-              id: e.id,
-              key: e.mirror,
-              title: e.title,
-              date: a.date,
-              start: a.minutes,
-              end: b.date === a.date ? b.minutes : 24 * 60,
-            });
-            continue;
-          }
-          if (e.study?.role === "slot") continue;
-          if (!e.study && isUnanswered(e.response) && !options.showInvites) {
-            hidden.add(e.id);
-            continue;
-          }
-          const study = e.study;
-          const owner = study ? titles.get(study.task) : undefined;
-          const projectKey = study?.project && isProjectKey(study.project) ? study.project : owner?.project;
-          for (const piece of place(new Date(e.start), new Date(e.end), tz)) {
-            const block: Block = study
-              ? {
-                  id: `${e.id}:${piece.date}`,
-                  source: "session",
-                  title: owner?.name ?? e.title,
-                  ...piece,
-                  url: projectKey ? `/tasks?project=${projectKey}&task=${study.task}` : e.url,
-                  editable: !owner?.completed,
-                  project: projectKey ? projectDef(projectKey).title : undefined,
-                  taskGid: study.task,
-                  stage: owner?.stage,
-                  completed: owner?.completed,
-                  seriesId: e.seriesId,
-                }
-              : {
-                  id: `${e.id}:${piece.date}`,
-                  source: "google",
-                  title: e.title,
-                  ...piece,
-                  url: e.url,
-                  editable: e.kind !== null,
-                  kind: e.kind,
-                  seriesId: e.seriesId,
-                  invite: e.response && e.response !== "accepted" ? e.response : undefined,
-                };
-            if (inWeek(block)) blocks.push(block);
-          }
+    const { connection } = calendar;
+    try {
+      if ("error" in calendar) throw calendar.error;
+      const { events } = calendar;
+      const titles = new Map(tasks.map((t) => [t.gid, t]));
+      for (const e of events) {
+        // The task's own block already shows its slot, and the Life plan its items.
+        if (e.mirror) {
+          const a = zonedParts(new Date(e.start), tz);
+          const b = zonedParts(new Date(e.end), tz);
+          mirrors.push({
+            id: e.id,
+            key: e.mirror,
+            title: e.title,
+            date: a.date,
+            start: a.minutes,
+            end: b.date === a.date ? b.minutes : 24 * 60,
+          });
+          continue;
         }
-        google = { email: connection.email };
-      } catch (err) {
-        google = { error: err instanceof Error ? err.message : "Could not read Google Calendar." };
+        if (e.study?.role === "slot") continue;
+        if (!e.study && isUnanswered(e.response) && !options.showInvites) {
+          hidden.add(e.id);
+          continue;
+        }
+        const study = e.study;
+        const owner = study ? titles.get(study.task) : undefined;
+        const projectKey = study?.project && isProjectKey(study.project) ? study.project : owner?.project;
+        for (const piece of place(new Date(e.start), new Date(e.end), tz)) {
+          const block: Block = study
+            ? {
+                id: `${e.id}:${piece.date}`,
+                source: "session",
+                title: owner?.name ?? e.title,
+                ...piece,
+                url: projectKey ? `/tasks?project=${projectKey}&task=${study.task}` : e.url,
+                editable: !owner?.completed,
+                project: projectKey ? projectDef(projectKey).title : undefined,
+                taskGid: study.task,
+                stage: owner?.stage,
+                completed: owner?.completed,
+                seriesId: e.seriesId,
+              }
+            : {
+                id: `${e.id}:${piece.date}`,
+                source: "google",
+                title: e.title,
+                ...piece,
+                url: e.url,
+                editable: e.kind !== null,
+                kind: e.kind,
+                seriesId: e.seriesId,
+                invite: e.response && e.response !== "accepted" ? e.response : undefined,
+              };
+          if (inWeek(block)) blocks.push(block);
+        }
       }
+      google = { email: connection.email };
+    } catch (err) {
+      google = { error: err instanceof Error ? err.message : "Could not read Google Calendar." };
     }
   }
 

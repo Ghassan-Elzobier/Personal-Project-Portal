@@ -1080,3 +1080,15 @@ export function resolve(key: string, missing: string[]): Exercise | undefined {
 }
 
 export const BENCH_LIFTS = ["bench", "paused-bench", "close-grip-bench"];
+
+/** The most help an assisted pull-up or dip machine gives, in kg. */
+export const MOST_HELP = 200;
+
+/**
+ * The lightest weight a set of this exercise may log. Below zero only on a
+ * bodyweight move, where it is the help from an assisted machine: 35 kg of help
+ * is -35.
+ */
+export function lowestKg(key: string): number {
+  return EXERCISE_MAP.get(key)?.load === "bodyweight" ? -MOST_HELP : 0;
+}

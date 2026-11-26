@@ -9,6 +9,10 @@
 // a break keeps an extra rep in reserve for the first two weeks, because strength
 // returns quickly but tendons and soreness lag behind.
 //
+// On an assisted machine the help is logged as negative kg, so the same steps take
+// help away (35 kg of help, then 32.5), and missing the range twice adds a step of
+// help back rather than taking 5% off.
+//
 // The reps left in the tank that the lifter logs steer the step, as the RIR scale
 // is meant to (Helms et al. 2016): when the top of the range came with less left
 // than the plan asks for, the weight holds until it comes with room to spare; when
@@ -150,12 +154,15 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
     };
   }
   const unloaded = ex.load === "bodyweight" && kg === 0;
+  // Help from an assisted machine, logged as negative kg.
+  const assisted = kg < 0;
+  const same = unloaded ? "same again" : assisted ? "same help" : "same weight";
   const left = fewestLeft(atWeight);
   if (allTop && left !== null && left <= rir - AT_THE_LIMIT) {
     return {
       sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: hi })),
       change: "same",
-      why: `All sets hit ${hi}, but with ${left} left: ${unloaded ? "same again" : "same weight"}, aim for ${hi} with ${rir} in the tank.`,
+      why: `All sets hit ${hi}, but with ${left} left: ${same}, aim for ${hi} with ${rir} in the tank.`,
       rir,
     };
   }
@@ -165,17 +172,19 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
     const add = light ? 2 * ex.step : ex.step;
     const why = unloaded
       ? `All sets hit ${hi}: add ${ex.step} kg on a belt, or hold a dumbbell.`
-      : light
-        ? `All sets hit ${hi} with ${left} or more left: +${add} kg.`
-        : `All sets hit ${hi}: +${ex.step} kg.`;
+      : assisted
+        ? `All sets hit ${hi}${light ? ` with ${left} or more left` : ""}: ${add} kg less help.`
+        : light
+          ? `All sets hit ${hi} with ${left} or more left: +${add} kg.`
+          : `All sets hit ${hi}: +${ex.step} kg.`;
     return { sets: Array.from({ length: p.sets }, () => ({ kg: kg + add, reps: lo })), change: "up", why, rir };
   }
   if (under && prevUnder) {
-    const down = roundTo(kg * 0.95, ex.step);
+    const down = assisted ? kg - ex.step : roundTo(kg * 0.95, ex.step);
     return {
       sets: Array.from({ length: p.sets }, () => ({ kg: shown(down), reps: lo })),
       change: "down",
-      why: "Below the range twice: 5% off.",
+      why: assisted ? `Below the range twice: ${ex.step} kg more help.` : "Below the range twice: 5% off.",
       rir,
     };
   }
@@ -184,7 +193,7 @@ export function target(p: Prescription, history: SetLog[], returning: boolean): 
   return {
     sets: Array.from({ length: p.sets }, () => ({ kg: shown(kg), reps: aim })),
     change: "same",
-    why: `${unloaded ? "Same again" : "Same weight"}: aim for ${aim} on every set.`,
+    why: `${same.charAt(0).toUpperCase()}${same.slice(1)}: aim for ${aim} on every set.`,
     rir,
   };
 }

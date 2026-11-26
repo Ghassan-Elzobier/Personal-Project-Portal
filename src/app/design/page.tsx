@@ -15,6 +15,7 @@ import {
   StagePill,
   StatusPill,
   Tabs,
+  ToggleChip,
 } from "@/components/ui";
 import { LifeHeader, Steps } from "@/app/life/parts";
 import { TimedChecklist } from "@/app/life/checklist";
@@ -231,6 +232,26 @@ export default async function DesignPage() {
             <DueDate dueOn="2026-11-12" today={today} />
             <DueDate dueOn={today} today={today} />
             <DueDate dueOn="2026-11-20" today={today} />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Toggles"
+        note="ToggleChip is a filter or a choice you tap on and off, 44 px tall for a thumb. On is lavender in Work and mint in Life."
+      >
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Work toggles">
+            <ToggleChip pressed>On</ToggleChip>
+            <ToggleChip pressed={false}>Off</ToggleChip>
+          </div>
+          <div className="flex flex-wrap gap-2 rounded-2xl bg-moss p-3" role="group" aria-label="Life toggles">
+            <ToggleChip space="life" pressed>
+              On
+            </ToggleChip>
+            <ToggleChip space="life" pressed={false}>
+              Off
+            </ToggleChip>
           </div>
         </div>
       </Section>

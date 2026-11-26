@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
-import { nextSet, setLabel } from "@/lib/life/gym/next-set";
+import { nextSet, setLabel, setRows } from "@/lib/life/gym/next-set";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
 import { TimedChecklist, type TimedStep } from "../checklist";
@@ -18,8 +18,10 @@ export type ItemView = {
   back: string | null;
   demo: Demo;
   weighted: boolean;
-  /** Bodyweight moves: the weight box is extra weight on a belt, empty for none. */
+  /** Bodyweight moves: the weight box is extra weight on a belt, empty for none, or minus for machine help. */
   added: boolean;
+  /** The lightest weight a set may log: below zero only for the help on a bodyweight move. */
+  lowest: number;
   unit: "reps" | "s" | "m";
   step: number;
   rest: number;
@@ -276,8 +278,13 @@ function Exercise({
   next: number | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [extra, setExtra] = useState(0);
-  const positions = Math.max(item.target.length, ...item.logged.map((l) => l.position), 0) + extra;
+  // Rows added with "+ Add a set" reach to here; a logged set beyond the plan keeps its row too.
+  const [shown, setShown] = useState(0);
+  const positions = setRows(
+    item.target.length,
+    item.logged.map((l) => l.position),
+    shown,
+  );
   const range = item.range[0] === item.range[1] ? `${item.range[0]}` : `${item.range[0]}–${item.range[1]}`;
   const unitLabel = item.unit === "reps" ? "reps" : item.unit;
   return (
@@ -309,6 +316,11 @@ function Exercise({
         >
           {item.why}
         </p>
+        {item.added && item.weighted && (
+          <p className="text-xs text-muted">
+            On an assisted machine, tap ± so the help logs as minus: 35 kg of help is −35.
+          </p>
+        )}
         {item.swappedFrom && (
           <p className="text-xs text-faint">In place of {item.swappedFrom}, which your gym lacks.</p>
         )}
@@ -348,7 +360,7 @@ function Exercise({
       </ol>
       <button
         type="button"
-        onClick={() => setExtra((n) => n + 1)}
+        onClick={() => setShown(positions + 1)}
         className="tap w-full bg-white/5 text-sm text-muted hover:bg-white/10 hover:text-white"
       >
         + Add a set
@@ -489,7 +501,9 @@ function SetRow({
   );
   const done = Boolean(logged);
   const step = item.step || 2.5;
-  const bump = (d: number) => setKg(String(Math.max(0, Math.round(((Number(kg) || 0) + d) * 100) / 100)));
+  const bump = (d: number) => setKg(String(Math.max(item.lowest, Math.round(((Number(kg) || 0) + d) * 100) / 100)));
+  // On a bodyweight move a minus weight is the help from an assisted machine.
+  const help = item.added && Number(kg) < 0;
   return (
     <li
       id={rowId(item.key, position)}
@@ -509,7 +523,7 @@ function SetRow({
           </button>
           <label className="flex items-baseline gap-1">
             <span className="sr-only">
-              {item.added ? "Added weight" : "Weight"} in kg, set {position}
+              {item.added ? "Added weight, or minus for machine help," : "Weight"} in kg, set {position}
             </span>
             <input
               inputMode="decimal"
@@ -518,7 +532,7 @@ function SetRow({
               placeholder={item.added ? "+0" : "kg"}
               className="h-11 w-16 rounded-lg bg-white/10 text-center text-base tabular-nums"
             />
-            <span className="text-xs text-muted">{item.added ? "+kg" : "kg"}</span>
+            <span className="text-xs text-muted">{item.added ? (help ? "kg help" : "+kg") : "kg"}</span>
           </label>
           <button
             type="button"
@@ -528,6 +542,17 @@ function SetRow({
           >
             +
           </button>
+          {item.added && (
+            <button
+              type="button"
+              onClick={() => setKg(String(-(Number(kg) || 0)))}
+              className="tap size-11 text-lg text-muted"
+              aria-label={`Machine help, not added weight, set ${position}`}
+              aria-pressed={help}
+            >
+              ±
+            </button>
+          )}
         </div>
       )}
       <label className="flex items-baseline gap-1">

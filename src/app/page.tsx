@@ -61,8 +61,13 @@ async function OwnerHome() {
   const configured = PROJECTS.filter((p) => projectGid(p.key));
   // Read once: the Schedule arranges the Life plan from it too.
   const lifeLoad = loadLife();
+  const studyLoad = usesAsana() ? null : loadStudy();
+  // The job board's reads start beside Study's rather than after everything else.
+  const boardLoad = studyLoad && loadJobBoard(studyLoad);
+  // Never left unhandled: when Study fails the board is dropped below, and Study reports it.
+  boardLoad?.catch(() => {});
 
-  const [perProject, comments, schedule, study, overview, life, money, target, todos] = await Promise.all([
+  const [perProject, comments, schedule, study, overview, board, life, money, target, todos] = await Promise.all([
     Promise.all(
       configured.map(async (p) => {
         const [open, posted, finished] = await Promise.all([
@@ -80,15 +85,20 @@ async function OwnerHome() {
     attempt(() => listSessionComments(week.startsAt)),
     attempt(() => loadScheduleWeek(week, { life: lifeLoad })),
     usesAsana() ? null : attempt(() => studySnapshot()),
-    usesAsana() ? null : attempt(() => loadStudy()),
+    studyLoad && attempt(() => studyLoad),
+    // A problem with the job tracker must never take the rest of Today down with it.
+    studyLoad && boardLoad
+      ? studyLoad.then(
+          () => attempt(() => boardLoad),
+          () => null,
+        )
+      : null,
     lifeLoad,
     loadToday(),
     // The pace set on Study, for this week; the deployment's number until one is set.
     studyTarget(week),
     loadTodos(),
   ]);
-  // A problem with the job tracker must never take the rest of Today down with it.
-  const board = overview?.ok ? await attempt(() => loadJobBoard(overview.value)) : null;
   const hub = overview?.ok && board?.ok ? hubFrom(board.value, overview.value) : null;
 
   const open = perProject.flatMap((p) => (p.open.ok ? p.open.value : []));
