@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import { DRAWING_CREDIT, type Demo } from "@/lib/life/gym/media";
-import { nextSet, setLabel, setRows } from "@/lib/life/gym/next-set";
+import { nextSet, setLabel } from "@/lib/life/gym/next-set";
 import { toast } from "@/components/toaster";
 import { gymSession, logSet } from "../actions";
 import { Stars } from "../kit";
@@ -261,13 +261,8 @@ function Exercise({
   next: number | null;
 }) {
   const [open, setOpen] = useState(false);
-  // Rows added with "+ Add a set" reach to here; a logged set beyond the plan keeps its row too.
-  const [shown, setShown] = useState(0);
-  const positions = setRows(
-    item.target.length,
-    item.logged.map((l) => l.position),
-    shown,
-  );
+  const [extra, setExtra] = useState(0);
+  const positions = Math.max(item.target.length, ...item.logged.map((l) => l.position), 0) + extra;
   const range = item.range[0] === item.range[1] ? `${item.range[0]}` : `${item.range[0]}–${item.range[1]}`;
   const unitLabel = item.unit === "reps" ? "reps" : item.unit;
   return (
@@ -337,7 +332,7 @@ function Exercise({
       </ol>
       <button
         type="button"
-        onClick={() => setShown(positions + 1)}
+        onClick={() => setExtra((n) => n + 1)}
         className="tap w-full bg-white/5 text-sm text-muted hover:bg-white/10 hover:text-white"
       >
         + Add a set

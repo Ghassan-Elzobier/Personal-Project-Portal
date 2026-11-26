@@ -54,12 +54,3 @@ export function setLabel(
       : `${weight} × ${item.unit === "reps" ? target.reps : `${target.reps} ${item.unit}`}`;
   return `${item.name} · set ${position} · ${load}${item.perSide ? " a side" : ""}`;
 }
-
-/**
- * How many set rows an exercise card shows: the planned sets, the highest set
- * logged and the rows added with "+ Add a set", whichever reaches furthest. A set
- * added and then logged is the same row, so it counts once.
- */
-export function setRows(planned: number, logged: readonly number[], shown: number): number {
-  return Math.max(planned, shown, ...logged);
-}
