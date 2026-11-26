@@ -15,6 +15,7 @@ export type Tool = {
     | "study"
     | "lab"
     | "library"
+    | "learn"
     | "jobs"
     | "roadmap"
     | "job-hunt"
@@ -110,6 +111,15 @@ export const TOOLS: readonly Tool[] = [
     title: "Book",
     href: "/library",
     description: "Search and read PMPP, in Vulkan words or CUDA ones.",
+    roles: ["owner"],
+    space: "work",
+    group: "more",
+  },
+  {
+    key: "learn",
+    title: "Lessons",
+    href: "/study/learn",
+    description: "Every lesson Claude taught you, what you answered, and the graph of what you hold.",
     roles: ["owner"],
     space: "work",
     group: "more",

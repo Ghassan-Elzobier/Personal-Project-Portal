@@ -197,6 +197,7 @@ export function NavLinks({ spaces, initial, canAdd, canAddTodo }: { spaces: NavS
       {own.more.length > 0 && (
         <details ref={menu} className="relative">
           <summary
+            aria-current={moreActive ? "true" : undefined}
             className={`cursor-pointer list-none text-sm transition-colors hover:text-white [&::-webkit-details-marker]:hidden ${moreActive ? `font-medium ${accent}` : "text-muted"}`}
           >
             More <span aria-hidden>▾</span>
@@ -289,7 +290,10 @@ export function TabBar({ spaces, initial, canAdd, canAddTodo }: { spaces: NavSpa
       )}
       {tabs.slice(2).map(tab)}
       <details ref={menu} className="flex min-w-0 flex-1">
-        <summary className={`${item(moreActive)} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+        <summary
+          aria-current={moreActive ? "true" : undefined}
+          className={`${item(moreActive)} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}
+        >
           More
         </summary>
         <MenuItems
