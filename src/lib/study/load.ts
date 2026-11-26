@@ -48,13 +48,16 @@ export type PlanProgress = {
 type Loaded = { tasks: Map<ProjectKey, TaskView[]>; study: StudySnapshot };
 
 async function loadAll(): Promise<Loaded> {
-  const study = await studySnapshot();
-  const perProject = await Promise.all(
-    PROJECTS.map(async (p) => {
-      const result = await attempt(() => allTasks(p.key));
-      return [p.key, result.ok ? result.value : []] as const;
-    }),
-  );
+  // Two independent reads, started together.
+  const [study, perProject] = await Promise.all([
+    studySnapshot(),
+    Promise.all(
+      PROJECTS.map(async (p) => {
+        const result = await attempt(() => allTasks(p.key));
+        return [p.key, result.ok ? result.value : []] as const;
+      }),
+    ),
+  ]);
   return { tasks: new Map(perProject), study };
 }
 
