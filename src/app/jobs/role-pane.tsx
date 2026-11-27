@@ -9,7 +9,7 @@ import { shortDate } from "@/lib/dates/week";
 import { BANDS, type RequirementView, type SkillStatus } from "@/lib/jobs/match";
 import type { RoleView } from "@/lib/jobs/load";
 import { LEVELS } from "@/lib/jobs/skills";
-import { editRoleDetails, setTracking } from "./actions";
+import { editRoleDetails, readRoleAdvert, setTracking } from "./actions";
 
 const INTEREST = [
   { value: 0, label: "Not for me" },
@@ -99,6 +99,33 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Reads the advert of a role that has only a link, with its requirements, when the owner asks. */
+function ReadAdvertButton({ gid }: { gid: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      aria-busy={pending}
+      className="btn-ghost px-4 py-1.5 text-sm"
+      onClick={() =>
+        start(async () => {
+          const result = await readRoleAdvert(gid);
+          if (result.error) return toast(result.error, { tone: "error" });
+          const found = result.found ?? 0;
+          toast(
+            found
+              ? `Read the advert: ${found} ${found === 1 ? "requirement" : "requirements"}${result.readBy === "claude" ? ", read by Claude" : ""}.`
+              : "Read the advert. Nothing in it is on your skill list.",
+          );
+        })
+      }
+    >
+      {pending ? "Reading the advert…" : "Read the advert"}
+    </button>
   );
 }
 
@@ -355,18 +382,29 @@ export function RolePane({
         <Requirements
           title="Requires"
           note={
-            unstated
-              ? "This advert does not separate requirements from duties, so these are read from what it says the job involves."
-              : undefined
+            role.details.readBy === "claude"
+              ? "Claude read these from the advert's own words, because the rules couldn't. Each quote is the advert's."
+              : unstated
+                ? "This advert does not separate requirements from duties, so these are read from what it says the job involves."
+                : undefined
           }
           items={role.fit.must}
         />
         <Requirements title="Also wanted, or part of the job" items={role.fit.soft} />
-        {!role.has_body && (
-          <p className="text-sm text-body">
-            The advert text is not on file. Open the advert, or add it again by hand with its text, to compare it.
-          </p>
-        )}
+        {!role.has_body &&
+          (role.url ? (
+            <div className="space-y-2 rounded-xl bg-white/5 p-3">
+              <p className="text-sm text-body">
+                The advert text is not on file yet, so this role can&apos;t be compared. The portal can read it from its
+                link.
+              </p>
+              <ReadAdvertButton gid={role.gid} />
+            </div>
+          ) : (
+            <p className="text-sm text-body">
+              The advert text is not on file. Add it again by hand with its text to compare it.
+            </p>
+          ))}
 
         {events.length > 0 && (
           <section>

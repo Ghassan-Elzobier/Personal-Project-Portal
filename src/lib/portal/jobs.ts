@@ -2,15 +2,17 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { askClaude, claudeReady } from "../ai/claude";
 import { AiError, aiProblem } from "../ai/messages";
-import { timeZone } from "../config/env";
+import { jobPagesTestOrigin, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn, isDay } from "../dates/week";
 import { advertAsk, readAdvertAnswer, type AdvertReading } from "../jobs/ai-read";
+import { CLAUDE_READ_VERSION, needsClaude, readRequirementsAnswer, requirementsAsk } from "../jobs/ai-requirements";
+import { boardOf, careersAsk, careersJobs, pageLinks, readCareersAnswer } from "../jobs/careers-read";
 import { familyOf, locationTier } from "../jobs/classify";
-import { advertText, EXTRACT_VERSION, seniorityOf } from "../jobs/extract";
-import { FEED_KINDS, parseBoardLink, readFeed } from "../jobs/feeds";
+import { advertText, EXTRACT_VERSION, seniorityOf, type Requirement } from "../jobs/extract";
+import { FEED_KINDS, parseBoardLink, readFeed, type FeedRead } from "../jobs/feeds";
 import { followedNames, readAdvert, toPosting } from "../jobs/ingest";
-import { fetchJobPage, PageError, pageText } from "../jobs/job-page";
+import { fetchJobPage, PageError, pageText, type PageReason } from "../jobs/job-page";
 import { applyBy } from "../jobs/next-step";
 import { postingData, type PostingData } from "../jobs/posting-data";
 import { skillByKey } from "../jobs/skills";
@@ -46,11 +48,60 @@ export function refreshJobs(): Promise<RefreshResult> {
   return running;
 }
 
+/** What the row of a careers page says when the portal could not read it this time. */
+const CAREERS_PROBLEM: Partial<Record<PageReason, string>> = {
+  browser: "This page builds itself in the browser, so the portal can't read it. Check it by hand.",
+  barred: "This site's terms don't allow reading it automatically. Check it by hand.",
+  refused: "This site wouldn't let the portal read the page. Check it by hand.",
+  gone: "This page has gone. Follow the employer's new careers page.",
+};
+
+/**
+ * A careers page on the hand list, read as a feed (careers-read.ts): through the job board
+ * it is built on when it has one, which is free, and otherwise by Claude. A read that
+ * fails closes nothing and leaves the page to be checked by hand, with the reason.
+ */
+async function readCareersPage(source: store.JobSource): Promise<FeedRead> {
+  const failed = (error: string): FeedRead => ({ ok: false, error, seen: null, jobs: [] });
+  try {
+    const page = await fetchJobPage(source.careers_url ?? "", fetch, undefined, jobPagesTestOrigin());
+    const board = boardOf(page.html, page.url);
+    if (board) {
+      const known = board.kind === "greenhouse" ? new Set(await store.knownIds(source.gid)) : new Set<string>();
+      const read = await readFeed({ ...board, name: source.name }, known);
+      return read.ok ? read : failed(`Its job board didn't answer: ${read.error ?? "try again later."}`);
+    }
+    if (!claudeReady()) return failed("Reading this page needs the Claude API key, so check it by hand.");
+    const links = pageLinks(page.html, page.url);
+    const answer = readCareersAnswer(await askClaude(careersAsk(pageText(page.html), links)), links);
+    if (!answer) return failed("Claude couldn't read this page this time. Check it by hand if it keeps failing.");
+    if (!answer.isCareersPage) return failed("This page doesn't list roles. Follow the employer's jobs page instead.");
+    const jobs = careersJobs(answer.roles, source.name);
+    return { ok: true, error: null, seen: jobs.map((j) => j.id), jobs };
+  } catch (err) {
+    if (err instanceof PageError)
+      return failed(
+        CAREERS_PROBLEM[err.reason] ?? "Couldn't read this page this time. Check it by hand if it keeps failing.",
+      );
+    if (err instanceof AiError) {
+      console.error("claude", err.code);
+      return failed(
+        err.code === "NO_CREDIT"
+          ? "This month's Claude API credit is spent, so check this page by hand until it renews."
+          : "Claude couldn't read this page this time. Check it by hand if it keeps failing.",
+      );
+    }
+    return failed("Couldn't read this page this time. Check it by hand if it keeps failing.");
+  }
+}
+
 async function runRefresh(): Promise<RefreshResult> {
   try {
     const all = await store.listSources();
     const followed = followedNames(all);
-    const sources = all.filter((s) => s.active && (FEED_KINDS as readonly string[]).includes(s.kind));
+    const sources = all.filter(
+      (s) => s.active && ((FEED_KINDS as readonly string[]).includes(s.kind) || (s.kind === "link" && s.careers_url)),
+    );
     let added = 0;
     let closed = 0;
     const failed: string[] = [];
@@ -58,22 +109,137 @@ async function runRefresh(): Promise<RefreshResult> {
     const queue = [...sources];
     const worker = async () => {
       for (let source = queue.shift(); source; source = queue.shift()) {
+        const page = source.kind === "link";
         const known = source.kind === "greenhouse" ? new Set(await store.knownIds(source.gid)) : new Set<string>();
-        const read = await readFeed(source, known);
+        const read = page ? await readCareersPage(source) : await readFeed(source, known);
         const postings = read.jobs.flatMap((job) => toPosting(job, source!.kind, followed) ?? []);
         const saved = await store.saveRead(source.gid, read, postings);
         added += saved.added;
         closed += saved.closed;
-        if (!read.ok) failed.push(source.name);
+        // A careers page that can't be read says why on its own row, so it isn't news each time.
+        if (!read.ok && !page) failed.push(source.name);
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
 
     await rereadOldAdverts();
+    await readWeakAdverts();
     refreshPages();
     return { read: sources.length, added, closed, failed };
   } catch (err) {
     return fail(err, "Could not read the feeds.");
+  }
+}
+
+/** How many weak adverts from the feeds each check hands to Claude; the rest wait for the next. */
+const CLAUDE_READS_PER_CHECK = 8;
+
+/** Claude's checked reading of an advert's requirements, or null if it couldn't give one. Throws AiError. */
+async function claudeRequirements(body: string, rules: Requirement[]): Promise<Requirement[] | null> {
+  return readRequirementsAnswer(await askClaude(requirementsAsk(body)), body, rules);
+}
+
+/**
+ * An advert read by the rules, and by Claude as well where the rules can't judge it
+ * (ai-requirements.ts). Without the key, or with the credit spent, the rules' reading stands.
+ */
+async function readWithRequirements(title: string, body: string): Promise<ReturnType<typeof readAdvert>> {
+  const read = readAdvert(title, body);
+  if (!claudeReady() || !needsClaude(read.requirements, body.length)) return read;
+  try {
+    const requirements = await claudeRequirements(body, read.requirements);
+    if (!requirements) return read;
+    // Kept even when it finds nothing on the list, so the advert isn't asked about again.
+    return {
+      ...read,
+      requirements,
+      details: { ...read.details, readBy: "claude" },
+      extract_version: CLAUDE_READ_VERSION,
+    };
+  } catch (err) {
+    if (!(err instanceof AiError)) throw err;
+    console.error("claude", err.code);
+    return read;
+  }
+}
+
+/** The feeds' adverts the rules read too weakly to judge get Claude's reading, a few each check. */
+async function readWeakAdverts() {
+  if (!claudeReady()) return;
+  const weak = await store.weakAdverts(CLAUDE_READS_PER_CHECK);
+  let stop = false;
+  const queue = [...weak];
+  const worker = async () => {
+    for (let row = queue.shift(); row && !stop; row = queue.shift()) {
+      try {
+        const requirements = await claudeRequirements(row.body, row.requirements);
+        if (!requirements) continue;
+        await store.setExtractions([
+          {
+            gid: row.gid,
+            family: row.family,
+            seniority: row.seniority,
+            requirements,
+            details: { ...row.details, readBy: "claude" },
+            extract_version: CLAUDE_READ_VERSION,
+          },
+        ]);
+      } catch (err) {
+        if (!(err instanceof AiError)) throw err;
+        console.error("claude", err.code);
+        // A spent credit or a refused key won't change before the next check.
+        if (err.code === "NO_CREDIT" || err.code === "BAD_KEY") stop = true;
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
+
+/**
+ * The advert of a role that arrived with only a link (a careers page lists no text),
+ * read when the owner asks from its pane: the owner chose the link, as if they had
+ * pasted it. Its requirements are read as for any advert, by Claude where the rules can't.
+ */
+export async function readRoleAdvert(gid: string): Promise<OpResult & { found?: number; readBy?: "claude" }> {
+  if (!/^\d{1,18}$/.test(gid)) return { error: "That is not a role." };
+  try {
+    const role = (await store.listPostings()).find((r) => r.gid === gid);
+    if (!role) return { error: "That role no longer exists." };
+    if (!role.url) return { error: "This role has no link to read its advert from." };
+    const page = await fetchJobPage(role.url, fetch, undefined, jobPagesTestOrigin());
+    const data = postingData(page.html);
+    let body = data && data.text.length >= ENOUGH_ADVERT ? data.text : pageText(page.html);
+    if (body !== data?.text && claudeReady()) {
+      // A page with no job data of its own: Claude finds the advert among its lines.
+      try {
+        const { ask, lines } = advertAsk(body, dateIn(now(), timeZone()));
+        const reading = readAdvertAnswer(await askClaude(ask), lines);
+        if (reading?.text) body = reading.text;
+      } catch (err) {
+        if (!(err instanceof AiError)) throw err;
+        console.error("claude", err.code);
+      }
+    }
+    const read = await readWithRequirements(role.title, body);
+    await store.setAdvert(gid, {
+      body,
+      family: role.source_kind === "rse" && read.family === "software" ? "research" : read.family,
+      seniority: read.seniority,
+      requirements: read.requirements,
+      details: read.details,
+      extract_version: read.extract_version,
+    });
+    refreshPages();
+    return { found: read.requirements.length, readBy: read.details.readBy };
+  } catch (err) {
+    if (err instanceof PageError)
+      return {
+        error:
+          err.reason === "gone"
+            ? err.message
+            : `${err.message.replace(/ Copy the advert's text and paste it here instead\.$/, "")} Open the advert to read it yourself.`,
+      };
+    return fail(err, "Could not read that advert.");
   }
 }
 
@@ -189,7 +355,7 @@ export async function addRoleByHand(input: {
   const closesOn = input.closesOn?.trim() ?? "";
   if (closesOn && !isDay(closesOn)) return { error: "Pick a valid closing date." };
   const body = advertText(input.text);
-  const read = readAdvert(title, body);
+  const read = await readWithRequirements(title, body);
   const step = closesOn ? applyBy(closesOn, dateIn(now(), timeZone())) : null;
   try {
     const gid = await store.addByHand(
@@ -266,7 +432,7 @@ export async function addRoleFromAdvert(input: { source: string }): Promise<Adve
   let text: string;
   try {
     if (isLink) {
-      const page = await fetchJobPage(source);
+      const page = await fetchJobPage(source, fetch, undefined, jobPagesTestOrigin());
       data = postingData(page.html);
       text = data && data.text.length >= ENOUGH_ADVERT ? data.text : pageText(page.html);
     } else {

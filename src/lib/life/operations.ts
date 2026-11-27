@@ -13,6 +13,7 @@ import {
   cookScale,
   sizeCooks,
   freezeCount,
+  withDoneShops,
   type Placement,
   type ShopVia,
   type WeekMode,
@@ -225,17 +226,11 @@ export function planWeek(
     if (!plan.cooks.length && !plan.fresh.length)
       fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
     const m: WeekMode = plan.mode ?? "batch";
-    // Shops already done stay done: what they brought is in the kitchen.
-    const done = (existing?.trips ?? []).filter((t) => t.doneOn);
     await savePlan(s, {
       ...plan,
       shop: m === "batch" ? existing?.shop : undefined,
-      trips:
-        m === "fresh"
-          ? [...done, ...(plan.trips ?? []).filter((t) => !done.some((d) => d.date === t.date))].sort(
-              (a, b) => a.date.localeCompare(b.date) || a.start - b.start,
-            )
-          : undefined,
+      // Shops already done stay done, and the new plan's later ones buy what they didn't.
+      trips: m === "fresh" ? withDoneShops(existing?.trips, plan.trips) : undefined,
       createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today,
       ...(auto ? { auto: true } : {}),
     });
@@ -379,13 +374,19 @@ export type MealEstimate = { kcal: number; protein: number | null };
  * `swapped`, something else eaten in its place. A swapped meal takes nothing from the
  * fridge, freezer or cupboard, and counts as food eaten: an estimate from the planned
  * meal and `size` (other-meal.ts). Null clears the log.
+ *
+ * `from` is a batch in the fridge or freezer the meal was eaten from in place of the
+ * plan (leftovers of another dish): its portion comes out of that batch and the log
+ * names its dish, and the planned meal's cook is not logged, nor its food used.
  */
 export function logMeal(
   day: string,
   slot: Slot,
   status: "eaten" | "skipped" | "swapped" | null,
   size: OtherSize = "about",
+  from?: string,
 ): Promise<Result<{ estimate?: MealEstimate; cooked?: CookedNote[]; planningNext?: boolean }>> {
+  if (from !== undefined) return eatLeftovers(day, slot, status, from);
   return run(async () => {
     let s = await state();
     let p = s.placements.find((x) => x.date === day && x.slot === slot);
@@ -403,8 +404,10 @@ export function logMeal(
       p = s.placements.find((x) => x.date === day && x.slot === slot);
     }
     const m = p ? placedMacros(p) : null;
-    const before = s.meals.find((x) => x.day === day && x.slot === slot)?.status;
-    await eatFromCupboard(s, p, before === "eaten", status === "eaten");
+    const was = s.meals.find((x) => x.day === day && x.slot === slot);
+    // Leftovers eaten in its place (a batch the meal isn't from) used none of its food.
+    const made = was?.status === "eaten" && (!was.batchGid || was.batchGid === p?.batchGid);
+    await eatFromCupboard(s, p, made, status === "eaten");
     if (status === "swapped") {
       // No recipe and no batch: the planned portion stays where it is, to be offered again.
       // With no meal planned for the slot, its share of the day's targets stands in.
@@ -425,6 +428,42 @@ export function logMeal(
       protein: status === "eaten" ? (m?.protein ?? null) : null,
     });
     return cooked.length ? { cooked, ...(planningNext ? { planningNext } : {}) } : {};
+  });
+}
+
+/** A meal eaten from a cooked batch in place of the plan (see `logMeal`). */
+function eatLeftovers(day: string, slot: Slot, status: string | null, gid: string): Promise<Result> {
+  return run(async () => {
+    if (status !== "eaten") fail("Only a meal eaten comes from the fridge or freezer.");
+    const s = await state();
+    const b = s.batches.find((x) => x.gid === gid);
+    const r = b ? recipe(b.recipe) : undefined;
+    if (!b || !r) fail("That food isn't in the kitchen any more. Reload to see what is.");
+    const before = s.meals.find((x) => x.day === day && x.slot === slot);
+    // A portion already taken from this batch for this meal comes back as the log changes.
+    if (b!.remaining < 1 && before?.batchGid !== b!.gid) fail(`There's no ${r!.name} left.`);
+    const p = s.placements.find((x) => x.date === day && x.slot === slot);
+    // The planned meal wasn't made, so a breakfast or fresh dinner already ticked puts its food back.
+    await eatFromCupboard(s, p, before?.status === "eaten" && !before.batchGid, false);
+    const m = placedMacros({
+      id: `${day}:${slot}`,
+      date: day,
+      slot,
+      time: 0,
+      recipe: r!.key,
+      source: "stock",
+      scale: b!.scale,
+    });
+    await store.logMeal({
+      day,
+      slot,
+      status: "eaten",
+      recipe: r!.key,
+      batch: b!.gid,
+      kcal: m?.kcal ?? null,
+      protein: m?.protein ?? null,
+    });
+    return {};
   });
 }
 

@@ -201,3 +201,44 @@ test("a page with too little text to be an advert is one to paste instead", () =
     /builds itself in the browser/,
   );
 });
+
+test("only the suite's own local origin may be fetched though it isn't public, and only when given", async () => {
+  const origin = "http://localhost:3198";
+  assert.equal(checkLink(`${origin}/careers/x`, origin).href, `${origin}/careers/x`);
+  assert.throws(() => checkLink(`${origin}/careers/x`), PageError);
+  assert.throws(() => checkLink("http://localhost:3199/careers/x", origin), PageError);
+  assert.throws(() => checkLink("http://169.254.169.254/latest", "http://169.254.169.254"), PageError);
+  // A test origin that isn't on this machine opens nothing.
+  assert.throws(() => checkLink("http://jobs.example.org:8080/", "http://jobs.example.org:8080"), PageError);
+  const { fetcher, calls } = fakeWeb({ [`${origin}/careers/x`]: { body: ADVERT } });
+  const asked: string[] = [];
+  const lookup: Lookup = async (host) => {
+    asked.push(host);
+    return ["127.0.0.1"];
+  };
+  const page = await fetchJobPage(`${origin}/careers/x`, fetcher, lookup, origin);
+  assert.match(page.html, /Graphics Engineer/);
+  assert.deepEqual(asked, []);
+  assert.equal(calls.length, 1);
+});
+
+test("each failure a caller words its own way carries its reason", async () => {
+  const reasonOf = async (run: () => Promise<unknown> | unknown) => {
+    try {
+      await run();
+    } catch (e) {
+      assert.ok(e instanceof PageError);
+      return e.reason;
+    }
+    assert.fail("expected it to throw");
+  };
+  const { fetcher, lookup } = fakeWeb({
+    "https://jobs.example.org/closed": { status: 404 },
+    "https://jobs.example.org/walled": { status: 403 },
+  });
+  assert.equal(await reasonOf(() => checkLink("https://www.linkedin.com/jobs")), "barred");
+  assert.equal(await reasonOf(() => fetchJobPage("https://jobs.example.org/closed", fetcher, lookup)), "gone");
+  assert.equal(await reasonOf(() => fetchJobPage("https://jobs.example.org/walled", fetcher, lookup)), "refused");
+  assert.equal(await reasonOf(() => pageText("<html><body><div id=root></div></body></html>")), "browser");
+  assert.equal(await reasonOf(() => checkLink("not a link")), "other");
+});

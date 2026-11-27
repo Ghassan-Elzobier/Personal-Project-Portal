@@ -221,7 +221,11 @@ With an API key, **Add from the advert** on Jobs (Sources, then Add a role by ha
 asks Claude to read an advert: it finds the advert on the page and fills in the
 role's title, employer, place, pay and closing date. Without one, the button still
 works for pages that publish their own job details, and puts the advert text in the
-form for anything else.
+form for anything else. The key also lets each check read the careers pages on
+Jobs' "Check by hand" list and bring in their roles; a page built on a job board is
+read through that board, with or without the key. And it lets Claude read the
+requirements of adverts the rules can't (prose with no headings), a few at each check,
+and of a role's advert when you tap **Read the advert** in its pane.
 
 The key runs on the Claude Max plan's monthly API credit ($100), not on the
 subscription's usage. When the credit is spent, requests stop until it renews;
@@ -235,9 +239,20 @@ nothing is billed.
    **Production** only, marked **sensitive**. Then redeploy. It never goes in
    GitHub, the database or the browser.
 
+On Study, **Draft answers** on the recall queue asks Claude to answer the due cards
+that have nothing to check against (the book plans' cards and those added by hand),
+up to 20 a tap, from the questions alone. Each draft says it is Claude's and waits
+behind **Show answer**, as the tutor's answers do; a card that already has an answer
+keeps it. Claude Sonnet 5.5 writes them, for under half a penny a card.
+
 Reading one advert costs well under a penny with Claude Haiku 5.5. The Console's
 **Cost** page shows what the portal has spent. If the key might have leaked,
 delete it in the Console (that cuts it off at once) and add a new one.
+
+On the Sunday update (/week), **Write up from my notes** asks Claude, on Haiku 5.5,
+to write a project's "Done this week" line from that week's session notes, in the
+text you are editing. Every other line stays as it is, the line's evidence links are
+kept, and nothing is posted until you post it.
 
 ## Local development
 
