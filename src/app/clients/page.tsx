@@ -212,7 +212,7 @@ function MilestoneItem({ m, today, next }: { m: Milestone; today: string; next: 
     <li className="flex flex-wrap items-start justify-between gap-3 py-3">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 font-medium wrap-break-word">
-          {m.title}
+          <span>{m.title}</span>
           {next && <Chip tone="aqua">Next</Chip>}
         </p>
         <p className="flex flex-wrap gap-x-3 text-xs text-muted">
