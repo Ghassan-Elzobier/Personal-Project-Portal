@@ -162,7 +162,7 @@ export function YourDay({ date, day, now, error }: { date: string; day: Day; now
         </ol>
       )}
       {day.carried.length > 0 && (
-        // Study missed on an earlier day this week and still owed: a new time today, in one tap.
+        // Shops, cooks, a gym day and study missed earlier this week and still owed: each in one tap.
         <section aria-labelledby="carried-title" className="space-y-1 border-t border-white/5 pt-3">
           <h3 id="carried-title" className="px-2 text-xs font-semibold text-muted">
             Missed earlier this week
@@ -268,6 +268,14 @@ function Row({
             {i.taskGid && (
               <Link href={`/log?task=${i.taskGid}`} className="text-muted underline underline-offset-2">
                 Log it if you did study
+              </Link>
+            )}
+            {i.kind === "gym" && (
+              <Link
+                href={i.href}
+                className="rounded-full bg-sand/15 px-3 py-1.5 font-semibold text-sand ring-1 ring-sand/30"
+              >
+                Train today
               </Link>
             )}
             {i.kind === "shop" && (

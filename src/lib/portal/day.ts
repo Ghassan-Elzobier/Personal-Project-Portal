@@ -6,7 +6,10 @@
 
 import { MORNING, nextFreeSlot, type Taken } from "../calendar/free-slot.ts";
 import { LIFE_KINDS, type LifeKind } from "../calendar/life-blocks.ts";
-import { addDays, clock } from "../dates/week.ts";
+import { addDays, clock, weekdayIndex } from "../dates/week.ts";
+import { plan as gymPlan } from "../life/gym/duration.ts";
+import { workout } from "../life/gym/program.ts";
+import { consistency, nextWorkout } from "../life/gym/progress.ts";
 import type { Slot } from "../life/nutrition.ts";
 import type { Cook, Trip } from "../life/planner.ts";
 import { recipe } from "../life/recipes.ts";
@@ -131,16 +134,19 @@ export function yourDay(
     for (const r of routine) if (r.kind !== "defrost" && r.kind !== "freeze") items.push(fromRoutine(r));
   }
   // A missed shop comes first among the earlier misses: the week's food waits on it.
-  // Then a missed cook: the week's meals wait on that. Study shares what room is left.
+  // Then a missed cook: the week's meals wait on that. Then a missed gym day, once.
+  // Study shares what room is left.
   if (s) {
     const lastDay = kept?.lastDay ?? blocks?.reduce((d, b) => (b.date > d ? b.date : d), date) ?? date;
     const room = blocks ? { taken, lastDay } : null;
     const shops = missedShops(items, s, date, now, room);
     const cooks = missedCooks(items, s, date, now, room);
-    // Cooks and study share the few places Today keeps; the oldest study gives way.
-    const cut = Math.min(carried.length, Math.max(0, cooks.length + carried.length - CARRIED_MAX));
+    const gym = missedGym(items, s, date, now);
+    // Cooks, the gym and study share the few places Today keeps; the oldest study gives way.
+    const life = cooks.length + gym.length;
+    const cut = Math.min(carried.length, Math.max(0, life + carried.length - CARRIED_MAX));
     carriedMore += cut;
-    carried = [...shops, ...cooks, ...carried.slice(cut)];
+    carried = [...shops, ...cooks, ...gym, ...carried.slice(cut)];
   }
   // Life's reminders are not on the Schedule: they take no time.
   for (const r of routine) if (r.kind === "defrost" || r.kind === "freeze") items.push(fromRoutine(r));
@@ -433,6 +439,53 @@ function missedCooks(items: DayItem[], s: LifeState, date: string, now: number, 
         date: x.date,
       };
     });
+}
+
+/**
+ * The gym, missed: on a gym day, once its time has ended with no session started that
+ * day, it reads Missed where it stands. On a rest day with no session yet, the latest
+ * gym day earlier this week (Monday to Sunday) that went untrained is carried to Today,
+ * while the week is still short of the sessions its gym days so far planned. At most one,
+ * and never on a gym day, so a missed session is offered once and never piles up or
+ * lands beside the next one. It has no move (no gym time is saved): its link opens the
+ * gym page, which gives the next workout in the order.
+ */
+function missedGym(items: DayItem[], s: LifeState, date: string, now: number): DayItem[] {
+  const trained = (d: string) => s.sessions.some((x) => x.day === d);
+  if (trained(date)) return [];
+  const days = s.profile.gym.days;
+  if (days.includes(weekdayIndex(date))) {
+    for (const item of items) if (item.kind === "gym" && !item.done && item.end <= now) item.missed = true;
+    return [];
+  }
+  const monday = addDays(date, -weekdayIndex(date));
+  const earlier: string[] = [];
+  for (let d = monday; d < date; d = addDays(d, 1)) if (days.includes(weekdayIndex(d))) earlier.push(d);
+  const untrained = earlier.filter((d) => !trained(d));
+  // Sessions this week so far, on any day: one on a rest day made a missed day up.
+  const done = consistency(s.sessions, days, monday).done;
+  if (!untrained.length || done >= earlier.length) return [];
+  const day = untrained[untrained.length - 1];
+  const key = nextWorkout(s.sessions.filter((x) => x.day < date));
+  const w = workout(key);
+  const minutes = w ? gymPlan(w, s.profile.gym.minutes, s.profile.gym.missing).minutes : s.profile.gym.minutes;
+  const start = s.profile.gym.start;
+  return [
+    {
+      key: `gym-${day}`,
+      start,
+      end: start + s.profile.gym.minutes,
+      kind: "gym",
+      title: `Gym: ${w ? `${w.key}, ${w.name}` : key}`,
+      // Its day stands where the time would: the detail keeps the time it had.
+      detail: `${clock(start)} · ${minutes} minutes`,
+      done: false,
+      skipped: false,
+      href: "/life/gym",
+      missed: true,
+      date: day,
+    },
+  ];
 }
 
 function fromRoutine(r: RoutineItem): DayItem {
