@@ -120,6 +120,34 @@ export const setTracking = (gid: string, patch: Record<string, unknown>) =>
   rpc<void>("tracker_set_job_tracking", { p_posting: gid, p_patch: patch });
 export const addByHand = (posting: Record<string, unknown>, tracking: Record<string, unknown>) =>
   rpc<string>("tracker_add_job_by_hand", { p_posting: posting, p_tracking: tracking });
+/** Open adverts the rules read too weakly to judge, newest first, for Claude (ai-requirements.ts). */
+export const weakAdverts = (limit: number) =>
+  rpc<
+    {
+      gid: string;
+      title: string;
+      family: string;
+      seniority: Seniority;
+      body: string;
+      requirements: Requirement[];
+      details: Details;
+    }[]
+  >("tracker_job_weak_adverts", { p_limit: limit });
+/** Keeps the advert of a role that arrived without one, with what was read from it. */
+export const setAdvert = (
+  gid: string,
+  advert: {
+    body: string;
+    family: string;
+    seniority: string;
+    requirements: Requirement[];
+    details: Details;
+    extract_version: number;
+  },
+) => rpc<void>("tracker_set_job_advert", { p_posting: gid, p_advert: advert });
+/** Changes the facts of a role added by hand; the database refuses a feed's roles. */
+export const editDetails = (gid: string, details: Record<string, unknown>) =>
+  rpc<void>("tracker_edit_job_details", { p_posting: gid, p_details: details });
 
 export const listEvidence = () => rpc<StoredEvidence[]>("tracker_skill_evidence");
 export const addEvidence = (skill: string, level: number, note: string, url: string | null) =>

@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
+import { ErrorNote } from "@/components/ui";
+import { splitDraft } from "@/lib/study/draft-answers";
 import { gapLabel, nextReview, type Rating } from "@/lib/study/review";
-import { rateReview } from "./actions";
+import { draftReviewAnswers, rateReview } from "./actions";
 
 export type DueReview = {
   gid: string;
   prompt: string;
-  /** What to check the recall against, in the tutor's words. Cards from the book plans have none. */
+  /**
+   * What to check the recall against: the tutor's words, or Claude's draft (it starts
+   * "Claude's draft: "). Cards from the book plans and those added by hand start with none.
+   */
   answer: string | null;
   kind: string;
   step: number;
@@ -23,14 +28,21 @@ const SHOWN = 6;
 /** A missed card back for another try, counted so each try starts with its answer hidden again. */
 type Again = { review: DueReview; round: number };
 
-/** What is due across every book, mixed together rather than one book at a time. */
-export function ReviewQueue({ due, today }: { due: DueReview[]; today: string }) {
+/**
+ * What is due across every book, mixed together rather than one book at a time.
+ * `canDraft`: the portal can ask Claude (src/lib/ai), so cards with no answer can get a draft.
+ */
+export function ReviewQueue({ due, today, canDraft = false }: { due: DueReview[]; today: string; canDraft?: boolean }) {
   const [pending, start] = useTransition();
   const [shown, remove] = useOptimistic(due, (list, gid: string) => list.filter((r) => r.gid !== gid));
   // Cards missed in this sitting, for one more try from memory after the rest. They have
   // left the due list, so this never copies live props; a reload clears it.
   const [again, setAgain] = useState<Again[]>([]);
   const drop = (gid: string) => setAgain((list) => list.filter((a) => a.review.gid !== gid));
+  // Cards Claude left in this sitting, as it couldn't answer them from the question alone,
+  // so the offer doesn't come back for them until a reload. Ids from the answer, not props.
+  const [left, setLeft] = useState<string[]>([]);
+  const bare = shown.filter((r) => !r.answer && !left.includes(r.gid)).length;
 
   const rate = (review: DueReview, rating: Rating) => {
     // Outside the transition, so the second try shows at once rather than when the save returns.
@@ -70,6 +82,7 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
             Write it on blank paper before looking anything up, then check it and rate yourself honestly.
           </p>
         </div>
+        {canDraft && bare > 0 && <DraftAnswers count={bare} onLeft={(gids) => setLeft((list) => [...list, ...gids])} />}
         <ul className="divide-y divide-white/10">
           {shown.slice(0, SHOWN).map((r) => (
             // Keyed to the card: whether its answer is showing belongs to this card and goes with it.
@@ -80,6 +93,55 @@ export function ReviewQueue({ due, today }: { due: DueReview[]; today: string })
       </section>
       {onceMore}
     </>
+  );
+}
+
+/** What a draft run did, for the toast. */
+function draftedNote(drafted: number, left: number): string {
+  const cards = (n: number) => (n === 1 ? "1 card" : `${n} cards`);
+  if (!drafted && !left) return "Every card due already has an answer.";
+  if (!drafted)
+    return `Claude couldn't answer ${left === 1 ? "it" : "them"} from the question alone, so check against the book.`;
+  const done = `Drafted answers for ${cards(drafted)}. Recall first, then tap Show answer.`;
+  return left ? `${done} Claude left ${cards(left)} it couldn't answer from the question alone.` : done;
+}
+
+/**
+ * Offers Claude's drafts for the due cards that have nothing to check against. A draft
+ * goes behind "Show answer" like the tutor's words, so recalling still comes first.
+ */
+function DraftAnswers({ count, onLeft }: { count: number; onLeft: (gids: string[]) => void }) {
+  const [drafting, start] = useTransition();
+  const [problem, setProblem] = useState<string | null>(null);
+  return (
+    <div className="space-y-3 rounded-xl bg-white/5 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <p className="min-w-0 flex-1 basis-56 text-sm text-body">
+          {count === 1
+            ? "1 card has no answer to check against. Claude can draft one from the question alone."
+            : `${count} cards have no answer to check against. Claude can draft them from the questions alone.`}
+        </p>
+        <button
+          type="button"
+          disabled={drafting}
+          aria-busy={drafting}
+          className="btn-ghost min-h-11 shrink-0 px-4 text-sm"
+          onClick={() =>
+            start(async () => {
+              setProblem(null);
+              const result = await draftReviewAnswers();
+              if (result.error !== undefined) return setProblem(result.error);
+              const gids = result.left ?? [];
+              onLeft(gids);
+              toast(draftedNote(result.drafted ?? 0, gids.length));
+            })
+          }
+        >
+          {drafting ? "Drafting answers…" : "Draft answers"}
+        </button>
+      </div>
+      {problem && <ErrorNote message={problem} />}
+    </div>
   );
 }
 
@@ -141,6 +203,7 @@ function RecallCard(
     if (revealed) answer.current?.focus();
   }, [revealed]);
   const rateable = !r.answer || revealed;
+  const shownAnswer = r.answer ? splitDraft(r.answer) : null;
   // The due list keeps its small buttons; a second try's are a full thumb's height.
   const button = props.again ? "btn-ghost min-h-12 px-4 text-sm" : "btn-ghost px-3 py-1 text-xs";
 
@@ -158,10 +221,12 @@ function RecallCard(
             </a>
           )}
         </p>
-        {r.answer && revealed && (
+        {shownAnswer && revealed && (
           <div ref={answer} tabIndex={-1} className="mt-2 rounded-lg bg-white/5 px-3 py-2">
-            <p className="text-xs text-muted">Answer</p>
-            <p className="text-sm whitespace-pre-line">{r.answer}</p>
+            <p className="text-xs text-muted">
+              {shownAnswer.draft ? "Claude's draft, from the question alone: check it against the book" : "Answer"}
+            </p>
+            <p className="text-sm whitespace-pre-line">{shownAnswer.text}</p>
           </div>
         )}
       </div>

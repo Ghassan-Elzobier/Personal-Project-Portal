@@ -75,6 +75,13 @@ export function addDays(date: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Whether this is a real day written YYYY-MM-DD: Date would roll 30 February over into March. */
+export function isDay(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 /** 0 = Monday ... 6 = Sunday, for a YYYY-MM-DD date. */
 export function weekdayIndex(date: string): number {
   const [y, m, d] = date.split("-").map(Number);

@@ -172,15 +172,32 @@ export function sessionDates(
 }
 
 /**
- * Cook sessions already gone when the week is planned late are replaced by one
- * catch-up session today, so the plan never counts on food nobody cooked.
+ * Cook sessions already gone when the week is planned late (earlier days, and today's
+ * once `now`, minutes after midnight, is past them) are replaced by one catch-up
+ * session: today at the latest of their times while that is still to come, otherwise
+ * tomorrow at that time. So the plan never counts on food nobody cooked, nor puts a
+ * cook at a time already gone. None is added on a day with a session of its own.
  */
-export function catchUp<T extends { date: string; start: number }>(sessions: T[], today: string): T[] {
-  const past = sessions.filter((x) => x.date < today);
+export function catchUp<T extends { date: string; start: number }>(sessions: T[], today: string, now = 0): T[] {
+  const gone = (x: T) => x.date < today || (x.date === today && x.start < now);
+  const past = sessions.filter(gone);
   if (!past.length) return sessions;
-  const future = sessions.filter((x) => x.date >= today);
-  if (future.some((x) => x.date === today)) return future;
-  return [{ ...past[past.length - 1], date: today, start: Math.max(...past.map((x) => x.start)) }, ...future];
+  const future = sessions.filter((x) => !gone(x));
+  const latest = Math.max(...past.map((x) => x.start));
+  const day = latest >= now ? today : addDays(today, 1);
+  if (future.some((x) => x.date === day)) return future;
+  return [{ ...past[past.length - 1], date: day, start: latest }, ...future];
+}
+
+/** A week's sessions from the routine as a week planned on `today` at `now` can still hold them. */
+function sessionsLeft<T extends { date: string; start: number }>(
+  start: string,
+  sessions: T[],
+  today: string,
+  now: number,
+) {
+  const end = addDays(start, 7);
+  return catchUp(sessions, today, now).filter((x) => x.date < end);
 }
 
 /**
@@ -201,16 +218,17 @@ export function suggestWeek(
   mode: WeekMode = "batch",
   kitchen?: Kitchen & { cheaper?: boolean },
   variety?: Variety,
+  now = 0,
 ): WeekPlan {
   const plan =
     mode === "fresh"
-      ? suggestFreshWeek(profile, start, ratings, lastHad, spare, today, variety)
-      : suggestBatchWeek(profile, start, ratings, lastHad, spare, today, variety);
+      ? suggestFreshWeek(profile, start, ratings, lastHad, spare, today, variety, now)
+      : suggestBatchWeek(profile, start, ratings, lastHad, spare, today, variety, now);
   if (!kitchen) return plan;
   const ranked = rank(profile, "main", ratings, lastHad, spare, today, variety).filter(
     (r) => !r.recipe.tags.includes("weekend"),
   );
-  return combine(plan, profile, ranked, today, kitchen);
+  return combine(plan, profile, ranked, today, kitchen, now);
 }
 
 /** Days of the meal week from `start` still to come, today included: all seven before it starts. */
@@ -332,7 +350,7 @@ export function suggestPlan(
 ): WeekPlan {
   return isShortWeek(start, today)
     ? suggestShortWeek(profile, start, ratings, lastHad, spare, today, now, variety)
-    : suggestWeek(profile, start, ratings, lastHad, spare, today, mode, kitchen, variety);
+    : suggestWeek(profile, start, ratings, lastHad, spare, today, mode, kitchen, variety, now);
 }
 
 /** The menu's picks replaced by the set planCombo chooses, in the same sessions. */
@@ -342,12 +360,15 @@ function combine(
   ranked: Ranked[],
   today: string,
   kitchen: Kitchen & { cheaper?: boolean },
+  now = 0,
 ): WeekPlan {
   const isMain = (c: Cook) => recipe(c.recipe)?.meal === "main";
   const mains = plan.cooks.filter(isMain);
-  const times = catchUp(
+  const times = sessionsLeft(
+    plan.start,
     sessionDates(plan.start, plan.mode === "fresh" ? profile.routine.fresh.cooks : profile.routine.cooks),
     today,
+    now,
   );
   const sessions: ComboSession[] = [];
   const greedy: Recipe[][] = [];
@@ -380,10 +401,11 @@ function suggestBatchWeek(
   spare: Record<string, number>,
   today: string,
   variety?: Variety,
+  now = 0,
 ): WeekPlan {
   const allMains = rank(profile, "main", ratings, lastHad, spare, today, variety);
   const mains = allMains.filter((r) => !r.recipe.tags.includes("weekend"));
-  const sessions = catchUp(sessionDates(start, profile.routine.cooks), today);
+  const sessions = sessionsLeft(start, sessionDates(start, profile.routine.cooks), today, now);
   // Each session cooks for the days until the next one. Two mains for that, but
   // one when it only covers a day or two (a week planned late), so a catch-up
   // cook is one pan, not the whole week's cooking on one evening.
@@ -445,11 +467,12 @@ function suggestFreshWeek(
   spare: Record<string, number>,
   today: string,
   variety?: Variety,
+  now = 0,
 ): WeekPlan {
   const until = lastFeedsUntil(start, "fresh", profile.routine);
   const allMains = rank(profile, "main", ratings, lastHad, spare, today, variety);
   const ranked = allMains.filter((r) => !r.recipe.tags.includes("weekend"));
-  const sessions = catchUp(sessionDates(start, profile.routine.fresh.cooks), today);
+  const sessions = sessionsLeft(start, sessionDates(start, profile.routine.fresh.cooks), today, now);
   const picks: Recipe[] = [];
   const cooks: Cook[] = [];
   sessions.forEach((x, i) => {
@@ -478,11 +501,12 @@ function suggestFreshWeek(
   const trips: Trip[] = firstShopFirst(
     start,
     today,
-    catchUp(sessionDates(start, profile.routine.fresh.trips), today).map((t) => ({
+    sessionsLeft(start, sessionDates(start, profile.routine.fresh.trips), today, now).map((t) => ({
       id: `trip-${t.date}`,
       date: t.date,
       start: t.start,
     })),
+    now,
   );
   return {
     start,

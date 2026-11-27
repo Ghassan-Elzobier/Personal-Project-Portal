@@ -21,3 +21,7 @@ paths:
   after changing the commit, run `npm run lab:anchors`.
 - Neither of the owner's GPUs runs CUDA: kernels run on LeetGPU or Colab, and
   timings come from Vulkan ports on the RX 5700 XT and the Iris Xe.
+- A recall card's answer may be Claude's draft (`src/lib/study/draft-answers.ts`):
+  written from the question alone, never from the book's text, saved only on a card
+  with no answer, and starting `Claude's draft: ` so the card says whose it is. The
+  owner still recalls first and rates; Claude never rates a card.

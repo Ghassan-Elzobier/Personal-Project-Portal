@@ -12,6 +12,7 @@ import { projectGid, timeZone, usesAsana, weeklyHoursTarget } from "../config/en
 import { studyPace, studySnapshot } from "../tasks/native";
 import { type ProjectKey } from "../config/projects";
 import { sessionHours, statusDraft, type StatusType } from "../tasks/session-log";
+import { sessionNotes } from "../tasks/weekly-polish";
 import { weekTarget, type SavedPace } from "../study/pace";
 import { addDays, dateIn, weekOf, type Week } from "../dates/week";
 import { now } from "@/lib/dates/clock";
@@ -159,6 +160,8 @@ export type WeekSummary = {
   posted: AsanaStatusUpdate | null;
   draft: string;
   suggestedStatus: StatusType;
+  /** Each session logged this week with notes, oldest first: its task and the owner's notes. */
+  sessions: { task: string; notes: string }[];
 };
 
 /**
@@ -183,7 +186,8 @@ export async function weekSummary(
   };
 
   const hoursByTask = new Map<string, number>();
-  for (const c of comments.filter((c) => inWeek(c.createdAt))) {
+  const thisWeeks = comments.filter((c) => inWeek(c.createdAt));
+  for (const c of thisWeeks) {
     const logged = sessionHours(c.text) ?? 0;
     if (logged > 0) hoursByTask.set(c.taskGid, Math.round(((hoursByTask.get(c.taskGid) ?? 0) + logged) * 100) / 100);
   }
@@ -217,6 +221,14 @@ export async function weekSummary(
     target,
   });
 
+  const names = new Map<string, string>([...touched, ...open].map((t) => [t.gid, t.name]));
+  const sessions = [...thisWeeks]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .flatMap((c) => {
+      const notes = sessionNotes(c.text);
+      return notes ? [{ task: names.get(c.taskGid) ?? "A task", notes }] : [];
+    });
+
   return {
     key,
     week,
@@ -228,6 +240,7 @@ export async function weekSummary(
     posted: updates[0] ?? null,
     draft,
     suggestedStatus,
+    sessions,
   };
 }
 

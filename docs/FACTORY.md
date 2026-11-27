@@ -434,6 +434,12 @@ Vercel for Production only and marked sensitive, never in GitHub or the repo. Gi
 the portal its own Console workspace with a spend limit. Conversations about the
 owner's data go through the Claude connector instead, which runs on the plan.
 
+Every call goes through `src/lib/ai` (`claude.ts`, `messages.ts`): one request, no
+tools, the answer held to a JSON schema and checked by the caller before use, and
+failures as codes so a page keeps working when the credit is spent. The first user
+is reading one advert on Jobs (`src/lib/jobs/ai-read.ts`, on Haiku 5.5). The
+end-to-end suite runs a fake API (`e2e/fake-claude.mjs`), so no test spends credit.
+
 ## Security
 
 - The repository is public: secrets live in `.env.local` (never read by agents:

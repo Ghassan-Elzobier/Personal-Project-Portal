@@ -2,6 +2,7 @@
 
 import { requireOwner } from "@/lib/auth/access";
 import { postStatusUpdate as post } from "@/lib/portal/operations";
+import { polishWeeklyUpdate as polish, type PolishResult } from "@/lib/portal/weekly-update";
 
 export type PostState = { posted?: boolean; error?: string };
 
@@ -14,4 +15,10 @@ export async function postStatusUpdate(_prev: PostState, formData: FormData): Pr
     force: formData.get("force") === "yes",
   });
   return result.error ? { error: result.error } : { posted: true };
+}
+
+/** Claude's write-up of the week on the update's Done line. It only returns text: nothing is posted. */
+export async function polishWeeklyUpdate(project: string, text: string): Promise<PolishResult> {
+  await requireOwner();
+  return polish(project, text);
 }
