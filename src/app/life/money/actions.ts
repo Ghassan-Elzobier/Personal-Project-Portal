@@ -36,6 +36,11 @@ export async function registerSyncKey() {
   return ops.registerSyncKey();
 }
 
+export async function suggestCategories() {
+  await requireOwner();
+  return ops.suggestCategories();
+}
+
 export async function setCategory(txn: number, category: number | null, always: boolean) {
   await requireOwner();
   if (!Number.isInteger(txn) || (category !== null && !Number.isInteger(category)))

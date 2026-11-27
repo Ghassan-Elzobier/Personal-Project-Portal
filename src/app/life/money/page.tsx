@@ -40,6 +40,7 @@ import {
 import { RAISE_SHARES } from "@/lib/money/operations";
 import { weekSummary, type WeekSummary } from "@/lib/money/summary";
 import { loadLife } from "@/lib/life/load";
+import { claudeReady } from "@/lib/ai/claude";
 import { loadMoney } from "@/lib/money/load";
 import { paydayMoves } from "@/lib/money/moves";
 import { foundBills, type OngoingPlan } from "@/lib/money/ongoing";
@@ -77,6 +78,7 @@ import { GoalForm } from "./goal-form";
 import { PayForm } from "./pay-form";
 import { PaydayForm } from "./payday-form";
 import { PaymentList } from "./payments";
+import { SuggestSorts } from "./suggest-sorts";
 import { PlanForm } from "./plan-form";
 import { PlannedForm } from "./planned-form";
 import { TypicalCost } from "./typical-form";
@@ -1325,6 +1327,9 @@ function Payments({ s, txns }: { s: MoneyState; txns: Txn[] }) {
         <Empty>No payments yet. They come in with the next sync, or from a statement.</Empty>
       ) : (
         <>
+          {claudeReady() && s.claudeAccess !== "off" && txns.some((t) => t.categoryId === null && t.pence !== 0) && (
+            <SuggestSorts />
+          )}
           <PaymentList txns={txns} categories={s.categories} today={dateIn(now(), timeZone())} />
           <p className="text-xs text-faint">The last 60 days. Tap a payment to sort it.</p>
         </>
