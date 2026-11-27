@@ -85,6 +85,9 @@ act on the local stack unless given `--remote`.
   `e2e/state-<feature>.spec.ts`; it runs with `e2e/state-fresh.spec.ts`, last and alone. See
   "State" in `docs/ARCHITECTURE.md`.
 - Server code asks the time from `src/lib/dates/clock.ts`, never `new Date()` for "today".
+- The portal can call the Claude API (`src/lib/ai`) on the Max plan's monthly credit, which
+  stops when spent. Use it only where judgement is needed, with no tools and a checked JSON
+  answer, and keep the page working without it. Tests use the fake (`e2e/fake-claude.mjs`).
 - Production errors become public bug issues (`src/lib/errors`). Put variable values
   in error messages in quotes (`` `No recipe '${key}'` ``): the tracker removes quoted
   free text and keeps code-like keys, but cannot tell unquoted values from wording.

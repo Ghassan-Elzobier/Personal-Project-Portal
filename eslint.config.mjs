@@ -13,6 +13,7 @@ import betterTailwind from "eslint-plugin-better-tailwindcss";
 const NOT_TAILWIND = ["sheet", "nav-progress", "^group/.+$", "^peer/.+$"];
 
 const DOMAINS = [
+  "ai",
   "auth",
   "calendar",
   "ci",

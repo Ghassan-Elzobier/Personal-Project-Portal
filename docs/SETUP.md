@@ -209,6 +209,30 @@ the full number, sort code or the holder's name. **Erase all bank data** on the
 Money page deletes everything it holds. If the key might have leaked, delete it
 in Lunch Flow (that cuts it off at once) and add a new one.
 
+## 7. Claude API (optional)
+
+With an API key, **Add from the advert** on Jobs (Sources, then Add a role by hand)
+asks Claude to read an advert: it finds the advert on the page and fills in the
+role's title, employer, place, pay and closing date. Without one, the button still
+works for pages that publish their own job details, and puts the advert text in the
+form for anything else.
+
+The key runs on the Claude Max plan's monthly API credit ($100), not on the
+subscription's usage. When the credit is spent, requests stop until it renews;
+nothing is billed.
+
+1. In claude.ai, open Settings, then Billing. Under **API credits**, link a Claude
+   Console organisation. You can link only one, and you can't change it yourself.
+2. In the Console (platform.claude.com), make a workspace for the portal and give
+   it a **spend limit**, so nothing else in the organisation can use up its credit.
+3. Create an API key in that workspace. In Vercel, add it as `ANTHROPIC_API_KEY`:
+   **Production** only, marked **sensitive**. Then redeploy. It never goes in
+   GitHub, the database or the browser.
+
+Reading one advert costs well under a penny with Claude Haiku 5.5. The Console's
+**Cost** page shows what the portal has spent. If the key might have leaked,
+delete it in the Console (that cuts it off at once) and add a new one.
+
 ## Local development
 
 ```sh
