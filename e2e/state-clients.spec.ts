@@ -45,7 +45,7 @@ test("a client, project and milestone added on the Clients page show at once and
     await expect(region.getByText("Family · WhatsApp", { exact: true })).toBeVisible();
 
     // A project for that client starts as a lead, at a fixed price.
-    await region.getByLabel(`New project for ${client}`).fill(project);
+    await region.getByLabel(`New project for ${client}`, { exact: true }).fill(project);
     await region.getByRole("button", { name: "Add project", exact: true }).click();
     await expect(region.getByRole("heading", { name: project, exact: true })).toBeVisible();
     const stage = page.getByLabel(`Stage of ${project}`);
@@ -59,9 +59,9 @@ test("a client, project and milestone added on the Clients page show at once and
     await expect(page.getByLabel(`Stage of ${project}`)).toHaveValue("building");
 
     // A milestone with a day and an amount in pounds.
-    await page.getByLabel(`New milestone for ${project}`).fill(milestone);
-    await page.getByLabel(`Due day of the new milestone for ${project}`).fill("2026-12-18");
-    await page.getByLabel(`Amount in pounds of the new milestone for ${project}`).fill("1,500");
+    await page.getByLabel(`New milestone for ${project}`, { exact: true }).fill(milestone);
+    await page.getByLabel(`Due day of the new milestone for ${project}`, { exact: true }).fill("2026-12-18");
+    await page.getByLabel(`Amount in pounds of the new milestone for ${project}`, { exact: true }).fill("1,500");
     await card(page, project).getByRole("button", { name: "Add milestone", exact: true }).click();
     const milestones = page.getByRole("list", { name: `Milestones of ${project}` });
     await expect(milestones.getByText(milestone, { exact: true })).toBeVisible();
