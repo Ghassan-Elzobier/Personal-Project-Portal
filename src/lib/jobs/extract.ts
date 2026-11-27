@@ -27,6 +27,8 @@ export type Details = {
   earlyCareer?: boolean;
   /** Capitalised terms in the requirements that are not on the skill list. */
   unknownTerms?: string[];
+  /** Claude read the requirements, because the rules could not (ai-requirements.ts). */
+  readBy?: "claude";
 };
 
 const ENTITIES: Record<string, string> = {

@@ -6,9 +6,10 @@ import { jobPagesTestOrigin, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn, isDay } from "../dates/week";
 import { advertAsk, readAdvertAnswer, type AdvertReading } from "../jobs/ai-read";
+import { CLAUDE_READ_VERSION, needsClaude, readRequirementsAnswer, requirementsAsk } from "../jobs/ai-requirements";
 import { boardOf, careersAsk, careersJobs, pageLinks, readCareersAnswer } from "../jobs/careers-read";
 import { familyOf, locationTier } from "../jobs/classify";
-import { advertText, EXTRACT_VERSION, seniorityOf } from "../jobs/extract";
+import { advertText, EXTRACT_VERSION, seniorityOf, type Requirement } from "../jobs/extract";
 import { FEED_KINDS, parseBoardLink, readFeed, type FeedRead } from "../jobs/feeds";
 import { followedNames, readAdvert, toPosting } from "../jobs/ingest";
 import { fetchJobPage, PageError, pageText, type PageReason } from "../jobs/job-page";
@@ -122,10 +123,123 @@ async function runRefresh(): Promise<RefreshResult> {
     await Promise.all([worker(), worker(), worker(), worker()]);
 
     await rereadOldAdverts();
+    await readWeakAdverts();
     refreshPages();
     return { read: sources.length, added, closed, failed };
   } catch (err) {
     return fail(err, "Could not read the feeds.");
+  }
+}
+
+/** How many weak adverts from the feeds each check hands to Claude; the rest wait for the next. */
+const CLAUDE_READS_PER_CHECK = 8;
+
+/** Claude's checked reading of an advert's requirements, or null if it couldn't give one. Throws AiError. */
+async function claudeRequirements(body: string, rules: Requirement[]): Promise<Requirement[] | null> {
+  return readRequirementsAnswer(await askClaude(requirementsAsk(body)), body, rules);
+}
+
+/**
+ * An advert read by the rules, and by Claude as well where the rules can't judge it
+ * (ai-requirements.ts). Without the key, or with the credit spent, the rules' reading stands.
+ */
+async function readWithRequirements(title: string, body: string): Promise<ReturnType<typeof readAdvert>> {
+  const read = readAdvert(title, body);
+  if (!claudeReady() || !needsClaude(read.requirements, body.length)) return read;
+  try {
+    const requirements = await claudeRequirements(body, read.requirements);
+    if (!requirements) return read;
+    // Kept even when it finds nothing on the list, so the advert isn't asked about again.
+    return {
+      ...read,
+      requirements,
+      details: { ...read.details, readBy: "claude" },
+      extract_version: CLAUDE_READ_VERSION,
+    };
+  } catch (err) {
+    if (!(err instanceof AiError)) throw err;
+    console.error("claude", err.code);
+    return read;
+  }
+}
+
+/** The feeds' adverts the rules read too weakly to judge get Claude's reading, a few each check. */
+async function readWeakAdverts() {
+  if (!claudeReady()) return;
+  const weak = await store.weakAdverts(CLAUDE_READS_PER_CHECK);
+  let stop = false;
+  const queue = [...weak];
+  const worker = async () => {
+    for (let row = queue.shift(); row && !stop; row = queue.shift()) {
+      try {
+        const requirements = await claudeRequirements(row.body, row.requirements);
+        if (!requirements) continue;
+        await store.setExtractions([
+          {
+            gid: row.gid,
+            family: row.family,
+            seniority: row.seniority,
+            requirements,
+            details: { ...row.details, readBy: "claude" },
+            extract_version: CLAUDE_READ_VERSION,
+          },
+        ]);
+      } catch (err) {
+        if (!(err instanceof AiError)) throw err;
+        console.error("claude", err.code);
+        // A spent credit or a refused key won't change before the next check.
+        if (err.code === "NO_CREDIT" || err.code === "BAD_KEY") stop = true;
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
+
+/**
+ * The advert of a role that arrived with only a link (a careers page lists no text),
+ * read when the owner asks from its pane: the owner chose the link, as if they had
+ * pasted it. Its requirements are read as for any advert, by Claude where the rules can't.
+ */
+export async function readRoleAdvert(gid: string): Promise<OpResult & { found?: number; readBy?: "claude" }> {
+  if (!/^\d{1,18}$/.test(gid)) return { error: "That is not a role." };
+  try {
+    const role = (await store.listPostings()).find((r) => r.gid === gid);
+    if (!role) return { error: "That role no longer exists." };
+    if (!role.url) return { error: "This role has no link to read its advert from." };
+    const page = await fetchJobPage(role.url, fetch, undefined, jobPagesTestOrigin());
+    const data = postingData(page.html);
+    let body = data && data.text.length >= ENOUGH_ADVERT ? data.text : pageText(page.html);
+    if (body !== data?.text && claudeReady()) {
+      // A page with no job data of its own: Claude finds the advert among its lines.
+      try {
+        const { ask, lines } = advertAsk(body, dateIn(now(), timeZone()));
+        const reading = readAdvertAnswer(await askClaude(ask), lines);
+        if (reading?.text) body = reading.text;
+      } catch (err) {
+        if (!(err instanceof AiError)) throw err;
+        console.error("claude", err.code);
+      }
+    }
+    const read = await readWithRequirements(role.title, body);
+    await store.setAdvert(gid, {
+      body,
+      family: role.source_kind === "rse" && read.family === "software" ? "research" : read.family,
+      seniority: read.seniority,
+      requirements: read.requirements,
+      details: read.details,
+      extract_version: read.extract_version,
+    });
+    refreshPages();
+    return { found: read.requirements.length, readBy: read.details.readBy };
+  } catch (err) {
+    if (err instanceof PageError)
+      return {
+        error:
+          err.reason === "gone"
+            ? err.message
+            : `${err.message.replace(/ Copy the advert's text and paste it here instead\.$/, "")} Open the advert to read it yourself.`,
+      };
+    return fail(err, "Could not read that advert.");
   }
 }
 
@@ -241,7 +355,7 @@ export async function addRoleByHand(input: {
   const closesOn = input.closesOn?.trim() ?? "";
   if (closesOn && !isDay(closesOn)) return { error: "Pick a valid closing date." };
   const body = advertText(input.text);
-  const read = readAdvert(title, body);
+  const read = await readWithRequirements(title, body);
   const step = closesOn ? applyBy(closesOn, dateIn(now(), timeZone())) : null;
   try {
     const gid = await store.addByHand(

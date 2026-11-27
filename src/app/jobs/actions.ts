@@ -46,6 +46,11 @@ export async function addRoleFromAdvert(input: { source: string }): Promise<jobs
   return jobs.addRoleFromAdvert(input);
 }
 
+export async function readRoleAdvert(gid: string) {
+  await requireOwner();
+  return jobs.readRoleAdvert(gid);
+}
+
 export async function editRoleDetails(gid: string, input: jobs.DetailsInput) {
   await requireOwner();
   return jobs.editRoleDetails(gid, input);
