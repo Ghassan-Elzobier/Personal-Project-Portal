@@ -113,7 +113,10 @@ export type Trip = {
   frozen?: FrozenOnArrival[];
   /** The shop's estimate when it was done, for the week's total. */
   pence?: number;
-  /** Put on this day and time by the owner (shop-move.ts), so nothing moves it back. */
+  /**
+   * Put on this day and time on purpose, so nothing moves it back: by the owner
+   * (shop-move.ts), or by a week planned after its time today had gone (`firstShopFirst`).
+   */
   moved?: boolean;
 } & ShopTicks;
 
@@ -417,14 +420,36 @@ function compare(a: number[], b: number[]): number {
  * already running), before its first meals, when the routine's first shop day is
  * later: a week from Saturday with shops on Sunday and Wednesday shops on Saturday
  * and Wednesday. Left alone once any shop is done, when the first shop is in time, or
- * when the owner moved it there.
+ * when the owner moved it there. Given `now` (minutes after midnight), a shop whose
+ * time today has gone goes tomorrow instead, at its time, and stays there (`moved`), so
+ * a week planned in the evening doesn't open with a shop already missed.
  */
-export function firstShopFirst(start: string, today: string, trips: Trip[]): Trip[] {
+export function firstShopFirst(start: string, today: string, trips: Trip[], now = 0): Trip[] {
   if (!trips.length || trips.some((t) => t.doneOn)) return trips;
   const firstDay = start > today ? start : today;
   const sorted = [...trips].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
-  if (sorted[0].date <= firstDay || sorted[0].moved) return trips;
-  return trips.map((t) => (t === sorted[0] ? { ...t, date: firstDay } : t));
+  const first = sorted[0];
+  if (first.date <= firstDay || first.moved) return trips;
+  if (firstDay === today && first.start < now) {
+    const tomorrow = addDays(today, 1);
+    return tomorrow < first.date ? trips.map((t) => (t === first ? { ...t, date: tomorrow, moved: true } : t)) : trips;
+  }
+  return trips.map((t) => (t === first ? { ...t, date: firstDay } : t));
+}
+
+/**
+ * A fresh week planned again: the shops already done stay done (what they brought is
+ * in the kitchen), and the new plan's shops are added. One on the day of a done shop
+ * stays when it is later that day, under an id of its own, to buy what the done shop
+ * didn't (a dish the new plan picked); with nothing to buy it doesn't show. One at or
+ * before a done shop's time that day is dropped.
+ */
+export function withDoneShops(existing: Trip[] = [], planned: Trip[] = []): Trip[] {
+  const done = existing.filter((t) => t.doneOn);
+  const kept = planned
+    .filter((t) => !done.some((d) => d.date === t.date && d.start >= t.start))
+    .map((t) => (done.some((d) => d.id === t.id) ? { ...t, id: `${t.id}-2` } : t));
+  return [...done, ...kept].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
 }
 
 /**
