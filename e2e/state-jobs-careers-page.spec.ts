@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { FAKE_CLAUDE } from "./env";
 
@@ -13,7 +14,7 @@ test.setTimeout(90_000);
 test("a careers page is read at the next check: its graphics role arrives, the rest is left out, and the page is no longer checked by hand", async ({
   page,
 }) => {
-  const name = `t${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
+  const name = `t${randomUUID().slice(0, 8)}`;
   const employer = `Example Studio ${name}`;
   await page.goto("/jobs?view=sources");
   const follow = page.getByRole("region", { name: "Follow an employer" });
@@ -34,7 +35,9 @@ test("a careers page is read at the next check: its graphics role arrives, the r
   await expect(byHand.getByRole("link", { name: employer })).toHaveCount(0);
 
   // The graphics role is on the board, with the page's own link; the office role is not.
+  // With no advert text yet it is too little to judge, a section that starts closed.
   await page.goto("/jobs");
+  await page.locator("summary").filter({ hasText: "Too little to judge" }).click();
   const role = page.getByRole("link", { name: `Graphics Engineer ${name}`, exact: true });
   await expect(role).toBeVisible();
   await expect(page.getByText(`Office Manager ${name}`)).toHaveCount(0);
