@@ -23,6 +23,7 @@ import { dueSoon } from "../life/todos/todos";
 import { MONEY_INSTRUCTIONS, MONEY_TOOLS } from "../money/connector";
 import * as lifeOps from "../life/operations";
 import { TUTOR_TOOLS } from "../tutor/connector";
+import { CLIENT_INSTRUCTIONS, CLIENT_TOOLS } from "../clients/connector";
 import { TUTOR_INSTRUCTIONS } from "../tutor/method";
 
 // The portal's tools as Claude sees them through the connector. Reads run
@@ -891,6 +892,7 @@ export const TOOLS: Tool[] = [
   ...TODO_TOOLS,
   ...MONEY_TOOLS,
   ...TUTOR_TOOLS,
+  ...CLIENT_TOOLS,
 ];
 
 export const INSTRUCTIONS = [
@@ -905,4 +907,5 @@ export const INSTRUCTIONS = [
   LIFE_INSTRUCTIONS,
   MONEY_INSTRUCTIONS,
   TUTOR_INSTRUCTIONS,
+  CLIENT_INSTRUCTIONS,
 ].join(" ");

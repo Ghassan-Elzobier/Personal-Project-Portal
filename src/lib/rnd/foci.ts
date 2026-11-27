@@ -156,8 +156,10 @@ export const FOCI: Focus[] = [
       "src/lib/tasks",
       "src/app/life/todos",
       "src/lib/life/todos",
+      "src/app/clients",
+      "src/lib/clients",
     ],
-    pages: ["/", "/schedule", "/week", "/tasks", "/timeline", "/log", "/life/todos"],
+    pages: ["/", "/schedule", "/week", "/tasks", "/timeline", "/log", "/life/todos", "/clients"],
     evidence: [],
   },
   {
