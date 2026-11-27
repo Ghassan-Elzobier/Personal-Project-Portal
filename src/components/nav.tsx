@@ -38,7 +38,7 @@ export async function Nav() {
   const owner = access.role === "owner";
   const canAdd = owner && !usesAsana();
   const tools = toolsFor(access.role)
-    .filter((t) => !["tasks", "study", "jobs", "roadmap", "job-hunt"].includes(t.key) || !usesAsana())
+    .filter((t) => !["tasks", "study", "learn", "jobs", "roadmap", "job-hunt"].includes(t.key) || !usesAsana())
     .filter((t) => !t.share || access.shares.includes(t.share));
   const title = (t: (typeof tools)[number]) => (owner && t.mentorView ? `${t.title} (mentor view)` : t.title);
   const link = (t: (typeof tools)[number]) => ({ href: t.href, title: title(t) });
