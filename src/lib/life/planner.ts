@@ -464,6 +464,45 @@ export function spare(plan: WeekPlan, placements: Placement[]): { cookId: string
     .filter((s) => s.portions > 0);
 }
 
+/** The batch ids `spareToCome` makes up: there is no batch until the cook is logged. */
+const TO_COME = "to-come:";
+
+/** Whether a batch id is one `spareToCome` made up, for food not cooked yet. */
+export const isToCome = (gid: string | undefined) => gid?.startsWith(TO_COME) ?? false;
+
+/**
+ * What a week's cooks not logged yet will leave in the kitchen once they are: each
+ * one's spare portions (`spare`), kept cold for next week's first meals while still
+ * in date and the rest frozen if the dish freezes, as `freezeCount` and the reminders
+ * say. A dish that doesn't freeze keeps its spare in the fridge, for as long as it
+ * lasts. Next week draws on these, so its first meals show that food on the day of
+ * the cook, before it is logged. Their batch ids are made up (`isToCome`).
+ */
+export function spareToCome(plan: WeekPlan, placements: Placement[], cooked: Set<string>): StockBatch[] {
+  const out: StockBatch[] = [];
+  for (const s of spare(plan, placements)) {
+    const c = plan.cooks.find((x) => x.id === s.cookId);
+    const r = recipe(s.recipe);
+    if (!c || !r || cooked.has(c.id)) continue;
+    const cold = r.keeps.freezes ? keptCold(plan, c, s.portions) : s.portions;
+    const parts = [
+      [cold, "fridge"],
+      [s.portions - cold, "freezer"],
+    ] as const;
+    for (const [left, location] of parts)
+      if (left > 0)
+        out.push({
+          gid: `${TO_COME}${c.id}:${location}`,
+          recipe: c.recipe,
+          cookedOn: c.date,
+          left,
+          location,
+          scale: c.scale,
+        });
+  }
+  return out;
+}
+
 /** A week's cook sessions from the routine, in order, each with when its food can be ready. */
 function routineSessions(start: string, cooks: RoutineCook[]): { date: string; at: number }[] {
   return cooks
