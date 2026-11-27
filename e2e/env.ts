@@ -34,6 +34,7 @@ export const OWNER_PAGES: { path: string; heading: RegExp }[] = [
   { path: "/job-hunt", heading: /Job hunt/i },
   { path: "/progress", heading: /Progress/i },
   { path: "/people", heading: /People/i },
+  { path: "/clients", heading: /Clients/i },
   { path: "/claude", heading: /Claude/i },
   { path: "/design", heading: /Design/i },
   { path: "/errors", heading: /Errors/i },

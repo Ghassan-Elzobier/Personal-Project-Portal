@@ -27,6 +27,7 @@ see Work.
 | Job hunt (`/job-hunt`) | Me and mentors I share it with | The closest roles, the skills gap, the choice after phase 3 and application counts. Never notes, next actions, ratings, contacts or advert text. |
 | Progress (`/progress/…`) | Me and mentors | Read-only progress per project: latest status, completion, hours, evidence links. Mentors see only their projects. |
 | People (`/people`) | Me | Add mentors, choose which projects each one sees, and switch the job hunt on for each. |
+| Clients (`/clients`) | Me | Software I build for other people: each client's projects, their stage, next milestone and money (agreed, paid, owed). Mentors never see it, and none of it becomes a task. |
 | Claude (`/claude`) | Me | Connect the Claude app, then plan, schedule and log by asking Claude. |
 | Meals (`/life`) | Me | The meal week: plan it in one tap from a ranked menu, swap any recipe, tick meals as you eat them. Portions are sized to the calorie target, and it says what goes in the freezer and when to defrost. |
 | Gym (`/life/gym`) | Me | Today's session of a three-day full-body programme with every target filled in from last time, a rest timer, and the bench forecast. |
@@ -127,6 +128,7 @@ src/
     lab/        The renderer guide behind /lab, and the shader model.
     life/       Meals, the kitchen, the gym and the body: food rules, recipes, the planner, shopping and progression.
     library/    The book library: search, reading and the PDF.
+    clients/    Client projects: clients, their projects and milestones, and the money on them.
     connector/  The Claude connector (MCP and OAuth).
     dates/      Weeks, time zones and the clock.
     portal/     What pages show, and every change the portal makes.

@@ -1,10 +1,11 @@
 // The portal's tools and who sees each. The nav reads this list, so adding a
 // tool is one entry here plus its page.
 //
-// The portal has two spaces. Work is study, the renderer and the job hunt; Life
-// is meals, the kitchen, the gym, the body, money and private to-dos. Today and
-// Schedule belong to both, so the day's plan never splits in two. Mentors only
-// ever see Work.
+// The portal has two spaces. Work is study, the renderer, the job hunt and
+// client projects; Life is meals, the kitchen, the gym, the body, money and
+// private to-dos. Today and Schedule belong to both, so the day's plan never
+// splits in two. Mentors only ever see Work, and only the tools whose roles
+// include them: never Clients.
 
 export type Role = "owner" | "mentor";
 export type Space = "work" | "life" | "shared";
@@ -26,6 +27,7 @@ export type Tool = {
     | "timeline"
     | "progress"
     | "people"
+    | "clients"
     | "claude"
     | "design"
     | "errors"
@@ -186,6 +188,15 @@ export const TOOLS: readonly Tool[] = [
     title: "People",
     href: "/people",
     description: "Who can sign in, and which projects each mentor sees.",
+    roles: ["owner"],
+    space: "work",
+    group: "more",
+  },
+  {
+    key: "clients",
+    title: "Clients",
+    href: "/clients",
+    description: "Software you build for other people: each project's stage, next milestone and money, for you alone.",
     roles: ["owner"],
     space: "work",
     group: "more",
