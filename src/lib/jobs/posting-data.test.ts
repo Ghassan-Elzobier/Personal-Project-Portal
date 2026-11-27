@@ -113,3 +113,8 @@ test("a block wrapped in a comment or CDATA still reads", () => {
   const wrapped = `<script type='application/ld+json'>//<![CDATA[\n${JSON.stringify(POSTING)}\n//]]></script>`;
   assert.equal(postingData(`<html><head>${wrapped}</head></html>`)?.company, "Example Ltd");
 });
+
+test("a block ends where a browser ends it: at --!> as well as -->, and at a closing tag with junk in it", () => {
+  const block = `<script type="application/ld+json"><!--${JSON.stringify(POSTING)}--!></script data-x="1">`;
+  assert.equal(postingData(`<html><head>${block}</head></html>`)?.company, "Example Ltd");
+});

@@ -109,12 +109,14 @@ function salaryOf(posting: Node): string {
 
 /** The first JobPosting a page publishes, or null when it has none. */
 export function postingData(html: string): PostingData | null {
+  // A browser ends a script at "</script" whatever follows it, and a comment at "--!>"
+  // as well as "-->", so these match the same (CodeQL js/bad-tag-filter).
   for (const m of html.matchAll(
-    /<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi,
+    /<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi,
   )) {
     let doc: unknown;
     try {
-      doc = JSON.parse(m[1].replace(/^\s*(?:<!--|\/\/\s*<!\[CDATA\[)/, "").replace(/(?:-->|\/\/\s*\]\]>)\s*$/, ""));
+      doc = JSON.parse(m[1].replace(/^\s*(?:<!--|\/\/\s*<!\[CDATA\[)/, "").replace(/(?:--!?>|\/\/\s*\]\]>)\s*$/, ""));
     } catch {
       continue;
     }

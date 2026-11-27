@@ -170,9 +170,9 @@ export async function fetchJobPage(
  * be an advert, which is what a page that builds itself in the browser looks like.
  */
 export function pageText(html: string): string {
-  const main = /<main\b[^>]*>([\s\S]*?)<\/main\s*>/i.exec(html)?.[1];
+  const main = /<main\b[^>]*>([\s\S]*?)<\/main\b[^>]*>/i.exec(html)?.[1];
   const text = advertText(
-    (main ?? html).replace(/<(nav|header|footer|aside|form|dialog|button|select)\b[\s\S]*?<\/\1\s*>/gi, " "),
+    (main ?? html).replace(/<(nav|header|footer|aside|form|dialog|button|select)\b[\s\S]*?<\/\1\b[^>]*>/gi, " "),
   );
   if (text.length < MIN_TEXT)
     throw new PageError(
