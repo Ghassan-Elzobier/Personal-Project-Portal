@@ -369,9 +369,27 @@ export type RoutineItem = {
   href: string;
   slot?: Slot;
   placement?: Placement;
+  /** A meal's kcal and protein: what was logged once it is (`mealMacros`), otherwise the plan's. */
+  macros?: { kcal: number; protein: number } | null;
   workout?: string;
   cookId?: string;
 };
+
+/**
+ * A meal's kcal and protein: once it is logged as eaten, or as something else, what
+ * went in the log, which stays right after the plan changes that meal's dish (a week
+ * planned again, a swap); until then, the plan's.
+ */
+export function mealMacros(p: Placement, log: MealLog | undefined): { kcal: number; protein: number } | null {
+  if (log && (log.status === "eaten" || log.status === "swapped") && log.kcal !== null)
+    return { kcal: Math.round(log.kcal), protein: Math.round(log.protein ?? 0) };
+  return placedMacros(p);
+}
+
+/** The dish a meal is: the one logged as eaten when the plan has changed it since, otherwise the plan's. */
+export function mealRecipe(p: Placement, log: MealLog | undefined): string | null {
+  return log?.status === "eaten" && log.recipe ? log.recipe : p.recipe;
+}
 
 export function routineFor(s: LifeState, date: string): RoutineItem[] {
   const items: RoutineItem[] = [];
@@ -387,11 +405,13 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
     href: "/life/body",
   });
   for (const p of v.placements.filter((x) => x.date === date)) {
-    const r = p.recipe ? recipe(p.recipe) : undefined;
     const log = s.meals.find((m) => m.day === date && m.slot === p.slot);
+    // Eaten from a dish the plan has changed since: the dish that was eaten.
+    const key = mealRecipe(p, log);
+    const r = key ? recipe(key) : undefined;
     const label = p.slot === "shake" ? "Shake" : p.slot.charAt(0).toUpperCase() + p.slot.slice(1);
     let detail = r ? r.name : p.source === "out" ? "Eating out" : "Nothing planned";
-    if (p.storage === "freezer" && p.source !== "fresh") detail += " · from the freezer";
+    if (key === p.recipe && p.storage === "freezer" && p.source !== "fresh") detail += " · from the freezer";
     items.push({
       key: p.id,
       time: p.time,
@@ -403,6 +423,7 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       href: r ? `/life/recipes/${r.key}` : "/life",
       slot: p.slot,
       placement: p,
+      macros: mealMacros(p, log),
     });
   }
   if (s.profile.gym.days.includes(weekdayIndex(date))) {

@@ -11,7 +11,8 @@ import { buildList, listTotal, money } from "@/lib/life/shopping";
 import {
   cookedIds,
   kitchenFor,
-  placedMacros,
+  mealMacros,
+  mealRecipe,
   remainingNeeds,
   tripLists,
   unlogged,
@@ -325,14 +326,16 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         .filter((p) => p.date === date)
         .sort((a, b) => a.time - b.time)
         .map((p) => {
-          const r = p.recipe ? recipe(p.recipe) : undefined;
-          const m = placedMacros(p);
           const log = s.meals.find((x) => x.day === date && x.slot === p.slot);
+          // A meal logged shows what was eaten, even when the plan has changed its dish since.
+          const key = mealRecipe(p, log);
+          const r = key ? recipe(key) : undefined;
+          const m = mealMacros(p, log);
           return {
             id: p.id,
             slot: p.slot,
             time: clock(p.time),
-            recipe: p.recipe,
+            recipe: key,
             name: r?.name ?? null,
             source: p.source,
             storage: p.storage ?? null,
