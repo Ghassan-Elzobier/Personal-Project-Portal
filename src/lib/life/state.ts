@@ -118,6 +118,8 @@ export type LifeState = LifeRaw & {
   open: Batch[];
   /** The meal week after this one, so it can be planned and shopped for ahead. */
   next: WeekView;
+  /** The meal week before this one, so its unticked meals can still be logged. */
+  prev: { start: string; plan: WeekPlan | null; placements: Placement[] };
 };
 
 /**
@@ -212,6 +214,8 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   // food on the day of the cook, before it is logged, as they will once it is.
   const toCome = plan ? spareToCome(plan, placements, cookedIds(raw, plan.start)) : [];
   const nextPlacements = place(nextPlan, stillToEat(placements, logged), toCome).map(noBatchYet);
+  const prevStart = addDays(weekStart, -7);
+  const prevPlan = plans.find((p) => p.start === prevStart)?.data ?? null;
   const eaten = eatenShare(raw.meals, today);
   const adjustment =
     setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
@@ -237,6 +241,7 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
       placements: nextPlacements,
       reminders: nextPlan ? reminders(nextPlan, nextPlacements) : [],
     },
+    prev: { start: prevStart, plan: prevPlan, placements: place(prevPlan) },
   };
 }
 
@@ -543,17 +548,34 @@ export function shouldPlanNext(s: LifeState, logging: string[]): boolean {
   return cooks.every((c) => done.has(c.id));
 }
 
-/** Planned meals on past days with nothing logged, for a one-tap "I ate them". */
+/** A placed meal on a past day before `before`, from `from` on, with nothing logged. */
+const missed = (s: LifeState, p: Placement, from: string, before: string) =>
+  p.date >= from &&
+  p.date < before &&
+  Boolean(p.recipe) &&
+  p.source !== "out" &&
+  !s.meals.some((m) => m.day === p.date && m.slot === p.slot);
+
+/**
+ * Planned meals on past days with nothing logged, for a one-tap "I ate them". Last
+ * meal week's count too when their batch still has portions left: until they are
+ * logged those portions count as stock, so the new week would plan from food that's
+ * gone. No more of them than a batch has left.
+ */
 export function unlogged(s: LifeState, before: string): Placement[] {
   const from = s.plan?.createdOn ?? s.plan?.start ?? before;
-  return s.placements.filter(
-    (p) =>
-      p.date >= from &&
-      p.date < before &&
-      p.recipe &&
-      p.source !== "out" &&
-      !s.meals.some((m) => m.day === p.date && m.slot === p.slot),
-  );
+  const thisWeek = s.placements.filter((p) => missed(s, p, from, before));
+  const left = new Map(s.open.map((b) => [b.gid, b.remaining]));
+  for (const p of thisWeek) if (p.batchGid && left.has(p.batchGid)) left.set(p.batchGid, left.get(p.batchGid)! - 1);
+  const prevFrom = s.prev.plan?.createdOn ?? s.prev.start;
+  const lastWeek = s.prev.placements.filter((p) => {
+    if (!p.batchGid || !missed(s, p, prevFrom, before) || p.date >= s.weekStart) return false;
+    const n = left.get(p.batchGid) ?? 0;
+    if (n <= 0) return false;
+    left.set(p.batchGid, n - 1);
+    return true;
+  });
+  return [...lastWeek, ...thisWeek];
 }
 
 /**
