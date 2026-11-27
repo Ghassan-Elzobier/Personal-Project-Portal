@@ -2,7 +2,8 @@
 // one: one current account in Lunch Flow's shape, a balance and transactions the tests
 // can set (POST /__balance?pence=123456, POST /__transactions with a JSON list of
 // {id, date, pence, text, pending}). Playwright starts it beside the app
-// (playwright.config.ts), and scripts/e2e-env.sh points the app at it.
+// (playwright.config.ts), and scripts/e2e-env.sh points the app at it. Like the real
+// API, it sends pending transactions only when asked (include_pending=true).
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.FAKE_LUNCHFLOW_PORT ?? 3199);
@@ -93,7 +94,8 @@ createServer(async (req, res) => {
     return send(res, 200, { balance: { amount: pence / 100, currency: "GBP" } });
   if (req.method === "GET" && url.pathname === `/accounts/${ACCOUNT.id}/transactions`) {
     const from = url.searchParams.get("from") ?? "0000-00-00";
-    const list = transactions.filter((t) => t.date >= from).map(shape);
+    const pending = url.searchParams.get("include_pending") === "true";
+    const list = transactions.filter((t) => t.date >= from && (pending || !t.pending)).map(shape);
     return send(res, 200, { transactions: list, total: list.length });
   }
   return send(res, 404, { error: "not found" });

@@ -20,6 +20,16 @@ export function syncFrom(latest: string | null, today: string): string {
   return latest ? addDays(latest, -OVERLAP_DAYS) : addDays(today, -FIRST_DAYS);
 }
 
+/**
+ * The request for one account's transactions from a day on. Lunch Flow leaves pending
+ * payments out unless asked (`include_pending` is false by default), and the bank's raw
+ * record carries the exact amounts.
+ */
+export function transactionsPath(uid: string, from: string): string {
+  const query = new URLSearchParams({ from, include_pending: "true", include_raw: "true" });
+  return `/accounts/${encodeURIComponent(uid)}/transactions?${query}`;
+}
+
 export type Method = "card" | "direct-debit" | "standing-order" | "transfer" | "cash" | "other";
 
 export type TxnRow = {
