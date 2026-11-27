@@ -1328,7 +1328,7 @@ function Payments({ s, txns }: { s: MoneyState; txns: Txn[] }) {
       ) : (
         <>
           {claudeReady() && s.claudeAccess !== "off" && txns.some((t) => t.categoryId === null && t.pence !== 0) && (
-            <SuggestSorts />
+            <SuggestSorts unsorted={txns.filter((t) => t.categoryId === null).map((t) => t.id)} />
           )}
           <PaymentList txns={txns} categories={s.categories} today={dateIn(now(), timeZone())} />
           <p className="text-xs text-faint">The last 60 days. Tap a payment to sort it.</p>

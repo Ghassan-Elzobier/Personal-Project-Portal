@@ -130,3 +130,38 @@ test("something that isn't an answer is no suggestions", () => {
   assert.equal(readSuggestions({ suggestions: "all" }, [], CATEGORIES), null);
   assert.deepEqual(readSuggestions({ suggestions: [] }, [], CATEGORIES), []);
 });
+
+test("names that share a merchant key are one merchant, since one tap saves one rule for them all", () => {
+  assert.deepEqual(
+    unsortedMerchants([
+      txn(1, "2026-11-10", -1250, "EXAMPLE SHOP 3021"),
+      txn(2, "2026-11-12", -900, "EXAMPLE SHOP 4410"),
+      txn(3, "2026-11-11", 400, "EXAMPLE SHOP REFUND"),
+    ]),
+    [{ name: "EXAMPLE SHOP 4410", direction: "both", txnId: 2, payments: 3 }],
+  );
+});
+
+test("the bank's own merchant key wins over the name, and a payment with no key is left for the owner", () => {
+  assert.deepEqual(
+    unsortedMerchants([
+      { ...txn(1, "2026-11-10", -500, "CARD PAYMENT TO EXAMPLE CAFE"), merchantKey: "example-cafe" },
+      { ...txn(2, "2026-11-11", -650, "EXAMPLE CAFE LONDON"), merchantKey: "example-cafe" },
+      { ...txn(3, "2026-11-12", -100, "1234 5678"), merchantKey: null },
+    ]),
+    [{ name: "EXAMPLE CAFE LONDON", direction: "out", txnId: 2, payments: 2 }],
+  );
+});
+
+test("a merchant with money both ways is shown so, and can't be called income", () => {
+  const merchants = unsortedMerchants([
+    txn(1, "2026-11-10", -1250, "EXAMPLE SHOP"),
+    txn(2, "2026-11-12", 300, "EXAMPLE SHOP"),
+  ]);
+  assert.match(suggestAsk(merchants, CATEGORIES).user, /^M1\| EXAMPLE SHOP — money out and in$/m);
+  assert.deepEqual(readSuggestions({ suggestions: [{ merchant: 1, category: 1 }] }, merchants, CATEGORIES), []);
+  assert.equal(
+    readSuggestions({ suggestions: [{ merchant: 1, category: 2 }] }, merchants, CATEGORIES)?.[0]?.payments,
+    2,
+  );
+});

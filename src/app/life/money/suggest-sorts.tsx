@@ -9,9 +9,11 @@ import { setCategory, suggestCategories } from "./actions";
 /**
  * Asks Claude where the unsorted merchants' payments belong, and takes each suggestion
  * with one tap, as "Always for this merchant": the same rule as sorting by hand, so it
- * sorts the merchant's other payments too. Nothing is sorted until a tap.
+ * sorts the merchant's other payments too. Nothing is sorted until a tap. `unsorted` is
+ * the page's unsorted payments, so a suggestion goes as soon as its payment is sorted,
+ * by a tap here, by a rule another tap saved, or by hand.
  */
-export function SuggestSorts() {
+export function SuggestSorts({ unsorted }: { unsorted: readonly number[] }) {
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [taken, setTaken] = useState<number[]>([]);
@@ -32,7 +34,8 @@ export function SuggestSorts() {
       );
     });
 
-  const left = (suggestions ?? []).filter((s) => !taken.includes(s.txnId));
+  const open = new Set(unsorted);
+  const left = (suggestions ?? []).filter((s) => !taken.includes(s.txnId) && open.has(s.txnId));
   return (
     <div className="space-y-3 rounded-xl bg-white/5 p-3">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">

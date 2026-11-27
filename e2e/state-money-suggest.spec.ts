@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { FAKE_LUNCHFLOW } from "./env";
 
@@ -7,7 +7,8 @@ import { FAKE_LUNCHFLOW } from "./env";
 // as "Always for this merchant" does by hand, so all its payments show the category, at
 // once and after a reload. Like the other Money tests it connects the made-up bank and
 // erases it again. The merchants are named for the run, since the rule a tap saves
-// outlives the bank data.
+// outlives the bank data: the run's letters go in the first word, because a rule is saved
+// on the merchant key (src/lib/money/feed.ts), which keeps two words and drops any with a digit.
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(90_000);
@@ -17,16 +18,17 @@ test("Claude suggests where unsorted merchants belong, and one tap sorts every p
   request,
 }) => {
   page.on("dialog", (dialog) => void dialog.accept());
-  const run = randomUUID().slice(0, 6).toUpperCase();
-  const bakehouse = `EXAMPLE BAKEHOUSE ${run}`;
-  const wall = `EXAMPLE CLIMBING WALL ${run}`;
+  const run = Array.from(randomBytes(6), (b) => String.fromCharCode(65 + (b % 26))).join("");
+  const bakehouse = `EXAMPLE${run} BAKEHOUSE`;
+  const wall = `EXAMPLE${run} CLIMBING WALL`;
+  const unplaced = `EXAMPLE${run} QX`;
   await request.post(`${FAKE_LUNCHFLOW}/__balance?pence=184250`);
   await request.post(`${FAKE_LUNCHFLOW}/__transactions`, {
     data: [
       { id: `${run}-1`, date: "2026-11-09", pence: -1250, text: bakehouse },
       { id: `${run}-2`, date: "2026-11-12", pence: -900, text: bakehouse },
       { id: `${run}-3`, date: "2026-11-11", pence: -3500, text: wall },
-      { id: `${run}-4`, date: "2026-11-13", pence: -700, text: `EXAMPLE QX ${run}` },
+      { id: `${run}-4`, date: "2026-11-13", pence: -700, text: unplaced },
     ],
   });
   await page.goto("/life/money");
@@ -43,7 +45,7 @@ test("Claude suggests where unsorted merchants belong, and one tap sorts every p
     await expect(list.getByRole("listitem").filter({ hasText: bakehouse })).toContainText("Groceries · 2 payments");
     await expect(list.getByRole("listitem").filter({ hasText: wall })).toContainText("Fun and social");
     // A merchant Claude can't place from its name is left for the owner.
-    await expect(list).not.toContainText(`EXAMPLE QX ${run}`);
+    await expect(list).not.toContainText(unplaced);
 
     await list.getByRole("button", { name: `Sort ${bakehouse} as Groceries` }).click();
     await expect(list.getByRole("listitem").filter({ hasText: bakehouse })).toHaveCount(0);

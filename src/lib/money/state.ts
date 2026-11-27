@@ -108,6 +108,11 @@ export type Txn = {
   categoryId: number | null;
   /** Who sorted it: a rule, or the owner by hand. */
   categoryBy: "rule" | "owner" | null;
+  /**
+   * The merchant key an "Always" rule is saved on (feed.ts merchantKey), as the bank data
+   * was read; null when the payment has none, so no rule can sort it.
+   */
+  merchantKey?: string | null;
 };
 
 type Row = Record<string, unknown>;
@@ -232,6 +237,7 @@ export function parseTransactions(raw: unknown): Txn[] {
     note: str(t.note),
     categoryId: t.category_id === null || t.category_id === undefined ? null : Number(t.category_id),
     categoryBy: t.category_by === "owner" ? "owner" : t.category_by === "rule" ? "rule" : null,
+    merchantKey: str(t.merchant_key),
   }));
 }
 

@@ -17,7 +17,7 @@ export function answer(user) {
     .filter(Boolean)
     .map((m) => ({ id: Number(m[1]), name: m[2] }));
   const suggestions = block(user, "merchants")
-    .map((line) => /^M(\d+)\| (.*) — money (out|in)$/.exec(line))
+    .map((line) => /^M(\d+)\| (.*) — money (out|in|out and in)$/.exec(line))
     .filter(Boolean)
     .flatMap((m) => {
       const place = PLACES.find((p) => m[2].toUpperCase().includes(p.word));
