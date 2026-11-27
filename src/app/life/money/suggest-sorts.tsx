@@ -46,7 +46,7 @@ export function SuggestSorts({ unsorted }: { unsorted: readonly number[] }) {
           type="button"
           disabled={asking}
           aria-busy={asking}
-          className="btn-soft shrink-0 px-3 py-1.5 text-xs"
+          className="btn-soft min-h-11 shrink-0 px-4 text-sm"
           onClick={() =>
             startAsking(async () => {
               setProblem(null);
@@ -83,7 +83,7 @@ export function SuggestSorts({ unsorted }: { unsorted: readonly number[] }) {
                   disabled={sorting}
                   aria-busy={sorting}
                   aria-label={`Sort ${s.merchant} as ${s.category}`}
-                  className="btn-life shrink-0 px-3 py-1.5 text-xs"
+                  className="btn-life min-h-11 shrink-0 px-4 text-sm"
                   onClick={() => take([s])}
                 >
                   Sort
@@ -96,7 +96,7 @@ export function SuggestSorts({ unsorted }: { unsorted: readonly number[] }) {
               type="button"
               disabled={sorting}
               aria-busy={sorting}
-              className="btn-soft px-3 py-1.5 text-xs"
+              className="btn-soft min-h-11 px-4 text-sm"
               onClick={() => take(left)}
             >
               Sort all {left.length}
