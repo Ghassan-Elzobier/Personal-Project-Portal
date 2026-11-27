@@ -3,6 +3,7 @@ import { requireOwner } from "@/lib/auth/access";
 import { addDays, shortDate } from "@/lib/dates/week";
 import { labelTags, TAG_LABELS } from "@/lib/life/allergens";
 import { INGREDIENTS } from "@/lib/life/ingredients";
+import { fridgeEatBy, nextFineUntil } from "@/lib/life/leftovers";
 import { linkDisagrees, packUnits } from "@/lib/life/pack";
 import { lifeMinutes, loadLife } from "@/lib/life/load";
 import { EARLIEST, LATEST, SHOP_MINUTES } from "@/lib/life/shop-move";
@@ -360,11 +361,15 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
       })),
     };
   });
+  // "Today" and "Tomorrow" read lower case in a sentence; a weekday keeps its capital.
+  const inSentence = (label: string) => (label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label);
   const batches = s.open
     .map((b) => {
       const r = recipe(b.recipe);
-      const fridgeDays = r?.keeps.fridgeDays ?? 2;
-      const eatBy = b.location === "fridge" ? addDays(b.cookedOn, fridgeDays) : addDays(b.cookedOn, 90);
+      const keeps = { fridgeDays: r?.keeps.fridgeDays ?? 2 };
+      const fridge = b.location === "fridge";
+      const eatBy = fridge ? fridgeEatBy(b.cookedOn, keeps, b.fineUntil) : addDays(b.cookedOn, 90);
+      const next = fridge && r ? nextFineUntil(b.cookedOn, keeps, b.fineUntil, s.today) : null;
       return {
         gid: b.gid,
         name: r?.name ?? b.recipe,
@@ -374,8 +379,10 @@ async function Fridge({ s, v }: { s: S; v: WeekView }) {
         portions: b.portions,
         location: b.location,
         eatBy: dayLabel(eatBy, s.today),
-        late: b.location === "fridge" && eatBy < s.today,
-        soon: b.location === "fridge" && eatBy <= addDays(s.today, 1),
+        late: fridge && eatBy < s.today,
+        soon: fridge && eatBy <= addDays(s.today, 1),
+        ownCall: fridge && Boolean(b.fineUntil),
+        stillFine: next ? { until: next, label: inSentence(dayLabel(next, s.today)) } : null,
         canFreeze: Boolean(r?.keeps.freezes),
         rice: Boolean(r?.keeps.rice),
       };
