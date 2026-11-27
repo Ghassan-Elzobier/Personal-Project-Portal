@@ -5,6 +5,7 @@ import { resolve, workout } from "./gym/program";
 import { plan } from "./gym/duration";
 import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
+import { asLeftover } from "./leftovers";
 import { lifeToday, loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import { isOtherSize } from "./other-meal";
@@ -104,7 +105,29 @@ export const LIFE_TOOLS: Tool[] = [
                   })),
               }
             : undefined,
-        pages: { today: `${base}/`, meals: `${base}/life`, gym: `${base}/life/gym` },
+        // Cooked food to eat from in place of a planned meal (log_meal from_batch).
+        kitchen: s.open.flatMap((b) => {
+          const r = recipe(b.recipe);
+          if (!r || b.remaining < 1) return [];
+          // eat_by: the last day it is safe from the fridge (FSA); null in the freezer.
+          const x = asLeftover(b, r);
+          return [
+            {
+              batch: x.gid,
+              recipe: x.name,
+              portions_left: x.left,
+              where: x.where,
+              cooked_on: x.cookedOn,
+              eat_by: x.eatBy,
+            },
+          ];
+        }),
+        pages: {
+          today: `${base}/`,
+          meals: `${base}/life`,
+          gym: `${base}/life/gym`,
+          kitchen: `${base}/life/kitchen?tab=fridge`,
+        },
       });
     },
   },
@@ -128,7 +151,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "log_meal",
     title: "Log a meal",
     description:
-      "Mark a meal as eaten as planned, skipped, or something_else, or clear it. eaten takes the planned portion from the fridge or freezer; if the planned cook it comes from wasn't logged, eaten logs that cook first (its portions go in, its ingredients come out) and the reply names it under cooked. Use something_else when the owner ate, but not the planned meal (a friend cooked, a meal out, a sandwich on the go): the planned portion stays where it is and the day still counts the food, as an estimate from the planned meal. Give size for how it compared: lighter, about (the default) or bigger. It also works for a slot marked as eating out. Use skipped only when nothing was eaten.",
+      "Mark a meal as eaten as planned, skipped, or something_else, or clear it. eaten takes the planned portion from the fridge or freezer; if the planned cook it comes from wasn't logged, eaten logs that cook first (its portions go in, its ingredients come out) and the reply names it under cooked. Use something_else when the owner ate, but not the planned meal (a friend cooked, a meal out, a sandwich on the go): the planned portion stays where it is and the day still counts the food, as an estimate from the planned meal. Give size for how it compared: lighter, about (the default) or bigger. It also works for a slot marked as eating out. Use skipped only when nothing was eaten. When the owner ate leftovers of another dish from the fridge or freezer instead, use eaten with from_batch, the batch from get_life_day's kitchen: its portion comes out of that batch and the log names its dish, and the planned meal's cook is not logged. Only offer food still in date (eat_by).",
     inputSchema: {
       type: "object",
       properties: {
@@ -138,6 +161,11 @@ export const LIFE_TOOLS: Tool[] = [
           type: "string",
           enum: ["lighter", "about", "bigger"],
           description: "With something_else: how the meal compared with the planned one.",
+        },
+        from_batch: {
+          type: "string",
+          pattern: "^\\d{1,20}$",
+          description: "With eaten: the batch in get_life_day's kitchen the meal was eaten from instead of the plan.",
         },
         date: DATE,
       },
@@ -152,7 +180,15 @@ export const LIFE_TOOLS: Tool[] = [
           : args.status === "something_else"
             ? "swapped"
             : (args.status as "eaten" | "skipped");
-      const r = await ops.logMeal(day(args), args.slot as Slot, status, isOtherSize(args.size) ? args.size : "about");
+      const from = typeof args.from_batch === "string" ? args.from_batch : undefined;
+      if (from !== undefined && status !== "eaten") return err("from_batch goes with status eaten.");
+      const r = await ops.logMeal(
+        day(args),
+        args.slot as Slot,
+        status,
+        isOtherSize(args.size) ? args.size : "about",
+        from,
+      );
       if (r.error !== undefined) return err(r.error);
       return ok({
         slot: args.slot,

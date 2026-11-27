@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth/access";
 import { addDays } from "@/lib/dates/week";
+import { asLeftover, type Leftover } from "@/lib/life/leftovers";
 import { lifeMinutes, loadLife } from "@/lib/life/load";
 import { portionMacros } from "@/lib/life/nutrition";
 import { keptCold, spare, weekDays, type WeekPlan } from "@/lib/life/planner";
@@ -252,6 +253,14 @@ function ShortWeek({ s, v }: { s: LifeState; v: MealWeek }) {
   );
 }
 
+/** Cooked food in the kitchen a meal can be eaten from in place of the plan. */
+function leftoversOf(s: LifeState): Leftover[] {
+  return s.open.flatMap((b) => {
+    const r = recipe(b.recipe);
+    return r && b.remaining > 0 ? [asLeftover(b, r)] : [];
+  });
+}
+
 /**
  * What the week costs as planned, in two lines: the food and what there is to buy,
  * then what is likely to go off and the price per 1,000 kcal (food only: the cupboard
@@ -432,6 +441,7 @@ function Planned({ s, v }: { s: LifeState; v: MealWeek }) {
         short={Boolean(plan.short)}
         shops={plan.trips?.length ?? 0}
         cost={costView(plan)}
+        leftovers={leftoversOf(s)}
       />
       <p className="text-sm text-muted">
         Your meals, cooking and gym are on the{" "}

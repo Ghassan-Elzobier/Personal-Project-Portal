@@ -5,6 +5,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { OTHER_LABEL, OTHER_SIZES, type OtherSize } from "@/lib/life/other-meal";
 import { toast } from "@/components/toaster";
 import { pounds } from "@/lib/life/basket";
+import { leftoversFor, type Leftover } from "@/lib/life/leftovers";
 import type { Slot } from "@/lib/life/nutrition";
 import {
   logMeal,
@@ -162,6 +163,7 @@ export function WeekView({
   short = false,
   shops = 0,
   cost = null,
+  leftovers = [],
 }: {
   start: string;
   today: string;
@@ -178,6 +180,8 @@ export function WeekView({
   shops?: number;
   /** What the week costs as planned, until its food is bought. */
   cost?: WeekCostView | null;
+  /** Cooked food in the kitchen, for a meal eaten from it instead of the plan. */
+  leftovers?: Leftover[];
 }) {
   const other = mode === "fresh" ? "batch" : "fresh";
   const [picker, setPicker] = useState<Picker>(null);
@@ -208,6 +212,21 @@ export function WeekView({
         r,
       );
     });
+
+  // Leftovers eaten in place of the meal: the portion comes out of that batch, and the planned cook isn't logged.
+  const eatLeftover = (day: DayView, meal: MealView, b: Leftover) =>
+    start_(async () => {
+      setLog({ id: meal.id, status: "eaten" });
+      const r = await logMeal(day.date, meal.slot, "eaten", undefined, b.gid);
+      if (r.error !== undefined) return void toast(r.error, { tone: "error" });
+      toast(`Logged: ${b.name} from the ${b.where}.`);
+    });
+
+  // What the open meal could be instead, from the kitchen: only for a meal that has come.
+  const offered =
+    picker?.kind === "meal" && picker.day.date <= today
+      ? leftoversFor(leftovers, picker.day.date, picker.meal.slot, picker.meal.recipe)
+      : [];
 
   // Today first, then the rest of the week in order, then the days gone.
   const ordered = [...days.filter((d) => d.date >= today), ...days.filter((d) => d.date < today)];
@@ -544,6 +563,24 @@ export function WeekView({
               >
                 I ate something else
               </button>
+            )}
+            {offered.length > 0 && (
+              <section className="space-y-2 pt-1" aria-label="Leftovers in the kitchen">
+                <p className="px-1 eyebrow">Or leftovers in the kitchen</p>
+                {offered.map((b) => (
+                  <button
+                    key={b.gid}
+                    type="button"
+                    className="btn-soft w-full justify-between gap-3"
+                    onClick={() => (eatLeftover(picker.day, picker.meal, b), close())}
+                  >
+                    <span className="min-w-0 truncate">{b.name}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {b.where === "fridge" ? "Fridge" : "Freezer"} · {b.left} left
+                    </span>
+                  </button>
+                ))}
+              </section>
             )}
             {logs[picker.meal.id] && (
               <button
