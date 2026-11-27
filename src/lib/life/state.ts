@@ -80,6 +80,8 @@ export type Batch = {
   location: "fridge" | "freezer";
   planStart: string | null;
   cookId: string | null;
+  /** The owner's "still fine until" for a fridge batch; null keeps the rule. */
+  fineUntil?: string | null;
 };
 
 export type LifeRaw = {
@@ -326,6 +328,7 @@ const toStock = (b: Batch): StockBatch => ({
   left: b.remaining,
   location: b.location,
   scale: b.scale,
+  fineUntil: b.fineUntil,
 });
 
 /** A portion still to come from a cook has no batch yet, so nothing can take it from one. */

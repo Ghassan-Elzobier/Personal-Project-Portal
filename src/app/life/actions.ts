@@ -126,6 +126,11 @@ export async function setBatch(batch: string, remaining: number | null, location
   return ops.setBatch(batch, remaining, location);
 }
 
+export async function setBatchFineUntil(batch: string, until: string | null) {
+  await requireOwner();
+  return ops.setBatchFineUntil(batch, until);
+}
+
 export async function setStock(
   changes: { item: string; qty?: number; status?: "have" | "low" | "out" | null; good_until?: string | null }[],
   mode: "add" | "set",

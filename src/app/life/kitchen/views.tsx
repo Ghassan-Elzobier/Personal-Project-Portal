@@ -5,6 +5,7 @@ import { useCallback, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
 import type { Tag } from "@/lib/life/allergens";
 import { aislesToVisit, basketProgress, pounds, toggle } from "@/lib/life/basket";
+import { FSA_ADVICE } from "@/lib/life/leftovers";
 import type { Aisle, Unit } from "@/lib/life/ingredients";
 import { parsePrice, smartList, toAdd } from "@/lib/life/order";
 import { packFromSlug } from "@/lib/life/pack";
@@ -20,6 +21,7 @@ import {
   removeProduct,
   saveProduct,
   setBatch,
+  setBatchFineUntil,
   setStock,
   tickShop,
   uncook,
@@ -1006,6 +1008,10 @@ export function FridgeView({
     eatBy: string;
     late: boolean;
     soon: boolean;
+    /** The owner said it is still fine until eatBy, past the rule's day. */
+    ownCall: boolean;
+    /** The next later day "Still fine until" offers, while there is one. */
+    stillFine: { until: string; label: string } | null;
     canFreeze: boolean;
     rice: boolean;
   }[];
@@ -1041,7 +1047,11 @@ export function FridgeView({
                     <p className="font-medium">{b.name}</p>
                     <p className={`text-xs ${b.late ? "text-coral" : b.soon ? "text-sand" : "text-muted"}`}>
                       {b.location === "fridge" ? "Fridge" : "Freezer"} · cooked {b.cooked.toLowerCase()} ·{" "}
-                      {b.late ? "past its fridge time: bin it" : `eat by ${b.eatBy.toLowerCase()}`}
+                      {b.late
+                        ? "past its fridge time: bin it"
+                        : b.ownCall
+                          ? `your call: fine until ${b.eatBy.toLowerCase()}`
+                          : `eat by ${b.eatBy.toLowerCase()}`}
                       {b.rice && b.location === "fridge" ? " (rice: one day)" : ""}
                     </p>
                   </div>
@@ -1080,6 +1090,23 @@ export function FridgeView({
                       className="btn-soft px-3 py-1.5 text-xs"
                     >
                       Moved to fridge
+                    </ActionButton>
+                  )}
+                  {b.location === "fridge" && b.stillFine && (b.soon || b.late) && (
+                    <ActionButton
+                      action={() => setBatchFineUntil(b.gid, b.stillFine!.until)}
+                      className="btn-soft px-3 py-1.5 text-xs"
+                      confirm={`${FSA_ADVICE} Keep ${b.name} in the plan until ${b.stillFine.label} anyway?`}
+                    >
+                      Still fine until {b.stillFine.label}
+                    </ActionButton>
+                  )}
+                  {b.ownCall && (
+                    <ActionButton
+                      action={() => setBatchFineUntil(b.gid, null)}
+                      className="btn-soft px-3 py-1.5 text-xs"
+                    >
+                      Back to its eat-by
                     </ActionButton>
                   )}
                   <ActionButton

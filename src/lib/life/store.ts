@@ -62,6 +62,7 @@ export async function readLife(since: string): Promise<LifeRaw> {
       location: b.location as Batch["location"],
       planStart: (b.plan_start as string) ?? null,
       cookId: (b.cook_id as string) ?? null,
+      fineUntil: (b.fine_until as string) ?? null,
     })),
     ratings: list("ratings").map((r) => ({
       recipe: String(r.recipe),
@@ -155,6 +156,8 @@ export const cook = (c: {
 export const uncook = (batch: string) => rpc<void>("life_uncook", { p_batch: batch });
 export const setBatch = (batch: string, remaining: number | null, location: "fridge" | "freezer" | null) =>
   rpc<void>("life_set_batch", { p_batch: batch, p_remaining: remaining, p_location: location });
+export const setBatchFineUntil = (batch: string, until: string | null) =>
+  rpc<void>("life_set_batch_fine_until", { p_batch: batch, p_until: until });
 export const changeStock = (
   changes: { item: string; qty?: number; status?: StockRow["status"]; good_until?: string | null }[],
   mode: "add" | "set",
