@@ -21,8 +21,10 @@ import {
   fillGaps,
   firstShopFirst,
   cookScale,
+  isToCome,
   mealWeekStart,
   reminders,
+  spareToCome,
   stillToEat,
   type Cook,
   type Placement,
@@ -184,8 +186,14 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   );
   const plan = plans.find((p) => p.start === weekStart)?.data ?? null;
   const open = raw.batches.filter((b) => b.remaining > 0);
-  const place = (p: WeekPlan | null, taken?: Map<string, number>) =>
-    p ? withCooked(assign(p, plannerRoutine(profile), stockLeft(raw.batches, p, taken), kcal), raw.batches, p) : [];
+  const place = (p: WeekPlan | null, taken?: Map<string, number>, toCome: StockBatch[] = []) =>
+    p
+      ? withCooked(
+          assign(p, plannerRoutine(profile), [...stockLeft(raw.batches, p, taken), ...toCome], kcal),
+          raw.batches,
+          p,
+        )
+      : [];
   const logged = loggedOf(raw.meals);
   // A portion this week's own cook made that no meal is down for any more (a meal
   // swapped or skipped) fills an empty lunch or dinner this week, then carries on.
@@ -199,8 +207,11 @@ export function buildState(raw: LifeRaw, today: string): LifeState {
   const placements = freed.length ? fillGaps(placed, freed, today) : placed;
   const nextStart = addDays(weekStart, 7);
   const nextPlan = plans.find((p) => p.start === nextStart)?.data ?? null;
-  // Next week draws only on what this week's meals leave in each batch.
-  const nextPlacements = place(nextPlan, stillToEat(placements, logged));
+  // Next week draws on what this week's meals leave in each batch, and on what this
+  // week's cooks still to come will leave (`spareToCome`): its first meals show that
+  // food on the day of the cook, before it is logged, as they will once it is.
+  const toCome = plan ? spareToCome(plan, placements, cookedIds(raw, plan.start)) : [];
+  const nextPlacements = place(nextPlan, stillToEat(placements, logged), toCome).map(noBatchYet);
   const eaten = eatenShare(raw.meals, today);
   const adjustment =
     setUp && kg !== null ? adjust(raw.weights, today, kg, profile.goal, eaten, profile.goal.startedOn) : null;
@@ -311,6 +322,14 @@ const toStock = (b: Batch): StockBatch => ({
   location: b.location,
   scale: b.scale,
 });
+
+/** A portion still to come from a cook has no batch yet, so nothing can take it from one. */
+function noBatchYet(p: Placement): Placement {
+  if (!isToCome(p.batchGid)) return p;
+  const copy = { ...p };
+  delete copy.batchGid;
+  return copy;
+}
 
 /**
  * Once a planned cook is done, its placements point at the real batch (the
@@ -430,7 +449,9 @@ export function routineFor(s: LifeState, date: string): RoutineItem[] {
       href: shop.href,
     });
   }
-  for (const r of v.reminders.filter((x) => x.date === date && (x.kind === "defrost" || x.kind === "freeze"))) {
+  // Defrosting for next week's first meals falls on this week's last evening.
+  const due = v.start === s.weekStart ? [...v.reminders, ...s.next.reminders] : v.reminders;
+  for (const r of due.filter((x) => x.date === date && (x.kind === "defrost" || x.kind === "freeze"))) {
     items.push({
       key: `${r.kind}-${r.time}-${r.text}`,
       time: r.time,
