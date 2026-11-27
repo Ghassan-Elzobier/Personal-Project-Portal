@@ -163,6 +163,21 @@ export const changeStock = (
   mode: "add" | "set",
 ) => rpc<void>("life_stock", { p_changes: changes, p_mode: mode });
 
+export type StockStep = { mode: "add" | "set"; changes: Parameters<typeof changeStock>[0] };
+
+/**
+ * Lands a shop (or takes one back out) in one step: the stock changes in order,
+ * then the week's plan. `trip` names a fresh week's shop; none is the batch week's.
+ * The database refuses a shop already in, or an undo of one that is not.
+ */
+export const landShop = (start: string, steps: StockStep[], plan: WeekPlan, trip: string | null = null) =>
+  rpc<void>("life_land_shop", {
+    p_start: start,
+    p_steps: steps.filter((s) => s.changes.length),
+    p_plan: plan,
+    p_trip: trip,
+  });
+
 export const saveProduct = (p: Product) =>
   rpc<void>("life_save_product", {
     p_item: p.item,
