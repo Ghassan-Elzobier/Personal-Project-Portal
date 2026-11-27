@@ -8,6 +8,8 @@
 // and a dated next step is the cue that gets an intention acted on (Gollwitzer and
 // Sheeran, 2006). Pure, so it is tested.
 
+import { addDays, shortDate } from "../dates/week.ts";
+
 type Tracked = {
   stage: string;
   closed_at: string | null;
@@ -34,4 +36,16 @@ export function needsNextStep<T extends Tracked>(roles: T[]): T[] {
   return roles
     .filter((r) => isLive(r) && (r.next_action.trim() === "" || !r.next_action_on))
     .sort((a, b) => LIVE_STAGES.indexOf(a.stage) - LIVE_STAGES.indexOf(b.stage));
+}
+
+/**
+ * The first step for a role whose advert says when it closes: apply, by the day
+ * before, so a wanted role never closes unseen. Earlier is better (most applications
+ * arrive in a posting's first days; see issue #127), and the owner can move it.
+ * None once the closing day has passed.
+ */
+export function applyBy(closesOn: string, today: string): { next_action: string; next_action_on: string } | null {
+  if (closesOn < today) return null;
+  const before = addDays(closesOn, -1);
+  return { next_action: `Apply, closes ${shortDate(closesOn)}`, next_action_on: before < today ? today : before };
 }

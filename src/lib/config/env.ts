@@ -58,6 +58,16 @@ export function lunchflowBase(): string {
   return process.env.LUNCHFLOW_BASE_URL?.trim().replace(/\/$/, "") || "https://lunchflow.app/api/v1";
 }
 
+/** The Claude API key (Vercel only), from the Console organisation linked to the Max plan. */
+export function anthropicKey(): string | null {
+  return process.env.ANTHROPIC_API_KEY?.trim() || null;
+}
+
+/** The Claude API, or the end-to-end suite's fake one. */
+export function anthropicBase(): string {
+  return process.env.ANTHROPIC_BASE_URL?.trim().replace(/\/$/, "") || "https://api.anthropic.com";
+}
+
 /** Problems with configuration, worded for the owner's "Needs attention" list. */
 export function configProblems(): string[] {
   const problems: string[] = [];

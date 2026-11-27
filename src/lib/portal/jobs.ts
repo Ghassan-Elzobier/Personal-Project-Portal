@@ -1,9 +1,18 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { locationTier } from "../jobs/classify";
-import { advertText, EXTRACT_VERSION } from "../jobs/extract";
+import { askClaude, claudeReady } from "../ai/claude";
+import { AiError, aiProblem } from "../ai/messages";
+import { timeZone } from "../config/env";
+import { now } from "../dates/clock";
+import { dateIn, isDay } from "../dates/week";
+import { advertAsk, readAdvertAnswer, type AdvertReading } from "../jobs/ai-read";
+import { familyOf, locationTier } from "../jobs/classify";
+import { advertText, EXTRACT_VERSION, seniorityOf } from "../jobs/extract";
 import { FEED_KINDS, parseBoardLink, readFeed } from "../jobs/feeds";
 import { followedNames, readAdvert, toPosting } from "../jobs/ingest";
+import { fetchJobPage, PageError, pageText } from "../jobs/job-page";
+import { applyBy } from "../jobs/next-step";
+import { postingData, type PostingData } from "../jobs/posting-data";
 import { skillByKey } from "../jobs/skills";
 import * as store from "../jobs/store";
 
@@ -13,7 +22,6 @@ import * as store from "../jobs/store";
 export type OpResult = { error?: string };
 
 const STAGES = new Set(["new", "saved", "applied", "interview", "offer", "rejected", "passed"]);
-const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`));
 const httpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
 
 function fail(err: unknown, fallback: string): OpResult {
@@ -151,7 +159,7 @@ export async function setTracking(gid: string, patch: TrackingPatch): Promise<Op
   if (patch.interest !== undefined && patch.interest !== null && ![0, 1, 2, 3].includes(patch.interest))
     return { error: "Choose an interest from the buttons." };
   if (patch.stage !== undefined && !STAGES.has(patch.stage)) return { error: "Choose a stage from the list." };
-  if (patch.next_action_on && !isDate(patch.next_action_on)) return { error: "Pick a valid date." };
+  if (patch.next_action_on && !isDay(patch.next_action_on)) return { error: "Pick a valid date." };
   if ((patch.next_action?.length ?? 0) > 300) return { error: "Keep the next action under 300 characters." };
   if ((patch.notes?.length ?? 0) > 5000) return { error: "Keep notes under 5,000 characters." };
   try {
@@ -170,13 +178,19 @@ export async function addRoleByHand(input: {
   location: string;
   url: string;
   text: string;
+  salary?: string;
+  /** YYYY-MM-DD: the role starts with the step to apply by the day before. */
+  closesOn?: string;
 }): Promise<OpResult & { gid?: string }> {
   const title = input.title.trim();
   const company = input.company.trim();
   if (!title || !company) return { error: "A role needs a title and an employer." };
   if (input.url.trim() && !httpUrl(input.url)) return { error: "The link must start with https://." };
+  const closesOn = input.closesOn?.trim() ?? "";
+  if (closesOn && !isDay(closesOn)) return { error: "Pick a valid closing date." };
   const body = advertText(input.text);
   const read = readAdvert(title, body);
+  const step = closesOn ? applyBy(closesOn, dateIn(now(), timeZone())) : null;
   try {
     const gid = await store.addByHand(
       {
@@ -185,15 +199,152 @@ export async function addRoleByHand(input: {
         location: input.location.trim().slice(0, 500),
         location_tier: locationTier([input.location]),
         url: input.url.trim() || null,
+        salary: input.salary?.trim().slice(0, 200) || null,
         ...read,
         body,
       },
-      {},
+      step ?? {},
     );
     refreshPages();
     return { gid };
   } catch (err) {
     return fail(err, "Could not add that role.");
+  }
+}
+
+/** What was read from a pasted link or advert, in the shape the form takes. */
+export type RoleDraft = {
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  salary: string;
+  closesOn: string;
+  text: string;
+};
+
+export type AdvertResult = OpResult & {
+  gid?: string;
+  title?: string;
+  /** What read it: Claude, or the page's own job data. */
+  readBy?: "claude" | "page";
+  /** When Claude could not help, why, in the owner's words. */
+  note?: string;
+  /** Not added, because the title or employer is missing: what was read, for the form. */
+  draft?: RoleDraft;
+};
+
+const LINK = /^https?:\/\/\S+$/i;
+/** A page's job data with less advert than this still gets Claude's reading of the page. */
+const ENOUGH_ADVERT = 200;
+
+async function readWithClaude(text: string): Promise<{ reading: AdvertReading } | { problem: string }> {
+  if (!claudeReady()) return { problem: aiProblem("NO_KEY") };
+  const { ask, lines } = advertAsk(text, dateIn(now(), timeZone()));
+  try {
+    const reading = readAdvertAnswer(await askClaude(ask), lines);
+    return reading ? { reading } : { problem: aiProblem("BAD_REPLY") };
+  } catch (err) {
+    if (!(err instanceof AiError)) throw err;
+    // The code only: what Claude read, and what it said, may be personal.
+    console.error("claude", err.code);
+    return { problem: aiProblem(err.code) };
+  }
+}
+
+/**
+ * A role from a pasted job link or advert, added in one tap; the owner fixes any detail
+ * in the role's pane afterwards. A link is read by the portal itself (job-page.ts).
+ * The page's own job data is used first, since it is free; Claude is asked only for
+ * what that leaves out. With neither, nothing is added: the form gets what was read.
+ */
+export async function addRoleFromAdvert(input: { source: string }): Promise<AdvertResult> {
+  const source = input.source.trim();
+  if (!source) return { error: "Paste a job link or the advert first." };
+  const isLink = LINK.test(source);
+  let data: PostingData | null = null;
+  let text: string;
+  try {
+    if (isLink) {
+      const page = await fetchJobPage(source);
+      data = postingData(page.html);
+      text = data && data.text.length >= ENOUGH_ADVERT ? data.text : pageText(page.html);
+    } else {
+      text = advertText(source);
+    }
+  } catch (err) {
+    if (err instanceof PageError) return { error: err.message };
+    return fail(err, "Could not read that page.");
+  }
+
+  const draft: RoleDraft = {
+    title: data?.title ?? "",
+    company: data?.company ?? "",
+    location: data?.location ?? "",
+    url: isLink ? source : "",
+    salary: data?.salary ?? "",
+    closesOn: data?.closesOn ?? "",
+    text,
+  };
+  let readBy: AdvertResult["readBy"];
+  let note: string | undefined;
+  if (data?.title && data.company && data.text.length >= ENOUGH_ADVERT) {
+    readBy = "page";
+  } else {
+    const read = await readWithClaude(text);
+    if ("problem" in read) {
+      note = read.problem;
+    } else if (!read.reading.isAdvert) {
+      return { error: "That doesn't look like an advert for one role. Open the role itself, or paste its text." };
+    } else {
+      // The page's own data wins where it has a field: it is the site's, not a reading.
+      const r = read.reading;
+      draft.title ||= r.title;
+      draft.company ||= r.company;
+      draft.location ||= r.location;
+      draft.salary ||= r.salary;
+      draft.closesOn ||= r.closesOn;
+      if (r.text) draft.text = r.text;
+      readBy = "claude";
+    }
+  }
+  if (!draft.title || !draft.company)
+    return { draft, note: note ?? "The advert doesn't say clearly what the role is or who is hiring." };
+
+  const added = await addRoleByHand(draft);
+  return added.error ? { error: added.error } : { gid: added.gid, title: draft.title, readBy, note };
+}
+
+export type DetailsInput = { title: string; company: string; location: string; url: string; salary: string };
+
+/** Fixes the details of a role added by hand: its title, employer, place, link and pay. */
+export async function editRoleDetails(gid: string, input: DetailsInput): Promise<OpResult> {
+  if (!/^\d{1,18}$/.test(gid)) return { error: "That is not a role." };
+  const title = input.title.trim();
+  const company = input.company.trim();
+  const location = input.location.trim();
+  const url = input.url.trim();
+  const salary = input.salary.trim();
+  if (!title || !company) return { error: "A role needs a title and an employer." };
+  if (url && !httpUrl(url)) return { error: "The link must start with https://." };
+  if (title.length > 300 || company.length > 200 || location.length > 500 || salary.length > 200)
+    return { error: "That is too long to save. Shorten it a little." };
+  try {
+    const { body } = await store.postingDetail(gid);
+    await store.editDetails(gid, {
+      title,
+      company,
+      location,
+      location_tier: locationTier([location]),
+      url,
+      salary,
+      family: familyOf(title) ?? "software",
+      seniority: seniorityOf(title, body),
+    });
+    refreshPages();
+    return {};
+  } catch (err) {
+    return fail(err, "Could not save those details.");
   }
 }
 

@@ -120,6 +120,9 @@ export const setTracking = (gid: string, patch: Record<string, unknown>) =>
   rpc<void>("tracker_set_job_tracking", { p_posting: gid, p_patch: patch });
 export const addByHand = (posting: Record<string, unknown>, tracking: Record<string, unknown>) =>
   rpc<string>("tracker_add_job_by_hand", { p_posting: posting, p_tracking: tracking });
+/** Changes the facts of a role added by hand; the database refuses a feed's roles. */
+export const editDetails = (gid: string, details: Record<string, unknown>) =>
+  rpc<void>("tracker_edit_job_details", { p_posting: gid, p_details: details });
 
 export const listEvidence = () => rpc<StoredEvidence[]>("tracker_skill_evidence");
 export const addEvidence = (skill: string, level: number, note: string, url: string | null) =>
