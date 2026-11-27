@@ -34,7 +34,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "get_life_day",
     title: "Meals, gym and body for a day",
     description:
-      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, defrost reminders) with what is done, the calorie and protein targets, and the gym session: how many minutes it is planned to take in the time the owner has, and its exercises with today's target weights. Extras are marked optional, with fits_today saying whether they fit that time; they are done last and dropped first. Read this before logging.",
+      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, defrost reminders) with what is done, the calorie and protein targets, and the gym session: how many minutes it is planned to take in the time the owner has, and its exercises with today's target weights. Extras are marked optional, with fits_today saying whether they fit that time; they are done last and dropped first. logged lists every set logged that day (exercise, position, kg, reps); to correct one, log it again with log_gym_set at the same position and date. Read this before logging.",
     inputSchema: { type: "object", properties: { date: DATE }, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
@@ -91,6 +91,16 @@ export const LIFE_TOOLS: Tool[] = [
                     };
                   }),
                 ),
+                // Every set logged that day, whatever its exercise, so a set can be read back and corrected.
+                logged: s.sets
+                  .filter((x) => x.day === date)
+                  .map((x) => ({
+                    exercise: x.exercise,
+                    position: x.position,
+                    kg: x.kg,
+                    reps: x.reps,
+                    reps_in_reserve: x.rir,
+                  })),
               }
             : undefined,
         pages: { today: `${base}/`, meals: `${base}/life`, gym: `${base}/life/gym` },

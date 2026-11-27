@@ -47,3 +47,53 @@ test("Claude logs an assisted pull-up's help as negative kg, and refuses help on
     await claude.disconnect();
   }
 });
+
+test("get_life_day lists the sets logged that day, so Claude can read one back and correct it", async ({
+  page,
+  request,
+}) => {
+  const db = await ownerDatabase();
+  const sessions = async () =>
+    (await db.call<{ sessions: { day: string; workout: string }[] }>("life_read", { p_since: TODAY })).sessions;
+  const had = (await sessions()).some((s) => s.day === TODAY);
+  const claude = await connectClaude(page, request);
+  const loggedPullUps = async () => {
+    const day = await claude.call("get_life_day", { date: TODAY });
+    expect(day.isError, day.text).toBe(false);
+    const gym = (JSON.parse(day.text) as { gym?: { logged: { exercise: string }[] } }).gym;
+    return (gym?.logged ?? []).filter((s) => s.exercise === "pull-up");
+  };
+  try {
+    await claude.call("log_gym_set", {
+      exercise: "pull-up",
+      position: 1,
+      kg: 35,
+      reps: 7,
+      reps_in_reserve: 2,
+      date: TODAY,
+    });
+    expect(await loggedPullUps()).toEqual([{ exercise: "pull-up", position: 1, kg: 35, reps: 7, reps_in_reserve: 2 }]);
+    // Logged on the belt by mistake: the same position and reps again, as help.
+    await claude.call("log_gym_set", {
+      exercise: "pull-up",
+      position: 1,
+      kg: -35,
+      reps: 7,
+      reps_in_reserve: 2,
+      date: TODAY,
+    });
+    expect(await loggedPullUps()).toEqual([{ exercise: "pull-up", position: 1, kg: -35, reps: 7, reps_in_reserve: 2 }]);
+  } finally {
+    const workout = (await sessions()).find((s) => s.day === TODAY)?.workout ?? "A";
+    await db.call("gym_log_set", {
+      p_day: TODAY,
+      p_workout: workout,
+      p_exercise: "pull-up",
+      p_position: 1,
+      p_kg: null,
+      p_reps: null,
+    });
+    if (!had) await db.call("gym_session", { p_day: TODAY, p_workout: workout, p_delete: true });
+    await claude.disconnect();
+  }
+});
