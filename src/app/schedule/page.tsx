@@ -15,6 +15,8 @@ import { disconnectGoogle } from "./actions";
 import { SyncStudyButton } from "./sync-button";
 import { CalendarButton } from "../life/calendar-button";
 import { WeekPlanner } from "./week-planner";
+import { PlaceShort, type PlanTask } from "./place-short";
+import { placeShort, type Offer } from "@/lib/calendar/free-slot";
 import { now as clockNow } from "@/lib/dates/clock";
 
 export const metadata: Metadata = { title: "Schedule" };
@@ -70,6 +72,24 @@ export default async function SchedulePage({
       })
     : null;
   const note = params.google ? GOOGLE_NOTES[params.google] : null;
+  // Free times for the hours still short, worked out from the blocks just loaded, so never stale after a save.
+  const offers = study?.short
+    ? placeShort({
+        taken: data.blocks,
+        days: data.days,
+        today: now.date,
+        now: now.minutes,
+        short: Math.round(study.short * 60),
+      })
+    : [];
+  // What a time can be planned on: To plan, due soonest first, then (with Google) a session on a task already planned.
+  const planTasks: PlanTask[] = data.unscheduled.map((t) => ({ gid: t.gid, title: t.title, via: "schedule" }));
+  if (googleReady)
+    for (const b of data.blocks) {
+      const gid = b.source === "asana" || b.source === "session" ? b.taskGid : undefined;
+      if (gid && !b.completed && !planTasks.some((t) => t.gid === gid))
+        planTasks.push({ gid, title: b.title, via: "session" });
+    }
 
   return (
     <div className="space-y-6">
@@ -120,7 +140,7 @@ export default async function SchedulePage({
         <ErrorNote key={e} message={e} />
       ))}
 
-      {study && <StudyLine study={study} />}
+      {study && <StudyLine study={study} offers={offers} tasks={planTasks} />}
 
       <WeekPlanner
         key={week.start}
@@ -137,7 +157,7 @@ export default async function SchedulePage({
 }
 
 /** The week's study plan against its target: logged plus planned, and what is short, over or missed. */
-function StudyLine({ study }: { study: StudyWeek }) {
+function StudyLine({ study, offers, tasks }: { study: StudyWeek; offers: Offer[]; tasks: PlanTask[] }) {
   const h = (n: number) => `${formatHours(n)} h`;
   const status =
     study.target === null
@@ -147,7 +167,7 @@ function StudyLine({ study }: { study: StudyWeek }) {
         : study.short
           ? `${h(study.short)} still to place`
           : "covered";
-  return (
+  const line = (
     <p className="text-sm text-muted">
       Study:{" "}
       <span className="font-semibold text-bright tabular-nums">
@@ -156,6 +176,13 @@ function StudyLine({ study }: { study: StudyWeek }) {
       {status && ` · ${status}`}
       {study.missed > 0 && ` · ${h(study.missed)} missed`}
     </p>
+  );
+  if (!study.short || study.over) return line;
+  return (
+    <div className="space-y-2">
+      {line}
+      <PlaceShort offers={offers} tasks={tasks} />
+    </div>
   );
 }
 

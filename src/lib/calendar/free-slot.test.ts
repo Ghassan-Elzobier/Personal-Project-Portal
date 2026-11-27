@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MORNING, nextFreeSlot, overlaps, type Taken } from "./free-slot.ts";
+import { LATEST_START, placeShort } from "./free-slot.ts";
 
 // Made-up days. Minutes after midnight: 9 * 60 is 09:00.
 const TODAY = "2026-11-16";
@@ -55,4 +56,54 @@ test("when today is full, tomorrow is offered from the morning, around what is p
 
 test("a block with no length has nowhere to go", () => {
   assert.equal(nextFreeSlot([], TODAY, at(9), 0, TOMORROW), null);
+});
+
+// The week of the made-up Monday above.
+const WEEK = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21", "2026-11-22"];
+const [MON, TUE, WED, THU, FRI, SAT, SUN] = WEEK;
+const wholeDay = (date: string) => block(date, 0, at(24));
+
+test("the hours still short are offered an hour at a time on different days, clear of what is taken", () => {
+  // Only Tuesday and Thursday have room; Tuesday's morning is taken.
+  const taken = [MON, WED, FRI, SAT, SUN].map(wholeDay).concat(block(TUE, at(9), at(12)), block(THU, at(9), at(9, 30)));
+  const offers = placeShort({ taken, days: WEEK, today: MON, now: at(9, 30), short: 120 });
+  assert.deepEqual(offers, [
+    { date: TUE, start: at(12), duration: 60 },
+    { date: THU, start: at(9, 30), duration: 60 },
+  ]);
+  for (const o of offers) {
+    assert.ok(o.start <= LATEST_START, "nothing starts after 22:00");
+    assert.ok(!taken.some((t) => t.date === o.date && overlaps(o.start, o.start + o.duration, t.start, t.end)));
+  }
+  assert.equal(new Set(offers.map((o) => o.date)).size, offers.length, "one a day");
+});
+
+test("with no free time in the week, nothing is offered", () => {
+  assert.deepEqual(placeShort({ taken: WEEK.map(wholeDay), days: WEEK, today: MON, now: at(9, 30), short: 120 }), []);
+});
+
+test("a day whose only room starts after 22:00 is passed over", () => {
+  const taken = [MON, TUE, THU, FRI, SAT, SUN].map(wholeDay).concat(block(WED, 0, at(22, 15)));
+  assert.deepEqual(placeShort({ taken, days: WEEK, today: MON, now: at(9, 30), short: 60 }), []);
+});
+
+test("today is offered from now, past days not at all, and the last block is only as long as what is left", () => {
+  const offers = placeShort({ taken: [], days: WEEK, today: WED, now: at(18, 10), short: 80 });
+  assert.deepEqual(offers, [
+    { date: WED, start: at(18, 15), duration: 60 },
+    { date: THU, start: MORNING, duration: 30 },
+  ]);
+});
+
+test("at most three times are offered, however short the week is", () => {
+  const offers = placeShort({ taken: [], days: WEEK, today: MON, now: at(9, 30), short: 600 });
+  assert.equal(offers.length, 3);
+  assert.deepEqual(
+    offers.map((o) => o.date),
+    [MON, TUE, WED],
+  );
+});
+
+test("nothing is offered when the week is not short", () => {
+  assert.deepEqual(placeShort({ taken: [], days: WEEK, today: MON, now: at(9, 30), short: 0 }), []);
 });
