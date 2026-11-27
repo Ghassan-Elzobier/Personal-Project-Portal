@@ -79,9 +79,16 @@ export async function logMeal(
   slot: Slot,
   status: "eaten" | "skipped" | "swapped" | null,
   size?: OtherSize,
+  from?: string,
 ) {
   await requireOwner();
-  return ops.logMeal(day, slot, status, isOtherSize(size) ? size : "about");
+  return ops.logMeal(
+    day,
+    slot,
+    status,
+    isOtherSize(size) ? size : "about",
+    typeof from === "string" ? from : undefined,
+  );
 }
 
 export async function logPastAsEaten() {
