@@ -248,9 +248,9 @@ job search and employment success (a well-aimed, self-regulated search predicts
 both finding a job and how good it is; sheer intensity does not predict how
 good), Liu, Huang and Wang (2014) on what makes job-search interventions work,
 and Granovetter (1973) and Rajkumar et al. (2022) on weak ties. Keep to
-`.claude/rules/jobs.md`: feed adverts are read by rules, an advert the owner
-brings may also be read by Claude (no tools, its answer checked), and fit is the
-worst must-have, never the model's. Propose mechanisms, never an employer, a role or an
+`.claude/rules/jobs.md`: adverts are read by rules first, and Claude reads only what
+they can't (no tools, its answer checked against the advert's own words), and fit is
+the worst must-have, never the model's. Propose mechanisms, never an employer, a role or an
 advert: the owner's search is private and this repository is public.
 
 ### Reliability (`reliability`)

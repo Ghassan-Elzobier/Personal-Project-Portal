@@ -217,7 +217,9 @@ role's title, employer, place, pay and closing date. Without one, the button sti
 works for pages that publish their own job details, and puts the advert text in the
 form for anything else. The key also lets each check read the careers pages on
 Jobs' "Check by hand" list and bring in their roles; a page built on a job board is
-read through that board, with or without the key.
+read through that board, with or without the key. And it lets Claude read the
+requirements of adverts the rules can't (prose with no headings), a few at each check,
+and of a role's advert when you tap **Read the advert** in its pane.
 
 The key runs on the Claude Max plan's monthly API credit ($100), not on the
 subscription's usage. When the credit is spent, requests stop until it renews;
