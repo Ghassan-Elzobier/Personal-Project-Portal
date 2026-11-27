@@ -36,6 +36,10 @@ import { scheduleRoadmap } from "../study/roadmap";
 import { addHours, formatHours, parseSessionForm, sessionComment, STAGES, STATUS_TYPES } from "../tasks/session-log";
 import { addDays, shortDate, weekdayIndex, zonedInstant } from "../dates/week";
 import { syncLifeMirrorQuietly } from "../life/calendar-sync";
+import { askClaude, claudeReady } from "../ai/claude";
+import { AiError, type AiCode } from "../ai/messages";
+import { DRAFT_PREFIX, draftsAsk, DRAFTS_PER_ASK, readDrafts } from "../study/draft-answers";
+import { loadStudy } from "../study/load";
 
 // Every change the portal makes, in one place. The buttons (server actions)
 // and the Claude connector both call these after their own owner check, so
@@ -683,6 +687,54 @@ export async function rateReview(gid: string, rating: string): Promise<OpResult>
 
 export async function removeReview(gid: string): Promise<OpResult> {
   return taskChange(() => native.deleteReview(gid), "Could not delete the review.");
+}
+
+/** Why Claude wrote no drafts, in the owner's words. The cards work as before either way. */
+function draftProblem(code: AiCode): string {
+  switch (code) {
+    case "NO_KEY":
+      return "Claude isn't set up for the portal (ANTHROPIC_API_KEY).";
+    case "BAD_KEY":
+      return "The Claude API refused the portal's key. Check ANTHROPIC_API_KEY in Vercel.";
+    case "NO_CREDIT":
+      return "This month's Claude API credit is spent. It renews with the plan.";
+    case "RATE_LIMITED":
+    case "OVERLOADED":
+      return "Claude is busy just now. Try again in a minute.";
+    case "TIMEOUT":
+    case "NETWORK":
+      return "Claude didn't answer in time. Try again.";
+    default:
+      return "Claude couldn't draft these answers. Try again later.";
+  }
+}
+
+/**
+ * Claude drafts an answer for each card due today that has none (src/lib/study/draft-answers.ts),
+ * and each draft is saved only on a card that still has none, so the tutor's words stand. The
+ * owner still recalls first: the draft waits behind "Show answer", marked as Claude's.
+ * `left` is the cards Claude couldn't answer from the question alone.
+ */
+export async function draftReviewAnswers(): Promise<OpResult & { drafted?: number; left?: string[] }> {
+  const blocked = studyOnly();
+  if (blocked) return blocked;
+  if (!claudeReady()) return { error: draftProblem("NO_KEY") };
+  try {
+    const { due } = await loadStudy();
+    const cards = due.filter((r) => !r.answer).slice(0, DRAFTS_PER_ASK);
+    if (!cards.length) return { drafted: 0, left: [] };
+    const drafts = readDrafts(await askClaude(draftsAsk(cards)), cards.length);
+    const answers = cards.flatMap((card, i) => {
+      const draft = drafts[i];
+      return draft ? [{ gid: card.gid, answer: `${DRAFT_PREFIX}${draft}` }] : [];
+    });
+    const drafted = answers.length ? await native.setReviewAnswers(answers) : 0;
+    if (drafted) revalidateTasks();
+    return { drafted, left: cards.filter((_, i) => !drafts[i]).map((card) => card.gid) };
+  } catch (err) {
+    if (err instanceof AiError) return { error: draftProblem(err.code) };
+    return fail(err, "Could not draft the answers.");
+  }
 }
 
 export async function addBenchmark(input: {
