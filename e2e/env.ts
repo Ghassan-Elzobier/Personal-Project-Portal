@@ -7,6 +7,9 @@ export const BASE_URL = `http://localhost:${PORT}`;
 /** The made-up Lunch Flow (e2e/fake-lunchflow.mjs); scripts/e2e-env.sh points the app at it. */
 export const FAKE_LUNCHFLOW = "http://localhost:3199";
 
+/** The made-up Claude API (e2e/fake-claude.mjs); scripts/e2e-env.sh points the app at it. */
+export const FAKE_CLAUDE = "http://localhost:3198";
+
 /** The made-up owner from supabase/seed.sql. */
 export const OWNER_EMAIL = "owner@example.test";
 

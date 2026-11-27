@@ -223,3 +223,16 @@ test("addresses across several lines become one line", () => {
     "9 Appold St, London, United Kingdom",
   );
 });
+
+test("a Greenhouse board embedded in an employer's careers page is found by the name it gives", () => {
+  assert.deepEqual(parseBoardLink("https://boards.greenhouse.io/embed/job_board?for=example"), {
+    kind: "greenhouse",
+    token: "example",
+  });
+  assert.deepEqual(parseBoardLink("https://boards.greenhouse.io/embed/job_board/js?for=example"), {
+    kind: "greenhouse",
+    token: "example",
+  });
+  assert.equal(parseBoardLink("https://boards.greenhouse.io/embed/job_board"), null);
+  assert.equal(parseBoardLink("https://boards.greenhouse.io/embed/job_board?for=../evil"), null);
+});

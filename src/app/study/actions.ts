@@ -74,6 +74,11 @@ export async function removeReview(gid: string): Promise<ActionResult> {
   return ops.removeReview(gid);
 }
 
+export async function draftReviewAnswers(): Promise<ActionResult & { drafted?: number; left?: string[] }> {
+  await requireOwner();
+  return ops.draftReviewAnswers();
+}
+
 export async function addBenchmark(input: Parameters<typeof ops.addBenchmark>[0]): Promise<ActionResult> {
   await requireOwner();
   return ops.addBenchmark(input);

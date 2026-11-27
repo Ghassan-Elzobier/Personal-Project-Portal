@@ -725,6 +725,7 @@ const KIND_NAMES: Record<string, string> = {
   teamtailor: "Teamtailor",
   arbeitnow: "Arbeitnow",
   rse: "RSE Society",
+  link: "Careers page",
 };
 
 function ago(iso: string | null, today: string): string {
@@ -733,9 +734,16 @@ function ago(iso: string | null, today: string): string {
   return day === today ? "Read today" : `Read ${shortDate(day)}`;
 }
 
+/**
+ * A careers page whose last read worked: the portal reads it now, so it isn't checked by
+ * hand. Paused, it stays with the feeds, where it can be resumed.
+ */
+const readByPortal = (s: JobBoard["sources"][number]) =>
+  s.kind === "link" && s.last_ok_at !== null && s.last_read_at === s.last_ok_at;
+
 export function SourcesView({ board }: { board: JobBoard }) {
-  const feeds = board.sources.filter((s) => s.kind !== "link");
-  const links = board.sources.filter((s) => s.kind === "link");
+  const feeds = board.sources.filter((s) => s.kind !== "link" || readByPortal(s));
+  const links = board.sources.filter((s) => s.kind === "link" && !readByPortal(s));
   return (
     <div className="space-y-10">
       <section aria-labelledby="add-title" className="space-y-3">
@@ -744,8 +752,9 @@ export function SourcesView({ board }: { board: JobBoard }) {
         </SectionTitle>
         <p className="max-w-3xl text-sm text-body">
           Paste any job link or careers page. If they use Greenhouse, Ashby, Lever, Workable or Teamtailor, their roles
-          arrive by themselves. Anything else goes on the list to check by hand, because reading those sites
-          automatically is against their terms or unsupported.
+          arrive by themselves. Any other careers page is read at each check, through the job board it is built on or by
+          Claude, and its new roles arrive too. A page the portal cannot read stays on the list to check by hand, with
+          the reason.
         </p>
         <AddSourceForm />
       </section>
@@ -799,6 +808,7 @@ export function SourcesView({ board }: { board: JobBoard }) {
                     <span>{s.last_checked_on ? `Checked ${shortDate(s.last_checked_on)}` : "Not checked yet"}</span>
                     <SourceButtons gid={s.gid} active={s.active} canCheck />
                   </span>
+                  {s.active && s.last_error && <p className="w-full text-xs text-muted">{s.last_error}</p>}
                 </li>
               ))}
           </ul>
@@ -810,8 +820,9 @@ export function SourcesView({ board }: { board: JobBoard }) {
           <span id="hand-title">Add a role by hand</span>
         </SectionTitle>
         <p className="max-w-3xl text-sm text-body">
-          For a role from LinkedIn, a recruiter or a site with no feed. Paste the advert and it gets the same comparison
-          as any other role.
+          For a role from a recruiter or a site with no feed. Paste its link, or the advert itself, and it is read and
+          saved in one tap, with the same comparison as any other role. LinkedIn, Indeed and Glassdoor bar reading their
+          pages, so paste the advert from those.
         </p>
         <AddRoleForm />
       </section>

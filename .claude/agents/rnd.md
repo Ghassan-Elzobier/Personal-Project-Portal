@@ -31,7 +31,10 @@ What every idea must respect:
   (docs/ARCHITECTURE.md, "State"). Never propose caching that could show stale data.
 - **Free first.** No paid API or service unless the owner asks for one;
   Sainsbury's has no API. The factory runs on a Claude Max plan: propose AI only
-  where judgement is needed.
+  where judgement is needed. The portal itself may call the Claude API through
+  `src/lib/ai`, on the plan's monthly API credit ($100, which stops when spent,
+  never bills): say what a proposal would cost a month, prefer Haiku and Batches,
+  and keep the page working when the credit is spent (docs/FACTORY.md, "API credits").
 - **Build on what exists.** The design system (docs/DESIGN.md, `/design`), the
   layers (docs/ARCHITECTURE.md) and the rules for each part (`.claude/rules/`). A
   shared piece beats a one-off.
@@ -245,8 +248,9 @@ job search and employment success (a well-aimed, self-regulated search predicts
 both finding a job and how good it is; sheer intensity does not predict how
 good), Liu, Huang and Wang (2014) on what makes job-search interventions work,
 and Granovetter (1973) and Rajkumar et al. (2022) on weak ties. Keep to
-`.claude/rules/jobs.md`: adverts are read by rules, with no model or API, and
-fit is the worst must-have. Propose mechanisms, never an employer, a role or an
+`.claude/rules/jobs.md`: adverts are read by rules first, and Claude reads only what
+they can't (no tools, its answer checked against the advert's own words), and fit is
+the worst must-have, never the model's. Propose mechanisms, never an employer, a role or an
 advert: the owner's search is private and this repository is public.
 
 ### Reliability (`reliability`)

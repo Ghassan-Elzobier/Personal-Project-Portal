@@ -261,6 +261,12 @@ export async function deleteReview(gid: string): Promise<void> {
   await rpc("tracker_delete_review", { p_gid: gidNumber(gid) });
 }
 
+/** Saves answers on cards that have none; a card that has one keeps it. Returns how many were saved. */
+export async function setReviewAnswers(answers: { gid: string; answer: string }[]): Promise<number> {
+  const items = answers.map((a) => ({ gid: gidNumber(a.gid), answer: a.answer }));
+  return (await rpc<number>("tracker_set_review_answers", { p_answers: items })) ?? 0;
+}
+
 export async function addBenchmark(input: {
   project: ProjectKey;
   task: string | null;

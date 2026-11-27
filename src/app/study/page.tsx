@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { claudeReady } from "@/lib/ai/claude";
 import { requireOwner } from "@/lib/auth/access";
 import { timeZone, usesAsana, weeklyHoursTarget } from "@/lib/config/env";
 import { projectDef } from "@/lib/config/projects";
@@ -64,7 +65,7 @@ export default async function StudyPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
 
-      <ReviewQueue due={overview.due} today={overview.today} />
+      <ReviewQueue due={overview.due} today={overview.today} canDraft={claudeReady()} />
 
       {!current ? (
         <RoadmapView

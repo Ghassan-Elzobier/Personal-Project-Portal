@@ -1,5 +1,5 @@
 import "server-only";
-import { clock } from "../dates/week";
+import { clock, parseClock } from "../dates/week";
 import { err, ok, type Json, type Tool } from "../mcp/tool";
 import { resolve, workout } from "./gym/program";
 import { plan } from "./gym/duration";
@@ -12,7 +12,7 @@ import { isOtherSize } from "./other-meal";
 import * as ops from "./operations";
 import { recipe } from "./recipes";
 import { money } from "./shopping";
-import { cookBatches, isReturning, routineFor, viewOn } from "./state";
+import { cookBatches, freshTrips, isReturning, routineFor, shopsOn, viewOn, type LifeState } from "./state";
 
 // Life tools for the Claude connector: what today holds, and one-line logging
 // ("65.4 kg", "skipped lunch", "bench 60 for 5"). Writes go through the same
@@ -26,6 +26,49 @@ const DATE = {
 const day = (args: Json) =>
   typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday();
 
+const COOK_ID = {
+  type: "string",
+  pattern: "^[a-z0-9-]{1,80}$",
+  description: "cook_id of a cook in get_life_day's routine.",
+};
+const SHOP_ID = {
+  type: "string",
+  pattern: "^[a-z0-9-]{1,80}$",
+  description: "shop_id of a shop in get_life_day's routine.",
+};
+const PLANNED_ON = { ...DATE, description: "The day it is planned, YYYY-MM-DD. Leave out for today." };
+const TO_DATE = { ...DATE, description: "The day to move it to, YYYY-MM-DD, in the same meal week." };
+const TO_TIME = {
+  type: "string",
+  pattern: "^\\d{1,2}:\\d{2}$",
+  description: "The time to move it to, 24-hour HH:MM, between 06:00 and 22:00.",
+};
+
+/** A planned cook in the meal week of `date`, by id, or why there is none. */
+function plannedCookOn(s: LifeState, date: string, id: unknown) {
+  const v = viewOn(s, date);
+  const c = v.plan?.cooks.find((x) => x.id === id);
+  const r = c ? recipe(c.recipe) : undefined;
+  if (!c || !r)
+    return {
+      error: `No such cook in the meal week of ${date}. Take cook_id from get_life_day for the day the cook is planned.`,
+    };
+  return { v, c, r, cooked: cookBatches(s, v.start, c.id).length > 0 };
+}
+
+/** A week's shops still to do, each with its list in a few words, or that it has nothing left to buy. */
+function shopsLeft(s: LifeState, date: string) {
+  const v = viewOn(s, date);
+  return freshTrips(v)
+    .filter((t) => !t.doneOn)
+    .map((t) => ({
+      shop_id: t.id,
+      day: t.date,
+      at: clock(t.start),
+      list: shopsOn(s, v, t.date).find((o) => o.trip.id === t.id)?.list ?? "nothing left to buy",
+    }));
+}
+
 /** Said when a cook was this week's last and next week had no plan, so it is planning itself. */
 const NEXT_WEEK_PLANNING =
   "That was this week's last cook, so next week is planning itself in the same mode, in a moment. See it with get_life_day for a day of next week, or on the Meals page under Next week.";
@@ -35,7 +78,7 @@ export const LIFE_TOOLS: Tool[] = [
     name: "get_life_day",
     title: "Meals, gym and body for a day",
     description:
-      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, defrost reminders) with what is done, the calorie and protein targets, and the gym session: how many minutes it is planned to take in the time the owner has, and its exercises with today's target weights. Extras are marked optional, with fits_today saying whether they fit that time; they are done last and dropped first. logged lists every set logged that day (exercise, position, kg, reps); to correct one, log it again with log_gym_set at the same position and date. Read this before logging.",
+      "The day's routine in time order (weigh-in, meals with recipes and portion sizes, gym session, cooking with each cook's cook_id for log_cook, move_cook and skip_cook, shops with their shop_id for move_shop, defrost reminders) with what is done, the calorie and protein targets, and the gym session: how many minutes it is planned to take in the time the owner has, and its exercises with today's target weights. Extras are marked optional, with fits_today saying whether they fit that time; they are done last and dropped first. logged lists every set logged that day (exercise, position, kg, reps); to correct one, log it again with log_gym_set at the same position and date. Read this before logging.",
     inputSchema: { type: "object", properties: { date: DATE }, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(args, { base }) {
@@ -52,6 +95,7 @@ export const LIFE_TOOLS: Tool[] = [
         skipped: i.skipped || undefined,
         slot: i.slot,
         cook_id: i.cookId,
+        shop_id: i.kind === "shop" && i.key.startsWith("shop-") ? i.key.slice("shop-".length) : undefined,
         // What was logged for a meal logged, so a plan changed since doesn't change it.
         kcal: i.macros?.kcal,
         protein_g: i.macros?.protein,
@@ -357,6 +401,134 @@ export const LIFE_TOOLS: Tool[] = [
     },
   },
   {
+    name: "move_cook",
+    title: "Move a cook session",
+    description:
+      "Move a planned cook session to another day or time in its meal week, as the Kitchen's Move does: every dish in it not cooked yet goes, and their portions are sized again for the meals they now feed. Take cook_id (any dish of the session) from get_life_day for the day it is planned, and give that day as date. to_date must be in the same meal week, today or later, and to_time between 06:00 and 22:00. Nothing moves past the week's last day: when the owner has food in already and a cook isn't needed, use skip_cook. Moving it back is another move_cook.",
+    inputSchema: {
+      type: "object",
+      properties: { cook_id: COOK_ID, date: PLANNED_ON, to_date: TO_DATE, to_time: TO_TIME },
+      required: ["cook_id", "to_date", "to_time"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    async run(args, { base }) {
+      const at = parseClock(String(args.to_time));
+      if (at === null) return err("to_time must be HH:MM.");
+      const loaded = await loadLife();
+      if (loaded.error !== undefined) return err(loaded.error);
+      const found = plannedCookOn(loaded.state, day(args), args.cook_id);
+      if (found.error !== undefined) return err(found.error);
+      const { v, c, r, cooked } = found;
+      if (cooked) return err(`${r.name} is already logged as cooked, so it stays where it was cooked.`);
+      const from = { date: c.date, at: c.start };
+      const moved = await ops.moveCookSession(v.start, from, { date: String(args.to_date), at });
+      if (moved.error) return err(moved.error);
+      const after = await loadLife();
+      const plan = after.error === undefined ? viewOn(after.state, String(args.to_date)).plan : null;
+      const dishes = (plan?.cooks ?? [])
+        .filter((x) => x.date === args.to_date && x.start === at)
+        .map((x) => ({ cook_id: x.id, recipe: recipe(x.recipe)?.name, portions: x.portions }));
+      return ok({
+        moved: dishes,
+        from: { day: from.date, at: clock(from.at) },
+        to: { day: args.to_date, at: clock(at) },
+        page: `${base}/life/kitchen?tab=fridge`,
+      });
+    },
+  },
+  {
+    name: "skip_cook",
+    title: "Take a cook off the week",
+    description:
+      "Take a planned cook that isn't cooked yet off its meal week, as the Meals page's remove button does: for when it won't happen, because the owner has enough food in already or won't be home. The meals it fed are filled from what is cooked in the kitchen and still in date, or show nothing planned, and a shop left with nothing to buy drops off Today and the Schedule; the reply says what each of its meals is now, and what each shop still to do buys. There is no undo: to cook it after all, swap a recipe in on the Meals page or plan the week again. Take cook_id from get_life_day for the day the cook is planned, and give that day as date. Say which meals it leaves empty before skipping it.",
+    inputSchema: {
+      type: "object",
+      properties: { cook_id: COOK_ID, date: PLANNED_ON },
+      required: ["cook_id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+    async run(args, { base }) {
+      const loaded = await loadLife();
+      if (loaded.error !== undefined) return err(loaded.error);
+      const date = day(args);
+      const found = plannedCookOn(loaded.state, date, args.cook_id);
+      if (found.error !== undefined) return err(found.error);
+      const { v, c, r, cooked } = found;
+      if (cooked) return err(`${r.name} is already logged as cooked. To undo it, use Undo cook in the Kitchen.`);
+      const fed = v.placements.filter((p) => p.cookId === c.id);
+      const removed = await ops.removeCook(v.start, c.id);
+      if (removed.error) return err(removed.error);
+      const after = await loadLife();
+      if (after.error !== undefined) return ok({ skipped: r.name, page: `${base}/life` });
+      const now = viewOn(after.state, date).placements;
+      return ok({
+        skipped: r.name,
+        meals_it_fed: fed.map((p) => {
+          const x = now.find((n) => n.id === p.id);
+          const name = x?.recipe ? recipe(x.recipe)?.name : undefined;
+          return {
+            day: p.date,
+            meal: p.slot,
+            now: name
+              ? `${name}${x?.storage === "freezer" ? " (from the freezer)" : ""}`
+              : x?.source === "out"
+                ? "Eating out"
+                : "Nothing planned",
+          };
+        }),
+        shops: shopsLeft(after.state, date),
+        page: `${base}/life`,
+      });
+    },
+  },
+  {
+    name: "move_shop",
+    title: "Move a shop",
+    description:
+      "Move one of a fresh week's shops to another day or time in its meal week, as the Kitchen's Move does, and the week with it: a cook that needs its food and would start before it is home moves to after it, a meal cooked fresh from it moves to the same meal on a later day with room, and a shop it reaches is joined. Take shop_id from get_life_day for the day the shop is planned, and give that day as date. to_date must be in the same meal week and the time still to come, between 06:00 and 22:00. The reply says what moved with it. undo: true puts the week back as it was before its last shop move instead, given any day of that week as date. A shop with nothing to buy isn't on get_life_day: to drop one, skip the cooks it buys for.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        shop_id: SHOP_ID,
+        date: PLANNED_ON,
+        to_date: TO_DATE,
+        to_time: TO_TIME,
+        undo: { type: "boolean", description: "True to put the week back as it was before its last shop move." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    async run(args, { base }) {
+      const loaded = await loadLife();
+      if (loaded.error !== undefined) return err(loaded.error);
+      const s = loaded.state;
+      const date = day(args);
+      const v = viewOn(s, date);
+      const page = `${base}/life/kitchen${v.start === s.weekStart ? "" : "?week=next"}`;
+      if (args.undo === true) {
+        const back = await ops.undoShopMove(v.start);
+        return back.error
+          ? err(back.error)
+          : ok({ undone: true, shops: shopsLeft((await loadLife()).state ?? s, date), page });
+      }
+      if (typeof args.shop_id !== "string" || typeof args.to_date !== "string" || typeof args.to_time !== "string")
+        return err(
+          "Give shop_id, to_date and to_time to move a shop (and date, the day it is planned), or undo: true.",
+        );
+      const at = parseClock(args.to_time);
+      if (at === null) return err("to_time must be HH:MM.");
+      if (!freshTrips(v).some((t) => t.id === args.shop_id))
+        return err(
+          `No such shop in the meal week of ${date}. Take shop_id from get_life_day for the day the shop is planned.`,
+        );
+      const moved = await ops.moveShop(v.start, args.shop_id, { date: args.to_date, at });
+      if (moved.error !== undefined) return err(moved.error);
+      return ok({ moved: moved.said, page });
+    },
+  },
+  {
     name: "plan_meal_week",
     title: "Plan this week's meals",
     description:
@@ -410,4 +582,4 @@ export const LIFE_TOOLS: Tool[] = [
 ];
 
 export const LIFE_INSTRUCTIONS =
-  "Meals, cooking, the gym and weight are the Life space: call get_life_day first, then log with log_weight, log_meal and log_gym_set. When the owner says they are done at the gym, call finish_gym_session after the last set, or tomorrow offers the same workout again. When they say they cooked a planned meal, call log_cook with its cook_id from get_life_day, so the fridge and the cupboard stay right. Life never goes on tasks: personal to-dos and deadlines are the Life to-dos (add_life_todo, list_life_todos). The owner's food rules (allergies with their nuance) live in the portal; only suggest food from its recipes, and say if something might not suit them.";
+  "Meals, cooking, the gym and weight are the Life space: call get_life_day first, then log with log_weight, log_meal and log_gym_set. When the owner says they are done at the gym, call finish_gym_session after the last set, or tomorrow offers the same workout again. When they say they cooked a planned meal, call log_cook with its cook_id from get_life_day, so the fridge and the cupboard stay right. When a cook or a shop won't happen when planned, move it within its meal week with move_cook or move_shop; when the owner has food in already and a cook isn't needed, skip_cook takes it off, and a shop left with nothing to buy drops off. Life never goes on tasks: personal to-dos and deadlines are the Life to-dos (add_life_todo, list_life_todos). The owner's food rules (allergies with their nuance) live in the portal; only suggest food from its recipes, and say if something might not suit them.";

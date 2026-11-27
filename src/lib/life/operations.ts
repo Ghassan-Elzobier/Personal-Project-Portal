@@ -13,6 +13,7 @@ import {
   cookScale,
   sizeCooks,
   freezeCount,
+  withDoneShops,
   type Placement,
   type ShopVia,
   type WeekMode,
@@ -225,17 +226,11 @@ export function planWeek(
     if (!plan.cooks.length && !plan.fresh.length)
       fail("No recipes fit your food rules and kit yet. Check Food rules in Settings.");
     const m: WeekMode = plan.mode ?? "batch";
-    // Shops already done stay done: what they brought is in the kitchen.
-    const done = (existing?.trips ?? []).filter((t) => t.doneOn);
     await savePlan(s, {
       ...plan,
       shop: m === "batch" ? existing?.shop : undefined,
-      trips:
-        m === "fresh"
-          ? [...done, ...(plan.trips ?? []).filter((t) => !done.some((d) => d.date === t.date))].sort(
-              (a, b) => a.date.localeCompare(b.date) || a.start - b.start,
-            )
-          : undefined,
+      // Shops already done stay done, and the new plan's later ones buy what they didn't.
+      trips: m === "fresh" ? withDoneShops(existing?.trips, plan.trips) : undefined,
       createdOn: existing?.createdOn && existing.createdOn < s.today ? existing.createdOn : s.today,
       ...(auto ? { auto: true } : {}),
     });

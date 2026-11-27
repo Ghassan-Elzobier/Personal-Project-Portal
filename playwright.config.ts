@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, FAKE_LUNCHFLOW, OWNER_STATE, PORT } from "./e2e/env";
+import { BASE_URL, FAKE_CLAUDE, FAKE_LUNCHFLOW, OWNER_STATE, PORT } from "./e2e/env";
 
 // End-to-end, layout, accessibility and screenshot checks against a production
 // build and a local Supabase stack. Run them with `npm run test:e2e` (which
@@ -71,6 +71,13 @@ export default defineConfig({
     {
       command: "node e2e/fake-lunchflow.mjs",
       url: `${FAKE_LUNCHFLOW}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 10_000,
+    },
+    // A made-up Claude API, so reading an advert is tested without the real one or its credit.
+    {
+      command: "node e2e/fake-claude.mjs",
+      url: `${FAKE_CLAUDE}/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 10_000,
     },
