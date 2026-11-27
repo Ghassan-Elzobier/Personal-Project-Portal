@@ -59,7 +59,7 @@ export default async function GymPage({ searchParams }: { searchParams: Promise<
     minutes: Math.round(length.blocks[i] / 60),
     items: b.items.map((p) => {
       const ex = resolve(p.exercise, s.profile.gym.missing) ?? EXERCISE_MAP.get(p.exercise)!;
-      const t = target({ ...p, exercise: ex.key }, before, returning);
+      const t = target({ ...p, exercise: ex.key }, before, returning, today);
       return {
         key: ex.key,
         name: ex.name,

@@ -77,7 +77,7 @@ export const LIFE_TOOLS: Tool[] = [
                 exercises: w.blocks.flatMap((b, i) =>
                   b.items.map((p) => {
                     const ex = resolve(p.exercise, s.profile.gym.missing)!;
-                    const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date));
+                    const t = target({ ...p, exercise: ex.key }, before, isReturning(s, date), date);
                     return {
                       exercise: ex.key,
                       name: ex.name,
