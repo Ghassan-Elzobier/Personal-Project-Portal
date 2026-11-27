@@ -5,7 +5,7 @@ import { resolve, workout } from "./gym/program";
 import { plan } from "./gym/duration";
 import { demoFor } from "./gym/media";
 import { nextWorkout, target } from "./gym/progress";
-import { asLeftover } from "./leftovers";
+import { asLeftover, FSA_ADVICE, ruleEatBy } from "./leftovers";
 import { lifeToday, loadLife } from "./load";
 import type { Slot } from "./nutrition";
 import { isOtherSize } from "./other-meal";
@@ -25,6 +25,13 @@ const DATE = {
 };
 const day = (args: Json) =>
   typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : lifeToday();
+
+const BATCH = {
+  type: "string",
+  pattern: "^\\d{1,20}$",
+  description: "batch of a fridge batch in get_life_day's kitchen.",
+};
+const SLOT = { type: "string", enum: ["breakfast", "lunch", "shake", "dinner"] };
 
 const COOK_ID = {
   type: "string",
@@ -94,6 +101,8 @@ export const LIFE_TOOLS: Tool[] = [
         done: i.done,
         skipped: i.skipped || undefined,
         slot: i.slot,
+        // A meal cooked fresh in place of the batch plan; back_to_batch_plan undoes it.
+        cooked_fresh: i.kind === "meal" && i.placement?.source === "fresh" ? true : undefined,
         cook_id: i.cookId,
         shop_id: i.kind === "shop" && i.key.startsWith("shop-") ? i.key.slice("shop-".length) : undefined,
         // What was logged for a meal logged, so a plan changed since doesn't change it.
@@ -153,7 +162,8 @@ export const LIFE_TOOLS: Tool[] = [
         kitchen: s.open.flatMap((b) => {
           const r = recipe(b.recipe);
           if (!r || b.remaining < 1) return [];
-          // eat_by: the last day it is safe from the fridge (FSA); null in the freezer.
+          // eat_by: the last day it is eaten by from the fridge (FSA, or the owner's
+          // own call with set_still_fine); null in the freezer.
           const x = asLeftover(b, r);
           return [
             {
@@ -163,6 +173,7 @@ export const LIFE_TOOLS: Tool[] = [
               where: x.where,
               cooked_on: x.cookedOn,
               eat_by: x.eatBy,
+              ...(x.ownCall ? { owner_says_fine: true, fsa_eat_by: ruleEatBy(x.cookedOn, r.keeps) } : {}),
             },
           ];
         }),
@@ -484,6 +495,77 @@ export const LIFE_TOOLS: Tool[] = [
     },
   },
   {
+    name: "set_still_fine",
+    title: "Say leftovers are still fine",
+    description: `When the owner says food in the fridge is still fine past its eat_by, as the Kitchen's Still fine until does: the plan then fills empty lunches and dinners from it up to that day, and leftovers can be logged from it until then. Before calling it, tell the owner once: "${FSA_ADVICE}" Only when they still want it, call it with the batch from get_life_day's kitchen and until, a day after its fsa_eat_by and at most two days past it. clear: true puts the batch back to the Food Standards Agency's eat-by instead. Only the fridge has an eat-by.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        batch: BATCH,
+        until: { ...DATE, description: "The last day it is still fine, YYYY-MM-DD." },
+        clear: { type: "boolean", description: "true puts it back to the eat-by of the rule." },
+      },
+      required: ["batch"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    async run(args, { base }) {
+      const clear = args.clear === true;
+      const until = typeof args.until === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.until) ? args.until : null;
+      if (clear === (until !== null)) return err("Give until, or clear: true, not both.");
+      const r = await ops.setBatchFineUntil(String(args.batch), clear ? null : until);
+      if (r.error !== undefined) return err(r.error);
+      const after = await loadLife();
+      const b = after.error === undefined ? after.state.open.find((x) => x.gid === args.batch) : undefined;
+      const rec = b ? recipe(b.recipe) : undefined;
+      const x = b && rec ? asLeftover(b, rec) : undefined;
+      return ok({
+        batch: args.batch,
+        recipe: rec?.name,
+        eat_by: x?.eatBy,
+        owner_says_fine: x?.ownCall ?? !clear,
+        page: `${base}/life/kitchen?tab=fridge`,
+      });
+    },
+  },
+  {
+    name: "back_to_batch_plan",
+    title: "Put a fresh meal back on the batch plan",
+    description:
+      "Take a meal cooked fresh (cooked_fresh in get_life_day's routine) back to the batch plan, as the Meals page's Back to the batch plan does: for when the owner won't cook it, or a shop move put it on a day it doesn't suit. The meal then comes from the week's batch cooks or the food in the kitchen, or shows nothing planned; the reply says what it is now. Give the day and the meal.",
+    inputSchema: {
+      type: "object",
+      properties: { slot: SLOT, date: DATE },
+      required: ["slot"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    async run(args, { base }) {
+      const loaded = await loadLife();
+      if (loaded.error !== undefined) return err(loaded.error);
+      const date = day(args);
+      const slot = args.slot as Slot;
+      const v = viewOn(loaded.state, date);
+      const p = v.placements.find((x) => x.date === date && x.slot === slot);
+      if (!v.plan || p?.source !== "fresh")
+        return err(`The ${slot} on ${date} isn't cooked fresh. Take a meal with cooked_fresh from get_life_day.`);
+      const fresh = recipe(p.recipe ?? "")?.name;
+      const r = await ops.setFresh(v.start, date, slot, null);
+      if (r.error !== undefined) return err(r.error);
+      const after = await loadLife();
+      const now =
+        after.error === undefined ? viewOn(after.state, date).placements.find((x) => x.id === p.id) : undefined;
+      const name = now?.recipe ? recipe(now.recipe)?.name : undefined;
+      return ok({
+        day: date,
+        meal: slot,
+        was: fresh,
+        now: name ? `${name}${now?.storage === "freezer" ? " (from the freezer)" : ""}` : "Nothing planned",
+        page: `${base}/life`,
+      });
+    },
+  },
+  {
     name: "move_shop",
     title: "Move a shop",
     description:
@@ -582,4 +664,4 @@ export const LIFE_TOOLS: Tool[] = [
 ];
 
 export const LIFE_INSTRUCTIONS =
-  "Meals, cooking, the gym and weight are the Life space: call get_life_day first, then log with log_weight, log_meal and log_gym_set. When the owner says they are done at the gym, call finish_gym_session after the last set, or tomorrow offers the same workout again. When they say they cooked a planned meal, call log_cook with its cook_id from get_life_day, so the fridge and the cupboard stay right. When a cook or a shop won't happen when planned, move it within its meal week with move_cook or move_shop; when the owner has food in already and a cook isn't needed, skip_cook takes it off, and a shop left with nothing to buy drops off. Life never goes on tasks: personal to-dos and deadlines are the Life to-dos (add_life_todo, list_life_todos). The owner's food rules (allergies with their nuance) live in the portal; only suggest food from its recipes, and say if something might not suit them.";
+  "Meals, cooking, the gym and weight are the Life space: call get_life_day first, then log with log_weight, log_meal and log_gym_set. When the owner says they are done at the gym, call finish_gym_session after the last set, or tomorrow offers the same workout again. When they say they cooked a planned meal, call log_cook with its cook_id from get_life_day, so the fridge and the cupboard stay right. When a cook or a shop won't happen when planned, move it within its meal week with move_cook or move_shop; when the owner has food in already and a cook isn't needed, skip_cook takes it off, and a shop left with nothing to buy drops off. A meal cooked fresh goes back to the batch plan with back_to_batch_plan. When the owner says food in the fridge is still fine past its eat_by, say the Food Standards Agency's advice once, then set_still_fine records it. Life never goes on tasks: personal to-dos and deadlines are the Life to-dos (add_life_todo, list_life_todos). The owner's food rules (allergies with their nuance) live in the portal; only suggest food from its recipes, and say if something might not suit them.";
