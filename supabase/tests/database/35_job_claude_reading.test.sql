@@ -88,10 +88,13 @@ select is(
    from (select pg_temp.stored((select v from t where k = 'role')) r) x),
   '{"has_body": true, "skill": "vulkan", "read_by": "claude", "seniority": "mid"}'::jsonb,
   'Then the role has its advert, its requirements and who read them');
+-- The stored version sits in the private schema, which only the database itself reads.
+reset role;
 select is(
   (select p.extract_version from portal.job_postings p where p.gid = (select v from t where k = 'role')),
   1000,
   'Then its reading is marked as Claude''s, so the rules never read over it');
+select pg_temp.act_as((select v from fx where k = 'owner'));
 
 select throws_ok(
   format($$ select public.tracker_set_job_advert(%s, '{"body": "   "}'::jsonb) $$, (select v from t where k = 'role')),
