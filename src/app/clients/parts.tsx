@@ -130,7 +130,7 @@ export function AddProject({ clientGid, clientName }: { clientGid: string; clien
         <select
           value={pricing}
           onChange={(e) => setPricing(e.target.value)}
-          aria-label={`Pricing of the new project for ${clientName}`}
+          aria-label={`Pricing for ${clientName}'s new project`}
           className={`mt-2 block ${SELECT}`}
         >
           {PRICINGS.map((p) => (
