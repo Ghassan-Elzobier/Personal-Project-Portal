@@ -26,6 +26,9 @@ export ERROR_REPORTING=on
 # Money's bank feed: the made-up Lunch Flow that Playwright starts (e2e/fake-lunchflow.mjs).
 export LUNCHFLOW_BASE_URL="http://localhost:3199"
 export LUNCHFLOW_API_KEY="e2e-made-up-key"
+# Reading an advert: the made-up Claude API that Playwright starts (e2e/fake-claude.mjs).
+export ANTHROPIC_BASE_URL="http://localhost:3198"
+export ANTHROPIC_API_KEY="e2e-made-up-key"
 # The scheduled sync's two secrets, made up for the suite.
 export CRON_SECRET="e2e-made-up-cron-secret"
 export MONEY_SYNC_KEY="e2e-made-up-sync-key"

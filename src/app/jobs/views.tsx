@@ -810,8 +810,9 @@ export function SourcesView({ board }: { board: JobBoard }) {
           <span id="hand-title">Add a role by hand</span>
         </SectionTitle>
         <p className="max-w-3xl text-sm text-body">
-          For a role from LinkedIn, a recruiter or a site with no feed. Paste the advert and it gets the same comparison
-          as any other role.
+          For a role from a recruiter or a site with no feed. Paste its link, or the advert itself, and it is read and
+          saved in one tap, with the same comparison as any other role. LinkedIn, Indeed and Glassdoor bar reading their
+          pages, so paste the advert from those.
         </p>
         <AddRoleForm />
       </section>

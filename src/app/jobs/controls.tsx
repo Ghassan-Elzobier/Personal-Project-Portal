@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "@/components/toaster";
+import { ErrorNote } from "@/components/ui";
 import {
   addEvidence,
   addRoleByHand,
+  addRoleFromAdvert,
   addSource,
   markSourceChecked,
   refreshJobs,
@@ -130,65 +132,158 @@ export function AddSourceForm() {
   );
 }
 
+/** What the toast says once a role is in, so the owner knows what read it. */
+function addedMessage(result: Awaited<ReturnType<typeof addRoleFromAdvert>>): string {
+  const what = `Added ${result.title ?? "the role"}.`;
+  const by =
+    result.readBy === "claude"
+      ? " Claude read the advert: check its details."
+      : result.readBy === "page"
+        ? " Read from the page's own job details."
+        : "";
+  return `${what}${by}${result.note ? ` ${result.note}` : ""}`;
+}
+
+/** A role from a link or a pasted advert in one tap, or typed in by hand below it. */
 export function AddRoleForm() {
-  const empty = { title: "", company: "", location: "", url: "", text: "" };
+  const empty = { title: "", company: "", location: "", url: "", salary: "", closesOn: "", text: "" };
   const [form, setForm] = useState(empty);
+  const [source, setSource] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [reading, startReading] = useTransition();
   const [pending, start] = useTransition();
   const router = useRouter();
+  const titleField = useRef<HTMLInputElement>(null);
+  const companyField = useRef<HTMLInputElement>(null);
   const set = (key: keyof typeof empty) => (e: { target: { value: string } }) =>
     setForm({ ...form, [key]: e.target.value });
+  const openRole = (gid: string | undefined) => {
+    startNavigation();
+    router.push(`/jobs?view=applications&role=${gid}`, { scroll: false });
+  };
+
   return (
-    <form
-      className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        start(async () => {
-          const result = await addRoleByHand(form);
-          if (result.error) return toast(result.error, { tone: "error" });
-          setForm(empty);
-          startNavigation();
-          router.push(`/jobs?view=applications&role=${result.gid}`, { scroll: false });
-        });
-      }}
-    >
-      <input
-        required
-        aria-label="Role title"
-        value={form.title}
-        onChange={set("title")}
-        placeholder="Role title"
-        className={field}
-      />
-      <input
-        required
-        aria-label="Employer"
-        value={form.company}
-        onChange={set("company")}
-        placeholder="Employer"
-        className={field}
-      />
-      <input
-        aria-label="Location"
-        value={form.location}
-        onChange={set("location")}
-        placeholder="Location"
-        className={field}
-      />
-      <input aria-label="Link" type="url" value={form.url} onChange={set("url")} placeholder="Link" className={field} />
-      <textarea
-        aria-label="Advert text"
-        value={form.text}
-        onChange={set("text")}
-        rows={6}
-        placeholder="Paste the advert"
-        className={`${field} sm:col-span-2`}
-      />
-      <div className="sm:col-span-2">
-        <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">
-          Add role
-        </button>
-      </div>
-    </form>
+    <div className="space-y-3">
+      <form
+        className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setProblem(null);
+          setHint(null);
+          startReading(async () => {
+            const result = await addRoleFromAdvert({ source });
+            if (result.error) return setProblem(result.error);
+            if (result.draft) {
+              // Not enough to add it: what was read goes into the form, for the owner to finish.
+              setForm(result.draft);
+              setHint(`${result.note ? `${result.note} ` : ""}Add its title and employer below, then Add role.`);
+              (result.draft.title ? companyField : titleField).current?.focus();
+              return;
+            }
+            setSource("");
+            toast(addedMessage(result));
+            openRole(result.gid);
+          });
+        }}
+      >
+        <textarea
+          required
+          aria-label="Job link or advert"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          rows={3}
+          placeholder="Paste a job link, or the whole advert"
+          className={field}
+        />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button disabled={reading} aria-busy={reading} className="btn-ghost px-4 py-1.5 text-sm">
+            {reading ? "Reading the advert…" : "Add from the advert"}
+          </button>
+          <span className="text-xs text-muted">Saved at once. Fix any detail in the role.</span>
+        </div>
+        {problem && <ErrorNote message={problem} />}
+        {hint && (
+          <p role="status" className="text-sm text-sand">
+            {hint}
+          </p>
+        )}
+      </form>
+
+      <form
+        aria-label="Type in a role"
+        className="grid grid-cols-1 gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          start(async () => {
+            const result = await addRoleByHand(form);
+            if (result.error) return toast(result.error, { tone: "error" });
+            setForm(empty);
+            setHint(null);
+            openRole(result.gid);
+          });
+        }}
+      >
+        <p className="text-xs text-muted sm:col-span-2">Or type it in.</p>
+        <input
+          ref={titleField}
+          required
+          aria-label="Role title"
+          value={form.title}
+          onChange={set("title")}
+          placeholder="Role title"
+          className={field}
+        />
+        <input
+          ref={companyField}
+          required
+          aria-label="Employer"
+          value={form.company}
+          onChange={set("company")}
+          placeholder="Employer"
+          className={field}
+        />
+        <input
+          aria-label="Location"
+          value={form.location}
+          onChange={set("location")}
+          placeholder="Location"
+          className={field}
+        />
+        <input
+          aria-label="Link"
+          type="url"
+          value={form.url}
+          onChange={set("url")}
+          placeholder="Link"
+          className={field}
+        />
+        <input
+          aria-label="Salary"
+          value={form.salary}
+          onChange={set("salary")}
+          placeholder="Salary, as the advert says"
+          className={field}
+        />
+        <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-xs text-muted">
+          Closes
+          <input type="date" value={form.closesOn} onChange={set("closesOn")} className={field} />
+        </label>
+        <textarea
+          aria-label="Advert text"
+          value={form.text}
+          onChange={set("text")}
+          rows={6}
+          placeholder="Paste the advert"
+          className={`${field} sm:col-span-2`}
+        />
+        <div className="sm:col-span-2">
+          <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">
+            Add role
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

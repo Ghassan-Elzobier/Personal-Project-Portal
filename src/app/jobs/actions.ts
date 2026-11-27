@@ -34,9 +34,21 @@ export async function addRoleByHand(input: {
   location: string;
   url: string;
   text: string;
+  salary?: string;
+  closesOn?: string;
 }) {
   await requireOwner();
   return jobs.addRoleByHand(input);
+}
+
+export async function addRoleFromAdvert(input: { source: string }): Promise<jobs.AdvertResult> {
+  await requireOwner();
+  return jobs.addRoleFromAdvert(input);
+}
+
+export async function editRoleDetails(gid: string, input: jobs.DetailsInput) {
+  await requireOwner();
+  return jobs.editRoleDetails(gid, input);
 }
 
 export async function addEvidence(input: { skill: string; level: number; note: string; url: string }) {

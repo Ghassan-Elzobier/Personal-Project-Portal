@@ -9,7 +9,7 @@ import { shortDate } from "@/lib/dates/week";
 import { BANDS, type RequirementView, type SkillStatus } from "@/lib/jobs/match";
 import type { RoleView } from "@/lib/jobs/load";
 import { LEVELS } from "@/lib/jobs/skills";
-import { setTracking } from "./actions";
+import { editRoleDetails, setTracking } from "./actions";
 
 const INTEREST = [
   { value: 0, label: "Not for me" },
@@ -102,6 +102,58 @@ function Requirements({ title, note, items }: { title: string; note?: string; it
   );
 }
 
+/**
+ * The facts of a role you added yourself, to fix after a one-tap add. It opens on what
+ * is saved now, and closes when the change is in; the pane above shows the saved values.
+ */
+function DetailsForm({ role, onDone }: { role: RoleView; onDone: () => void }) {
+  const [form, setForm] = useState({
+    title: role.title,
+    company: role.company,
+    location: role.location,
+    url: role.url ?? "",
+    salary: role.salary ?? "",
+  });
+  const [pending, start] = useTransition();
+  const set = (key: keyof typeof form) => (e: { target: { value: string } }) =>
+    setForm({ ...form, [key]: e.target.value });
+  const input = (key: keyof typeof form, label: string, extra: { type?: string; required?: boolean } = {}) => (
+    <label className="block text-sm">
+      <span className="mb-1 block font-semibold">{label}</span>
+      <input value={form[key]} onChange={set(key)} className={field} {...extra} />
+    </label>
+  );
+  return (
+    <form
+      aria-label="Edit details"
+      className="space-y-2 rounded-xl bg-white/5 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const result = await editRoleDetails(role.gid, form);
+          if (result.error) return toast(result.error, { tone: "error" });
+          toast("Details saved.");
+          onDone();
+        });
+      }}
+    >
+      {input("title", "Role title", { required: true })}
+      {input("company", "Employer", { required: true })}
+      {input("location", "Location")}
+      {input("url", "Link to the advert", { type: "url" })}
+      {input("salary", "Salary")}
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button disabled={pending} aria-busy={pending} className="btn-ghost px-4 py-1.5 text-sm">
+          Save details
+        </button>
+        <button type="button" onClick={onDone} className="tap px-2 text-sm link">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /** One role: how you match it, what you decided and what is next. Every change saves itself. */
 export function RolePane({
   role,
@@ -127,6 +179,9 @@ export function RolePane({
   const [action, setAction] = useState(role.next_action);
   const [actionOn, setActionOn] = useState(role.next_action_on ?? "");
   const [notes, setNotes] = useState(role.notes);
+  const [editing, setEditing] = useState(false);
+  // A feed rewrites its own roles on every read, so only a role added by hand can be edited.
+  const editable = role.source_kind === "manual";
 
   useEffect(() => {
     panel.current?.focus();
@@ -198,7 +253,14 @@ export function RolePane({
           {role.legacy_rating !== null && (
             <span className="text-muted">Rated {role.legacy_rating} in your old sheet</span>
           )}
+          {editable && !editing && (
+            <button type="button" onClick={() => setEditing(true)} className="tap text-sm link">
+              Edit details
+            </button>
+          )}
         </div>
+
+        {editing && <DetailsForm role={role} onDone={() => setEditing(false)} />}
 
         <section className="rounded-xl bg-white/5 p-3">
           <p className="text-sm font-semibold">{BANDS[role.fit.band].name}</p>
