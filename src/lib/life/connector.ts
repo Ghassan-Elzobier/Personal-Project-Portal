@@ -11,7 +11,7 @@ import { isOtherSize } from "./other-meal";
 import * as ops from "./operations";
 import { recipe } from "./recipes";
 import { money } from "./shopping";
-import { cookBatches, isReturning, placedMacros, routineFor, viewOn } from "./state";
+import { cookBatches, isReturning, routineFor, viewOn } from "./state";
 
 // Life tools for the Claude connector: what today holds, and one-line logging
 // ("65.4 kg", "skipped lunch", "bench 60 for 5"). Writes go through the same
@@ -51,8 +51,9 @@ export const LIFE_TOOLS: Tool[] = [
         skipped: i.skipped || undefined,
         slot: i.slot,
         cook_id: i.cookId,
-        kcal: i.placement ? placedMacros(i.placement)?.kcal : undefined,
-        protein_g: i.placement ? placedMacros(i.placement)?.protein : undefined,
+        // What was logged for a meal logged, so a plan changed since doesn't change it.
+        kcal: i.macros?.kcal,
+        protein_g: i.macros?.protein,
       }));
       const gym = routine.find((r) => r.kind === "gym");
       const key =

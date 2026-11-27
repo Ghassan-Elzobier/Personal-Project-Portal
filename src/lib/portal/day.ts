@@ -178,8 +178,10 @@ export function yourDay(
     (i) => !(i.kind === "shop" && i.start < 0) && !i.done && !i.skipped && Math.max(i.end, i.start + 1) > now,
   );
   const meals = routine.filter((i) => i.kind === "meal" && i.placement);
-  const kcal = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.kcal ?? 0), 0);
-  const protein = meals.reduce((t, i) => t + (placedMacros(i.placement!)?.protein ?? 0), 0);
+  // What was logged for the meals logged, so a plan changed since doesn't recount them.
+  const macros = (i: RoutineItem) => (i.macros !== undefined ? i.macros : placedMacros(i.placement!));
+  const kcal = meals.reduce((t, i) => t + (macros(i)?.kcal ?? 0), 0);
+  const protein = meals.reduce((t, i) => t + (macros(i)?.protein ?? 0), 0);
   const study = items.filter((i) => i.kind === "study").reduce((t, i) => t + (i.end - i.start), 0);
   const parts = [
     meals.length && s
