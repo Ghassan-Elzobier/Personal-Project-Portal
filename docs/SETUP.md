@@ -204,6 +204,12 @@ internet banking and add it on Money (**Add a statement**). Payments the portal
 already has for the same day and amount are left out, and the same file twice is
 refused. The file is not kept.
 
+**Suggested categories.** With the Claude API key (section 7), and Claude not set
+to Off for Money, Payments offers **Suggest categories** when some payments aren't
+sorted. Claude sees only each merchant's name and whether money went in or out, and
+nothing is sorted until you tap a suggestion, which saves it as always for that
+merchant.
+
 The portal keeps an account's type and the last 4 digits of its number, never
 the full number, sort code or the holder's name. **Erase all bank data** on the
 Money page deletes everything it holds. If the key might have leaked, delete it

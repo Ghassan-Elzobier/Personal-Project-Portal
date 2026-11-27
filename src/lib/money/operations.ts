@@ -1,9 +1,11 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { askClaude, claudeReady } from "../ai/claude";
+import { AiError } from "../ai/messages";
 import { moneySyncKey, timeZone } from "../config/env";
 import { now } from "../dates/clock";
-import { dateIn } from "../dates/week";
+import { addDays, dateIn } from "../dates/week";
 import { debtOrders, suggestDebts, suggestGoals, withDebtOrder } from "./allocate";
 import { budgetView, mondayOf, monthStart, parseBudget, parsePounds, savedNow, type BudgetData } from "./budget";
 import { budgetData } from "./ongoing";
@@ -13,8 +15,9 @@ import { keyHash } from "./keys";
 import { listAccounts } from "./lunchflow";
 import { BankError, type AccountChoice } from "./map";
 import { newStatementRows, parseStatement, StatementError } from "./statement";
-import { bankMessage } from "./state";
+import { bankMessage, parseMoney, parseTransactions } from "./state";
 import * as store from "./store";
+import { readSuggestions, suggestAsk, unsortedMerchants, type Suggestion } from "./suggest";
 import { syncBank } from "./sync";
 import { LOANS, takeHome, type LoanPlan, type PensionKind } from "./takehome";
 
@@ -125,6 +128,42 @@ export function uploadStatement(account: number, text: string): Promise<Result<{
     const added = await store.uploadStatement(account, sha, from, to, add, skipped);
     return { added, skipped };
   });
+}
+
+/**
+ * Claude's suggestions for the merchants of the last 60 days' unsorted payments
+ * (suggest.ts), when the owner asks on the Money page. Claude sees each merchant's name
+ * and which way money went, nothing more, and only when Claude may see Money at all;
+ * nothing is sorted until the owner taps a suggestion (setCategory, with "Always").
+ */
+export async function suggestCategories(): Promise<Result<{ suggestions: Suggestion[]; asked: number }>> {
+  try {
+    if (!claudeReady())
+      return { error: "Claude isn't set up for the portal (ANTHROPIC_API_KEY), so sort these by hand." };
+    const state = parseMoney(await store.readMoney());
+    if (state.claudeAccess === "off")
+      return { error: "Claude is off for Money. To ask it, choose a level under Claude on this page first." };
+    const today = dateIn(now(), timeZone());
+    const merchants = unsortedMerchants(parseTransactions(await store.readTransactions(addDays(today, -60))));
+    if (!merchants.length) return { suggestions: [], asked: 0 };
+    const suggestions = readSuggestions(
+      await askClaude(suggestAsk(merchants, state.categories)),
+      merchants,
+      state.categories,
+    );
+    return { suggestions: suggestions ?? [], asked: merchants.length };
+  } catch (e) {
+    if (e instanceof AiError) {
+      console.error("claude", e.code);
+      return {
+        error:
+          e.code === "NO_CREDIT"
+            ? "This month's Claude API credit is spent, so sort these by hand. It renews with the plan."
+            : "Claude couldn't suggest categories just now. Try again, or sort them by hand.",
+      };
+    }
+    return { error: e instanceof store.MoneyStoreError ? e.message : "That didn't work. Try again." };
+  }
 }
 
 /**
