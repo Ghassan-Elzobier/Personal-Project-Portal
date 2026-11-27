@@ -40,7 +40,8 @@ async function aPlannedWeek(page: Page, request: APIRequestContext) {
   }
 }
 
-const banner = (page: Page) => page.locator("section.card-life").filter({ has: page.getByText(/^\d+ past meals? (is|are) not ticked\.$/) });
+const banner = (page: Page) =>
+  page.locator("section.card-life").filter({ has: page.getByText(/^\d+ past meals? (is|are) not ticked\.$/) });
 
 test("last week's unticked meal from a batch with portions left is offered on Meals, logs with one tap, and stays logged after a reload", async ({
   page,
