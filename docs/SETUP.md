@@ -233,6 +233,12 @@ nothing is billed.
    **Production** only, marked **sensitive**. Then redeploy. It never goes in
    GitHub, the database or the browser.
 
+On Study, **Draft answers** on the recall queue asks Claude to answer the due cards
+that have nothing to check against (the book plans' cards and those added by hand),
+up to 20 a tap, from the questions alone. Each draft says it is Claude's and waits
+behind **Show answer**, as the tutor's answers do; a card that already has an answer
+keeps it. Claude Sonnet 5.5 writes them, for under half a penny a card.
+
 Reading one advert costs well under a penny with Claude Haiku 5.5. The Console's
 **Cost** page shows what the portal has spent. If the key might have leaked,
 delete it in the Console (that cuts it off at once) and add a new one.
