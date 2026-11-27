@@ -2,7 +2,8 @@
 // or spends credit. It answers POST /v1/messages in the Messages API's shape. Each
 // feature that asks Claude has its own answer in e2e/fake-claude/, picked by the JSON
 // schema the request holds the answer to (each module exports `matches` and
-// `answer`), so a new feature adds a file there and changes nothing here. Like the
+// `answer`, and may export `page(path)` to serve made-up web pages for GET), so a new
+// feature adds a file there and changes nothing here. Like the
 // portal's rules, it refuses a request that offers the model tools or no schema.
 // POST /__credit?spent=1 makes it answer as the real API does once the month's credit
 // is spent; ?spent=0 puts it back. Playwright starts it beside the app
@@ -42,6 +43,13 @@ createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/__credit") {
     spent = url.searchParams.get("spent") === "1";
     return send(res, 204);
+  }
+  // Made-up web pages for the job page reader (JOB_PAGES_TEST_ORIGIN): a module may serve some.
+  if (req.method === "GET") {
+    const html = ANSWERS.map((a) => a.page?.(url.pathname)).find((p) => typeof p === "string");
+    if (html === undefined) return send(res, 404, { error: "not found" });
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(html);
   }
   if (req.method !== "POST" || url.pathname !== "/v1/messages") return send(res, 404, { error: "not found" });
   if (req.headers["x-api-key"] !== KEY) return refuse(res, 401, "authentication_error", "invalid x-api-key");

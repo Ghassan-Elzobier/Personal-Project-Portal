@@ -2,15 +2,16 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { askClaude, claudeReady } from "../ai/claude";
 import { AiError, aiProblem } from "../ai/messages";
-import { timeZone } from "../config/env";
+import { jobPagesTestOrigin, timeZone } from "../config/env";
 import { now } from "../dates/clock";
 import { dateIn, isDay } from "../dates/week";
 import { advertAsk, readAdvertAnswer, type AdvertReading } from "../jobs/ai-read";
+import { boardOf, careersAsk, careersJobs, pageLinks, readCareersAnswer } from "../jobs/careers-read";
 import { familyOf, locationTier } from "../jobs/classify";
 import { advertText, EXTRACT_VERSION, seniorityOf } from "../jobs/extract";
-import { FEED_KINDS, parseBoardLink, readFeed } from "../jobs/feeds";
+import { FEED_KINDS, parseBoardLink, readFeed, type FeedRead } from "../jobs/feeds";
 import { followedNames, readAdvert, toPosting } from "../jobs/ingest";
-import { fetchJobPage, PageError, pageText } from "../jobs/job-page";
+import { fetchJobPage, PageError, pageText, type PageReason } from "../jobs/job-page";
 import { applyBy } from "../jobs/next-step";
 import { postingData, type PostingData } from "../jobs/posting-data";
 import { skillByKey } from "../jobs/skills";
@@ -46,11 +47,60 @@ export function refreshJobs(): Promise<RefreshResult> {
   return running;
 }
 
+/** What the row of a careers page says when the portal could not read it this time. */
+const CAREERS_PROBLEM: Partial<Record<PageReason, string>> = {
+  browser: "This page builds itself in the browser, so the portal can't read it. Check it by hand.",
+  barred: "This site's terms don't allow reading it automatically. Check it by hand.",
+  refused: "This site wouldn't let the portal read the page. Check it by hand.",
+  gone: "This page has gone. Follow the employer's new careers page.",
+};
+
+/**
+ * A careers page on the hand list, read as a feed (careers-read.ts): through the job board
+ * it is built on when it has one, which is free, and otherwise by Claude. A read that
+ * fails closes nothing and leaves the page to be checked by hand, with the reason.
+ */
+async function readCareersPage(source: store.JobSource): Promise<FeedRead> {
+  const failed = (error: string): FeedRead => ({ ok: false, error, seen: null, jobs: [] });
+  try {
+    const page = await fetchJobPage(source.careers_url ?? "", fetch, undefined, jobPagesTestOrigin());
+    const board = boardOf(page.html, page.url);
+    if (board) {
+      const known = board.kind === "greenhouse" ? new Set(await store.knownIds(source.gid)) : new Set<string>();
+      const read = await readFeed({ ...board, name: source.name }, known);
+      return read.ok ? read : failed(`Its job board didn't answer: ${read.error ?? "try again later."}`);
+    }
+    if (!claudeReady()) return failed("Reading this page needs the Claude API key, so check it by hand.");
+    const links = pageLinks(page.html, page.url);
+    const answer = readCareersAnswer(await askClaude(careersAsk(pageText(page.html), links)), links);
+    if (!answer) return failed("Claude couldn't read this page this time. Check it by hand if it keeps failing.");
+    if (!answer.isCareersPage) return failed("This page doesn't list roles. Follow the employer's jobs page instead.");
+    const jobs = careersJobs(answer.roles, source.name);
+    return { ok: true, error: null, seen: jobs.map((j) => j.id), jobs };
+  } catch (err) {
+    if (err instanceof PageError)
+      return failed(
+        CAREERS_PROBLEM[err.reason] ?? "Couldn't read this page this time. Check it by hand if it keeps failing.",
+      );
+    if (err instanceof AiError) {
+      console.error("claude", err.code);
+      return failed(
+        err.code === "NO_CREDIT"
+          ? "This month's Claude API credit is spent, so check this page by hand until it renews."
+          : "Claude couldn't read this page this time. Check it by hand if it keeps failing.",
+      );
+    }
+    return failed("Couldn't read this page this time. Check it by hand if it keeps failing.");
+  }
+}
+
 async function runRefresh(): Promise<RefreshResult> {
   try {
     const all = await store.listSources();
     const followed = followedNames(all);
-    const sources = all.filter((s) => s.active && (FEED_KINDS as readonly string[]).includes(s.kind));
+    const sources = all.filter(
+      (s) => s.active && ((FEED_KINDS as readonly string[]).includes(s.kind) || (s.kind === "link" && s.careers_url)),
+    );
     let added = 0;
     let closed = 0;
     const failed: string[] = [];
@@ -58,13 +108,15 @@ async function runRefresh(): Promise<RefreshResult> {
     const queue = [...sources];
     const worker = async () => {
       for (let source = queue.shift(); source; source = queue.shift()) {
+        const page = source.kind === "link";
         const known = source.kind === "greenhouse" ? new Set(await store.knownIds(source.gid)) : new Set<string>();
-        const read = await readFeed(source, known);
+        const read = page ? await readCareersPage(source) : await readFeed(source, known);
         const postings = read.jobs.flatMap((job) => toPosting(job, source!.kind, followed) ?? []);
         const saved = await store.saveRead(source.gid, read, postings);
         added += saved.added;
         closed += saved.closed;
-        if (!read.ok) failed.push(source.name);
+        // A careers page that can't be read says why on its own row, so it isn't news each time.
+        if (!read.ok && !page) failed.push(source.name);
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
@@ -266,7 +318,7 @@ export async function addRoleFromAdvert(input: { source: string }): Promise<Adve
   let text: string;
   try {
     if (isLink) {
-      const page = await fetchJobPage(source);
+      const page = await fetchJobPage(source, fetch, undefined, jobPagesTestOrigin());
       data = postingData(page.html);
       text = data && data.text.length >= ENOUGH_ADVERT ? data.text : pageText(page.html);
     } else {

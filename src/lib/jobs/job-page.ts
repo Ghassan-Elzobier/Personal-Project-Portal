@@ -12,8 +12,17 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { advertText } from "./extract.ts";
 
-/** Why a page could not be read, worded for the owner: these are shown as they are. */
-export class PageError extends Error {}
+/** The kinds of failure a caller words its own way (a careers page is checked by hand, not pasted). */
+export type PageReason = "barred" | "refused" | "gone" | "browser" | "other";
+
+/** Why a page could not be read, worded for someone pasting an advert: shown as it is. */
+export class PageError extends Error {
+  readonly reason: PageReason;
+  constructor(message: string, reason: PageReason = "other") {
+    super(message);
+    this.reason = reason;
+  }
+}
 
 export type Lookup = (host: string) => Promise<string[]>;
 type Fetcher = typeof fetch;
@@ -58,8 +67,15 @@ export function isPublicAddress(ip: string): boolean {
   return false;
 }
 
+/**
+ * The one origin the end-to-end suite serves made-up pages from (env.ts gives it only off
+ * Vercel, and only on this machine). Every other address must be public.
+ */
+const isTestOrigin = (url: URL, testOrigin: string | null) =>
+  testOrigin !== null && url.origin === testOrigin && /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(testOrigin);
+
 /** A pasted link, if it is one the portal may fetch. */
-export function checkLink(link: string): URL {
+export function checkLink(link: string, testOrigin: string | null = null): URL {
   let url: URL;
   try {
     url = new URL(link.trim());
@@ -68,6 +84,7 @@ export function checkLink(link: string): URL {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:")
     throw new PageError("Only web links can be read. Paste one that starts with https://.");
+  if (isTestOrigin(url, testOrigin)) return url;
   if (url.username || url.password)
     throw new PageError(
       "That link carries a sign-in, so it isn't read. Copy the advert's text and paste it here instead.",
@@ -82,6 +99,7 @@ export function checkLink(link: string): URL {
   if (BARRED.test(host))
     throw new PageError(
       "That site's terms don't allow reading it automatically. Copy the advert's text and paste it here instead.",
+      "barred",
     );
   return url;
 }
@@ -121,10 +139,11 @@ export async function fetchJobPage(
   link: string,
   fetcher: Fetcher = fetch,
   lookup: Lookup = defaultLookup,
+  testOrigin: string | null = null,
 ): Promise<{ url: string; html: string }> {
-  let url = checkLink(link);
+  let url = checkLink(link, testOrigin);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    await checkAddresses(url.hostname.replace(/^\[|\]$/g, ""), lookup);
+    if (!isTestOrigin(url, testOrigin)) await checkAddresses(url.hostname.replace(/^\[|\]$/g, ""), lookup);
     let res: Response;
     try {
       res = await fetcher(url.href, {
@@ -144,13 +163,15 @@ export async function fetchJobPage(
       const next = res.headers.get("location");
       if (!next)
         throw new PageError("The page moved without saying where. Copy the advert's text and paste it here instead.");
-      url = checkLink(new URL(next, url).href);
+      url = checkLink(new URL(next, url).href, testOrigin);
       continue;
     }
-    if (res.status === 404 || res.status === 410) throw new PageError("That page has gone. The role may have closed.");
+    if (res.status === 404 || res.status === 410)
+      throw new PageError("That page has gone. The role may have closed.", "gone");
     if (res.status === 401 || res.status === 403 || res.status === 429)
       throw new PageError(
         "That site wouldn't let the portal read the page. Copy the advert's text and paste it here instead.",
+        "refused",
       );
     if (!res.ok)
       throw new PageError(`The page answered ${res.status}. Copy the advert's text and paste it here instead.`);
@@ -177,6 +198,7 @@ export function pageText(html: string): string {
   if (text.length < MIN_TEXT)
     throw new PageError(
       "That page builds itself in the browser, so the portal can't read it. Copy the advert's text and paste it here instead.",
+      "browser",
     );
   return text;
 }
