@@ -68,6 +68,12 @@ export function anthropicBase(): string {
   return process.env.ANTHROPIC_BASE_URL?.trim().replace(/\/$/, "") || "https://api.anthropic.com";
 }
 
+/** Only for the end-to-end suite: where its made-up job pages are served. Never on Vercel. */
+export function jobPagesTestOrigin(): string | null {
+  if (process.env.VERCEL) return null;
+  return process.env.JOB_PAGES_TEST_ORIGIN?.trim().replace(/\/$/, "") || null;
+}
+
 /** Problems with configuration, worded for the owner's "Needs attention" list. */
 export function configProblems(): string[] {
   const problems: string[] = [];

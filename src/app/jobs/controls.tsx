@@ -96,7 +96,7 @@ export function AddSourceForm() {
           if (result.error) return toast(result.error, { tone: "error" });
           toast(
             result.kind === "link"
-              ? `${name} added to check by hand.`
+              ? `${name} added. Its careers page is read at the next check.`
               : `Following ${name}. Its roles arrive at the next check.`,
           );
           setLink("");

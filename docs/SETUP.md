@@ -215,7 +215,9 @@ With an API key, **Add from the advert** on Jobs (Sources, then Add a role by ha
 asks Claude to read an advert: it finds the advert on the page and fills in the
 role's title, employer, place, pay and closing date. Without one, the button still
 works for pages that publish their own job details, and puts the advert text in the
-form for anything else.
+form for anything else. The key also lets each check read the careers pages on
+Jobs' "Check by hand" list and bring in their roles; a page built on a job board is
+read through that board, with or without the key.
 
 The key runs on the Claude Max plan's monthly API credit ($100), not on the
 subscription's usage. When the credit is spent, requests stop until it renews;

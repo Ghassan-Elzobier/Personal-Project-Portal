@@ -395,7 +395,8 @@ export function parseBoardLink(link: string): { kind: SourceKind; token: string 
     host === "job-boards.eu.greenhouse.io" ||
     host === "boards.eu.greenhouse.io"
   )
-    return named("greenhouse", first);
+    // A board embedded in an employer's own careers page names itself in "for".
+    return named("greenhouse", first === "embed" ? (url.searchParams.get("for") ?? "") : first);
   if (host === "jobs.ashbyhq.com") return named("ashby", first);
   if (host === "jobs.lever.co" || host === "jobs.eu.lever.co") return named("lever", first);
   if (host === "apply.workable.com") return named("workable", first);

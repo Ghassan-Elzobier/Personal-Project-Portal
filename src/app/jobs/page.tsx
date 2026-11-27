@@ -55,7 +55,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const pay = selected && money ? roleMoney(salaryOf(selected.salary), money.data, money.today) : [];
   const closeFilters = { ...filters, role: undefined };
   const closeHref = `/jobs${Object.values(closeFilters).some(Boolean) ? `?${new URLSearchParams(Object.entries(closeFilters).filter((e): e is [string, string] => Boolean(e[1])))}` : ""}`;
-  const feeds = board.sources.filter((s) => s.kind !== "link" && s.active);
+  // Feeds, and careers pages, which each check now reads too (src/lib/jobs/careers-read.ts).
+  const feeds = board.sources.filter((s) => s.active && (s.kind !== "link" || s.careers_url));
   const stale = !board.lastRead || now().getTime() - new Date(board.lastRead).getTime() > STALE_MS;
 
   return (
