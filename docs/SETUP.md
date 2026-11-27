@@ -233,6 +233,11 @@ Reading one advert costs well under a penny with Claude Haiku 5.5. The Console's
 **Cost** page shows what the portal has spent. If the key might have leaked,
 delete it in the Console (that cuts it off at once) and add a new one.
 
+On the Sunday update (/week), **Write up from my notes** asks Claude, on Haiku 5.5,
+to write a project's "Done this week" line from that week's session notes, in the
+text you are editing. Every other line stays as it is, the line's evidence links are
+kept, and nothing is posted until you post it.
+
 ## Local development
 
 ```sh

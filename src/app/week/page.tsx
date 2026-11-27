@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { claudeReady } from "@/lib/ai/claude";
 import { requireOwner } from "@/lib/auth/access";
 import { projectGid } from "@/lib/config/env";
 import { attempt, thisWeek, weekSummary } from "@/lib/portal/data";
@@ -82,6 +83,7 @@ export default async function WeekPage() {
                   draft={s.value.draft}
                   suggested={s.value.suggestedStatus}
                   postedText={s.value.posted?.text ?? null}
+                  canPolish={claudeReady() && s.value.sessions.length > 0}
                 />
               </>
             )}
