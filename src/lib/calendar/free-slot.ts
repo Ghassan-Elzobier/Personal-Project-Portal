@@ -47,3 +47,41 @@ export function nextFreeSlot(
   const nextDay = tomorrow === null ? null : firstGap(taken, tomorrow, MORNING, duration);
   return nextDay === null ? null : { date: tomorrow!, start: nextDay };
 }
+
+/** The latest a study block is offered to start: nothing is suggested for late at night. */
+export const LATEST_START = 22 * 60;
+
+/** A suggested time for study the week's target still needs. */
+export type Offer = { date: string; start: number; duration: number };
+
+/**
+ * Times for the study hours the week is still short (`short` minutes), in blocks of
+ * up to `block` minutes, at most one a day and at most `limit` in all, so the hours
+ * are spread over the week rather than massed into one sitting (Cepeda et al., 2006).
+ * Each is the first quarter-hour gap on its day that overlaps nothing in `taken`:
+ * today from `now`, later days from the morning, and never starting after 22:00.
+ * `days` are the week's days in order; days before `today` are skipped.
+ */
+export function placeShort(input: {
+  taken: Taken[];
+  days: string[];
+  today: string;
+  now: number;
+  short: number;
+  block?: number;
+  limit?: number;
+}): Offer[] {
+  const { taken, days, today, now, block = 60, limit = 3 } = input;
+  const offers: Offer[] = [];
+  let left = input.short;
+  for (const date of days) {
+    if (left <= 0 || offers.length >= limit) break;
+    if (date < today) continue;
+    const duration = Math.min(block, Math.ceil(left / STEP) * STEP);
+    const start = firstGap(taken, date, date === today ? now : MORNING, duration);
+    if (start === null || start > LATEST_START) continue;
+    offers.push({ date, start, duration });
+    left -= duration;
+  }
+  return offers;
+}
