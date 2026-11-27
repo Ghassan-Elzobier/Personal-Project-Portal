@@ -56,6 +56,7 @@ import { varietyFor } from "./variety";
 import type { Tag } from "./allergens";
 import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
 import { addDays } from "../dates/week";
+import { fineUntilProblem } from "./leftovers";
 
 // Every change Life makes, shared by the pages' actions and the Claude connector.
 // Each returns { error } with a message for people instead of throwing.
@@ -728,6 +729,26 @@ export function setBatch(
 ): Promise<Result> {
   return run(async () => {
     await store.setBatch(batch, remaining, location);
+    return {};
+  });
+}
+
+/**
+ * The owner's call that a fridge batch is still fine until `until`, past the Food
+ * Standards Agency's eat-by (at most two days past it), or back to the rule (null).
+ */
+export function setBatchFineUntil(batch: string, until: string | null): Promise<Result> {
+  return run(async () => {
+    const s = await state();
+    const b = s.batches.find((x) => x.gid === batch);
+    const r = b ? recipe(b.recipe) : undefined;
+    if (!b || !r || b.remaining < 1) fail("That food isn't in the kitchen any more. Reload to see what is.");
+    if (until !== null) {
+      if (b!.location !== "fridge") fail("Only food in the fridge has an eat-by.");
+      const problem = fineUntilProblem(b!.cookedOn, r!.keeps, until);
+      if (problem) fail(problem);
+    }
+    await store.setBatchFineUntil(batch, until);
     return {};
   });
 }

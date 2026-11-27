@@ -149,6 +149,8 @@ export type StockBatch = {
   left: number;
   location: "fridge" | "freezer";
   scale: number;
+  /** The owner's "still fine until" for a fridge batch, past the rule's eat-by. */
+  fineUntil?: string | null;
 };
 
 export type Placement = {
@@ -223,6 +225,7 @@ type Pool = {
   location: "plan" | "fridge" | "freezer";
   cookId?: string;
   batchGid?: string;
+  fineUntil?: string | null;
 };
 
 const minuteOf = (start: string, date: string, minutes: number) => daysBetween(start, date) * 1440 + minutes;
@@ -232,8 +235,9 @@ function storageFor(p: Pool, date: string): "fridge" | "freezer" | null {
   const age = daysBetween(p.cookedOn, date);
   if (p.location === "freezer") return "freezer";
   if (age <= p.recipe.keeps.fridgeDays) return "fridge";
-  // Already sitting in the fridge past its window: no longer safe.
-  if (p.location === "fridge") return null;
+  // Already sitting in the fridge past its window: no longer safe, unless the owner
+  // said this batch is still fine until a later day.
+  if (p.location === "fridge") return p.fineUntil && date <= p.fineUntil ? "fridge" : null;
   return p.recipe.keeps.freezes ? "freezer" : null;
 }
 
@@ -253,6 +257,7 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
         scale: b.scale,
         location: b.location,
         batchGid: b.gid,
+        fineUntil: b.fineUntil,
       });
   }
   for (const c of plan.cooks) {
@@ -317,7 +322,10 @@ export function assign(plan: WeekPlan, routine: Routine, stock: StockBatch[], kc
             sameDay === c.p.recipe.key ? 1 : 0,
             // Food that can't wait goes first: fridge-only, closing soonest.
             c.p.recipe.keeps.freezes || c.p.location === "freezer" ? 1 : 0,
-            daysBetween(c.p.cookedOn, date) <= c.p.recipe.keeps.fridgeDays ? 0 : 1,
+            daysBetween(c.p.cookedOn, date) <= c.p.recipe.keeps.fridgeDays ||
+            (c.p.location === "fridge" && c.p.fineUntil)
+              ? 0
+              : 1,
             Date.parse(c.p.cookedOn),
             run,
           ];
@@ -366,7 +374,12 @@ export function fillGaps(placements: Placement[], stock: StockBatch[], from: str
     if (p.source !== "none" || (p.slot !== "lunch" && p.slot !== "dinner") || p.date < from) return p;
     const b = left
       .filter((x) => x.left > 0)
-      .filter((x) => x.location === "freezer" || daysBetween(x.cookedOn, p.date) <= recipe(x.recipe)!.keeps.fridgeDays)
+      .filter(
+        (x) =>
+          x.location === "freezer" ||
+          daysBetween(x.cookedOn, p.date) <= recipe(x.recipe)!.keeps.fridgeDays ||
+          Boolean(x.fineUntil && p.date <= x.fineUntil),
+      )
       .sort(
         (a, b2) =>
           Number(a.location === "freezer") - Number(b2.location === "freezer") || a.cookedOn.localeCompare(b2.cookedOn),
