@@ -790,9 +790,9 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
     const needs = v ? remainingNeeds(s, v) : weekNeeds(plan!, []);
     const lines = buildList(needs, v ? kitchenFor(s, v) : s.stock, s.products, s.profile.food, s.today);
     const changes = countedDelivery(lines, got, s.today);
-    const undo = await landInKitchen(changes, s);
+    const { steps, undo } = landInKitchen(changes, s);
     const frozen = frozenOnArrival(lines, got);
-    await store.savePlan(start, {
+    await store.landShop(start, steps, {
       ...plan!,
       shop: { ...plan!.shop, deliveredOn: s.today, got, ...undo, ...(frozen.length ? { frozen } : {}) },
     });
@@ -801,19 +801,25 @@ export function confirmDelivery(start: string, got: string[]): Promise<Result<{ 
 }
 
 /**
- * Puts a shop into the kitchen (a fresh pack replaces a remainder past its date) and
- * returns what Undo needs to put the kitchen back exactly as it was.
+ * The stock steps that put a shop into the kitchen (a fresh pack replaces a remainder
+ * past its date), and what Undo needs to put the kitchen back exactly as it was.
+ * `store.landShop` writes the steps and the plan together.
  */
-async function landInKitchen(changes: ReturnType<typeof countedDelivery>, s: LifeState) {
+function landInKitchen(changes: ReturnType<typeof countedDelivery>, s: LifeState) {
   const landed = landShop(changes, s.stock, s.today);
-  if (landed.set.length) await store.changeStock(landed.set, "set");
-  if (landed.add.length) await store.changeStock(landed.add, "add");
+  const steps: store.StockStep[] = [
+    { mode: "set", changes: landed.set },
+    { mode: "add", changes: landed.add },
+  ];
   const { added, restore } = undoOf(changes, s.stock);
   return {
-    added,
-    ...(restore.length ? { restore } : {}),
-    ...(landed.dropped.length ? { dropped: landed.dropped } : {}),
-    ...(landed.dates.length ? { dates: landed.dates } : {}),
+    steps,
+    undo: {
+      added,
+      ...(restore.length ? { restore } : {}),
+      ...(landed.dropped.length ? { dropped: landed.dropped } : {}),
+      ...(landed.dates.length ? { dates: landed.dates } : {}),
+    },
   };
 }
 
@@ -822,8 +828,7 @@ export function undoDelivery(start: string): Promise<Result> {
     const s = await state();
     const plan = s.plans.find((p) => p.start === start)?.data;
     if (!plan?.shop?.deliveredOn) fail("No delivery to undo.");
-    await unshop(plan!.shop!);
-    await store.savePlan(start, {
+    await store.landShop(start, unshop(plan!.shop!), {
       ...plan!,
       shop: {
         ...plan!.shop,
@@ -840,12 +845,16 @@ export function undoDelivery(start: string): Promise<Result> {
   });
 }
 
-/** Puts the kitchen back as it was before a shop: its food out again, its staples to how they were. */
-/** Takes a shop back out of the kitchen, exactly: amounts, staples, dates and the food it replaced. */
-async function unshop(record: Parameters<typeof undoShop>[0]) {
+/**
+ * The stock steps that take a shop back out of the kitchen, exactly: amounts,
+ * staples, dates and the food it replaced. `store.landShop` writes them with the plan.
+ */
+function unshop(record: Parameters<typeof undoShop>[0]): store.StockStep[] {
   const undo = undoShop(record);
-  if (undo.add.length) await store.changeStock(undo.add, "add");
-  if (undo.set.length) await store.changeStock(undo.set, "set");
+  return [
+    { mode: "add", changes: undo.add },
+    { mode: "set", changes: undo.set },
+  ];
 }
 
 /** A fresh week's shop is done: what you got goes into stock, fresh food with its use-by. */
@@ -859,18 +868,23 @@ export function confirmTrip(start: string, tripId: string, got: string[]): Promi
     const v = viewFor(s, start);
     const lines = (v && tripLists(s, v).open.find((t) => t.trip.id === tripId)?.lines) ?? [];
     const changes = countedDelivery(lines, got, s.today);
-    const undo = await landInKitchen(changes, s);
+    const { steps, undo } = landInKitchen(changes, s);
     const frozen = frozenOnArrival(lines, got);
     // The week's food, like the list's: cupboard staples last for weeks, so they are left out.
     const pence = lines
       .filter((l) => l.packs > 0 && !l.item.staple && got.includes(l.item.key))
       .reduce((t, l) => t + l.pence, 0);
-    await store.savePlan(start, {
-      ...plan!,
-      trips: plan!.trips!.map((t) =>
-        t.id === tripId ? { ...t, doneOn: s.today, got, ...undo, ...(frozen.length ? { frozen } : {}), pence } : t,
-      ),
-    });
+    await store.landShop(
+      start,
+      steps,
+      {
+        ...plan!,
+        trips: plan!.trips!.map((t) =>
+          t.id === tripId ? { ...t, doneOn: s.today, got, ...undo, ...(frozen.length ? { frozen } : {}), pence } : t,
+        ),
+      },
+      tripId,
+    );
     return { added: changes.length };
   }, true);
 }
@@ -924,11 +938,15 @@ export function undoTrip(start: string, tripId: string): Promise<Result> {
     const plan = s.plans.find((p) => p.start === start)?.data;
     const trip = plan?.trips?.find((t) => t.id === tripId);
     if (!plan || !trip?.doneOn) fail("No shop to undo.");
-    await unshop(trip!);
-    await store.savePlan(start, {
-      ...plan!,
-      trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),
-    });
+    await store.landShop(
+      start,
+      unshop(trip!),
+      {
+        ...plan!,
+        trips: plan!.trips!.map((t) => (t.id === tripId ? { id: t.id, date: t.date, start: t.start } : t)),
+      },
+      tripId,
+    );
     return {};
   }, true);
 }
