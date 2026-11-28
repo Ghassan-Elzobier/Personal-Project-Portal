@@ -29,5 +29,26 @@ if [ ! -d node_modules ] || [ "$(cat "$stamp" 2>/dev/null)" != "$hash" ]; then
   fi
 fi
 
+# A cloud session: start Docker if it is installed but stopped, then say which
+# suites can run here (scripts/cloud-env.mjs). The daemon gets the session's own
+# proxy, or it can't pull images through the allowlist. Local sessions skip this.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+  if command -v docker >/dev/null 2>&1 && ! docker info >/dev/null 2>&1 && command -v dockerd >/dev/null 2>&1; then
+    proxy_args=()
+    https_proxy_value="${HTTPS_PROXY:-${https_proxy:-}}"
+    http_proxy_value="${HTTP_PROXY:-${http_proxy:-}}"
+    no_proxy_value="${NO_PROXY:-${no_proxy:-}}"
+    [ -n "$http_proxy_value" ] && proxy_args+=(--http-proxy "$http_proxy_value")
+    [ -n "$https_proxy_value" ] && proxy_args+=(--https-proxy "$https_proxy_value")
+    [ -n "$no_proxy_value" ] && proxy_args+=(--no-proxy "$no_proxy_value")
+    nohup dockerd "${proxy_args[@]}" >/tmp/dockerd.log 2>&1 &
+    for _ in $(seq 30); do
+      docker info >/dev/null 2>&1 && break
+      sleep 1
+    done
+  fi
+  node --experimental-strip-types --no-warnings scripts/cloud-env.mjs || true
+fi
+
 echo "Node $(node -v) on $(git branch --show-current 2>/dev/null). Follow AGENTS.md; ship changes with /ship."
 exit 0
