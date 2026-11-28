@@ -480,10 +480,18 @@ Done once by you, since each needs your accounts. About fifteen minutes.
    the release workflow. `vercel.json` already turns off preview builds: previews have
    no database, and CI renders every page instead.
 5. **The cloud environment.** At claude.ai/code, keep the Default environment's
-   Limited network access: everything the factory needs (npm, nodejs.org, the
-   Supabase and Playwright images, Google Fonts) is on the default allowlist. No
-   setup script is needed; the SessionStart hook installs Node 24 and the
-   dependencies.
+   Limited network access with "Allow package managers" ticked: the factory needs
+   npm, nodejs.org, the Supabase images (public.ecr.aws), Playwright's
+   (mcr.microsoft.com) and Google Fonts (fonts.gstatic.com). The SessionStart
+   hook installs Node 24 and the dependencies, starts Docker if it is installed
+   but stopped, and prints which suites the session can run, for example
+   `Here: check ✓ · build ✗ fonts.gstatic.com refused · test:db ✓ · test:e2e ✗ fonts.gstatic.com refused`
+   (`scripts/cloud-env.mjs`). A suite marked ✗ names what it lacks: a host
+   "refused" means adding it to the environment's allowed domains (or choosing
+   Limited with package managers allowed), which reaches a running session within
+   about a minute; "no Docker daemon" means dockerd would not start (its log is
+   `/tmp/dockerd.log`). Until then that suite is left to CI, and the pull request
+   says so.
 6. **The weekly routines.** Run `/schedule` in Claude Code and create two, on this
    repository, each with the GitHub connection and no other connectors:
    - Sunday 20:00, "Weekly refactor": `Run /refactor. Open one pull request, or none if the queue has nothing worth a PR.`

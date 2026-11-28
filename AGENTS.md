@@ -59,6 +59,10 @@ switch a test off to get green (`test.fixme`, `.only`, an unconditional skip): t
 | `npm run guard` | The CI guard: migrations, ratchets, protected tests. |
 | `npm run health` | The refactor queue: what most needs improving, ranked. |
 
+In a cloud session the session hook prints a `Here:` line saying which of check,
+build, `test:db` and `test:e2e` can run, and what each one lacks: plan for it
+from the start and say in the pull request what was left to CI.
+
 The local Supabase stack uses ports 554xx (`supabase/config.toml`). CLI v3 commands
 act on the local stack unless given `--remote`.
 
