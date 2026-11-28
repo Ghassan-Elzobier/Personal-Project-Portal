@@ -69,14 +69,23 @@ export function HubCard({ hub, roadmap, today }: { hub: Hub; roadmap: Roadmap; t
         ) : (
           <p className="text-sm text-body">No close match yet.</p>
         )}
-        {hub.biggestGap && (
-          <p className="text-sm text-body">
-            Biggest gap: <span className="font-medium text-white">{hub.biggestGap.skill.name}</span>
-            <span className="text-muted">
-              , required by {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.
-            </span>
-          </p>
-        )}
+        {hub.biggestGap &&
+          (hub.biggestGap.unlocks > 0 ? (
+            <p className="text-sm text-body">
+              Learn next: <span className="font-medium text-white">{hub.biggestGap.skill.name}</span>
+              <span className="text-muted">
+                , {plural(hub.biggestGap.unlocks, "role", "roles")} would move up a band. Required by{" "}
+                {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm text-body">
+              Biggest gap: <span className="font-medium text-white">{hub.biggestGap.skill.name}</span>
+              <span className="text-muted">
+                , required by {plural(hub.biggestGap.must, "role", "roles")} and not in your plan.
+              </span>
+            </p>
+          ))}
         {hub.nextSkill && (
           <p className="text-sm text-body">
             Most-asked skill on its way: <span className="font-medium text-white">{hub.nextSkill.skill.name}</span>

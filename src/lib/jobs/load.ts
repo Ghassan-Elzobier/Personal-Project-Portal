@@ -6,8 +6,10 @@ import { loadStudy, type StudyOverview } from "../study/load";
 import { readBoard } from "./board-reads";
 import { FAMILIES, isCoreFamily } from "./classify";
 import {
+  biggestGapOf,
   branchImpact,
   buildStandings,
+  byDemand,
   isTarget,
   isVisible,
   marketRows,
@@ -234,8 +236,8 @@ export function hubFrom(board: JobBoard, overview: StudyOverview): Hub {
     fresh: fresh.length,
     freshNear: fresh.filter(near).length,
     closest,
-    biggestGap: board.market.find((m) => m.standing.status === "missing" || m.standing.status === "near") ?? null,
-    nextSkill: board.market.find((m) => m.standing.status === "in_plan") ?? null,
+    biggestGap: biggestGapOf(board.market),
+    nextSkill: board.market.filter((m) => m.standing.status === "in_plan").sort(byDemand)[0] ?? null,
     active: board.roles.filter(isLive).length,
     actions,
     unplanned: needsNextStep(board.roles).length,
@@ -256,8 +258,9 @@ export function mentorSummary(board: JobBoard): string {
   const targets = board.roles.filter((r) => r.target);
   const line = (r: RoleView) => `- ${r.title}, ${r.company} (${r.location_tier}): ${r.fit.reason}`;
   const top = targets.filter((r) => r.fit.band !== "unread" && r.fit.band !== "stretch").slice(0, 5);
-  const gaps = board.market.filter((m) => m.standing.status === "missing" || m.standing.status === "near").slice(0, 6);
-  const coming = board.market.filter((m) => m.standing.status === "in_plan").slice(0, 6);
+  const byAsked = [...board.market].sort(byDemand);
+  const gaps = byAsked.filter((m) => m.standing.status === "missing" || m.standing.status === "near").slice(0, 6);
+  const coming = byAsked.filter((m) => m.standing.status === "in_plan").slice(0, 6);
   const active = board.roles.filter(
     (r) => ["saved", "applied", "interview", "offer"].includes(r.stage) && !r.closed_at,
   );
