@@ -21,6 +21,10 @@ import { DEFAULT_PROFILE, plannerRoutine, type LifeProfile } from "./profile.ts"
 import { recipe } from "./recipes.ts";
 import type { Product } from "./shopping.ts";
 import { suggestWeek } from "./suggest.ts";
+import { roundAgain } from "./combo.ts";
+import { portionScale, SPLIT } from "./nutrition.ts";
+import { linesFor } from "./shopping.ts";
+import type { Cook } from "./planner.ts";
 
 // ------------------------------------------------------------------ the search, on made-up food
 
@@ -334,4 +338,97 @@ test("a portion costs its share of each pack, at your prices once you set them",
   });
   assert.ok(Math.abs(portionCost(r, dearer) - 2 * typical) <= 1, "twice the prices, twice the cost");
   assert.ok(Math.abs(portionCost(r, [], 1.5) - 1.5 * typical) <= 1, "a bigger portion costs more");
+});
+
+// ------------------------------------------------------------------ whole packs, shared and breakfasts
+
+/**
+ * Made-up products for a plan: `tight` comes in a pack 8% bigger than the week needs,
+ * everything else in packs with half as much again to spare.
+ */
+function packsFor(plan: WeekPlan, tight: string, by = 1.08): Product[] {
+  const sized = sizeCooks(plan, plannerRoutine(profile), 2900);
+  const need = new Map<string, number>();
+  for (const c of sized)
+    for (const l of linesFor(recipe(c.recipe)!, c.portions, c.scale)) need.set(l.item, (need.get(l.item) ?? 0) + l.qty);
+  return [...need].map(([key, qty]) => {
+    const ing = INGREDIENTS.get(key)!;
+    return {
+      item: key,
+      url: "https://example.test/p",
+      name: "Example",
+      packQty: Math.round(qty * (key === tight ? by : 1.5)),
+      packUnit: ing.unit,
+      pence: 300,
+      checked: [],
+    };
+  });
+}
+const planOf = (cooks: Cook[]): WeekPlan => ({ start: START, cooks, breakfast: "", shake: "", fresh: [], out: [] });
+
+test("two mains that share a fresh pack both grow, by at most 15%, to finish it", () => {
+  const plan = planOf([
+    { id: "a", recipe: "bolognese", date: START, start: 1080, portions: 0, scale: 1 },
+    { id: "b", recipe: "cottage-pie", date: START, start: 1080, portions: 0, scale: 1 },
+  ]);
+  assert.equal(INGREDIENTS.get("beef-mince")!.storage, "fridge", "the shared item is fresh");
+  const k = kitchenOf(profile, { products: packsFor(plan, "beef-mince") });
+  const before = weekCost(plan, k);
+  const { cooks, cost } = roundToPacks(plan, k);
+  for (const c of cooks) {
+    const round = c.round ?? 1;
+    assert.ok(round > 1 && round <= ROUND_MAX, `${c.recipe} grew by ${round}`);
+  }
+  assert.ok(cost.pence <= before.pence, "nothing more to buy");
+  assert.ok(cost.waste < before.waste, "less to go off");
+});
+
+test("a breakfast batch grows by at most 15% to finish its fresh pack, and is sized with it", () => {
+  const plan = planOf([{ id: "bf", recipe: "blueberry-muffins", date: START, start: 540, portions: 0, scale: 1 }]);
+  assert.equal(INGREDIENTS.get("milk")!.storage, "fridge", "the item is fresh");
+  const k = kitchenOf(profile, { products: packsFor(plan, "milk") });
+  const before = weekCost(plan, k);
+  const { cooks, cost } = roundToPacks(plan, k);
+  const round = cooks[0].round ?? 1;
+  assert.ok(round > 1 && round <= ROUND_MAX, `grew by ${round}`);
+  assert.ok(cost.pence <= before.pence && cost.waste < before.waste);
+  const r = recipe("blueberry-muffins")!;
+  const after = sizeCooks({ ...plan, cooks }, plannerRoutine(profile), 2900)[0];
+  assert.ok(
+    Math.abs(after.scale - portionScale(r, 2900 * SPLIT.breakfast) * round) < 1e-9,
+    "scale is portionScale times the round",
+  );
+});
+
+test("rounding again drops a round worked out for other portions, and never grows past 15%", () => {
+  const stale = (): WeekPlan =>
+    planOf([
+      {
+        id: "a",
+        recipe: "bolognese",
+        date: START,
+        start: 1080,
+        portions: 0,
+        scale: 1,
+        round: 1.12,
+        why: ["Portions 12% bigger to finish the beef mince 15% fat", "Uses the onion you have"],
+      },
+    ]);
+  // Without the round, the packs now have half as much again to spare: nothing to finish.
+  const loose = { ...stale(), cooks: stale().cooks.map(({ round: _r, ...c }) => c) };
+  const none = roundAgain(stale(), kitchenOf(profile, { products: packsFor(loose, "beef-mince", 1.5) }));
+  assert.equal(none.cooks[0].round, undefined, "the old round goes");
+  assert.deepEqual(none.cooks[0].why, ["Uses the onion you have"], "and its reason with it");
+  // A pack a little bigger than the new portions need: a new round, within the limit.
+  const tight = roundAgain(stale(), kitchenOf(profile, { products: packsFor(loose, "beef-mince", 1.05) }));
+  const round = tight.cooks[0].round ?? 1;
+  assert.ok(round !== 1.12 && round > 1 && round <= ROUND_MAX, `rounded again to ${round}`);
+  assert.ok(tight.cooks[0].why?.[0].startsWith(`Portions ${Math.round((round - 1) * 100)}% bigger`));
+  // A cook already cooked keeps its round.
+  const kept = roundAgain(
+    stale(),
+    kitchenOf(profile, { products: packsFor(loose, "beef-mince", 1.5) }),
+    new Set(["a"]),
+  );
+  assert.equal(kept.cooks[0].round, 1.12);
 });

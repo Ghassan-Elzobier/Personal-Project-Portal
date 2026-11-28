@@ -51,7 +51,7 @@ import {
 } from "./state";
 import * as store from "./store";
 import { dinnersLeft, suggestPlan } from "./suggest";
-import { weekCost, type Kitchen } from "./combo";
+import { roundAgain, weekCost, withoutRound, type Kitchen } from "./combo";
 import { varietyFor } from "./variety";
 import type { Tag } from "./allergens";
 import { syncLifeMirror, syncLifeMirrorQuietly } from "./calendar-sync";
@@ -296,6 +296,12 @@ export function moveCookSession(
       c.start = to.at;
       c.portions = 0;
     }
+    // Whole-pack portions were worked out for the old portions. Until the week's food
+    // is bought they are worked out again; after that the packs are home, so they go.
+    const bought = Boolean(plan.shop?.deliveredOn || plan.trips?.some((t) => t.doneOn));
+    if (!bought) return roundAgain(plan, kitchenOf(s, start), cooked);
+    const moved = new Set(moving.map((c) => c.id));
+    plan.cooks = plan.cooks.map((c) => (moved.has(c.id) ? withoutRound(c) : c));
   });
 }
 

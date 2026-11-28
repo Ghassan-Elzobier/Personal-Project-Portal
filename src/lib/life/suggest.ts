@@ -385,10 +385,11 @@ function combine(
   const rest = { ...plan, cooks: plan.cooks.filter((c) => !isMain(c)) };
   const found = planCombo({ week: rest, sessions, ranked, greedy, kitchen, cheaper: kitchen.cheaper });
   if (!found) return plan;
-  const { cooks, ...cost } = found.week;
+  // The breakfast batch comes back too: it may have grown to finish a pack.
+  const { cooks, rest: others, ...cost } = found.week;
   return {
     ...plan,
-    cooks: [...cooks, ...rest.cooks],
+    cooks: [...cooks, ...(others ?? rest.cooks)],
     cost: { ...cost, ...(found.cheaper ? { cheaper: found.cheaper.pence + found.cheaper.waste } : {}) },
   };
 }
