@@ -10,6 +10,7 @@ import type { Details, Requirement, Seniority } from "./extract.ts";
 import {
   branchImpact,
   buildStandings,
+  byDemand,
   isTarget,
   marketRows,
   roleFit,
@@ -113,7 +114,8 @@ export function mentorJobView(source: MentorSource) {
     )
     .slice(0, 10);
 
-  const market: MarketRow[] = marketRows(targets, standings);
+  // The mentor's view stays ranked by demand alone.
+  const market: MarketRow[] = marketRows(targets, standings).sort(byDemand);
   const families = FAMILIES.map((f) => {
     const inFamily = targets.filter((r) => r.family === f.key);
     return {

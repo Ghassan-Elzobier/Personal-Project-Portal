@@ -284,10 +284,13 @@ export function SkillTable({
   rows,
   empty,
   about = "you",
+  unlocks = false,
 }: {
   rows: MarketRow[];
   empty: string;
   about?: "you" | "him";
+  /** Show how many roles each skill would move up a band. */
+  unlocks?: boolean;
 }) {
   if (!rows.length) return <Empty>{empty}</Empty>;
   return (
@@ -296,6 +299,7 @@ export function SkillTable({
         <thead className="text-xs text-muted">
           <tr>
             <th className="py-1 pr-4 font-normal">Skill</th>
+            {unlocks && <th className="py-1 pr-4 text-right font-normal">Moves up</th>}
             <th className="py-1 pr-4 text-right font-normal">Required by</th>
             <th className="py-1 pr-4 text-right font-normal">Wanted by</th>
             <th className="py-1 font-normal">{about === "you" ? "Where you stand" : "Where he stands"}</th>
@@ -311,6 +315,7 @@ export function SkillTable({
                 />
                 {row.skill.name}
               </td>
+              {unlocks && <td className="py-2 pr-4 text-right tabular-nums">{row.unlocks}</td>}
               <td className="py-2 pr-4 text-right tabular-nums">{row.must}</td>
               <td className="py-2 pr-4 text-right text-muted tabular-nums">{row.soft}</td>
               <td className="py-2 text-body">
@@ -414,17 +419,21 @@ export function SkillsView({ board, summary }: { board: JobBoard; summary: strin
               <span id="gaps-title">Asked for, and not in your plan</span>
             </SectionTitle>
             <p className="max-w-3xl text-sm text-body">
-              Ranked by how many roles require it and how much you want those roles. A candidate for your plan, not an
-              instruction.
+              Ranked first by how many roles it would move up a band if you could show it, then by how many roles
+              require it and how much you want those roles. A candidate for your plan, not an instruction.
             </p>
-            <SkillTable rows={gaps.slice(0, 20)} empty="Nothing the roles ask for is missing from your plan." />
+            <SkillTable rows={gaps.slice(0, 20)} unlocks empty="Nothing the roles ask for is missing from your plan." />
           </section>
 
           <section aria-labelledby="coming-title" className="space-y-3">
             <SectionTitle>
               <span id="coming-title">Asked for, and coming in your plan</span>
             </SectionTitle>
-            <SkillTable rows={coming.slice(0, 20)} empty="Nothing in the roles on file is waiting on your plan." />
+            <SkillTable
+              rows={coming.slice(0, 20)}
+              unlocks
+              empty="Nothing in the roles on file is waiting on your plan."
+            />
           </section>
 
           <section aria-labelledby="showing-title" className="space-y-3">

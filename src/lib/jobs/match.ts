@@ -284,6 +284,8 @@ export type MarketRow = {
   soft: number;
   /** Must-have demand weighted by interest, times how far you are from it. */
   priority: number;
+  /** Roles that would move up a band if this skill alone were evidenced. */
+  unlocks: number;
   roles: { gid: string; title: string; company: string }[];
 };
 
@@ -296,7 +298,16 @@ export function marketRows(roles: readonly RoleInput[], standings: ReadonlyMap<s
       const standing = standings.get(r.skill);
       const skill = skillByKey(r.skill);
       if (!standing || !skill) continue;
-      const row = rows.get(r.skill) ?? { skill, standing, must: 0, soft: 0, priority: 0, roles: [], weight: 0 };
+      const row = rows.get(r.skill) ?? {
+        skill,
+        standing,
+        must: 0,
+        soft: 0,
+        priority: 0,
+        unlocks: 0,
+        roles: [],
+        weight: 0,
+      };
       if (r.level === "required" || r.level === "unstated") {
         row.must++;
         row.weight += weightOf(role);
@@ -308,12 +319,54 @@ export function marketRows(roles: readonly RoleInput[], standings: ReadonlyMap<s
       rows.set(r.skill, row);
     }
   }
+  const unlocks = skillUnlocks(roles, standings);
   return [...rows.values()]
-    .map(({ weight, ...row }) => ({ ...row, priority: Math.round(weight * DISTANCE[row.standing.status] * 100) / 100 }))
-    .sort((a, b) => b.priority - a.priority || b.must - a.must || b.soft - a.soft);
+    .map(({ weight, ...row }) => ({
+      ...row,
+      priority: Math.round(weight * DISTANCE[row.standing.status] * 100) / 100,
+      unlocks: unlocks.get(row.skill.key) ?? 0,
+    }))
+    .sort((a, b) => b.unlocks - a.unlocks || byDemand(a, b));
 }
 
+/** Most wanted first: must-have demand weighted by interest, times distance. */
+export const byDemand = (a: MarketRow, b: MarketRow) => b.priority - a.priority || b.must - a.must || b.soft - a.soft;
+
+/** The gap to learn next: the one that brings the most roles closer, then the most asked for. */
+export const biggestGapOf = (market: readonly MarketRow[]) =>
+  market.find((m) => m.standing.status === "missing" || m.standing.status === "near") ?? null;
+
 const BAND_RANK: Record<Band, number> = { ready: 4, by_date: 3, one_gap: 2, stretch: 1, unread: 0 };
+
+/**
+ * For each skill not yet evidenced, how many roles move up a band if that skill alone
+ * were evidenced. The same rule as roleFit, asked "what if", one skill at a time.
+ */
+export function skillUnlocks(
+  roles: readonly RoleInput[],
+  standings: ReadonlyMap<string, Standing>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  const bands = new Map<RoleInput, number>();
+  for (const role of roles) {
+    const keys = new Set(
+      role.requirements.filter((r) => r.level === "required" || r.level === "unstated").map((r) => r.skill),
+    );
+    for (const key of keys) {
+      const current = standings.get(key);
+      if (!current || current.status === "evidenced") continue;
+      if (!bands.has(role)) bands.set(role, BAND_RANK[roleFit(role.requirements, standings).band]);
+      const improved = new Map(standings).set(key, {
+        ...current,
+        status: "evidenced",
+        level: Math.max(current.level, 2),
+      });
+      const moved = BAND_RANK[roleFit(role.requirements, improved).band] > bands.get(role)!;
+      counts.set(key, (counts.get(key) ?? 0) + (moved ? 1 : 0));
+    }
+  }
+  return counts;
+}
 
 /** For each way the plan could go next, how many roles it matters to and how many it moves up. */
 export function branchImpact(roles: readonly RoleInput[], standings: ReadonlyMap<string, Standing>) {
