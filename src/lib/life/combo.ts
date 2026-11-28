@@ -478,6 +478,8 @@ function costOfPlaced(plan: WeekPlan, placed: Placement[], k: Kitchen): WeekCost
 export type ComboWeek = WeekCost & {
   /** The week's mains, in session order, with why each was picked. */
   cooks: Cook[];
+  /** The week's other cooks (its breakfast batch), grown to finish a pack when they can. */
+  rest?: Cook[];
 };
 
 const daysUntil = (a: string, b: string) =>
@@ -638,12 +640,16 @@ export function planCombo(input: {
   const byCost = [...all].sort((a, b) => costOf(a.cost) - costOf(b.cost) || b.score - a.score);
   const chosen = input.cheaper ? byCost[0] : [...all].sort((a, b) => b.score - a.score)[0];
 
-  const mains = roundToPacks(withMains(mainsOf(chosen.picks)), k, chosen.cost);
+  const rounded = roundToPacks(withMains(mainsOf(chosen.picks)), k, chosen.cost);
   const cheapest = byCost[0];
   const offer =
-    !input.cheaper && cheapest !== chosen && costOf(mains.cost) - costOf(cheapest.cost) >= 50 ? cheapest : null;
+    !input.cheaper && cheapest !== chosen && costOf(rounded.cost) - costOf(cheapest.cost) >= 50 ? cheapest : null;
   return {
-    week: { ...mains.cost, cooks: explain(mains.cooks, ranked, k) },
+    week: {
+      ...rounded.cost,
+      cooks: explain(rounded.cooks.filter(isMain), ranked, k),
+      rest: rounded.cooks.filter((c) => !isMain(c)).map((c) => withBiggerWhy(c, k)),
+    },
     cheaper: offer ? { ...offer.cost, cooks: mainsOf(offer.picks) } : null,
   };
 }
@@ -651,20 +657,23 @@ export function planCombo(input: {
 const isMain = (c: Cook) => recipe(c.recipe)?.meal === "main";
 
 /**
- * Whole packs: a main that is the only user of a fresh pack with some left grows by
- * up to 15% to finish it (`Cook.round`), when the rest of what it needs more of is
- * left over too. A bigger portion suits a bulk; it is kept only when the week then
- * costs no more and wastes less. Returns the week's mains and what the week costs.
+ * Whole packs: when a fresh pack has some left, the dishes that use it (mains and the
+ * breakfast batch alike) each grow by the same share, up to 15%, to finish it
+ * (`Cook.round`), when the rest of what they need more of is left over too. Shakes,
+ * meals made fresh and the cooks in `fixed` (cooked already) stay as they are but
+ * still count as uses. A dish grows at most once. A bigger portion suits a bulk; it is
+ * kept only when the week then costs no more and wastes less. Returns the week's
+ * cooks, in the plan's order, and what the week costs.
  */
 export function roundToPacks(
   plan: WeekPlan,
   k: Kitchen,
   cost: WeekCost = weekCost(plan, k),
+  fixed: ReadonlySet<string> = new Set(),
 ): { cooks: Cook[]; cost: WeekCost } {
   const sized: WeekPlan = { ...plan, cooks: sizeCooks(plan, k.routine, k.kcal, k.batches) };
   const placed = assign(sized, k.routine, k.batches, k.kcal);
   const needs = weekNeeds(sized, placed);
-  const mains = sized.cooks.filter(isMain);
   // Left over at the end of the week, by ingredient, as the list buys it.
   const left = new Map<string, number>();
   const list = buildList(needs, k.stock, k.products, k.rules, null);
@@ -674,41 +683,90 @@ export function roundToPacks(
     for (const l of linesFor(recipe(c.recipe)!, c.portions, c.scale)) m.set(l.item, (m.get(l.item) ?? 0) + l.qty);
     return m;
   };
-  const users = new Map<string, number>();
-  for (const n of needs) users.set(n.item, n.uses.length);
+  const growable = sized.cooks
+    .filter((c) => !fixed.has(c.id) && recipe(c.recipe) && c.portions > 0)
+    .map((c) => ({ id: c.id, uses: usesOf(c) }));
   const round = new Map<string, number>();
-  for (const c of mains) {
-    const uses = usesOf(c);
-    const options = [...uses]
-      .map(([item, qty]) => ({ item, qty, it: comboItem(item, k) }))
-      .filter((o) => o.it?.perishable && users.get(o.item) === 1 && (left.get(o.item) ?? 0) > 1e-6 && o.qty > 0)
-      .map((o) => ({
-        ...o,
-        f: (o.qty + left.get(o.item)!) / o.qty,
-        value: (left.get(o.item)! / o.it!.perPack) * o.it!.pence,
-      }))
-      .filter((o) => o.f > 1 + 1e-6 && o.f <= ROUND_MAX)
-      .sort((a, b) => b.value - a.value);
-    for (const o of options) {
-      const fits = [...uses].every(([item, qty]) => {
-        if (item === o.item || INGREDIENTS.get(item)?.staple) return true;
-        return (left.get(item) ?? 0) + 1e-6 >= (o.f - 1) * qty;
-      });
-      if (!fits) continue;
-      for (const [item, qty] of uses) if (left.has(item)) left.set(item, left.get(item)! - (o.f - 1) * qty);
-      round.set(c.id, Math.round(o.f * 1000) / 1000);
-      break;
-    }
+  const options = [...left]
+    .map(([item, spare]) => ({ item, spare, it: comboItem(item, k) }))
+    .filter((o) => o.it?.perishable && o.spare > 1e-6)
+    .sort((a, b) => (b.spare / b.it!.perPack) * b.it!.pence - (a.spare / a.it!.perPack) * a.it!.pence);
+  for (const o of options) {
+    const spare = left.get(o.item)!;
+    if (spare <= 1e-6) continue;
+    const group = growable.filter((c) => !round.has(c.id) && (c.uses.get(o.item) ?? 0) > 0);
+    const used = group.reduce((t, c) => t + c.uses.get(o.item)!, 0);
+    if (!group.length || used <= 0) continue;
+    const f = 1 + spare / used;
+    if (f > ROUND_MAX) continue;
+    // What the group needs more of, item by item, must be left over too.
+    const more = new Map<string, number>();
+    for (const c of group)
+      for (const [item, qty] of c.uses)
+        if (!INGREDIENTS.get(item)?.staple) more.set(item, (more.get(item) ?? 0) + (f - 1) * qty);
+    const fits = [...more].every(([item, extra]) => item === o.item || (left.get(item) ?? 0) + 1e-6 >= extra);
+    if (!fits) continue;
+    for (const [item, extra] of more) if (left.has(item)) left.set(item, left.get(item)! - extra);
+    for (const c of group) round.set(c.id, Math.round(f * 1000) / 1000);
   }
-  if (!round.size) return { cooks: plan.cooks.filter(isMain), cost };
+  if (!round.size) return { cooks: plan.cooks, cost };
   const rounded: WeekPlan = {
     ...plan,
     cooks: plan.cooks.map((c) => (round.has(c.id) ? { ...c, round: round.get(c.id) } : c)),
   };
   const after = weekCost(rounded, k);
   return after.pence <= cost.pence && after.waste < cost.waste
-    ? { cooks: rounded.cooks.filter(isMain), cost: after }
-    : { cooks: plan.cooks.filter(isMain), cost };
+    ? { cooks: rounded.cooks, cost: after }
+    : { cooks: plan.cooks, cost };
+}
+
+const BIGGER = "Portions ";
+const isBiggerWhy = (w: string) => w.startsWith(BIGGER) && w.includes("% bigger to finish the ");
+
+/** "Portions 8% bigger to finish the spinach", for a cook grown to finish a pack. */
+function biggerWhy(c: Cook, k: Kitchen): string | null {
+  if (!c.round || c.round <= 1) return null;
+  const r = recipe(c.recipe)!;
+  const main = r.lines.find((l) => comboItem(l.item, k)?.perishable);
+  const key = main?.item ?? r.lines[0].item;
+  return `${BIGGER}${Math.round((c.round - 1) * 100)}% bigger to finish the ${(INGREDIENTS.get(key)?.name ?? key).toLowerCase()}`;
+}
+
+/** A cook's reasons with the whole-pack one put right for its round now. */
+function withBiggerWhy(c: Cook, k: Kitchen): Cook {
+  const kept = (c.why ?? []).filter((w) => !isBiggerWhy(w));
+  const why = [biggerWhy(c, k), ...kept].filter((w): w is string => Boolean(w)).slice(0, 2);
+  const out = { ...c };
+  if (why.length) out.why = why;
+  else delete out.why;
+  return out;
+}
+
+/** A cook without its whole-pack round, or the reason that went with it. */
+export function withoutRound(c: Cook): Cook {
+  const { round: _old, ...rest } = c;
+  const why = (rest.why ?? []).filter((w) => !isBiggerWhy(w));
+  if (why.length) rest.why = why;
+  else delete rest.why;
+  return rest;
+}
+
+/**
+ * Whole packs worked out again after an edit that sizes cooks afresh (a moved
+ * session): the old rounds were for other portions, so they go from every cook not
+ * in `cooked`, with their "bigger" reasons, and `roundToPacks` rounds the week again.
+ * Returns the plan with its cooks put right.
+ */
+export function roundAgain(plan: WeekPlan, k: Kitchen, cooked: ReadonlySet<string> = new Set()): WeekPlan {
+  const cleared: WeekPlan = {
+    ...plan,
+    cooks: plan.cooks.map((c) => {
+      if (cooked.has(c.id) || c.round === undefined) return c;
+      return withoutRound(c);
+    }),
+  };
+  const { cooks } = roundToPacks(cleared, goodFrom(k, plan.start), undefined, cooked);
+  return { ...cleared, cooks: cooks.map((c) => (cooked.has(c.id) ? c : withBiggerWhy(c, k))) };
 }
 
 /** Why each main is in the week: a bigger portion to finish a pack, food shared, food used up, or the menu's reason. */
@@ -723,12 +781,8 @@ function explain(mains: Cook[], ranked: Ranked[], k: Kitchen): Cook[] {
   return mains.map((c) => {
     const why: string[] = [];
     const r = recipe(c.recipe)!;
-    if (c.round && c.round > 1) {
-      const main = r.lines.find((l) => comboItem(l.item, k)?.perishable);
-      why.push(
-        `Portions ${Math.round((c.round - 1) * 100)}% bigger to finish the ${name(main?.item ?? r.lines[0].item)}`,
-      );
-    }
+    const bigger = biggerWhy(c, k);
+    if (bigger) why.push(bigger);
     const mine = fresh(c);
     let partner: { cook: Cook; shared: string[] } | null = null;
     for (const o of mains) {

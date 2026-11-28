@@ -652,7 +652,7 @@ export function sizeCooks(plan: WeekPlan, routine: Routine, kcal: number, stock:
         return {
           ...c,
           portions: c.portions || breakfastPortions(plan, c, r),
-          scale: portionScale(r, kcal * SPLIT.breakfast),
+          scale: portionScale(r, kcal * SPLIT.breakfast) * (c.round ?? 1),
         };
       const main: Cook = { ...c, portions: sizes.get(c.id) ?? c.portions, scale: cookScale(r, kcal) * (c.round ?? 1) };
       // Its share of next week's first meals that are still in date then stays in the fridge.
